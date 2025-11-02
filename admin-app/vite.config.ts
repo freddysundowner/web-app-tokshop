@@ -8,12 +8,12 @@ export default defineConfig({
     react(),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== "production" &&
-      process.env.REPL_ID !== undefined
+    process.env.REPL_ID !== undefined
       ? [
-        await import("@replit/vite-plugin-cartographer").then((m) =>
-          m.cartographer(),
-        ),
-      ]
+          await import("@replit/vite-plugin-cartographer").then((m) =>
+            m.cartographer(),
+          ),
+        ]
       : []),
   ],
   resolve: {
@@ -28,7 +28,12 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     rollupOptions: {
-      external: ['drizzle-orm', 'drizzle-orm/pg-core'],
+      external: ['drizzle-orm', 'drizzle-orm/pg-core', 'drizzle-zod'],
+      onwarn(warning, warn) {
+        // Suppress UNRESOLVED_IMPORT warnings for external modules
+        if (warning.code === 'UNRESOLVED_IMPORT') return;
+        warn(warning);
+      },
     },
   },
   server: {
