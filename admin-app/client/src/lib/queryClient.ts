@@ -73,6 +73,14 @@ export async function apiRequest(
   const userToken = localStorage.getItem('accessToken');
   const userData = localStorage.getItem('user');
   
+  // Debug logging for /api/admin/users
+  if (url.includes('/api/admin/users')) {
+    console.log('[apiRequest] Calling /api/admin/users:');
+    console.log('  - adminAccessToken:', adminToken ? 'present' : 'missing');
+    console.log('  - accessToken:', userToken ? 'present' : 'missing');
+    console.log('  - user:', userData ? 'present' : 'missing');
+  }
+  
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
   
   // Send admin token if available (for admin routes)
@@ -88,6 +96,10 @@ export async function apiRequest(
   // Send user data for session restoration (base64 encoded to handle UTF-8 characters)
   if (userData) {
     headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+  }
+  
+  if (url.includes('/api/admin/users')) {
+    console.log('  - Headers:', Object.keys(headers));
   }
   
   const res = await fetch(apiUrl, {
@@ -126,6 +138,13 @@ export const getQueryFn: <T>(options: {
         if (searchTitle) queryParams.set('title', String(searchTitle));
         if (searchType) queryParams.set('type', String(searchType));
       }
+      // For admin users: [page, limit, searchQuery]
+      else if (endpoint === '/api/admin/users' && params.length >= 2) {
+        const [page, limit, searchQuery] = params;
+        if (page) queryParams.set('page', String(page));
+        if (limit) queryParams.set('limit', String(limit));
+        if (searchQuery) queryParams.set('title', String(searchQuery));
+      }
       // For other endpoints that use userId pattern
       else if (params[0] && typeof params[0] === 'string') {
         queryParams.set('userId', params[0]);
@@ -139,6 +158,14 @@ export const getQueryFn: <T>(options: {
     const adminToken = localStorage.getItem('adminAccessToken');
     const userToken = localStorage.getItem('accessToken');
     const userData = localStorage.getItem('user');
+    
+    // Debug logging for /api/admin/users
+    if (endpoint === '/api/admin/users') {
+      console.log('[QueryClient] Fetching /api/admin/users:');
+      console.log('  - adminAccessToken:', adminToken ? 'present' : 'missing');
+      console.log('  - accessToken:', userToken ? 'present' : 'missing');
+      console.log('  - user:', userData ? 'present' : 'missing');
+    }
     
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -157,6 +184,10 @@ export const getQueryFn: <T>(options: {
     // Send user data for session restoration (base64 encoded to handle UTF-8 characters)
     if (userData) {
       headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+    }
+    
+    if (endpoint === '/api/admin/users') {
+      console.log('  - Headers:', Object.keys(headers));
     }
     
     const res = await fetch(apiUrl, {

@@ -3,7 +3,8 @@
 echo "🎁 Creating distribution packages..."
 echo ""
 
-# Create packages directory
+# Clean packages directory
+rm -rf packages
 mkdir -p packages
 
 # ============================================
@@ -25,64 +26,55 @@ echo "  ✅ Marketplace app copied"
 cp -r shared-backend packages/web-full-platform/
 echo "  ✅ Shared backend copied"
 
-# Copy attached assets
-cp -r attached_assets packages/web-full-platform/
-echo "  ✅ Assets copied"
-
-# Copy root config files
-cp package.json packages/web-full-platform/
-cp package-lock.json packages/web-full-platform/
+# Copy only necessary root config files (NOT vite.config.ts or postcss.config.js)
 cp tsconfig.json packages/web-full-platform/
 echo "  ✅ Config files copied"
 
-# Create run scripts
-cat > packages/web-full-platform/run-admin.sh << 'EOF'
-#!/bin/bash
-cd admin-app && npm run dev
-EOF
+# Remove any root vite.config.ts or postcss.config.js that might interfere
+rm -f packages/web-full-platform/vite.config.ts
+rm -f packages/web-full-platform/postcss.config.js
 
-cat > packages/web-full-platform/run-marketplace.sh << 'EOF'
-#!/bin/bash
-cd marketplace-app && npm run dev
-EOF
-
-cat > packages/web-full-platform/run-both.sh << 'EOF'
+# Create installation script
+cat > packages/web-full-platform/install-all.sh << 'EOF'
 #!/bin/bash
 
-echo "🚀 Starting Icona Live Shopping Platform..."
-echo ""
-echo "Admin Panel will run on: http://localhost:5000"
-echo "Marketplace will run on: http://localhost:5001"
-echo ""
-echo "Press Ctrl+C to stop both servers"
+echo "📦 Installing and Building ALL Apps (Admin + Marketplace)..."
 echo ""
 
-# Function to cleanup background processes
-cleanup() {
-    echo ""
-    echo "🛑 Stopping servers..."
-    kill $ADMIN_PID $MARKETPLACE_PID 2>/dev/null
-    exit 0
-}
+# Install shared backend dependencies
+echo "1️⃣ Installing shared-backend dependencies..."
+cd shared-backend
+npm install
+cd ..
 
-trap cleanup EXIT INT TERM
+# Install and build admin app
+echo ""
+echo "2️⃣ Installing admin-app dependencies..."
+cd admin-app
+npm install
+echo "   Building admin-app..."
+npm run build
+cd ..
 
-# Start admin in background
-cd admin-app && npm run dev &
-ADMIN_PID=$!
+# Install and build marketplace app
+echo ""
+echo "3️⃣ Installing marketplace-app dependencies..."
+cd marketplace-app
+npm install
+echo "   Building marketplace-app..."
+npm run build
+cd ..
 
-# Start marketplace in background
-cd marketplace-app && npm run dev &
-MARKETPLACE_PID=$!
-
-# Wait for both processes
-wait
+echo ""
+echo "✅ All apps installed and built successfully!"
+echo ""
+echo "🚀 Ready to deploy! Start the apps with PM2:"
+echo "  cd admin-app && pm2 start npm --name 'tokshop-admin' -- run dev"
+echo "  cd marketplace-app && pm2 start npm --name 'tokshop-marketplace' -- run dev"
 EOF
 
-chmod +x packages/web-full-platform/run-admin.sh
-chmod +x packages/web-full-platform/run-marketplace.sh
-chmod +x packages/web-full-platform/run-both.sh
-echo "  ✅ Run scripts created"
+chmod +x packages/web-full-platform/install-all.sh
+echo "  ✅ Installation script created"
 
 # Copy README from deployment guide
 cp DEPLOY-WEB-FULL-PLATFORM.md packages/web-full-platform/README.md
@@ -106,24 +98,45 @@ echo "  ✅ Admin app copied"
 cp -r shared-backend packages/admin-for-flutter/
 echo "  ✅ Shared backend copied"
 
-# Copy attached assets
-cp -r attached_assets packages/admin-for-flutter/
-echo "  ✅ Assets copied"
-
-# Copy root config files
-cp package.json packages/admin-for-flutter/
-cp package-lock.json packages/admin-for-flutter/
+# Copy only necessary root config files (NOT vite.config.ts or postcss.config.js)
 cp tsconfig.json packages/admin-for-flutter/
 echo "  ✅ Config files copied"
 
-# Create run script
-cat > packages/admin-for-flutter/run-admin.sh << 'EOF'
+# Remove any root vite.config.ts or postcss.config.js that might interfere
+rm -f packages/admin-for-flutter/vite.config.ts
+rm -f packages/admin-for-flutter/postcss.config.js
+
+# Create installation script
+cat > packages/admin-for-flutter/install.sh << 'EOF'
 #!/bin/bash
-cd admin-app && npm run dev
+
+echo "📦 Installing and Building Admin App..."
+echo ""
+
+# Install shared backend dependencies
+echo "1️⃣ Installing shared-backend dependencies..."
+cd shared-backend
+npm install
+cd ..
+
+# Install and build admin app
+echo ""
+echo "2️⃣ Installing admin-app dependencies..."
+cd admin-app
+npm install
+echo "   Building admin-app..."
+npm run build
+cd ..
+
+echo ""
+echo "✅ Admin app installed and built successfully!"
+echo ""
+echo "🚀 Ready to deploy! Start the app with PM2:"
+echo "  cd admin-app && pm2 start npm --name 'tokshop-admin-panel' -- run dev"
 EOF
 
-chmod +x packages/admin-for-flutter/run-admin.sh
-echo "  ✅ Run script created"
+chmod +x packages/admin-for-flutter/install.sh
+echo "  ✅ Installation script created"
 
 # Copy README from deployment guide
 cp DEPLOY-ADMIN-FOR-FLUTTER.md packages/admin-for-flutter/README.md

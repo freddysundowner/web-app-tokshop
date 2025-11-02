@@ -3,7 +3,6 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../../vite.config";
 import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
@@ -30,17 +29,13 @@ export async function setupVite(app: Express, server: Server) {
   const clientRoot = path.resolve(process.cwd(), "client");
   console.log('[Vite] Using client root:', clientRoot);
 
+  // Load the app's vite.config.ts dynamically
+  const appRoot = process.cwd();
+  const viteConfigPath = path.resolve(appRoot, "vite.config.ts");
+  
   const vite = await createViteServer({
-    ...viteConfig,
-    root: clientRoot, // Override root to use current app's client folder
-    resolve: {
-      ...viteConfig.resolve,
-      alias: {
-        ...viteConfig.resolve.alias,
-        "@": path.resolve(clientRoot, "src"), // Override @ alias for current app
-      },
-    },
-    configFile: false,
+    root: clientRoot,
+    configFile: viteConfigPath, // Use the app's vite.config.ts
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {

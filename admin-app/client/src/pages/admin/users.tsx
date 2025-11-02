@@ -29,9 +29,6 @@ export default function AdminUsers() {
     }
   }, [user?.admin, setLocation]);
 
-  // Build query string with pagination and search
-  const queryString = `/api/admin/users?page=${page}&limit=${limit}${searchQuery ? `&title=${encodeURIComponent(searchQuery)}` : ''}`;
-
   const { data: usersData, isLoading } = useQuery<{ 
     success: boolean; 
     data: {
@@ -43,12 +40,14 @@ export default function AdminUsers() {
   }>({
     queryKey: ['/api/admin/users', page, limit, searchQuery],
     queryFn: async () => {
-      const response = await fetch(queryString, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
+      // Build query string
+      const queryParams = new URLSearchParams();
+      queryParams.set('page', String(page));
+      queryParams.set('limit', String(limit));
+      if (searchQuery) queryParams.set('title', searchQuery);
+      
+      const url = `/api/admin/users?${queryParams.toString()}`;
+      const response = await apiRequest('GET', url);
       return await response.json();
     },
   });

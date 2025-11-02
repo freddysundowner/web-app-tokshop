@@ -36,6 +36,16 @@ app.use((req, res, next) => {
   const adminToken = req.headers['x-admin-token'] as string;
   const userData = req.headers['x-user-data'] as string;
   
+  // Debug logging for /api/admin/users requests
+  if (req.path === '/api/admin/users') {
+    console.log('[Session Restoration] /api/admin/users request:');
+    console.log('  - x-admin-token:', adminToken ? 'present' : 'missing');
+    console.log('  - x-access-token:', accessToken ? 'present' : 'missing');
+    console.log('  - x-user-data:', userData ? 'present' : 'missing');
+    console.log('  - session.user:', req.session.user ? 'exists' : 'empty');
+    console.log('  - session.accessToken:', req.session.accessToken ? 'exists' : 'empty');
+  }
+  
   // Restore regular user session from headers
   if (accessToken && !req.session.accessToken) {
     req.session.accessToken = accessToken;
@@ -51,7 +61,12 @@ app.use((req, res, next) => {
     try {
       // Decode from base64 (UTF-8)
       const decoded = Buffer.from(userData, 'base64').toString('utf8');
-      req.session.user = JSON.parse(decoded);
+      const parsedUser = JSON.parse(decoded);
+      req.session.user = parsedUser;
+      
+      if (req.path === '/api/admin/users') {
+        console.log('  - Restored user:', { admin: parsedUser.admin, id: parsedUser.id });
+      }
     } catch (e) {
       console.error('Failed to parse user data from header:', e);
     }
