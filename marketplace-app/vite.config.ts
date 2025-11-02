@@ -27,14 +27,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      external: ['drizzle-orm', 'drizzle-orm/pg-core', 'drizzle-zod'],
-      onwarn(warning, warn) {
-        // Suppress UNRESOLVED_IMPORT warnings for external modules
-        if (warning.code === 'UNRESOLVED_IMPORT') return;
-        warn(warning);
-      },
-    },
   },
   server: {
     fs: {
