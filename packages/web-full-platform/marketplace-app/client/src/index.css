@@ -141,19 +141,19 @@
   .hover-elevate {
     @apply transition-colors duration-200;
   }
-
+  
   .hover-elevate:hover {
     @apply brightness-95;
   }
-
+  
   .active-elevate-2:active {
     @apply brightness-90;
   }
-
+  
   .no-default-hover-elevate:hover {
     @apply brightness-100;
   }
-
+  
   .no-default-active-elevate:active {
     @apply brightness-100;
   }
@@ -162,7 +162,7 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-
+  
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
