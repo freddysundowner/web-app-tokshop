@@ -118,16 +118,23 @@ cd /var/www
 git clone YOUR_REPOSITORY_URL web-full-platform
 ```
 
-**Install dependencies:**
+**Install dependencies and build both applications:**
 
 ```bash
-# On your droplet
+# On your droplet, navigate to the package directory
 cd /var/www/web-full-platform
-npm install
 
-# Build both applications
-cd admin-app && npm run build && cd ..
-cd marketplace-app && npm run build && cd ..
+# Install dependencies and build Admin app
+cd admin-app
+npm install
+npm run build
+cd ..
+
+# Install dependencies and build Marketplace app
+cd marketplace-app
+npm install
+npm run build
+cd ..
 ```
 
 ---

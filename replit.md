@@ -1,224 +1,308 @@
-# Overview
+# Icona - Live Streaming Marketplace Platform
 
-**Icona Live Shopping** is a comprehensive marketplace platform that combines live-streaming, auctions, and e-commerce. The platform consists of two separate applications that share a backend during development but are packaged and sold independently:
+## Overview
 
-1. **Admin Application** - Administrative panel for platform management (sold with mobile app)
-2. **Marketplace Application** - Complete seller dashboard + buyer marketplace (sold separately as web platform)
+Icona is a full-stack live streaming marketplace platform that connects sellers and buyers through interactive video commerce. The application enables sellers to broadcast live shows, showcase products in real-time, and process transactions while viewers can browse, purchase, and interact during live streams.
 
-The project uses a modern full-stack architecture with React + TypeScript frontend, Express backend, Socket.IO for real-time features, and integrates with an external API (https://api.iconaapp.com) for core backend services.
+**Core Purpose**: Enable a marketplace ecosystem where sellers can conduct live shopping experiences and buyers can discover products through live video streams.
 
-## Recent Updates (November 1, 2025)
+**Technology Stack**:
+- Frontend: React with TypeScript, Vite build system
+- Backend: Express.js (referenced but shared across apps)
+- Database: PostgreSQL with Drizzle ORM
+- Real-time: LiveKit for video streaming, Socket.IO for chat/interactions
+- Styling: Tailwind CSS with shadcn/ui component library
+- State Management: TanStack Query (React Query)
+- Authentication: Firebase Auth with social providers
+- Payments: Stripe integration
 
-- **Payouts Page Enhancements:**
-  - Removed Payout ID column, added Bank destination column showing bank name and last 4 digits
-  - Added pagination (10 items per page) with server-side `has_more` support
-  - Removed redundant Bank Account Information section at bottom
-  - Added comprehensive filters: Status (Paid, Pending, In Transit, Canceled, Failed), Date Range (From/To)
-  - Backend now passes filter parameters to external API endpoint `/stripe/transactions/all/payouts`
-  - Backend returns `has_more` flag from API to indicate if additional pages exist
-  - Pagination displays "10+" when more data is available, "Page 1+" when on first page with more data
-  - Next button enabled when `has_more` is true
-  - Reset filters button appears when filters are active
+## Recent Changes
 
-## Multi-App Architecture
+### Build System Fixes (November 2024)
 
-**Development Structure:**
-```
-/
-├── shared-backend/        # Shared server code (edited once, used by both apps)
-│   ├── server/           # Express server, routes, Socket.IO  
-│   ├── shared/           # Shared types and schemas
-│   └── drizzle.config.ts
-├── admin-app/            # Admin panel application
-│   ├── client/           # React frontend (admin only)
-│   └── server.ts         # Entry point that imports shared-backend
-├── marketplace-app/      # Marketplace application
-│   ├── client/           # React frontend (seller + buyer)
-│   └── server.ts         # Entry point that imports shared-backend
-├── run-admin.sh          # Run admin app on port 5000
-├── run-marketplace.sh    # Run marketplace app on port 5001
-├── run-both.sh           # Run both apps simultaneously
-└── package-for-sale.sh   # Package each app with backend for distribution
-```
+**Critical Issues Resolved**:
 
-**Key Architectural Decisions:**
-- **Shared Backend**: During development, both apps use `shared-backend/` via their server.ts entry points
-- **Symlinked Dependencies**: Both apps symlink to root node_modules due to Replit constraints
-- **Independent Frontends**: Each app has completely separate React frontends with distinct routes
-- **Packaging**: `package-for-sale.sh` creates standalone packages (admin-app-standalone, marketplace-app-standalone) each with backend included
+1. **Marketplace App Build Failure**
+   - **Problem**: `tailwind.config.ts` had syntax error preventing builds
+   - **Solution**: Copied working configuration from admin-app
+   - **Impact**: marketplace-app now builds successfully in all contexts
 
-## Admin Application Features
+2. **PostCSS Configuration**
+   - **Problem**: Apps were missing `postcss.config.js`, causing CSS processing issues
+   - **Solution**: Created `postcss.config.js` at root and ensured it's copied to each app during packaging
+   - **Files Modified**: `create-packages.sh` now copies postcss config to all apps
 
-The admin application (`admin-app/`) provides platform management capabilities:
+3. **Package Deployment Instructions**
+   - **Problem**: README files instructed to run `npm install` at package root (no package.json exists there)
+   - **Solution**: Updated both `DEPLOY-WEB-FULL-PLATFORM.md` and `DEPLOY-ADMIN-FOR-FLUTTER.md` with correct instructions
+   - **Correct Flow**: Navigate to each app directory → run `npm install` → run `npm run build`
 
-**Routes & Pages:**
-- `/admin/login` - Admin authentication
-- `/admin/dashboard` - Platform analytics and overview
-- `/admin/users` - User management (buyers and sellers)
-- `/admin/orders` - Order tracking and management
-- `/admin/disputes` - Dispute resolution system
-- `/admin/reported-cases` - User-reported content
-- `/admin/shows` - Live show management
-- `/admin/inventory` - Platform-wide inventory oversight
-- `/admin/categories` - Category and subcategory management
-- `/admin/settings` - Platform configuration
-- `/admin/profile` - Admin profile with edit and password change capabilities
+4. **Dependency Resolution**
+   - **Problem**: Apps couldn't find dependencies when server changed to app directory
+   - **Solution**: Created `node_modules` symlinks in each app pointing to root `node_modules/`
+   - **Why Needed**: Express server uses `process.cwd()` which changes working directory
 
-**Key Components:**
-- Admin-only authentication system
-- Analytics dashboards with charts and metrics
-- Data tables with search, filter, sort
-- Dispute management workflow
-- User moderation tools
-- Editable admin profile with password change functionality
+**Build Status**:
+- ✅ admin-app builds successfully (root, web-full-platform, admin-for-flutter)
+- ✅ marketplace-app builds successfully (root, web-full-platform)
+- ✅ All deployment packages verified working
 
-## Marketplace Application Features
-
-The marketplace application (`marketplace-app/`) serves both sellers and buyers:
-
-**Seller Dashboard Routes:**
-- `/seller/dashboard` - Sales analytics and overview
-- `/seller/products` - Inventory management
-- `/seller/live-show` - Live streaming controls
-- `/seller/auctions` - Auction creation and management
-- `/seller/orders` - Order fulfillment
-- `/seller/profile` - Seller profile settings
-
-**Buyer Marketplace Routes:**
-- `/` - Homepage with featured products and live shows
-- `/marketplace` - Browse all products
-- `/live` - Current live shopping shows
-- `/auctions` - Active auctions
-- `/product/:id` - Product details
-- `/profile` - User profile and settings
-- `/orders` - Order history
-- `/cart` - Shopping cart
-- `/checkout` - Payment flow
-
-**Real-Time Features:**
-- Live video streaming (LiveKit integration)
-- Live chat during shows (Socket.IO)
-- Real-time auction bidding
-- Viewer counts and reactions
-- Instant notifications
-
-# User Preferences
+## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-# System Architecture
+## System Architecture
 
-## Frontend Architecture
+### Monorepo Structure
 
-**Framework & Build System:**
-- React 18 with TypeScript for type-safe component development
-- Vite as the build tool and development server, providing fast HMR and optimized production builds
-- Wouter for lightweight client-side routing (replacing heavier alternatives like React Router)
+**Decision**: Multi-app monorepo with deployment packaging system
+- **Rationale**: Separate apps for different deployment scenarios - full web platform vs admin-only for Flutter mobile
+- **Root Structure**:
+  - `admin-app/` - Admin panel for platform management (port 5000)
+  - `marketplace-app/` - Buyer/seller marketplace and seller dashboard (port 5001)  
+  - `shared-backend/` - Shared Express API routes and business logic
+  - `packages/` - Generated deployment packages (created by `create-packages.sh`)
+- **Deployment Packages**:
+  - `web-full-platform/` - Both admin + marketplace apps for complete web deployment
+  - `admin-for-flutter/` - Admin panel only, pairs with Flutter mobile app
+- **Dependency Management**:
+  - All dependencies installed at root level (`node_modules/`)
+  - Each app has `node_modules` symlink pointing to root
+  - Required for Express server which changes to app directory via `process.cwd()`
 
-**UI Component System:**
-- shadcn/ui component library built on Radix UI primitives
-- Tailwind CSS for utility-first styling with custom design tokens
-- Component configuration uses "new-york" style variant
-- Custom CSS variables for theming (light/dark mode support configured)
-- Design system emphasizes minimalism with precise spacing (4, 8, 16px units)
+### Frontend Architecture
 
-**State Management:**
-- TanStack Query (React Query) for server state management
-- Custom query client configured with infinite stale time and disabled automatic refetching
-- Toast notifications for user feedback via Radix UI Toast primitives
+**Decision**: Component-based React SPA with client-side routing
+- **Rationale**: Provides interactive, app-like experience needed for live streaming features
+- **Implementation**:
+  - Wouter for lightweight routing
+  - Route structure separates marketplace (buyer), seller, and account flows
+  - Component library (shadcn/ui) provides 50+ pre-built UI components for consistent design
 
-**Rationale:** The combination of Vite + React + shadcn/ui provides a modern developer experience with fast builds, reusable accessible components, and minimal bundle size. TanStack Query handles async state elegantly without requiring additional global state management.
+**Key Routes**:
+- Marketplace: `/`, `/browse`, `/category/:id`, `/search`, `/show/:id`, `/product/:id`
+- Seller: `/seller/inventory`, `/seller/live-shows`, `/seller/analytics`, `/seller/shipping`
+- Account: `/profile`, `/settings`, `/payments`, `/addresses`, `/orders`
+- Auth: `/login`, `/signup`, `/seller-login`
 
-## Backend Architecture
+### Backend Architecture
 
-**Shared Backend Design:**
-The backend (`shared-backend/`) is edited once and used by both applications:
+**Decision**: Express.js server with shared backend pattern
+- **Rationale**: Both apps import from `shared-backend/server/index` for API routes, avoiding code duplication
+- **Port Configuration**: 
+  - Admin app: port 5000
+  - Marketplace app: port 5001
+- **Build Process**: ESBuild bundles each app's server for production with external packages
+- **Server Entry Points**:
+  - Root `server/index.ts` changes to `admin-app/` directory and imports `admin-app/server.ts`
+  - `admin-app/server.ts` and `marketplace-app/server.ts` each import shared backend
+  - Vite configuration uses `process.cwd()` to determine which client folder to serve
 
-- **Location**: `shared-backend/server/index.ts` - Main Express server
-- **Entry Points**: Each app has `server.ts` that imports and starts the shared backend
-- **Routes**: Comprehensive API in `shared-backend/server/routes.ts`
-- **Real-Time**: Socket.IO configured in `shared-backend/server/socket.ts`
+### Database Layer
 
-**Server Framework:**
-- Express.js running on Node.js with TypeScript
-- ESM module system throughout the codebase
-- Socket.IO for real-time features (live chat, notifications, viewer counts)
-- Custom middleware for request logging and JSON parsing
+**Decision**: PostgreSQL with Drizzle ORM
+- **Rationale**: Type-safe database access with Drizzle provides excellent TypeScript integration
+- **Schema Location**: `shared/schema.ts` contains database schemas shared between client and server
+- **Migration Strategy**: Drizzle Kit manages migrations in `./migrations` directory
+- **Current Schema**: Basic user table with username/password authentication (extensible for marketplace entities)
 
-**External API Integration:**
-- Primary backend: https://api.iconaapp.com
-- Local server proxies requests and adds real-time capabilities
-- Authentication tokens managed in localStorage
-- API calls use axios with proper error handling
+**Drizzle Configuration**:
+```typescript
+dialect: "postgresql"
+schema: "./shared/schema.ts"
+migrations: "./migrations"
+```
 
-**Development vs Production:**
-- Development: Vite dev server integrated as Express middleware for HMR
-- Each app runs on different port (admin: 5000, marketplace: 5001)
-- Production: Pre-built static assets served from `dist/public`
+### Real-time Video Streaming
 
-**API Structure:**
-- RESTful API pattern with `/api` prefix
-- Routes organized by domain: auth, products, orders, auctions, users, etc.
-- Socket.IO events: chat, viewers, reactions, notifications
-- File upload support via multer middleware
+**Decision**: LiveKit integration for video infrastructure
+- **Rationale**: LiveKit provides scalable, low-latency video streaming ideal for live shopping
+- **Implementation**: `LiveKitVideoPlayer` component wraps LiveKit React SDK
+- **Features**: 
+  - Camera and screen share support
+  - GPU-accelerated rendering
+  - Room-based architecture for live shows
+  - Audio rendering for viewers
 
-**Rationale:** The shared backend approach allows DRY development (edit once, both apps benefit) while maintaining the ability to package separately for sale. Express + Socket.IO provides robust real-time capabilities needed for live shopping features.
+### Authentication System
 
-## Data Storage Solutions
+**Decision**: Multi-provider authentication with Firebase + custom backend
+- **Rationale**: Firebase handles OAuth complexity while custom backend manages user profiles
+- **Flow**:
+  1. User authenticates via Firebase (social or email/password)
+  2. Frontend sends auth token to backend
+  3. Backend creates/updates user profile in PostgreSQL
+  4. Session managed via cookies (`credentials: "include"`)
+- **Social Auth Completion**: Custom form (`SocialAuthCompleteForm`) collects additional profile data after OAuth login
 
-**ORM & Database:**
-- Drizzle ORM configured for PostgreSQL via `@neondatabase/serverless`
-- Schema-first approach with TypeScript types generated from schema definitions
-- Zod integration for runtime validation via `drizzle-zod`
-- Migration system configured to output to `./migrations` directory
+**User Schema**:
+```typescript
+users {
+  id: uuid (auto-generated)
+  username: text (unique)
+  password: text
+  // Extended via shared-backend with seller status, profile data, etc.
+}
+```
 
-**Current Schema:**
-- Users table with UUID primary keys, username, and password fields
-- Username has unique constraint
-- Uses PostgreSQL's `gen_random_uuid()` for ID generation
+### Payment Processing
 
-**Storage Abstraction:**
-- `IStorage` interface defines CRUD operations (getUser, getUserByUsername, createUser)
-- `MemStorage` implementation provides in-memory storage for development/testing
-- Design allows swapping to database-backed storage without changing application code
+**Decision**: Stripe Elements integration for payment collection
+- **Rationale**: PCI-compliant payment handling without storing card data
+- **Implementation**:
+  - `AddPaymentDialog` component wraps Stripe Elements
+  - Backend creates Stripe customers and payment methods
+  - Setup intents for card verification
+- **Security**: Card data never touches application servers
 
-**Rationale:** Drizzle ORM was chosen over Prisma or TypeORM for its lightweight nature, superior TypeScript inference, and SQL-like query builder. The storage abstraction pattern enables testing with in-memory storage while maintaining production-ready database code paths. Neon serverless allows edge deployment compatibility.
+### State Management & Data Fetching
+
+**Decision**: TanStack Query for server state with custom fetch wrapper
+- **Rationale**: Handles caching, invalidation, and loading states declaratively
+- **Configuration**:
+  - No automatic refetch on window focus
+  - Infinite stale time (manual invalidation)
+  - Custom `apiRequest` wrapper for authenticated requests
+  - 401 handling with configurable behavior (throw or return null)
+
+**Query Client Setup**:
+```typescript
+defaultOptions: {
+  queries: {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    credentials: "include"
+  }
+}
+```
+
+### UI Component System
+
+**Decision**: shadcn/ui component library with Tailwind CSS
+- **Rationale**: Provides accessible, customizable components that can be modified directly in codebase
+- **Theme System**:
+  - CSS custom properties for theming (`--primary`, `--background`, etc.)
+  - Light mode optimized with planned dark mode support
+  - Responsive breakpoints (mobile: 768px)
+- **Component Categories**:
+  - Form controls (Input, Select, Checkbox, Switch)
+  - Layout (Card, Sidebar, Sheet, Dialog)
+  - Data display (Table, Badge, Avatar)
+  - Feedback (Toast, Alert, Skeleton)
+
+### Settings & Context Management
+
+**Decision**: React Context for global app state
+- **Rationale**: Lightweight state sharing for auth, settings, and socket connections
+- **Providers**:
+  - `AuthProvider`: User session and authentication state
+  - `SettingsProvider`: App configuration and user preferences
+  - `SocketProvider`: Real-time connection management
+  - `TooltipProvider`: UI component context
+
+### Build & Development
+
+**Decision**: Vite for frontend build with custom configuration
+- **Rationale**: Fast HMR during development, optimized production builds
+- **Path Aliases**:
+  - `@/*` → `./client/src/*` (app code)
+  - `@shared/*` → `../shared-backend/shared/*` (shared types)
+  - `@assets/*` → `../attached_assets` (media files)
+- **Plugins**:
+  - React plugin for JSX transformation
+  - Runtime error overlay for development
+  - Cartographer for Replit integration (dev only)
+
+**Output Structure**:
+```
+dist/
+  public/     # Frontend build (Vite)
+  server.js   # Backend bundle (ESBuild)
+```
+
+### Responsive Design Strategy
+
+**Decision**: Mobile-first with progressive enhancement
+- **Rationale**: Many users will access marketplace from mobile devices
+- **Implementation**:
+  - `useIsMobile` hook for responsive behavior (768px breakpoint)
+  - Conditional rendering for mobile vs desktop layouts
+  - Sheet/Dialog for mobile overlays vs Sidebar for desktop
+  - Tailwind responsive modifiers (`sm:`, `md:`, `lg:`)
 
 ## External Dependencies
 
-**Database Provider:**
-- Configured for Neon Postgres (serverless PostgreSQL)
-- Connection managed via `DATABASE_URL` environment variable
-- Connection pooling handled by `@neondatabase/serverless` driver
+### Video Infrastructure
+- **LiveKit Cloud**: Real-time video streaming service
+  - Handles video encoding, routing, and delivery
+  - Room-based architecture for live shows
+  - Requires LiveKit server URL and API credentials
 
-**UI Component Libraries:**
-- Radix UI primitives for accessible, unstyled component foundations (accordion, dialog, dropdown, etc.)
-- Lucide React for consistent iconography
-- Embla Carousel for any carousel implementations
-- date-fns for date manipulation utilities
+### Authentication Services
+- **Firebase Authentication**: User identity management
+  - Supports Google, Facebook, email/password providers
+  - Provides OAuth token for backend verification
+  - Frontend SDK: `@livekit/components-react`, `firebase` (implied)
 
-**Development Tools:**
-- Replit-specific plugins for runtime error modal and dev banner
-- Cartographer plugin for code navigation (development only)
-- PostCSS with Tailwind CSS and Autoprefixer for styling pipeline
+### Payment Processing
+- **Stripe**: Payment infrastructure
+  - Card tokenization via Stripe Elements
+  - Customer and payment method management
+  - Webhook handling for payment events (in shared-backend)
+  - Required: Stripe publishable key (frontend), secret key (backend)
 
-**Session Management:**
-- `connect-pg-simple` configured for PostgreSQL-backed session storage
-- Express session middleware (infrastructure ready, not yet implemented)
+### Database
+- **Neon PostgreSQL**: Serverless Postgres hosting
+  - Configured via `DATABASE_URL` environment variable
+  - `@neondatabase/serverless` driver for edge-compatible queries
+  - Connection pooling handled by Neon
 
-**Form Handling:**
-- React Hook Form with Zod resolvers for type-safe form validation
-- Integration with shadcn/ui form components
+### Email Services
+- **SendGrid**: Transactional email delivery
+  - Order confirmations, seller notifications
+  - Package: `@sendgrid/mail`
+  - Required: SendGrid API key
 
-**Alternatives Considered:**
-- Prisma was considered for ORM but Drizzle chosen for better TypeScript DX and lighter weight
-- Redux/Zustand considered for state management but deemed unnecessary with TanStack Query handling server state
+### Real-time Communication
+- **Socket.IO**: WebSocket communication (implied by SocketProvider)
+  - Live chat during streams
+  - Real-time auction updates
+  - Presence tracking
 
-**Pros:**
-- Comprehensive type safety across frontend and backend
-- All dependencies are actively maintained and production-ready
-- Minimal bundle size with tree-shaking support
+### Third-party UI Libraries
+- **Radix UI**: Headless component primitives
+  - All dialog, dropdown, popover components built on Radix
+  - Provides accessibility and keyboard navigation
+- **Lucide React**: Icon library
+  - Consistent icon set across application
+- **Recharts**: Data visualization for analytics
+  - Seller dashboard charts and metrics
 
-**Cons:**
-- Neon Postgres requires internet connectivity (no offline development without local Postgres)
-- Large number of Radix UI packages increases dependency count (though tree-shaken in production)
+### Development Tools
+- **Replit Platform**: Development environment integration
+  - Cartographer plugin for code navigation
+  - Runtime error overlay for debugging
+  - Available only in development (`process.env.REPL_ID`)
+
+### Build & Type Safety
+- **TypeScript**: Static type checking
+  - Shared types between frontend/backend via `@shared/*`
+  - Strict mode enabled for type safety
+- **Zod**: Runtime validation
+  - Schema validation for forms and API requests
+  - Used with Drizzle for insert schemas
+- **ESLint/Prettier**: Code quality (implied by typical setup)
+
+### State & Forms
+- **React Hook Form**: Form state management
+  - Integrated with Zod via `@hookform/resolvers`
+  - Optimized re-renders and validation
+- **TanStack Query**: Server state synchronization
+  - Caching and background updates
+  - Optimistic updates for better UX
+
+### Styling System
+- **Tailwind CSS**: Utility-first CSS framework
+  - Custom design tokens via CSS variables
+  - Component variants via `class-variance-authority`
+  - Merge utilities via `tailwind-merge` and `clsx`

@@ -26,13 +26,18 @@ echo "  ✅ Marketplace app copied"
 cp -r shared-backend packages/web-full-platform/
 echo "  ✅ Shared backend copied"
 
-# Copy only necessary root config files (NOT vite.config.ts or postcss.config.js)
+# Copy necessary root config files
 cp tsconfig.json packages/web-full-platform/
+cp postcss.config.js packages/web-full-platform/
 echo "  ✅ Config files copied"
 
-# Remove any root vite.config.ts or postcss.config.js that might interfere
+# Copy postcss.config.js to each app (they need their own)
+cp postcss.config.js packages/web-full-platform/admin-app/
+cp postcss.config.js packages/web-full-platform/marketplace-app/
+echo "  ✅ PostCSS configs copied to apps"
+
+# Remove any root vite.config.ts that might interfere
 rm -f packages/web-full-platform/vite.config.ts
-rm -f packages/web-full-platform/postcss.config.js
 
 # Create installation script
 cat > packages/web-full-platform/install-all.sh << 'EOF'
@@ -91,13 +96,17 @@ echo "  ✅ Admin app copied"
 cp -r shared-backend packages/admin-for-flutter/
 echo "  ✅ Shared backend copied"
 
-# Copy only necessary root config files (NOT vite.config.ts or postcss.config.js)
+# Copy necessary root config files
 cp tsconfig.json packages/admin-for-flutter/
+cp postcss.config.js packages/admin-for-flutter/
 echo "  ✅ Config files copied"
 
-# Remove any root vite.config.ts or postcss.config.js that might interfere
+# Copy postcss.config.js to admin app (it needs its own)
+cp postcss.config.js packages/admin-for-flutter/admin-app/
+echo "  ✅ PostCSS config copied to app"
+
+# Remove any root vite.config.ts that might interfere
 rm -f packages/admin-for-flutter/vite.config.ts
-rm -f packages/admin-for-flutter/postcss.config.js
 
 # Create installation script
 cat > packages/admin-for-flutter/install.sh << 'EOF'

@@ -130,15 +130,17 @@ cd /var/www
 git clone YOUR_REPOSITORY_URL admin-for-flutter
 ```
 
-**Install dependencies:**
+**Install dependencies and build application:**
 
 ```bash
-# On your droplet
+# On your droplet, navigate to the package directory
 cd /var/www/admin-for-flutter
-npm install
 
-# Build application
-cd admin-app && npm run build && cd ..
+# Install dependencies and build Admin app
+cd admin-app
+npm install
+npm run build
+cd ..
 ```
 
 ---
