@@ -1,13 +1,10 @@
 import crypto from "crypto";
 import type { IconaOrder, Bundle } from "../shared/schema";
 
-// API Configuration - MUST be set via BASE_URL environment variable
+// API Configuration - Load from environment variable
 // Remove trailing slash to prevent double slashes in URLs
-if (!process.env.BASE_URL) {
-  throw new Error("BASE_URL environment variable is required");
-}
-export const BASE_URL = process.env.BASE_URL.replace(/\/$/, "");
-console.log(`[API Config] BASE_URL: ${BASE_URL}`);
+// Note: The BASE_URL validation happens in index.ts before routes are registered
+export const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/, "");
 
 // Bundle utility functions
 export function generateBundleId(orderIds: string[]): string {

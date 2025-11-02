@@ -1,3 +1,14 @@
+import dotenv from 'dotenv';
+
+// Load environment variables FIRST before any other imports
+dotenv.config();
+
+// Validate required environment variables
+if (!process.env.BASE_URL) {
+  throw new Error("BASE_URL environment variable is required");
+}
+console.log(`[API Config] BASE_URL: ${process.env.BASE_URL}`);
+
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import session from "express-session";
