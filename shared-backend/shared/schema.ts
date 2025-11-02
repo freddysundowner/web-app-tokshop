@@ -1,6 +1,3 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, timestamp, integer, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Authentication schemas
@@ -386,129 +383,27 @@ export const bundleSchema = z.object({
 
 export type Bundle = z.infer<typeof bundleSchema>;
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  avatar: text("avatar"),
-  seller: boolean("seller").default(false),
-  admin: boolean("admin").default(false),
-});
-
-export const orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: text("order_number").notNull().unique(),
-  customerId: varchar("customer_id").notNull(),
-  customerName: text("customer_name").notNull(),
-  customerEmail: text("customer_email").notNull(),
-  itemName: text("item_name").notNull(),
-  itemCount: integer("item_count").notNull().default(1),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  weight: text("weight"),
-  dimensions: text("dimensions"),
-  status: text("status").notNull(), // unfulfilled, shipping, delivered, cancelled, pickup
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  shippedAt: timestamp("shipped_at"),
-  deliveredAt: timestamp("delivered_at"),
-  trackingNumber: text("tracking_number"),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0"),
-  couponDiscount: decimal("coupon_discount", { precision: 10, scale: 2 }).default("0"),
-  bundleId: varchar("bundle_id"),
-});
-
-export const shipmentBundles = pgTable("shipment_bundles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  bundleName: text("bundle_name").notNull(),
-  totalWeight: text("total_weight"),
-  totalDimensions: text("total_dimensions"),
-  trackingNumber: text("tracking_number"),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  shippedAt: timestamp("shipped_at"),
-});
-
-export const liveShows = pgTable("live_shows", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  description: text("description"),
-  scheduledAt: timestamp("scheduled_at").notNull(),
-  status: text("status").notNull(), // draft, scheduled, live, ended, cancelled
-  category: text("category").notNull(),
-  thumbnail: text("thumbnail"),
-  viewerCount: integer("viewer_count").default(0),
-  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).default("0"),
-  hostId: varchar("host_id").notNull(),
-});
-
-export const analytics = pgTable("analytics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  date: timestamp("date").notNull(),
-  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).notNull(),
-  orderCount: integer("order_count").notNull(),
-  buyerCount: integer("buyer_count").notNull(),
-  showCount: integer("show_count").notNull(),
-  avgShippingTime: decimal("avg_shipping_time", { precision: 4, scale: 2 }),
-  cancellationRate: decimal("cancellation_rate", { precision: 5, scale: 2 }),
-  satisfactionRating: decimal("satisfaction_rating", { precision: 3, scale: 2 }),
-});
-
-export const shippingProfiles = pgTable("shipping_profiles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  baseRate: decimal("base_rate", { precision: 10, scale: 2 }).notNull(),
-  freeShippingThreshold: decimal("free_shipping_threshold", { precision: 10, scale: 2 }),
-  bundleEnabled: boolean("bundle_enabled").default(true),
-  maxBundleSize: integer("max_bundle_size").default(10),
-});
-
-export const addresses = pgTable("addresses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  addrress1: text("addrress1").notNull(), // Note: keeping the typo as in original schema
-  primary: boolean("primary").default(false),
-  addrress2: text("addrress2").default(""),
-  city: text("city").default(""),
-  countryCode: text("country_code").default(""),
-  cityCode: text("city_code").default(""),
-  state: text("state").default(""),
-  stateCode: text("state_code").default(""),
-  country: text("country").default(""),
-  zipcode: text("zipcode").default(""),
-  street: text("street").default(""),
-  phone: text("phone").default(""),
-  email: text("email").default(""),
-  userId: varchar("user_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertOrderSchema = createInsertSchema(orders).omit({ id: true });
-export const insertLiveShowSchema = createInsertSchema(liveShows).omit({ id: true });
-export const insertAnalyticsSchema = createInsertSchema(analytics).omit({ id: true });
-export const insertShippingProfileSchema = createInsertSchema(shippingProfiles).omit({ id: true });
-export const insertShipmentBundleSchema = createInsertSchema(shipmentBundles).omit({ id: true });
-export const insertAddressSchema = createInsertSchema(addresses).omit({ id: true, createdAt: true, updatedAt: true });
-
-// Types
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Order = typeof orders.$inferSelect;
-export type InsertOrder = z.infer<typeof insertOrderSchema>;
-export type LiveShow = typeof liveShows.$inferSelect;
-export type InsertLiveShow = z.infer<typeof insertLiveShowSchema>;
-export type Analytics = typeof analytics.$inferSelect;
-export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
-export type ShippingProfile = typeof shippingProfiles.$inferSelect;
-export type InsertShippingProfile = z.infer<typeof insertShippingProfileSchema>;
-export type ShipmentBundle = typeof shipmentBundles.$inferSelect;
-export type InsertShipmentBundle = z.infer<typeof insertShipmentBundleSchema>;
-export type Address = typeof addresses.$inferSelect;
-export type InsertAddress = z.infer<typeof insertAddressSchema>;
+// Address type for Icona API (no database table needed)
+export type Address = {
+  _id: string;
+  name: string;
+  addrress1: string; // Note: keeping the typo as in original Icona API schema
+  primary?: boolean;
+  addrress2?: string;
+  city?: string;
+  countryCode?: string;
+  cityCode?: string;
+  state?: string;
+  stateCode?: string;
+  country?: string;
+  zipcode?: string;
+  street?: string;
+  phone?: string;
+  email?: string;
+  userId: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 // Address API request/response schemas
 export const createAddressSchema = z.object({

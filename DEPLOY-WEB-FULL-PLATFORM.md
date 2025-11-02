@@ -118,19 +118,43 @@ cd /var/www
 git clone YOUR_REPOSITORY_URL web-full-platform
 ```
 
-**Install dependencies and build both applications:**
+**Run ONE command to install, build, AND start both apps:**
 
 ```bash
 # On your droplet, navigate to the package directory
 cd /var/www/web-full-platform
 
-# Install dependencies and build Admin app
+# Make install script executable
+chmod +x install-all.sh
+
+# Run installation script (does EVERYTHING)
+./install-all.sh
+```
+
+The script will:
+- ✅ Install dependencies for both apps
+- ✅ Verify `tsx` and other packages are installed correctly
+- ✅ Build both applications
+- ✅ Check that builds succeeded
+- ✅ Stop any existing PM2 processes
+- ✅ Start both apps in production mode
+- ✅ Save PM2 configuration
+
+**That's it!** Your apps are now running.
+
+**Manual installation (if needed):**
+
+```bash
+# If you prefer manual installation:
+cd /var/www/web-full-platform
+
+# Install and build Admin app
 cd admin-app
 npm install
 npm run build
 cd ..
 
-# Install dependencies and build Marketplace app
+# Install and build Marketplace app
 cd marketplace-app
 npm install
 npm run build
@@ -139,29 +163,17 @@ cd ..
 
 ---
 
-## Step 5: Start Apps with PM2
+## Step 5: Verify Apps are Running
+
+The `install-all.sh` script already started both apps with PM2. Let's verify:
 
 ```bash
-cd /var/www/web-full-platform
+# Check status
+pm2 status
 
-# Start Admin app on port 5000
-cd admin-app
-pm2 start npm --name "icona-admin" -- run dev
-
-# Start Marketplace app on port 5001
-cd ../marketplace-app
-pm2 start npm --name "icona-marketplace" -- run dev
-
-# Save PM2 configuration
-cd ..
-pm2 save
-
-# Make PM2 start on system reboot
+# Make PM2 start on system reboot (one-time setup)
 pm2 startup systemd
 # Copy and run the command it shows you
-
-# Check both apps are running
-pm2 status
 ```
 
 You should see both apps running:
@@ -385,11 +397,53 @@ pm2 logs
 # Check for errors in the logs
 ```
 
+**Error: "tsx: not found" or "sh: 1: tsx: not found"**
+
+This means dependencies weren't installed properly. Fix it:
+
+```bash
+cd /var/www/web-full-platform
+
+# Stop the failing apps
+pm2 delete all
+
+# Re-run the install script
+./install-all.sh
+
+# If that fails, manually install:
+cd admin-app && npm install && npm run build && cd ..
+cd marketplace-app && npm install && npm run build && cd ..
+
+# Verify tsx is installed
+ls admin-app/node_modules/tsx
+ls marketplace-app/node_modules/tsx
+
+# Restart the apps
+cd admin-app && pm2 start npm --name "icona-admin" -- start && cd ..
+cd marketplace-app && pm2 start npm --name "icona-marketplace" -- start && cd ..
+pm2 save
+```
+
 **502 Bad Gateway?**
 ```bash
-pm2 status  # Make sure apps are running
+pm2 status  # Make sure apps are running (should show "online", not "errored")
 nginx -t    # Test Nginx config
 tail -f /var/log/nginx/error.log
+
+# If apps show "errored", check logs:
+pm2 logs icona-admin --lines 50
+pm2 logs icona-marketplace --lines 50
+```
+
+**Apps keep restarting (high restart count)?**
+```bash
+# Check what's causing the crash
+pm2 logs
+
+# Common causes:
+# 1. Port already in use - change PORT in server.ts
+# 2. Missing dependencies - run ./install-all.sh
+# 3. Build failed - check dist/server.js exists
 ```
 
 **DNS not working?**
