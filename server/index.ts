@@ -8,11 +8,16 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Load .env from admin-app directory BEFORE changing directory
+const adminAppDir = path.join(__dirname, '..', 'admin-app');
+dotenv.config({ path: path.join(adminAppDir, '.env') });
+
 // Change to admin-app directory
-process.chdir(path.join(__dirname, '..', 'admin-app'));
+process.chdir(adminAppDir);
 console.log('[Root Server] Changed directory to:', process.cwd());
 
 // Import the admin app server using absolute path

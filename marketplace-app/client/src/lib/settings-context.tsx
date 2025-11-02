@@ -13,10 +13,11 @@ interface AppSettings {
 interface SettingsContextType {
   settings: AppSettings;
   isLoading: boolean;
+  appName: string;
 }
 
 const defaultSettings: AppSettings = {
-  app_name: 'App',
+  app_name: 'TokShop',
   seo_title: '',
   support_email: 'support@example.com',
   primary_color: '#F4D03F',
@@ -28,6 +29,7 @@ const defaultSettings: AppSettings = {
 const SettingsContext = createContext<SettingsContextType>({
   settings: defaultSettings,
   isLoading: true,
+  appName: 'TokShop',
 });
 
 // Helper function to convert hex to HSL
@@ -169,8 +171,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings.primary_color, settings.secondary_color]);
 
+  const appName = settings.app_name || 'TokShop';
+
   return (
-    <SettingsContext.Provider value={{ settings, isLoading }}>
+    <SettingsContext.Provider value={{ settings, isLoading, appName }}>
       {children}
     </SettingsContext.Provider>
   );

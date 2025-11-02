@@ -1,3 +1,6 @@
+// server.ts
+import dotenv from "dotenv";
+
 // ../shared-backend/server/index.ts
 import express2 from "express";
 import cookieParser from "cookie-parser";
@@ -10,16 +13,18 @@ import { createServer } from "http";
 import fetch2 from "node-fetch";
 
 // ../shared-backend/server/utils.ts
-var apiBase = process.env.ICONA_API_BASE || "https://api.iconaapp.com";
-var ICONA_API_BASE = apiBase.replace(/\/$/, "");
-console.log(`[API Config] ICONA_API_BASE: ${ICONA_API_BASE}`);
+if (!process.env.BASE_URL) {
+  throw new Error("BASE_URL environment variable is required");
+}
+var BASE_URL = process.env.BASE_URL.replace(/\/$/, "");
+console.log(`[API Config] BASE_URL: ${BASE_URL}`);
 
 // ../shared-backend/server/routes/dashboard.ts
 function registerDashboardRoutes(app2) {
   app2.get("/api/dashboard/metrics", async (req, res) => {
     try {
       console.log("Proxying dashboard metrics request to Icona API");
-      const response = await fetch2(`${ICONA_API_BASE}/orders/dashboard/orders`, {
+      const response = await fetch2(`${BASE_URL}/orders/dashboard/orders`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json"
@@ -45,7 +50,7 @@ function registerOrderRoutes(app2) {
     try {
       const { orderId } = req.params;
       console.log("Fetching single order:", orderId);
-      const url = `${ICONA_API_BASE}/orders/?_id=${orderId}`;
+      const url = `${BASE_URL}/orders/?_id=${orderId}`;
       console.log("Final API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -125,7 +130,7 @@ function registerOrderRoutes(app2) {
         queryParams.set("tokshow", req.query.tokshow);
       }
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/orders${queryString ? "?" + queryString : ""}`;
+      const url = `${BASE_URL}/orders${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -177,7 +182,7 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/${req.params.id}`, {
+      const response = await fetch3(`${BASE_URL}/orders/${req.params.id}`, {
         method: "POST",
         headers,
         body: JSON.stringify(orderData)
@@ -223,7 +228,7 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/${orderId}`, {
+      const response = await fetch3(`${BASE_URL}/orders/${orderId}`, {
         method: "PATCH",
         headers,
         body: JSON.stringify(updateData)
@@ -255,7 +260,7 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/${orderId}`, {
+      const response = await fetch3(`${BASE_URL}/orders/${orderId}`, {
         method: "PUT",
         headers,
         body: JSON.stringify(updateData)
@@ -293,7 +298,7 @@ function registerOrderRoutes(app2) {
           error: "User ID is required"
         });
       }
-      const ordersResponse = await fetch3(`${ICONA_API_BASE}/orders?userId=${userId}`, {
+      const ordersResponse = await fetch3(`${BASE_URL}/orders?userId=${userId}`, {
         method: "GET",
         headers
       });
@@ -314,7 +319,7 @@ function registerOrderRoutes(app2) {
       }
       console.log(`Found ${bundleOrders.length} orders to ship for bundle ${bundleId}`);
       const shipPromises = bundleOrders.map(
-        (order) => fetch3(`${ICONA_API_BASE}/orders/${order._id}`, {
+        (order) => fetch3(`${BASE_URL}/orders/${order._id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify({
@@ -357,7 +362,7 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         fetchHeaders["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const ordersResponse = await fetch3(`${ICONA_API_BASE}/orders?userId=${req.query.userId || req.body.userId}`, {
+      const ordersResponse = await fetch3(`${BASE_URL}/orders?userId=${req.query.userId || req.body.userId}`, {
         method: "GET",
         headers: fetchHeaders
       });
@@ -369,9 +374,9 @@ function registerOrderRoutes(app2) {
         });
       }
       const ordersData = await ordersResponse.json();
-      const orders2 = ordersData.orders || [];
+      const orders = ordersData.orders || [];
       const invalidOrders = orderIds.filter((orderId) => {
-        const order = orders2.find((o) => o._id === orderId);
+        const order = orders.find((o) => o._id === orderId);
         return !order || order.status !== "processing";
       });
       if (invalidOrders.length > 0) {
@@ -381,7 +386,7 @@ function registerOrderRoutes(app2) {
           error: `Invalid orders: ${invalidOrders.join(", ")}`
         });
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/bundle/orders`, {
+      const response = await fetch3(`${BASE_URL}/orders/bundle/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -430,7 +435,7 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/unbundle/orders`, {
+      const response = await fetch3(`${BASE_URL}/orders/unbundle/orders`, {
         method: "POST",
         headers,
         body: JSON.stringify({ orderId, itemIds })
@@ -463,274 +468,276 @@ function registerOrderRoutes(app2) {
   });
 }
 
-// ../shared-backend/server/storage.ts
-import { randomUUID } from "crypto";
-var MemStorage = class {
-  users = /* @__PURE__ */ new Map();
-  orders = /* @__PURE__ */ new Map();
-  liveShows = /* @__PURE__ */ new Map();
-  analytics = /* @__PURE__ */ new Map();
-  shippingProfiles = /* @__PURE__ */ new Map();
-  bundles = /* @__PURE__ */ new Map();
-  constructor() {
-  }
-  // User methods
-  async getUser(id) {
-    return this.users.get(id);
-  }
-  async getUserByUsername(username) {
-    return Array.from(this.users.values()).find((user) => user.username === username);
-  }
-  async createUser(insertUser) {
-    const id = randomUUID();
-    const user = {
-      ...insertUser,
-      id,
-      avatar: null,
-      seller: insertUser.seller ?? null,
-      admin: insertUser.admin ?? null
-    };
-    this.users.set(id, user);
-    return user;
-  }
-  // Order methods
-  async getOrders() {
-    return Array.from(this.orders.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-  async getOrder(id) {
-    return this.orders.get(id);
-  }
-  async createOrder(insertOrder) {
-    const id = randomUUID();
-    const order = {
-      ...insertOrder,
-      id,
-      itemCount: insertOrder.itemCount || 1,
-      weight: insertOrder.weight || null,
-      dimensions: insertOrder.dimensions || null,
-      shippingCost: insertOrder.shippingCost || "0",
-      couponDiscount: insertOrder.couponDiscount || "0",
-      bundleId: insertOrder.bundleId || null,
-      createdAt: /* @__PURE__ */ new Date(),
-      shippedAt: null,
-      deliveredAt: null,
-      trackingNumber: null
-    };
-    this.orders.set(id, order);
-    return order;
-  }
-  async updateOrder(id, updates) {
-    const order = this.orders.get(id);
-    if (!order) return void 0;
-    const updatedOrder = { ...order, ...updates };
-    this.orders.set(id, updatedOrder);
-    return updatedOrder;
-  }
-  async updateOrderStatus(id, status, trackingNumber) {
-    const order = this.orders.get(id);
-    if (!order) return void 0;
-    const updatedOrder = {
-      ...order,
-      status,
-      trackingNumber: trackingNumber || order.trackingNumber,
-      shippedAt: status === "shipped" ? /* @__PURE__ */ new Date() : order.shippedAt,
-      deliveredAt: status === "delivered" ? /* @__PURE__ */ new Date() : order.deliveredAt
-    };
-    this.orders.set(id, updatedOrder);
-    return updatedOrder;
-  }
-  async getOrdersByStatus(status) {
-    return Array.from(this.orders.values()).filter((order) => order.status === status);
-  }
-  async getOrdersByDateRange(startDate, endDate) {
-    return Array.from(this.orders.values()).filter(
-      (order) => new Date(order.createdAt) >= startDate && new Date(order.createdAt) <= endDate
-    );
-  }
-  // Live Show methods
-  async getLiveShows() {
-    return Array.from(this.liveShows.values()).sort(
-      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-    );
-  }
-  async getLiveShow(id) {
-    return this.liveShows.get(id);
-  }
-  async createLiveShow(insertShow) {
-    const id = randomUUID();
-    const show = {
-      ...insertShow,
-      id,
-      description: insertShow.description || null,
-      viewerCount: 0,
-      totalSales: "0",
-      thumbnail: null
-    };
-    this.liveShows.set(id, show);
-    return show;
-  }
-  async updateLiveShow(id, updates) {
-    const show = this.liveShows.get(id);
-    if (!show) return void 0;
-    const updatedShow = { ...show, ...updates };
-    this.liveShows.set(id, updatedShow);
-    return updatedShow;
-  }
-  async getRooms(params) {
-    let rooms = Array.from(this.liveShows.values());
-    if (params.category) {
-      rooms = rooms.filter((room) => room.category === params.category);
-    }
-    if (params.userid) {
-      rooms = rooms.filter((room) => room.hostId === params.userid);
-    }
-    if (params.title) {
-      rooms = rooms.filter(
-        (room) => room.title.toLowerCase().includes(params.title.toLowerCase())
-      );
-    }
-    if (params.status) {
-      rooms = rooms.filter((room) => room.status === params.status);
-    }
-    rooms = rooms.sort(
-      (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
-    );
-    const total = rooms.length;
-    const offset = (params.page - 1) * params.limit;
-    const paginatedRooms = rooms.slice(offset, offset + params.limit);
-    return {
-      rooms: paginatedRooms,
-      total,
-      page: params.page,
-      limit: params.limit
-    };
-  }
-  // Analytics methods
-  async getAnalytics(startDate, endDate) {
-    let analyticsData = Array.from(this.analytics.values());
-    if (startDate && endDate) {
-      analyticsData = analyticsData.filter(
-        (data) => new Date(data.date) >= startDate && new Date(data.date) <= endDate
-      );
-    }
-    return analyticsData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }
-  async createAnalytics(insertAnalytics) {
-    const id = randomUUID();
-    const analytics2 = {
-      ...insertAnalytics,
-      id,
-      avgShippingTime: insertAnalytics.avgShippingTime || null,
-      cancellationRate: insertAnalytics.cancellationRate || null,
-      satisfactionRating: insertAnalytics.satisfactionRating || null
-    };
-    this.analytics.set(id, analytics2);
-    return analytics2;
-  }
-  async getDashboardMetrics() {
-    const orders2 = await this.getOrders();
-    const shows = await this.getLiveShows();
-    const totalSales = orders2.reduce((sum, order) => sum + parseFloat(order.amount), 0);
-    const thisMonth = /* @__PURE__ */ new Date();
-    thisMonth.setDate(1);
-    const thisMonthOrders = orders2.filter((order) => new Date(order.createdAt) >= thisMonth);
-    return {
-      totalSales: totalSales.toFixed(2),
-      totalOrders: orders2.length,
-      activeBuyers: new Set(orders2.map((order) => order.customerId)).size,
-      liveShows: shows.length,
-      avgShippingTime: "1.2",
-      cancellationRate: "2.1",
-      satisfactionRating: "4.8",
-      followers: 3247
-    };
-  }
-  // Shipping methods
-  async getShippingProfiles() {
-    return Array.from(this.shippingProfiles.values());
-  }
-  async createShippingProfile(insertProfile) {
-    const id = randomUUID();
-    const profile = {
-      ...insertProfile,
-      id,
-      description: insertProfile.description || null,
-      freeShippingThreshold: insertProfile.freeShippingThreshold || null,
-      bundleEnabled: insertProfile.bundleEnabled ?? null,
-      maxBundleSize: insertProfile.maxBundleSize ?? null
-    };
-    this.shippingProfiles.set(id, profile);
-    return profile;
-  }
-  async getShipmentMetrics(userId) {
-    return {
-      totalSold: "0.00",
-      totalEarned: "0.00",
-      totalShippingSpend: "0.00",
-      totalCouponSpend: "0.00",
-      itemsSold: 0,
-      totalDelivered: 0,
-      pendingDelivery: 0
-    };
-  }
-  // Bundle methods
-  async getBundles() {
-    return Array.from(this.bundles.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-  async createBundle(orderIds, bundleName) {
-    const bundleId = randomUUID();
-    const ordersToBundle = orderIds.map((id) => this.orders.get(id)).filter(Boolean);
-    if (ordersToBundle.length === 0) {
-      throw new Error("No valid orders found to bundle");
-    }
-    let totalWeight = 0;
-    ordersToBundle.forEach((order) => {
-      if (order.weight) {
-        totalWeight += parseFloat(order.weight.replace(" oz", ""));
+// ../shared-backend/server/routes/shows.ts
+function registerShowRoutes(app2) {
+  app2.get("/api/profile/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Fetching public user profile:", id);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-    });
-    const bundle = {
-      id: bundleId,
-      bundleName,
-      totalWeight: totalWeight > 0 ? `${totalWeight} oz` : null,
-      totalDimensions: null,
-      // Don't aggregate dimensions when bundling
-      trackingNumber: null,
-      shippingCost: "0",
-      createdAt: /* @__PURE__ */ new Date(),
-      shippedAt: null
-    };
-    this.bundles.set(bundleId, bundle);
-    ordersToBundle.forEach((order) => {
-      const updatedOrder = { ...order, bundleId };
-      this.orders.set(order.id, updatedOrder);
-    });
-    return bundle;
-  }
-  async unbundleOrders(bundleId) {
-    const bundle = this.bundles.get(bundleId);
-    if (!bundle) {
-      throw new Error("Bundle not found");
+      const response = await fetch(`${BASE_URL}/users/${id}`, {
+        method: "GET",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        return res.status(response.status).json({ error: "User not found" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching user from Icona API:", error);
+      res.status(500).json({ error: "Failed to fetch user" });
     }
-    const bundledOrders = Array.from(this.orders.values()).filter((order) => order.bundleId === bundleId);
-    bundledOrders.forEach((order) => {
-      const updatedOrder = { ...order, bundleId: null };
-      this.orders.set(order.id, updatedOrder);
-    });
-    this.bundles.delete(bundleId);
-    return bundledOrders;
-  }
-};
-var storage = new MemStorage();
+  });
+  app2.get("/api/rooms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Fetching single room:", id);
+      const queryParams = new URLSearchParams();
+      if (req.query.currentUserId) {
+        queryParams.set("currentUserId", req.query.currentUserId);
+      }
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const url = `${BASE_URL}/rooms/${id}?${queryParams.toString()}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        return res.status(response.status).json({ error: "Room not found" });
+      }
+      const data = await response.json();
+      const activeAuction = data.activeauction || data.activeAuction || data.active_auction;
+      if (activeAuction) {
+        console.log("\u{1F50D} EXTERNAL API activeauction bids:", activeAuction.bids);
+        console.log("\u{1F50D} EXTERNAL API activeauction ended:", activeAuction.ended);
+        console.log("\u{1F50D} EXTERNAL API activeauction winner:", activeAuction.winner);
+      }
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching room from Icona API:", error);
+      res.status(500).json({ error: "Failed to fetch room" });
+    }
+  });
+  app2.put("/api/rooms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Updating room:", id, "with data:", req.body);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const url = `${BASE_URL}/rooms/${id}`;
+      console.log("Calling external API:", url);
+      const response = await fetch(url, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(req.body)
+      });
+      if (!response.ok) {
+        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("Error details:", errorText);
+        return res.status(response.status).json({ error: "Failed to update room" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error updating room from Icona API:", error);
+      res.status(500).json({ error: "Failed to update room" });
+    }
+  });
+  app2.delete("/api/rooms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Deleting room:", id);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const queryParams = new URLSearchParams();
+      if (req.query.destroy) {
+        queryParams.set("destroy", req.query.destroy);
+      }
+      const queryString = queryParams.toString();
+      const url = `${BASE_URL}/rooms/${id}${queryString ? `?${queryString}` : ""}`;
+      console.log("Calling external API:", url);
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("Error details:", errorText);
+        return res.status(response.status).json({ error: "Failed to delete room" });
+      }
+      const data = await response.json();
+      console.log("Room deleted successfully:", data);
+      res.json(data);
+    } catch (error) {
+      console.error("Error deleting room from Icona API:", error);
+      res.status(500).json({ error: "Failed to delete room" });
+    }
+  });
+  app2.post("/api/rooms", async (req, res) => {
+    try {
+      console.log("Creating room/show via Icona API");
+      console.log("Request body:", req.body);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const url = `${BASE_URL}/rooms`;
+      console.log("Calling external API:", url);
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body)
+      });
+      if (!response.ok) {
+        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("Error details:", errorText);
+        return res.status(response.status).json({ error: "Failed to create room" });
+      }
+      const data = await response.json();
+      console.log("Room created successfully:", data);
+      res.status(201).json(data);
+    } catch (error) {
+      console.error("Error creating room via Icona API:", error);
+      res.status(500).json({ error: "Failed to create room" });
+    }
+  });
+  app2.get("/api/rooms", async (req, res) => {
+    try {
+      console.log("Proxying rooms request to Icona API");
+      const params = [];
+      if (req.query.page !== void 0) params.push(`page=${req.query.page}`);
+      if (req.query.limit !== void 0) params.push(`limit=${req.query.limit}`);
+      if (req.query.category !== void 0) params.push(`category=${req.query.category}`);
+      if (req.query.userid !== void 0) params.push(`userid=${req.query.userid}`);
+      if (req.query.currentUserId !== void 0) params.push(`currentUserId=${req.query.currentUserId}`);
+      if (req.query.title !== void 0) params.push(`title=${req.query.title}`);
+      if (req.query.status !== void 0) params.push(`status=${req.query.status}`);
+      const queryString = params.join("&");
+      const url = `${BASE_URL}/rooms?${queryString}`;
+      console.log("Calling external API:", url);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const response = await fetch(url, {
+        method: "GET",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Icona API returned ${response.status}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching rooms from Icona API:", error);
+      res.status(500).json({ error: "Failed to fetch rooms" });
+    }
+  });
+  app2.post("/livekit/token", async (req, res) => {
+    try {
+      const { room: roomId, userId: clientUserId, userName } = req.body;
+      console.log("\u{1F511} Request body received:", req.body);
+      if (!req.session?.user) {
+        console.error("\u274C Unauthorized: No session user");
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      if (!req.session?.accessToken) {
+        console.error("\u274C No access token in session");
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      const sessionUser = req.session.user;
+      const userId = sessionUser._id || sessionUser.id;
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${req.session.accessToken}`
+      };
+      const roomResponse = await fetch(`${BASE_URL}/rooms/${roomId}`, {
+        method: "GET",
+        headers
+      });
+      if (!roomResponse.ok) {
+        console.error("\u274C Failed to fetch room details");
+        return res.status(404).json({ error: "Room not found" });
+      }
+      const room = await roomResponse.json();
+      const rawOwnerId = room.owner?._id || room.owner?.id;
+      const showOwnerId = String(rawOwnerId);
+      const normalizedUserId = String(userId);
+      const isHost = normalizedUserId === showOwnerId;
+      const role = isHost ? "host" : "audience";
+      console.log("\u{1F510} Role determination:", {
+        userId: normalizedUserId,
+        showOwnerId,
+        isHost,
+        role
+      });
+      const requestBody = {
+        room: roomId,
+        userId: clientUserId || userId,
+        userName,
+        role
+      };
+      console.log("\u{1F4E4} Sending to external API:", requestBody);
+      const response = await fetch(`${BASE_URL}/livekit/token`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`\u274C Icona API returned ${response.status}:`, errorText);
+        return res.status(response.status).json({
+          error: errorText || "Failed to get LiveKit token from external API"
+        });
+      }
+      const data = await response.json();
+      console.log("\u2705 LiveKit token received from Icona API");
+      res.json({
+        ...data,
+        role
+      });
+    } catch (error) {
+      console.error("\u274C Error proxying LiveKit token request:", error);
+      res.status(500).json({ error: "Failed to get LiveKit token" });
+    }
+  });
+}
+
+// ../shared-backend/server/routes/shipping.ts
+import fetch4 from "node-fetch";
+import https from "https";
+import { URL } from "url";
 
 // ../shared-backend/shared/schema.ts
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, timestamp, integer, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z as z2 } from "zod";
 var loginSchema = z2.object({
   email: z2.string().email("Please enter a valid email address"),
@@ -1069,108 +1076,6 @@ var bundleSchema = z2.object({
   status: z2.enum(["pending", "labeled"]).optional().default("pending"),
   createdAt: z2.string().optional()
 });
-var users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  avatar: text("avatar"),
-  seller: boolean("seller").default(false),
-  admin: boolean("admin").default(false)
-});
-var orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: text("order_number").notNull().unique(),
-  customerId: varchar("customer_id").notNull(),
-  customerName: text("customer_name").notNull(),
-  customerEmail: text("customer_email").notNull(),
-  itemName: text("item_name").notNull(),
-  itemCount: integer("item_count").notNull().default(1),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  weight: text("weight"),
-  dimensions: text("dimensions"),
-  status: text("status").notNull(),
-  // unfulfilled, shipping, delivered, cancelled, pickup
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  shippedAt: timestamp("shipped_at"),
-  deliveredAt: timestamp("delivered_at"),
-  trackingNumber: text("tracking_number"),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0"),
-  couponDiscount: decimal("coupon_discount", { precision: 10, scale: 2 }).default("0"),
-  bundleId: varchar("bundle_id")
-});
-var shipmentBundles = pgTable("shipment_bundles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  bundleName: text("bundle_name").notNull(),
-  totalWeight: text("total_weight"),
-  totalDimensions: text("total_dimensions"),
-  trackingNumber: text("tracking_number"),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  shippedAt: timestamp("shipped_at")
-});
-var liveShows = pgTable("live_shows", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  description: text("description"),
-  scheduledAt: timestamp("scheduled_at").notNull(),
-  status: text("status").notNull(),
-  // draft, scheduled, live, ended, cancelled
-  category: text("category").notNull(),
-  thumbnail: text("thumbnail"),
-  viewerCount: integer("viewer_count").default(0),
-  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).default("0"),
-  hostId: varchar("host_id").notNull()
-});
-var analytics = pgTable("analytics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  date: timestamp("date").notNull(),
-  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).notNull(),
-  orderCount: integer("order_count").notNull(),
-  buyerCount: integer("buyer_count").notNull(),
-  showCount: integer("show_count").notNull(),
-  avgShippingTime: decimal("avg_shipping_time", { precision: 4, scale: 2 }),
-  cancellationRate: decimal("cancellation_rate", { precision: 5, scale: 2 }),
-  satisfactionRating: decimal("satisfaction_rating", { precision: 3, scale: 2 })
-});
-var shippingProfiles = pgTable("shipping_profiles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  baseRate: decimal("base_rate", { precision: 10, scale: 2 }).notNull(),
-  freeShippingThreshold: decimal("free_shipping_threshold", { precision: 10, scale: 2 }),
-  bundleEnabled: boolean("bundle_enabled").default(true),
-  maxBundleSize: integer("max_bundle_size").default(10)
-});
-var addresses = pgTable("addresses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  addrress1: text("addrress1").notNull(),
-  // Note: keeping the typo as in original schema
-  primary: boolean("primary").default(false),
-  addrress2: text("addrress2").default(""),
-  city: text("city").default(""),
-  countryCode: text("country_code").default(""),
-  cityCode: text("city_code").default(""),
-  state: text("state").default(""),
-  stateCode: text("state_code").default(""),
-  country: text("country").default(""),
-  zipcode: text("zipcode").default(""),
-  street: text("street").default(""),
-  phone: text("phone").default(""),
-  email: text("email").default(""),
-  userId: varchar("user_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
-var insertUserSchema = createInsertSchema(users).omit({ id: true });
-var insertOrderSchema = createInsertSchema(orders).omit({ id: true });
-var insertLiveShowSchema = createInsertSchema(liveShows).omit({ id: true });
-var insertAnalyticsSchema = createInsertSchema(analytics).omit({ id: true });
-var insertShippingProfileSchema = createInsertSchema(shippingProfiles).omit({ id: true });
-var insertShipmentBundleSchema = createInsertSchema(shipmentBundles).omit({ id: true });
-var insertAddressSchema = createInsertSchema(addresses).omit({ id: true, createdAt: true, updatedAt: true });
 var createAddressSchema = z2.object({
   name: z2.string().min(1, "Address name is required"),
   addrress1: z2.string().min(1, "Street address is required"),
@@ -1298,318 +1203,7 @@ var bundleLabelPurchaseResponseSchema = z2.object({
   error: z2.string().optional()
 });
 
-// ../shared-backend/server/routes/shows.ts
-function registerShowRoutes(app2) {
-  app2.get("/api/profile/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Fetching public user profile:", id);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const response = await fetch(`${ICONA_API_BASE}/users/${id}`, {
-        method: "GET",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        return res.status(response.status).json({ error: "User not found" });
-      }
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error("Error fetching user from Icona API:", error);
-      res.status(500).json({ error: "Failed to fetch user" });
-    }
-  });
-  app2.get("/api/rooms/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Fetching single room:", id);
-      const queryParams = new URLSearchParams();
-      if (req.query.currentUserId) {
-        queryParams.set("currentUserId", req.query.currentUserId);
-      }
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const url = `${ICONA_API_BASE}/rooms/${id}?${queryParams.toString()}`;
-      const response = await fetch(url, {
-        method: "GET",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        return res.status(response.status).json({ error: "Room not found" });
-      }
-      const data = await response.json();
-      const activeAuction = data.activeauction || data.activeAuction || data.active_auction;
-      if (activeAuction) {
-        console.log("\u{1F50D} EXTERNAL API activeauction bids:", activeAuction.bids);
-        console.log("\u{1F50D} EXTERNAL API activeauction ended:", activeAuction.ended);
-        console.log("\u{1F50D} EXTERNAL API activeauction winner:", activeAuction.winner);
-      }
-      res.json(data);
-    } catch (error) {
-      console.error("Error fetching room from Icona API:", error);
-      res.status(500).json({ error: "Failed to fetch room" });
-    }
-  });
-  app2.put("/api/rooms/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Updating room:", id, "with data:", req.body);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const url = `${ICONA_API_BASE}/rooms/${id}`;
-      console.log("Calling external API:", url);
-      const response = await fetch(url, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(req.body)
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        console.error("Error details:", errorText);
-        return res.status(response.status).json({ error: "Failed to update room" });
-      }
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error("Error updating room from Icona API:", error);
-      res.status(500).json({ error: "Failed to update room" });
-    }
-  });
-  app2.delete("/api/rooms/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Deleting room:", id);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const queryParams = new URLSearchParams();
-      if (req.query.destroy) {
-        queryParams.set("destroy", req.query.destroy);
-      }
-      const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/rooms/${id}${queryString ? `?${queryString}` : ""}`;
-      console.log("Calling external API:", url);
-      const response = await fetch(url, {
-        method: "DELETE",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        console.error("Error details:", errorText);
-        return res.status(response.status).json({ error: "Failed to delete room" });
-      }
-      const data = await response.json();
-      console.log("Room deleted successfully:", data);
-      res.json(data);
-    } catch (error) {
-      console.error("Error deleting room from Icona API:", error);
-      res.status(500).json({ error: "Failed to delete room" });
-    }
-  });
-  app2.post("/api/rooms", async (req, res) => {
-    try {
-      console.log("Creating room/show via Icona API");
-      console.log("Request body:", req.body);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const url = `${ICONA_API_BASE}/rooms`;
-      console.log("Calling external API:", url);
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(req.body)
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        console.error("Error details:", errorText);
-        return res.status(response.status).json({ error: "Failed to create room" });
-      }
-      const data = await response.json();
-      console.log("Room created successfully:", data);
-      res.status(201).json(data);
-    } catch (error) {
-      console.error("Error creating room via Icona API:", error);
-      res.status(500).json({ error: "Failed to create room" });
-    }
-  });
-  app2.get("/api/rooms", async (req, res) => {
-    try {
-      console.log("Proxying rooms request to Icona API");
-      const params = [];
-      if (req.query.page !== void 0) params.push(`page=${req.query.page}`);
-      if (req.query.limit !== void 0) params.push(`limit=${req.query.limit}`);
-      if (req.query.category !== void 0) params.push(`category=${req.query.category}`);
-      if (req.query.userid !== void 0) params.push(`userid=${req.query.userid}`);
-      if (req.query.currentUserId !== void 0) params.push(`currentUserId=${req.query.currentUserId}`);
-      if (req.query.title !== void 0) params.push(`title=${req.query.title}`);
-      if (req.query.status !== void 0) params.push(`status=${req.query.status}`);
-      const queryString = params.join("&");
-      const url = `${ICONA_API_BASE}/rooms?${queryString}`;
-      console.log("Calling external API:", url);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const response = await fetch(url, {
-        method: "GET",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        throw new Error(`Icona API returned ${response.status}`);
-      }
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error("Error fetching rooms from Icona API:", error);
-      res.status(500).json({ error: "Failed to fetch rooms" });
-    }
-  });
-  app2.get("/api/shows", async (_req, res) => {
-    try {
-      const shows = await storage.getLiveShows();
-      res.json(shows);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch live shows" });
-    }
-  });
-  app2.post("/api/shows", async (req, res) => {
-    try {
-      const showData = insertLiveShowSchema.parse(req.body);
-      const show = await storage.createLiveShow(showData);
-      res.status(201).json(show);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid show data" });
-    }
-  });
-  app2.patch("/api/shows/:id", async (req, res) => {
-    try {
-      const show = await storage.updateLiveShow(req.params.id, req.body);
-      if (!show) {
-        return res.status(404).json({ error: "Show not found" });
-      }
-      res.json(show);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update show" });
-    }
-  });
-  app2.post("/livekit/token", async (req, res) => {
-    try {
-      const { room: roomId, userId: clientUserId, userName } = req.body;
-      console.log("\u{1F511} Request body received:", req.body);
-      if (!req.session?.user) {
-        console.error("\u274C Unauthorized: No session user");
-        return res.status(401).json({ error: "Authentication required" });
-      }
-      if (!req.session?.accessToken) {
-        console.error("\u274C No access token in session");
-        return res.status(401).json({ error: "Authentication required" });
-      }
-      const sessionUser = req.session.user;
-      const userId = sessionUser._id || sessionUser.id;
-      const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${req.session.accessToken}`
-      };
-      const roomResponse = await fetch(`${ICONA_API_BASE}/rooms/${roomId}`, {
-        method: "GET",
-        headers
-      });
-      if (!roomResponse.ok) {
-        console.error("\u274C Failed to fetch room details");
-        return res.status(404).json({ error: "Room not found" });
-      }
-      const room = await roomResponse.json();
-      const rawOwnerId = room.owner?._id || room.owner?.id;
-      const showOwnerId = String(rawOwnerId);
-      const normalizedUserId = String(userId);
-      const isHost = normalizedUserId === showOwnerId;
-      const role = isHost ? "host" : "audience";
-      console.log("\u{1F510} Role determination:", {
-        userId: normalizedUserId,
-        showOwnerId,
-        isHost,
-        role
-      });
-      const requestBody = {
-        room: roomId,
-        userId: clientUserId || userId,
-        userName,
-        role
-      };
-      console.log("\u{1F4E4} Sending to external API:", requestBody);
-      const response = await fetch(`${ICONA_API_BASE}/livekit/token`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody)
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`\u274C Icona API returned ${response.status}:`, errorText);
-        return res.status(response.status).json({
-          error: errorText || "Failed to get LiveKit token from external API"
-        });
-      }
-      const data = await response.json();
-      console.log("\u2705 LiveKit token received from Icona API");
-      res.json({
-        ...data,
-        role
-      });
-    } catch (error) {
-      console.error("\u274C Error proxying LiveKit token request:", error);
-      res.status(500).json({ error: "Failed to get LiveKit token" });
-    }
-  });
-}
-
-// ../shared-backend/server/routes/analytics.ts
-function registerAnalyticsRoutes(app2) {
-  app2.get("/api/analytics", async (req, res) => {
-    try {
-      const { startDate, endDate } = req.query;
-      const analytics2 = await storage.getAnalytics(
-        startDate ? new Date(startDate) : void 0,
-        endDate ? new Date(endDate) : void 0
-      );
-      res.json(analytics2);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch analytics" });
-    }
-  });
-}
-
 // ../shared-backend/server/routes/shipping.ts
-import fetch4 from "node-fetch";
-import https from "https";
-import { URL } from "url";
 function makeGetWithBody(url, payload, headers = {}) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
@@ -1660,7 +1254,7 @@ function registerShippingRoutes(app2) {
     try {
       const { userId } = req.params;
       console.log("Proxying shipping profiles request to Icona API for user:", userId);
-      const url = `${ICONA_API_BASE}/shipping/profiles/${userId}`;
+      const url = `${BASE_URL}/shipping/profiles/${userId}`;
       console.log("Final API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -1695,7 +1289,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/${userId}`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/${userId}`, {
         method: "POST",
         headers,
         body: JSON.stringify(req.body)
@@ -1720,7 +1314,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/${id}`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/${id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify(req.body)
@@ -1745,7 +1339,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/${id}`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/${id}`, {
         method: "DELETE",
         headers
       });
@@ -1777,7 +1371,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/orders?${queryParams.toString()}`, {
+      const response = await fetch4(`${BASE_URL}/orders?${queryParams.toString()}`, {
         method: "GET",
         headers
       });
@@ -1785,8 +1379,8 @@ function registerShippingRoutes(app2) {
         throw new Error(`External API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      const orders2 = data.orders || [];
-      const totalSoldFromItems = orders2.reduce((sum, order) => {
+      const orders = data.orders || [];
+      const totalSoldFromItems = orders.reduce((sum, order) => {
         const itemsSubtotal = order.items ? order.items.reduce((itemSum, item) => {
           const quantity = item.quantity || 0;
           const price = item.price || 0;
@@ -1796,17 +1390,17 @@ function registerShippingRoutes(app2) {
         const itemsTotal = itemsSubtotal + tax;
         return sum + itemsTotal;
       }, 0);
-      const totalShippingCosts = orders2.reduce((sum, order) => sum + (order.shipping_fee || 0), 0);
-      const totalServiceFees = orders2.reduce((sum, order) => sum + (order.servicefee || 0), 0);
-      const totalShippingSpend = orders2.filter((order) => order.status === "processing").reduce((sum, order) => sum + (order.seller_shipping_fee_pay || 0), 0);
+      const totalShippingCosts = orders.reduce((sum, order) => sum + (order.shipping_fee || 0), 0);
+      const totalServiceFees = orders.reduce((sum, order) => sum + (order.servicefee || 0), 0);
+      const totalShippingSpend = orders.filter((order) => order.status === "processing").reduce((sum, order) => sum + (order.seller_shipping_fee_pay || 0), 0);
       const totalCouponSpend = 0;
       const totalEarned = totalSoldFromItems - totalShippingSpend - totalServiceFees - totalCouponSpend;
-      const itemsSold = orders2.reduce((sum, order) => {
+      const itemsSold = orders.reduce((sum, order) => {
         const itemCount = order.items ? order.items.reduce((total, item) => total + (item.quantity || 1), 0) : 1;
         return sum + itemCount;
       }, 0);
-      const totalDelivered = orders2.filter((order) => order.status === "delivered" || order.status === "ended").length;
-      const pendingDelivery = orders2.filter((order) => order.status === "shipping" || order.status === "shipped").length;
+      const totalDelivered = orders.filter((order) => order.status === "delivered" || order.status === "ended").length;
+      const pendingDelivery = orders.filter((order) => order.status === "shipping" || order.status === "shipped").length;
       const metrics = {
         totalSold: totalSoldFromItems.toFixed(2),
         totalEarned: totalEarned.toFixed(2),
@@ -1835,7 +1429,7 @@ function registerShippingRoutes(app2) {
         tokshow: req.body.tokshow,
         buying_label: true
       };
-      const estimate = await makeGetWithBody(`${ICONA_API_BASE}/shipping/profiles/estimate/rates`, requestBody);
+      const estimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
       console.log("Shipping estimate response:", estimate);
       res.json(estimate);
     } catch (error) {
@@ -1846,7 +1440,7 @@ function registerShippingRoutes(app2) {
   app2.post("/api/shipping/profiles/estimate/rates", async (req, res) => {
     try {
       const validatedData = shippingEstimateRequestSchema.parse(req.body);
-      console.log("Fetching shipping estimates from external API:", `${ICONA_API_BASE}/shipping/profiles/estimate/rates`);
+      console.log("Fetching shipping estimates from external API:", `${BASE_URL}/shipping/profiles/estimate/rates`);
       const requestBody = {
         weight: validatedData.weight,
         unit: validatedData.unit,
@@ -1859,7 +1453,7 @@ function registerShippingRoutes(app2) {
         height: validatedData.height,
         buying_label: true
       };
-      const rawEstimate = await makeGetWithBody(`${ICONA_API_BASE}/shipping/profiles/estimate/rates`, requestBody);
+      const rawEstimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
       console.log("External API shipping estimates:", rawEstimate);
       const estimates = Array.isArray(rawEstimate) ? rawEstimate : [rawEstimate];
       const transformedEstimates = estimates.map((estimate) => {
@@ -1923,7 +1517,7 @@ function registerShippingRoutes(app2) {
       }
       let orderIdToSend = validatedData.order;
       try {
-        const orderResponse = await fetch4(`${ICONA_API_BASE}/orders/${validatedData.order}`, {
+        const orderResponse = await fetch4(`${BASE_URL}/orders/${validatedData.order}`, {
           method: "GET",
           headers: fetchHeaders
         });
@@ -1944,7 +1538,7 @@ function registerShippingRoutes(app2) {
         label_file_type: req.body.label_file_type || "PDF_4x6",
         order: orderIdToSend
       }];
-      console.log("Calling external shipping API:", `${ICONA_API_BASE}/shipping/profiles/buy/label`);
+      console.log("Calling external shipping API:", `${BASE_URL}/shipping/profiles/buy/label`);
       console.log("Request body being sent to external API:", { rates });
       const headers = {
         "Content-Type": "application/json"
@@ -1952,7 +1546,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/buy/label`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/buy/label`, {
         method: "POST",
         headers,
         body: JSON.stringify({ rates })
@@ -2034,7 +1628,7 @@ function registerShippingRoutes(app2) {
         fetchHeaders["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
       const orderFetchPromises = orderIds.map(async (orderId) => {
-        const response2 = await fetch4(`${ICONA_API_BASE}/orders/${orderId}`, {
+        const response2 = await fetch4(`${BASE_URL}/orders/${orderId}`, {
           method: "GET",
           headers: fetchHeaders
         });
@@ -2043,9 +1637,9 @@ function registerShippingRoutes(app2) {
         }
         return response2.json();
       });
-      const orders2 = await Promise.all(orderFetchPromises);
-      console.log(`Fetched ${orders2.length} orders for bundling`);
-      const firstOrder = orders2[0];
+      const orders = await Promise.all(orderFetchPromises);
+      console.log(`Fetched ${orders.length} orders for bundling`);
+      const firstOrder = orders[0];
       const customerId = firstOrder.customer._id;
       const customerAddress = firstOrder.customer.address;
       if (!customerAddress) {
@@ -2055,7 +1649,7 @@ function registerShippingRoutes(app2) {
           error: "Cannot bundle orders without shipping address"
         });
       }
-      for (const order of orders2) {
+      for (const order of orders) {
         if (order.customer._id !== customerId) {
           return res.status(400).json({
             success: false,
@@ -2084,7 +1678,7 @@ function registerShippingRoutes(app2) {
       let maxLength = 0;
       let maxWidth = 0;
       let totalHeight = 0;
-      for (const order of orders2) {
+      for (const order of orders) {
         let orderWeight = 0;
         if (order.giveaway?.shipping_profile?.weight) {
           const weight = order.giveaway.shipping_profile.weight;
@@ -2149,7 +1743,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         labelHeaders["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const labelResponse = await fetch4(`${ICONA_API_BASE}/shipping/profiles/buy/label`, {
+      const labelResponse = await fetch4(`${BASE_URL}/shipping/profiles/buy/label`, {
         method: "POST",
         headers: labelHeaders,
         body: JSON.stringify({ rates })
@@ -2184,7 +1778,7 @@ function registerShippingRoutes(app2) {
       }
       const updatePromises = orderIds.map(async (orderId) => {
         try {
-          const updateResponse = await fetch4(`${ICONA_API_BASE}/orders/${orderId}`, {
+          const updateResponse = await fetch4(`${BASE_URL}/orders/${orderId}`, {
             method: "PATCH",
             headers: updateHeaders,
             body: JSON.stringify({
@@ -2289,7 +1883,7 @@ function registerShippingRoutes(app2) {
       const fetchErrors = [];
       for (const orderId of orderIds) {
         try {
-          const orderResponse = await fetch4(`${ICONA_API_BASE}/orders/?_id=${orderId}`, {
+          const orderResponse = await fetch4(`${BASE_URL}/orders/?_id=${orderId}`, {
             method: "GET",
             headers
           });
@@ -2327,8 +1921,8 @@ function registerShippingRoutes(app2) {
       }
       console.log(`Sending bulk label request with ${rates.length} rates`);
       console.log("Rates being sent:", JSON.stringify(rates, null, 2));
-      console.log("API URL:", `${ICONA_API_BASE}/shipping/profiles/buy/label`);
-      const labelResponse = await fetch4(`${ICONA_API_BASE}/shipping/profiles/buy/label`, {
+      console.log("API URL:", `${BASE_URL}/shipping/profiles/buy/label`);
+      const labelResponse = await fetch4(`${BASE_URL}/shipping/profiles/buy/label`, {
         method: "POST",
         headers,
         body: JSON.stringify({ rates })
@@ -2384,7 +1978,7 @@ function registerBundleRoutes(app2) {
         return res.status(400).json({ error: "userId or customer parameter is required" });
       }
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/orders${queryString ? "?" + queryString : ""}`;
+      const url = `${BASE_URL}/orders${queryString ? "?" + queryString : ""}`;
       console.log("Fetching orders from Icona API:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -2400,9 +1994,9 @@ function registerBundleRoutes(app2) {
         throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      const orders2 = data.orders || [];
-      console.log(`Found ${orders2.length} orders, filtering by bundle IDs...`);
-      const bundledOrders = orders2.filter((order) => {
+      const orders = data.orders || [];
+      console.log(`Found ${orders.length} orders, filtering by bundle IDs...`);
+      const bundledOrders = orders.filter((order) => {
         return order && order.bundleId && order.bundleId.trim() !== "";
       });
       console.log(`Found ${bundledOrders.length} orders with bundle IDs`);
@@ -2414,9 +2008,9 @@ function registerBundleRoutes(app2) {
         }
         bundleGroups.get(bundleId).push(order);
       });
-      const bundles = Array.from(bundleGroups.entries()).map(([bundleId, orders3]) => {
-        const totalValue = orders3.reduce((sum, order) => sum + (order.total || 0), 0);
-        const weights = orders3.map((order) => {
+      const bundles = Array.from(bundleGroups.entries()).map(([bundleId, orders2]) => {
+        const totalValue = orders2.reduce((sum, order) => sum + (order.total || 0), 0);
+        const weights = orders2.map((order) => {
           if (order.giveaway?.shipping_profile?.weight) {
             return order.giveaway.shipping_profile.weight;
           }
@@ -2429,7 +2023,7 @@ function registerBundleRoutes(app2) {
           return 0;
         }).filter((w) => w > 0);
         const totalWeight = weights.length > 0 ? weights.reduce((sum, w) => sum + w, 0) : 0;
-        const firstOrder = orders3[0];
+        const firstOrder = orders2[0];
         let customerId;
         let customerName;
         if (typeof firstOrder.customer === "string") {
@@ -2446,8 +2040,8 @@ function registerBundleRoutes(app2) {
           id: bundleId,
           customerId,
           customerName,
-          orderIds: orders3.map((order) => order._id),
-          count: orders3.length,
+          orderIds: orders2.map((order) => order._id),
+          count: orders2.length,
           weight: totalWeight > 0 ? `${totalWeight} oz` : void 0,
           dimensions: void 0,
           // Could aggregate dimensions if needed
@@ -2472,7 +2066,7 @@ function registerBundleRoutes(app2) {
       if (!userId) {
         return res.status(400).json({ error: "userId parameter is required" });
       }
-      const ordersUrl = `${ICONA_API_BASE}/orders?userId=${userId}`;
+      const ordersUrl = `${BASE_URL}/orders?userId=${userId}`;
       const ordersResponse = await fetch5(ordersUrl, {
         method: "GET",
         headers: {
@@ -2507,7 +2101,7 @@ function registerBundleRoutes(app2) {
       for (const order of bundledOrders) {
         try {
           console.log(`Removing bundle ID from order ${order._id}`);
-          const response = await fetch5(`${ICONA_API_BASE}/orders/${order._id}`, {
+          const response = await fetch5(`${BASE_URL}/orders/${order._id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json"
@@ -2693,7 +2287,7 @@ function registerAuthRoutes(app2) {
       }
       const { email, country, firstName, lastName, userName, phone, password } = validationResult.data;
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/auth/signup`,
+        `${BASE_URL}/auth/signup`,
         {
           method: "POST",
           headers: {
@@ -2767,7 +2361,7 @@ function registerAuthRoutes(app2) {
       }
       const { email, password } = validationResult.data;
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/auth/login`,
+        `${BASE_URL}/auth/login`,
         {
           method: "POST",
           headers: {
@@ -2850,7 +2444,7 @@ function registerAuthRoutes(app2) {
         gender: socialAuthData.gender
       };
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/auth/social`,
+        `${BASE_URL}/auth/social`,
         {
           method: "POST",
           headers: {
@@ -2922,7 +2516,7 @@ function registerAuthRoutes(app2) {
         type: req.body.type,
         profilePhoto: req.body.profilePhoto
       };
-      const apiEndpoint = `${ICONA_API_BASE}/auth`;
+      const apiEndpoint = `${BASE_URL}/auth`;
       const { response, data: responseData } = await resilientFetch(apiEndpoint, {
         method: "POST",
         headers: {
@@ -2987,7 +2581,7 @@ function registerAuthRoutes(app2) {
         });
       }
       const userId = req.session.user._id || req.session.user.id;
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`Updating user profile at: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3064,7 +2658,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Sending mention notifications to ${ids.length} users`);
-      const url = `${ICONA_API_BASE}/notifications`;
+      const url = `${BASE_URL}/notifications`;
       console.log(`Notification API URL: ${url}`);
       const response = await fetch6(url, {
         method: "POST",
@@ -3133,7 +2727,7 @@ function registerAuthRoutes(app2) {
         title,
         currentUserId
       });
-      const url = `${ICONA_API_BASE}/users?${params.toString()}`;
+      const url = `${BASE_URL}/users?${params.toString()}`;
       console.log(`User search API URL: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -3220,7 +2814,7 @@ function registerAuthRoutes(app2) {
       console.log(`Fetching default payment method for user: ${requestedUserId}`);
       try {
         const { response, data: responseData } = await resilientFetch(
-          `${ICONA_API_BASE}/stripe/default/paymentmethod/default/${requestedUserId}`,
+          `${BASE_URL}/stripe/default/paymentmethod/default/${requestedUserId}`,
           {
             method: "GET",
             headers: {
@@ -3270,7 +2864,7 @@ function registerAuthRoutes(app2) {
       }
       console.log(`Fetching all payment methods for user: ${requestedUserId}`);
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/users/paymentmethod/${requestedUserId}`,
+        `${BASE_URL}/users/paymentmethod/${requestedUserId}`,
         {
           method: "GET",
           headers: {
@@ -3316,7 +2910,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Following user: ${myId} -> ${tofollowId}`);
-      const url = `${ICONA_API_BASE}/users/follow/${myId}/${tofollowId}`;
+      const url = `${BASE_URL}/users/follow/${myId}/${tofollowId}`;
       console.log(`Follow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3374,7 +2968,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Unfollowing user: ${myId} -> ${tofollowId}`);
-      const url = `${ICONA_API_BASE}/users/unfollow/${myId}/${tofollowId}`;
+      const url = `${BASE_URL}/users/unfollow/${myId}/${tofollowId}`;
       console.log(`Unfollow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3432,7 +3026,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Blocking user: ${myId} -> ${toBlock}`);
-      const url = `${ICONA_API_BASE}/users/block/${myId}/${toBlock}`;
+      const url = `${BASE_URL}/users/block/${myId}/${toBlock}`;
       console.log(`Block API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3490,7 +3084,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Unblocking user: ${myId} -> ${toBlock}`);
-      const url = `${ICONA_API_BASE}/users/unblock/${myId}/${toBlock}`;
+      const url = `${BASE_URL}/users/unblock/${myId}/${toBlock}`;
       console.log(`Unblock API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3554,7 +3148,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Reporting user: ${reported_by} reporting ${reported} for: ${reason}`);
-      const url = `${ICONA_API_BASE}/users/report`;
+      const url = `${BASE_URL}/users/report`;
       console.log(`Report API URL: ${url}`);
       const response = await fetch6(url, {
         method: "POST",
@@ -3624,7 +3218,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Following category: User ${userid} following category ${categoryId}`);
-      const url = `${ICONA_API_BASE}/category/follow/${categoryId}`;
+      const url = `${BASE_URL}/category/follow/${categoryId}`;
       console.log(`Category follow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3692,7 +3286,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Unfollowing category: User ${userid} unfollowing category ${categoryId}`);
-      const url = `${ICONA_API_BASE}/category/unfollow/${categoryId}`;
+      const url = `${BASE_URL}/category/unfollow/${categoryId}`;
       console.log(`Category unfollow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3745,7 +3339,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Fetching reviews for user: ${userId}`);
-      const url = `${ICONA_API_BASE}/users/review/${userId}`;
+      const url = `${BASE_URL}/users/review/${userId}`;
       console.log(`Reviews API URL: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -3821,7 +3415,7 @@ function registerAuthRoutes(app2) {
         email,
         password: "dummy-password-for-existence-check-12345"
       };
-      const { response, data } = await resilientFetch(`${ICONA_API_BASE}/auth/login`, {
+      const { response, data } = await resilientFetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(checkPayload)
@@ -3899,7 +3493,7 @@ function registerAuthRoutes(app2) {
       }
       const { email, password } = validationResult.data;
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/admin/login`,
+        `${BASE_URL}/admin/login`,
         {
           method: "POST",
           headers: {
@@ -3991,7 +3585,7 @@ function registerAuthRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.status) queryParams.append("status", req.query.status);
-      const url = `${ICONA_API_BASE}/transactions?${queryParams.toString()}`;
+      const url = `${BASE_URL}/transactions?${queryParams.toString()}`;
       console.log(`Fetching user transactions from: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -4047,7 +3641,7 @@ function registerAuthRoutes(app2) {
           error: "Authentication required"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Fetching public settings from: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -4149,7 +3743,7 @@ function registerProductRoutes(app2) {
       if (!q || typeof q !== "string") {
         return res.json({ products: [] });
       }
-      const url = `${ICONA_API_BASE}/products/search?q=${encodeURIComponent(q)}`;
+      const url = `${BASE_URL}/products/search?q=${encodeURIComponent(q)}`;
       console.log("Final search API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -4183,7 +3777,7 @@ function registerProductRoutes(app2) {
         "Proxying individual product request to Icona API for product:",
         id
       );
-      const url = `${ICONA_API_BASE}/products/products/${id}`;
+      const url = `${BASE_URL}/products/products/${id}`;
       console.log("Final API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -4246,7 +3840,7 @@ function registerProductRoutes(app2) {
         queryParams.set("featured", req.query.featured);
       }
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/products${queryString ? "?" + queryString : ""}`;
+      const url = `${BASE_URL}/products${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
       const response = await fetch7(url, {
         method: "GET",
@@ -4346,7 +3940,7 @@ function registerProductRoutes(app2) {
         "Sending to Icona API:",
         JSON.stringify(iconaProductData, null, 2)
       );
-      const response = await fetch7(`${ICONA_API_BASE}/products/${userId}`, {
+      const response = await fetch7(`${BASE_URL}/products/${userId}`, {
         method: "POST",
         headers,
         body: JSON.stringify(iconaProductData)
@@ -4427,12 +4021,12 @@ function registerProductRoutes(app2) {
         );
       }
       console.log("Sending bulk products to Icona API:", {
-        endpoint: `${ICONA_API_BASE}/products/products/bulkadd`,
+        endpoint: `${BASE_URL}/products/products/bulkadd`,
         productCount: iconaProducts.length
       });
       console.log("Actual payload being sent:", JSON.stringify({ products: iconaProducts }, null, 2));
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/products/bulkadd`,
+        `${BASE_URL}/products/products/bulkadd`,
         {
           method: "POST",
           headers,
@@ -4474,7 +4068,7 @@ function registerProductRoutes(app2) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/images/${productId}`,
+        `${BASE_URL}/products/images/${productId}`,
         {
           method: "POST",
           headers,
@@ -4546,7 +4140,7 @@ function registerProductRoutes(app2) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/products/${productId}`,
+        `${BASE_URL}/products/products/${productId}`,
         {
           method: "PUT",
           headers,
@@ -4580,7 +4174,7 @@ function registerProductRoutes(app2) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/products/${productId}`,
+        `${BASE_URL}/products/products/${productId}`,
         {
           method: "PUT",
           headers,
@@ -4640,7 +4234,7 @@ function registerProductRoutes(app2) {
       } else {
         console.log("WARNING: No access token found in session for bulk edit");
       }
-      const response = await fetch7(`${ICONA_API_BASE}/products/products/bulkedit/all`, {
+      const response = await fetch7(`${BASE_URL}/products/products/bulkedit/all`, {
         method: "PUT",
         headers,
         body: JSON.stringify(payload)
@@ -4687,7 +4281,7 @@ function registerCategoryRoutes(app2) {
         queryParams.set("limit", req.query.limit);
       }
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/category${queryString ? "?" + queryString : ""}`;
+      const url = `${BASE_URL}/category${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
       const response = await fetch8(url, {
         method: "GET",
@@ -4720,7 +4314,7 @@ function registerAddressRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/all/${userId}`, {
+      const response = await fetch9(`${BASE_URL}/address/all/${userId}`, {
         method: "GET",
         headers
       });
@@ -4750,16 +4344,16 @@ function registerAddressRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/all/${userId}`, {
+      const response = await fetch9(`${BASE_URL}/address/all/${userId}`, {
         method: "GET",
         headers
       });
       if (!response.ok) {
         throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
       }
-      const addresses2 = await response.json();
-      console.log(`Fetched ${addresses2?.length || 0} addresses for user ${userId}`);
-      const defaultAddress = addresses2?.find((addr) => addr.primary === true);
+      const addresses = await response.json();
+      console.log(`Fetched ${addresses?.length || 0} addresses for user ${userId}`);
+      const defaultAddress = addresses?.find((addr) => addr.primary === true);
       console.log("Default address found:", defaultAddress ? "YES" : "NO");
       if (!defaultAddress) {
         return res.json({ address: null });
@@ -4818,7 +4412,7 @@ function registerAddressRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address`, {
+      const response = await fetch9(`${BASE_URL}/address`, {
         method: "POST",
         headers,
         body: JSON.stringify(transformedBody)
@@ -4906,7 +4500,7 @@ function registerAddressRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/${addressId}`, {
+      const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "PUT",
         headers,
         body: JSON.stringify(transformedBody)
@@ -4977,7 +4571,7 @@ function registerAddressRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/${addressId}`, {
+      const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "PATCH",
         headers,
         body: JSON.stringify(requestBody)
@@ -5026,7 +4620,7 @@ function registerAddressRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/${addressId}`, {
+      const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "DELETE",
         headers
       });
@@ -5060,7 +4654,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/users/paymentmethod/${userId}`, {
+      const response = await fetch10(`${BASE_URL}/users/paymentmethod/${userId}`, {
         method: "GET",
         headers
       });
@@ -5107,7 +4701,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/remove`, {
+      const response = await fetch10(`${BASE_URL}/stripe/remove`, {
         method: "DELETE",
         headers,
         body: JSON.stringify({ paymentMethodId, userid })
@@ -5155,7 +4749,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/default`, {
+      const response = await fetch10(`${BASE_URL}/stripe/default`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ userid, paymentMethodId })
@@ -5203,7 +4797,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/users/paymentmethod`, {
+      const response = await fetch10(`${BASE_URL}/users/paymentmethod`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -5255,7 +4849,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/setupitent`, {
+      const response = await fetch10(`${BASE_URL}/stripe/setupitent`, {
         method: "POST",
         headers,
         body: JSON.stringify({ email: email.trim() })
@@ -5317,7 +4911,7 @@ function registerPaymentMethodRoutes(app2) {
       if (trimmedMethodId) {
         payload.methodid = trimmedMethodId;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/savepaymentmethod`, {
+      const response = await fetch10(`${BASE_URL}/stripe/savepaymentmethod`, {
         method: "POST",
         headers,
         body: JSON.stringify(payload)
@@ -5557,7 +5151,7 @@ async function checkDemoMode(req, res, next) {
     if (!accessToken) {
       return next();
     }
-    const url = `${ICONA_API_BASE}/admin/app/settings`;
+    const url = `${BASE_URL}/admin/app/settings`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -5589,7 +5183,7 @@ function registerAdminRoutes(app2) {
       res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
       res.set("Pragma", "no-cache");
       res.set("Expires", "0");
-      const url = `${ICONA_API_BASE}/admin/exists`;
+      const url = `${BASE_URL}/admin/exists`;
       console.log(`Checking if admin exists at external API: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -5621,7 +5215,7 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/api/admin/check-setup", async (req, res) => {
     try {
-      const url = `${ICONA_API_BASE}/admin`;
+      const url = `${BASE_URL}/admin`;
       console.log(`Checking if admins exist: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -5663,9 +5257,9 @@ function registerAdminRoutes(app2) {
         });
       }
       const possibleEndpoints = [
-        `${ICONA_API_BASE}/admin/register`,
-        `${ICONA_API_BASE}/admin/signup`,
-        `${ICONA_API_BASE}/admin`
+        `${BASE_URL}/admin/register`,
+        `${BASE_URL}/admin/signup`,
+        `${BASE_URL}/admin`
       ];
       let response;
       let lastError = null;
@@ -5743,7 +5337,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.title) queryParams.append("title", req.query.title);
-      const url = `${ICONA_API_BASE}/users${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/users${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching users from: ${url}`);
       console.log(`Using accessToken (first 50 chars): ${accessToken ? accessToken.substring(0, 50) : "NO TOKEN"}...`);
       const response = await fetch(url, {
@@ -5809,7 +5403,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/addresses`,
+        `${BASE_URL}/admin/users/${userId}/addresses`,
         {
           method: "GET",
           headers: {
@@ -5850,7 +5444,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/shipping-profiles`,
+        `${BASE_URL}/admin/users/${userId}/shipping-profiles`,
         {
           method: "GET",
           headers: {
@@ -5890,7 +5484,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/products/?_id=${productId}&populate=shipping`;
+      const url = `${BASE_URL}/products/?_id=${productId}&populate=shipping`;
       console.log(`Fetching product details from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -5963,7 +5557,7 @@ function registerAdminRoutes(app2) {
       if (req.query.title) queryParams.append("title", req.query.title);
       if (req.query.price) queryParams.append("price", req.query.price);
       if (req.query.userid) queryParams.append("userid", req.query.userid);
-      const url = `${ICONA_API_BASE}/products/${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/products/${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching products from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6027,7 +5621,7 @@ function registerAdminRoutes(app2) {
       }
       console.log(`Admin updating product: ${productId}`);
       console.log(`Update payload:`, req.body);
-      const url = `${ICONA_API_BASE}/products/products/${productId}`;
+      const url = `${BASE_URL}/products/products/${productId}`;
       const response = await fetch(url, {
         method: "PUT",
         headers: {
@@ -6081,7 +5675,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/inventory`,
+        `${BASE_URL}/admin/users/${userId}/inventory`,
         {
           method: "GET",
           headers: {
@@ -6122,7 +5716,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/orders`,
+        `${BASE_URL}/admin/users/${userId}/orders`,
         {
           method: "GET",
           headers: {
@@ -6162,7 +5756,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`Fetching user details from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6216,7 +5810,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/users/approveseller/${userId}`;
+      const url = `${BASE_URL}/users/approveseller/${userId}`;
       console.log(`Approving seller at: ${url}`);
       console.log(`Seller approval payload:`, { email });
       const response = await fetch(url, {
@@ -6271,7 +5865,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`Updating user at: ${url}`);
       console.log(`Update payload:`, req.body);
       const response = await fetch(url, {
@@ -6329,7 +5923,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.userId) queryParams.append("userId", req.query.userId);
-      const url = `${ICONA_API_BASE}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching transactions from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6386,7 +5980,7 @@ function registerAdminRoutes(app2) {
       if (req.query.title) queryParams.append("title", req.query.title);
       if (req.query.type) queryParams.append("type", req.query.type);
       queryParams.append("sort", "-1");
-      const url = `${ICONA_API_BASE}/rooms${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/rooms${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching shows from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6427,7 +6021,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/rooms/${showId}`;
+      const url = `${BASE_URL}/rooms/${showId}`;
       console.log(`Fetching show details from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6471,7 +6065,7 @@ function registerAdminRoutes(app2) {
       queryParams.append("saletype", "auction");
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
-      const url = `${ICONA_API_BASE}/products/?${queryParams.toString()}`;
+      const url = `${BASE_URL}/products/?${queryParams.toString()}`;
       console.log(`Fetching show auctions from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6518,7 +6112,7 @@ function registerAdminRoutes(app2) {
       queryParams.append("room", showId);
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
-      const url = `${ICONA_API_BASE}/giveaways/?${queryParams.toString()}`;
+      const url = `${BASE_URL}/giveaways/?${queryParams.toString()}`;
       console.log(`Fetching show giveaways from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6565,7 +6159,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       queryParams.append("featured", "false");
-      const url = `${ICONA_API_BASE}/products/?${queryParams.toString()}`;
+      const url = `${BASE_URL}/products/?${queryParams.toString()}`;
       console.log(`Fetching show buy now items from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6610,7 +6204,7 @@ function registerAdminRoutes(app2) {
       queryParams.append("tokshow", showId);
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
-      const url = `${ICONA_API_BASE}/orders?${queryParams.toString()}`;
+      const url = `${BASE_URL}/orders?${queryParams.toString()}`;
       console.log(`Fetching show sold orders from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6650,7 +6244,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -6686,7 +6280,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Fetching app settings from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6724,7 +6318,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Updating app settings at: ${url}`);
       const response = await fetch(url, {
         method: "POST",
@@ -6777,7 +6371,7 @@ function registerAdminRoutes(app2) {
         filename: req.file.originalname,
         contentType: req.file.mimetype
       });
-      const url = `${ICONA_API_BASE}/settings/upload-logo`;
+      const url = `${BASE_URL}/settings/upload-logo`;
       console.log(`Uploading logo to: ${url}`);
       const response = await axios.post(url, formData, {
         headers: {
@@ -6811,7 +6405,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/profile/${userId}`;
+      const url = `${BASE_URL}/admin/profile/${userId}`;
       console.log(`Fetching admin profile from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6850,7 +6444,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const userId = req.session.user.id || req.session.user._id;
-      const url = `${ICONA_API_BASE}/admin/${userId}`;
+      const url = `${BASE_URL}/admin/${userId}`;
       console.log(`Updating admin profile at: ${url}`);
       const response = await fetch(url, {
         method: "PATCH",
@@ -6904,7 +6498,7 @@ function registerAdminRoutes(app2) {
       if (req.query.charge) queryParams.append("charge", req.query.charge);
       if (req.query.account) queryParams.append("account", req.query.account);
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/stripe/application/fees${queryString ? `?${queryString}` : ""}`;
+      const url = `${BASE_URL}/stripe/application/fees${queryString ? `?${queryString}` : ""}`;
       console.log(`Fetching application fees from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6952,7 +6546,7 @@ function registerAdminRoutes(app2) {
       if (limit) queryParams.append("limit", limit);
       if (starting_after) queryParams.append("starting_after", starting_after);
       if (ending_before) queryParams.append("ending_before", ending_before);
-      const stripeUrl = `${ICONA_API_BASE}/stripe/transactions/all/payouts${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
+      const stripeUrl = `${BASE_URL}/stripe/transactions/all/payouts${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
       console.log(`Fetching all Stripe payouts from: ${stripeUrl}`);
       const stripeResponse = await fetch(stripeUrl, {
         method: "GET",
@@ -6994,7 +6588,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/category/${categoryId}`;
+      const url = `${BASE_URL}/category/${categoryId}`;
       console.log(`Fetching category from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7038,7 +6632,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.title) queryParams.append("title", req.query.title);
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/category${queryString ? `?${queryString}` : ""}`;
+      const url = `${BASE_URL}/category${queryString ? `?${queryString}` : ""}`;
       console.log(`Fetching categories from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7097,7 +6691,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category`;
+      const url = `${BASE_URL}/category`;
       console.log(`Adding category to: ${url}`);
       const response = await axios.post(url, formData, {
         headers: {
@@ -7148,7 +6742,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Updating category at: ${url}`);
       const response = await axios.put(url, formData, {
         headers: {
@@ -7187,7 +6781,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const formattedNames = names.map((name) => ({ name }));
-      const url = `${ICONA_API_BASE}/category/bulk/add`;
+      const url = `${BASE_URL}/category/bulk/add`;
       console.log(`Bulk importing categories to: ${url}`);
       const response = await fetch(url, {
         method: "POST",
@@ -7257,7 +6851,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category`;
+      const url = `${BASE_URL}/category`;
       console.log(`Adding subcategory to: ${url}`);
       const response = await axios.post(url, formData, {
         headers: {
@@ -7312,7 +6906,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Updating subcategory at: ${url}`);
       const response = await axios.put(url, formData, {
         headers: {
@@ -7352,7 +6946,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const formattedNames = names.map((name) => ({ name, type: "child" }));
-      const url = `${ICONA_API_BASE}/category/subcategory/bulk/${categoryId}`;
+      const url = `${BASE_URL}/category/subcategory/bulk/${categoryId}`;
       console.log(`Bulk importing subcategories to: ${url}`);
       const response = await fetch(url, {
         method: "POST",
@@ -7407,7 +7001,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const formData = new FormData();
-      const getCategoryUrl = `${ICONA_API_BASE}/category/${id}`;
+      const getCategoryUrl = `${BASE_URL}/category/${id}`;
       const getCategoryResponse = await fetch(getCategoryUrl, {
         method: "GET",
         headers: {
@@ -7427,7 +7021,7 @@ function registerAdminRoutes(app2) {
       } else {
         formData.append("type", "parent");
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Converting category type at: ${url} to ${targetType}`);
       const response = await axios.put(url, formData, {
         headers: {
@@ -7460,7 +7054,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Deleting subcategory from: ${url}`);
       const response = await fetch(url, {
         method: "DELETE",
@@ -7500,7 +7094,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Deleting category from: ${url}`);
       const response = await fetch(url, {
         method: "DELETE",
@@ -7543,7 +7137,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.status) queryParams.append("status", req.query.status);
-      const url = `${ICONA_API_BASE}/orders/all/disputes${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/orders/all/disputes${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching disputes from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7584,7 +7178,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/orders/dispute/${disputeId}`;
+      const url = `${BASE_URL}/orders/dispute/${disputeId}`;
       console.log(`Fetching dispute from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7642,7 +7236,7 @@ function registerAdminRoutes(app2) {
           error: "Favored user ID is required"
         });
       }
-      const url = `${ICONA_API_BASE}/orders/close/dispute/${disputeId}`;
+      const url = `${BASE_URL}/orders/close/dispute/${disputeId}`;
       console.log(`[Resolve Dispute] Calling ICONA API: ${url}`);
       console.log(`[Resolve Dispute] Payload:`, { favored, final_comments });
       const response = await fetch(url, {
@@ -7690,7 +7284,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       queryParams.append("populate", "reported reported_by");
-      const url = `${ICONA_API_BASE}/users/reports/cases${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/users/reports/cases${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching reported cases from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7741,7 +7335,7 @@ function registerAdminRoutes(app2) {
           error: "Blocked status is required and must be a boolean"
         });
       }
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`[Block User] Calling ICONA API: ${url}`);
       console.log(`[Block User] Payload:`, { system_blocked: blocked });
       const response = await fetch(url, {
@@ -7794,7 +7388,7 @@ function registerAdminRoutes(app2) {
           error: "Type is required and must be 'order' or 'transaction'"
         });
       }
-      const url = `${ICONA_API_BASE}/orders/refund/order/transaction/${id}`;
+      const url = `${BASE_URL}/orders/refund/order/transaction/${id}`;
       console.log(`[Refund] Calling ICONA API: ${url} with type: ${type}`);
       const response = await fetch(url, {
         method: "PUT",
@@ -7840,7 +7434,7 @@ function registerAdminRoutes(app2) {
       const queryParams = new URLSearchParams();
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.page) queryParams.append("page", req.query.page);
-      const url = `${ICONA_API_BASE}/stripe/refunds/list/all${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/stripe/refunds/list/all${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching refunds from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7894,7 +7488,7 @@ function registerAdminRoutes(app2) {
           error: "Recipient email is required for individual emails"
         });
       }
-      const settingsUrl = `${ICONA_API_BASE}/admin/app/settings`;
+      const settingsUrl = `${BASE_URL}/admin/app/settings`;
       const settingsResponse = await fetch(settingsUrl, {
         method: "GET",
         headers: {
@@ -7959,7 +7553,7 @@ function registerAdminRoutes(app2) {
       }
       let recipients = [];
       if (recipientType === "all") {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -7976,7 +7570,7 @@ function registerAdminRoutes(app2) {
         const usersData = await usersResponse.json();
         recipients = usersData.users || [];
       } else {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -8086,7 +7680,7 @@ function registerAdminRoutes(app2) {
           error: "Recipient email is required for individual notifications"
         });
       }
-      const settingsUrl = `${ICONA_API_BASE}/admin/app/settings`;
+      const settingsUrl = `${BASE_URL}/admin/app/settings`;
       const settingsResponse = await fetch(settingsUrl, {
         method: "GET",
         headers: {
@@ -8110,7 +7704,7 @@ function registerAdminRoutes(app2) {
       }
       let recipients = [];
       if (recipientType === "all") {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -8127,7 +7721,7 @@ function registerAdminRoutes(app2) {
         const usersData = await usersResponse.json();
         recipients = usersData.users || [];
       } else {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -8564,7 +8158,7 @@ Thank you for using ${appName}!
   });
   app2.get("/api/theme-colors", async (req, res) => {
     try {
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -8605,7 +8199,7 @@ Thank you for using ${appName}!
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -8656,7 +8250,7 @@ Thank you for using ${appName}!
           error: "Translations data is required"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const payload = { ...translations };
       if (default_language) {
         const fullPayload = {};
@@ -8727,7 +8321,7 @@ Thank you for using ${appName}!
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -8813,7 +8407,7 @@ Thank you for using ${appName}!
           error: "Invalid XML format or no translations found"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -8867,7 +8461,7 @@ Thank you for using ${appName}!
         });
       }
       const userId = req.session.user.id || req.session.user._id;
-      const url = `${ICONA_API_BASE}/admin/${userId}`;
+      const url = `${BASE_URL}/admin/${userId}`;
       console.log(`Changing admin password at: ${url}`);
       console.log(`Password change payload:`, { password: "[REDACTED]" });
       const response = await fetch(url, {
@@ -8909,7 +8503,7 @@ Thank you for using ${appName}!
 function registerSettingsRoutes(app2) {
   app2.get("/api/settings", async (req, res) => {
     try {
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Fetching public app settings from: ${url}`);
       const accessToken = req.session?.accessToken;
       const headers = {
@@ -8989,7 +8583,7 @@ function registerGiveawayRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const url = `${ICONA_API_BASE}/giveaways?${queryParams.toString()}`;
+      const url = `${BASE_URL}/giveaways?${queryParams.toString()}`;
       const response = await fetch(url, {
         method: "GET",
         headers
@@ -9015,7 +8609,7 @@ function registerGiveawayRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const url = `${ICONA_API_BASE}/giveaways/${id}`;
+      const url = `${BASE_URL}/giveaways/${id}`;
       const response = await fetch(url, {
         method: "GET",
         headers
@@ -9048,7 +8642,7 @@ function registerGiveawayRoutes(app2) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
-      const url = `${ICONA_API_BASE}/giveaways`;
+      const url = `${BASE_URL}/giveaways`;
       console.log("Posting to Icona API:", url);
       const response = await fetch(url, {
         method: "POST",
@@ -9086,7 +8680,7 @@ function registerGiveawayRoutes(app2) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
-      const url = `${ICONA_API_BASE}/giveaways/${id}`;
+      const url = `${BASE_URL}/giveaways/${id}`;
       console.log("Putting to Icona API:", url);
       const response = await fetch(url, {
         method: "PUT",
@@ -9124,7 +8718,7 @@ function registerGiveawayRoutes(app2) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
-      const url = `${ICONA_API_BASE}/giveaways/${id}`;
+      const url = `${BASE_URL}/giveaways/${id}`;
       const response = await fetch(url, {
         method: "DELETE",
         headers
@@ -9150,7 +8744,7 @@ function registerGiveawayRoutes(app2) {
 }
 
 // ../shared-backend/server/routes/stripe.ts
-var ICONA_API_BASE2 = "https://api.iconaapp.com";
+var BASE_URL2 = "https://api.iconaapp.com";
 function registerStripeRoutes(app2) {
   app2.post("/api/stripe/connect/:userId", async (req, res) => {
     try {
@@ -9159,7 +8753,7 @@ function registerStripeRoutes(app2) {
       if (!accessToken) {
         return res.status(401).json({ success: false, error: "Not authenticated" });
       }
-      const response = await fetch(`${ICONA_API_BASE2}/stripe/connect/${userId}`, {
+      const response = await fetch(`${BASE_URL2}/stripe/connect/${userId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -9196,7 +8790,6 @@ async function registerRoutes(app2) {
   registerOrderRoutes(app2);
   registerShowRoutes(app2);
   registerGiveawayRoutes(app2);
-  registerAnalyticsRoutes(app2);
   registerShippingRoutes(app2);
   registerBundleRoutes(app2);
   registerReportRoutes(app2);
@@ -9383,3 +8976,6 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+
+// server.ts
+dotenv.config();

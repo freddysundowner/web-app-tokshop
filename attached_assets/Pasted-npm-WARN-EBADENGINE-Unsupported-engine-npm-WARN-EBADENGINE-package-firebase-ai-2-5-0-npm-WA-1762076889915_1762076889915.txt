@@ -1,0 +1,100 @@
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/ai@2.5.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/app@0.14.5',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/app-check@0.11.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/app-check-compat@0.4.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/app-compat@0.5.5',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/auth-compat@0.6.1',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/auth@1.11.1',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/component@0.7.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/database@1.1.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/database-compat@2.1.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/firestore@4.9.2',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/firestore-compat@0.4.2',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/functions@0.13.1',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/functions-compat@0.4.1',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/logger@0.5.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/storage@0.14.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/storage-compat@0.4.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/util@1.13.0',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: 'connect-pg-simple@10.0.0',
+npm WARN EBADENGINE   required: { node: '^18.18.0 || ^20.9.0 || >=22.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: '@firebase/auth@1.11.1',
+npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+npm WARN EBADENGINE }

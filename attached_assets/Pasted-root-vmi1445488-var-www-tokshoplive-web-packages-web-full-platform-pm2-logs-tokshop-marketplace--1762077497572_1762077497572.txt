@@ -1,0 +1,105 @@
+root@vmi1445488:/var/www/tokshoplive/web/packages/web-full-platform# pm2 logs tokshop-marketplace --lines 50
+[TAILING] Tailing last 50 lines for [tokshop-marketplace] process (change the value with --lines option)
+/root/.pm2/logs/tokshop-marketplace-error.log last 50 lines:
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | sh: 1: tsx: not found
+43|tokshop | Warning: connect.session() MemoryStore is not
+43|tokshop | designed for a production environment, as it will leak
+43|tokshop | memory, and will not scale past a single process.
+43|tokshop | Warning: connect.session() MemoryStore is not
+43|tokshop | designed for a production environment, as it will leak
+43|tokshop | memory, and will not scale past a single process.
+
+/root/.pm2/logs/tokshop-marketplace-out.log last 50 lines:
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 dev
+43|tokshop | > NODE_ENV=development PORT=5001 tsx server.ts
+43|tokshop | 
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 start
+43|tokshop | > NODE_ENV=production PORT=5001 node dist/server.js
+43|tokshop | 
+43|tokshop | [API Config] ICONA_API_BASE: https://api.iconaapp.com
+43|tokshop | 12:39:05 PM [express] serving on port 5001
+43|tokshop | 
+43|tokshop | > rest-express@1.0.0 start
+43|tokshop | > NODE_ENV=production PORT=5001 node dist/server.js
+43|tokshop | 
+43|tokshop | [API Config] ICONA_API_BASE: https://api.iconaapp.com
+43|tokshop | 12:48:16 PM [express] serving on port 5001

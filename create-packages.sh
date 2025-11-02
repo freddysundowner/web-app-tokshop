@@ -16,10 +16,14 @@ mkdir -p packages/web-full-platform
 
 # Copy admin app
 cp -r admin-app packages/web-full-platform/
+# Remove .env from package (users should create their own)
+rm -f packages/web-full-platform/admin-app/.env
 echo "  ✅ Admin app copied"
 
 # Copy marketplace app
 cp -r marketplace-app packages/web-full-platform/
+# Remove .env from package (users should create their own)
+rm -f packages/web-full-platform/marketplace-app/.env
 echo "  ✅ Marketplace app copied"
 
 # Copy shared backend
@@ -74,9 +78,9 @@ EOF
 chmod +x packages/web-full-platform/install-all.sh
 echo "  ✅ Installation script created"
 
-# Copy README from deployment guide
-cp DEPLOY-WEB-FULL-PLATFORM.md packages/web-full-platform/README.md
-echo "  ✅ README copied"
+# Copy deployment guide
+cp DEPLOYMENT.md packages/web-full-platform/README.md
+echo "  ✅ Deployment guide copied"
 
 echo "✅ Web Full Platform package created!"
 echo ""
@@ -90,6 +94,8 @@ mkdir -p packages/admin-for-flutter
 
 # Copy admin app only
 cp -r admin-app packages/admin-for-flutter/
+# Remove .env from package (users should create their own)
+rm -f packages/admin-for-flutter/admin-app/.env
 echo "  ✅ Admin app copied"
 
 # Copy shared backend
@@ -133,9 +139,9 @@ EOF
 chmod +x packages/admin-for-flutter/install.sh
 echo "  ✅ Installation script created"
 
-# Copy README from deployment guide
-cp DEPLOY-ADMIN-FOR-FLUTTER.md packages/admin-for-flutter/README.md
-echo "  ✅ README copied"
+# Copy deployment guide
+cp DEPLOYMENT.md packages/admin-for-flutter/README.md
+echo "  ✅ Deployment guide copied"
 
 echo "✅ Admin for Flutter package created!"
 echo ""
