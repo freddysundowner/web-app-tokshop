@@ -3,15 +3,8 @@
 echo "📦 Installing and Building Admin App..."
 echo ""
 
-# Install shared backend dependencies
-echo "1️⃣ Installing shared-backend dependencies..."
-cd shared-backend
-npm install
-cd ..
-
 # Install and build admin app
-echo ""
-echo "2️⃣ Installing admin-app dependencies..."
+echo "1️⃣ Installing admin-app dependencies..."
 cd admin-app
 npm install
 echo "   Building admin-app..."
