@@ -1,20 +1,30 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldCheck, Mail, Loader2, Lock } from "lucide-react";
+import { ShieldCheck, Mail, Loader2, Lock, Info } from "lucide-react";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
   const { user, checkAuth, logout } = useAuth();
+  const { settings } = useSettings();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Auto-fill credentials if demo mode is enabled
+  useEffect(() => {
+    if (settings.demoMode) {
+      setEmail("admin@gmail.com");
+      setPassword("123456");
+    }
+  }, [settings.demoMode]);
 
   // Redirect if already logged in as admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -266,6 +276,22 @@ export default function AdminLogin() {
               >
                 {isLoading ? "Signing in..." : "Sign In as Admin"}
               </Button>
+
+              {/* Demo Mode Credentials Display */}
+              {settings.demoMode && (
+                <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-md" data-testid="demo-credentials">
+                  <div className="flex items-start gap-2">
+                    <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1 flex-1">
+                      <p className="text-sm font-medium text-foreground">Demo Mode Enabled</p>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <p><span className="font-medium">Email:</span> admin@gmail.com</p>
+                        <p><span className="font-medium">Password:</span> 123456</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>

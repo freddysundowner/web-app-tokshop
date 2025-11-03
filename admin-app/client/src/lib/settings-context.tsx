@@ -23,6 +23,7 @@ interface AppSettings {
 interface SettingsContextType {
   settings: AppSettings;
   isLoading: boolean;
+  isFirebaseReady: boolean;
   appName: string;
 }
 
@@ -39,6 +40,7 @@ const defaultSettings: AppSettings = {
 const SettingsContext = createContext<SettingsContextType>({
   settings: defaultSettings,
   isLoading: true,
+  isFirebaseReady: false,
   appName: 'TokShop',
 });
 
@@ -151,6 +153,7 @@ function applyThemeColors(primaryColor: string, secondaryColor: string) {
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -186,8 +189,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
               console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
               initializeFirebase(firebaseConfig);
+              console.log('✅ Firebase initialized successfully');
+              setIsFirebaseReady(true);
             } else {
               console.warn('⚠️ No valid Firebase config found in settings');
+              setIsFirebaseReady(false);
             }
           }
         }
@@ -212,7 +218,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const appName = settings.app_name || 'TokShop';
 
   return (
-    <SettingsContext.Provider value={{ settings, isLoading, appName }}>
+    <SettingsContext.Provider value={{ settings, isLoading, isFirebaseReady, appName }}>
       {children}
     </SettingsContext.Provider>
   );

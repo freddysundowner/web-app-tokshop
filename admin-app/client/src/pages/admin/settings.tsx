@@ -716,6 +716,27 @@ export default function AdminSettings() {
                 </Alert>
 
                 <div className="space-y-2">
+                  <Label htmlFor="firebase_api_key">Firebase API Key (Web Apps)</Label>
+                  <Input
+                    id="firebase_api_key"
+                    type={formData.demoMode ? 'text' : 'password'}
+                    value={formData.demoMode ? maskKey(formData.firebase_api_key) : formData.firebase_api_key}
+                    onChange={(e) => handleInputChange('firebase_api_key', e.target.value)}
+                    placeholder="AIza..."
+                    data-testid="input-firebase-web-api-key"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                    onCopy={(e) => formData.demoMode && e.preventDefault()}
+                    onCut={(e) => formData.demoMode && e.preventDefault()}
+                    onPaste={(e) => formData.demoMode && e.preventDefault()}
+                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    API key for web authentication
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="firebase_auth_domain">Firebase Auth Domain</Label>
                   <Input
                     id="firebase_auth_domain"
@@ -758,13 +779,21 @@ export default function AdminSettings() {
                   <Label htmlFor="firebase_app_id">Firebase App ID</Label>
                   <Input
                     id="firebase_app_id"
-                    value={formData.firebase_app_id}
+                    type={formData.demoMode ? 'text' : 'password'}
+                    value={formData.demoMode ? maskKey(formData.firebase_app_id) : formData.firebase_app_id}
                     onChange={(e) => handleInputChange('firebase_app_id', e.target.value)}
                     placeholder="1:123456789:web:abc123def456"
                     data-testid="input-firebase-app-id"
                     readOnly={formData.demoMode}
                     disabled={formData.demoMode}
+                    onCopy={(e) => formData.demoMode && e.preventDefault()}
+                    onCut={(e) => formData.demoMode && e.preventDefault()}
+                    onPaste={(e) => formData.demoMode && e.preventDefault()}
+                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Keep this App ID secure
+                  </p>
                 </div>
 
                 <div className="border-t pt-4 mt-4">

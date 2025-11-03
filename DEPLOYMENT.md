@@ -589,8 +589,8 @@ systemctl status certbot.timer  # Check auto-renewal
            │
            ↓
 ┌──────────────────────┐
-│  Icona Backend API   │
-│ api.iconaapp.com     │
+│ External Backend API │
+│ api.tokshoplive.com  │
 └──────────┬───────────┘
            │
            ↑
