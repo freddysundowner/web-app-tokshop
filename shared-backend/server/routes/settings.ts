@@ -65,6 +65,8 @@ export function registerSettingsRoutes(app: Express) {
         firebase_project_id: settings?.firebase_project_id || "",
         firebase_storage_bucket: settings?.firebase_storage_bucket || "",
         firebase_app_id: settings?.firebase_app_id || "",
+        // Demo mode flag
+        demoMode: settings?.demoMode || false,
       };
       
       res.json({
