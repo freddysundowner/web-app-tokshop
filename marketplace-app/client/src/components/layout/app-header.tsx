@@ -225,8 +225,8 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
               </div>
             )}
             
-            {/* Search - Hidden on mobile, smaller on tablet */}
-            {!hideNavigation && (
+            {/* Search - Hidden on mobile, smaller on tablet, only show when authenticated */}
+            {!hideNavigation && isAuthenticated && (
               <div ref={searchRef} className="relative hidden sm:block w-48 md:w-64 lg:w-96 ml-2">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isShowPage ? 'text-zinc-400' : 'text-muted-foreground'} pointer-events-none z-10`} />
               <Input
@@ -472,20 +472,21 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
           </div>
         </div>
         
-        {/* Mobile Search Bar - Show below header on mobile */}
-        <div className="flex justify-center w-full">
-          <div className="sm:hidden px-3 pb-2 w-full lg:w-[90%]">
-            <div ref={searchRef} className="relative">
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isShowPage ? 'text-zinc-400' : 'text-muted-foreground'} pointer-events-none z-10`} />
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                onFocus={() => searchQuery.length > 0 && setShowAutocomplete(true)}
-                placeholder={`Search ${settings.app_name}`}
-                className={`pl-10 text-sm h-9 rounded-md ${isShowPage ? 'bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500' : 'bg-muted/50 border-border'}`}
-                data-testid="input-search-mobile"
-              />
+        {/* Mobile Search Bar - Show below header on mobile, only when authenticated */}
+        {isAuthenticated && (
+          <div className="flex justify-center w-full">
+            <div className="sm:hidden px-3 pb-2 w-full lg:w-[90%]">
+              <div ref={searchRef} className="relative">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isShowPage ? 'text-zinc-400' : 'text-muted-foreground'} pointer-events-none z-10`} />
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onFocus={() => searchQuery.length > 0 && setShowAutocomplete(true)}
+                  placeholder={`Search ${settings.app_name}`}
+                  className={`pl-10 text-sm h-9 rounded-md ${isShowPage ? 'bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500' : 'bg-muted/50 border-border'}`}
+                  data-testid="input-search-mobile"
+                />
               
               {/* Mobile Autocomplete Dropdown */}
               {showAutocomplete && (products.length > 0 || shows.length > 0 || users.length > 0) && (
@@ -577,6 +578,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
             </div>
           </div>
         </div>
+        )}
       </header>
 
       {/* Profile Drawer - Only show when authenticated */}
