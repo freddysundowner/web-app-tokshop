@@ -7,7 +7,7 @@ TokShop is a live streaming marketplace platform, similar to TikTok Shop, design
 **Communication Style**: Simple, everyday language - avoid technical jargon
 
 ## System Architecture
-TokShop's architecture is centered around being a pure API client. Neither the Admin nor the Marketplace applications have their own backend or database; they function as frontend applications that make API calls to the external Icona API (`api.iconaapp.com`). All routes within the `shared-backend/server/` directory act as proxy routes, forwarding requests to this external API.
+TokShop's architecture is centered around being a pure API client. Neither the Admin nor the Marketplace applications have their own backend or database; they function as frontend applications that make API calls to an external API server. All routes within the `shared-backend/server/` directory act as proxy routes, forwarding requests to this external API.
 
 **Monorepo Structure:**
 - `admin-app/`: Admin panel application (port 5000), including client-side React frontend and an Express server for proxying.
@@ -21,7 +21,7 @@ TokShop's architecture is centered around being a pure API client. Neither the A
 - **Dynamic Branding**: App name, primary, and secondary theme colors are loaded dynamically from the external API's settings endpoint via `SettingsContext`. Colors are converted to HSL and applied via CSS variables.
 
 **Technical Implementations:**
-- **Authentication**: Firebase Auth (Google, Facebook, email/password) is used. The frontend sends Firebase tokens to the backend for validation, and sessions are managed via cookies.
+- **Authentication**: Firebase Auth (Google, Facebook, email/password) is used. Firebase configuration is loaded dynamically from the external API's settings endpoint (via the `firebase_config` field), with a default fallback config if not provided. The frontend sends Firebase tokens to the backend for validation, and sessions are managed via cookies.
 - **API Requests**: All API calls are managed using `@tanstack/react-query`, with a custom `apiRequest` wrapper for authentication.
 - **Forms**: `react-hook-form` is used with Zod validation for robust and consistent form handling.
 - **Build System**: Vite is used for development with HMR. For production, Vite builds the frontend, and ESBuild bundles the backend.
@@ -33,7 +33,7 @@ TokShop's architecture is centered around being a pure API client. Neither the A
 ## External Dependencies
 The project relies on several key external services and APIs:
 
--   **Icona API**: The primary external backend for all data storage and operations (`api.iconaapp.com`).
+-   **External API Server**: The primary external backend for all data storage and operations (configurable via BASE_URL environment variable).
 -   **Firebase Auth**: Used for user authentication (supporting Google, Facebook, and email/password).
 -   **Stripe**: Integrated for handling payment processing.
 -   **LiveKit Cloud**: Provides the infrastructure for live video streaming capabilities.

@@ -89,41 +89,53 @@ ufw allow 'Nginx Full'
 ufw enable
 ```
 
-### Step 4: Upload & Configure Admin Panel
+### Step 4: Upload & Install Package
 
 ```bash
 # Upload package to server
 scp -r packages/admin-for-flutter/ root@YOUR_DROPLET_IP:/var/www/
 
-# On server, configure environment
-cd /var/www/admin-for-flutter/admin-app
-nano .env
+# On server, install and build
+cd /var/www/admin-for-flutter
+chmod +x install.sh
+./install.sh
 ```
 
-Paste this configuration:
-```env
-BASE_URL=https://api.iconaapp.com
-SESSION_SECRET=CHANGE_THIS_TO_RANDOM_STRING
-PORT=5000
-```
+The installation script will:
+- ✅ Install all dependencies
+- ✅ Build the admin app  
+- ✅ Create PM2 configuration file
 
-**Important**: Generate a secure SESSION_SECRET:
+### Step 5: Configure Your API URL
+
+**🎯 IMPORTANT:** You must configure your API URL before starting the app.
+
+Open the configuration file:
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+cd /var/www/admin-for-flutter
+nano ecosystem.config.cjs
 ```
 
-### Step 5: Install & Build
-
-```bash
-cd /var/www/admin-for-flutter/admin-app
-npm install
-npm run build
+Find this line:
+```javascript
+BASE_URL: 'https://api.yourdomain.com'
 ```
+
+**Change it to your actual API server URL**, for example:
+```javascript
+BASE_URL: 'https://api.tokshoplive.com'
+```
+
+**Save and exit:**
+- Press `Ctrl + X`
+- Press `Y` to confirm
+- Press `Enter` to save
 
 ### Step 6: Start with PM2
 
 ```bash
-pm2 start npm --name "tokshop-admin" -- start
+cd /var/www/admin-for-flutter
+pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup systemd
 # Run the command it shows you
@@ -241,74 +253,72 @@ ufw allow 'Nginx Full'
 ufw enable
 ```
 
-### Step 4: Upload & Configure Apps
+### Step 4: Upload & Install Package
 
 ```bash
 # Upload package to server
 scp -r packages/web-full-platform/ root@YOUR_DROPLET_IP:/var/www/
 
-# On server, configure Admin app environment
-cd /var/www/web-full-platform/admin-app
-nano .env
+# On server, install and build
+cd /var/www/web-full-platform
+chmod +x install-all.sh
+./install-all.sh
 ```
 
-Paste this for **Admin app**:
-```env
-BASE_URL=https://api.iconaapp.com
-SESSION_SECRET=CHANGE_THIS_TO_RANDOM_STRING
-PORT=5000
-```
+The installation script will:
+- ✅ Install all dependencies for both apps
+- ✅ Build admin and marketplace apps
+- ✅ Create PM2 configuration file
 
-Now configure **Marketplace app**:
-```bash
-cd /var/www/web-full-platform/marketplace-app
-nano .env
-```
+### Step 5: Configure Your API URL
 
-Paste this for **Marketplace app**:
-```env
-BASE_URL=https://api.iconaapp.com
-SESSION_SECRET=SAME_SECRET_AS_ADMIN
-PORT=5001
-```
+**🎯 IMPORTANT:** You must configure your API URL before starting the apps.
 
-**Important**: Generate a secure SESSION_SECRET:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Use the **same secret** for both apps.
-
-### Step 5: Install & Build Both Apps
-
+Open the configuration file:
 ```bash
 cd /var/www/web-full-platform
-
-# Install and build Admin app
-cd admin-app
-npm install
-npm run build
-cd ..
-
-# Install and build Marketplace app
-cd marketplace-app
-npm install
-npm run build
-cd ..
+nano ecosystem.config.cjs
 ```
+
+You'll see **TWO apps** in the file. Find these lines and change **BOTH**:
+
+```javascript
+// Admin app (around line 15)
+{
+  name: 'tokshop-admin',
+  ...
+  env: {
+    BASE_URL: 'https://api.yourdomain.com'  // ⚠️ CHANGE THIS
+  }
+}
+
+// Marketplace app (around line 28)
+{
+  name: 'tokshop-marketplace',
+  ...
+  env: {
+    BASE_URL: 'https://api.yourdomain.com'  // ⚠️ CHANGE THIS TOO
+  }
+}
+```
+
+**Change both to your actual API server URL**, for example:
+```javascript
+BASE_URL: 'https://api.tokshoplive.com'
+```
+
+**Make sure both apps use the SAME API URL!**
+
+**Save and exit:**
+- Press `Ctrl + X`
+- Press `Y` to confirm
+- Press `Enter` to save
 
 ### Step 6: Start Both Apps with PM2
 
 ```bash
-# Start Admin app
-cd /var/www/web-full-platform/admin-app
-pm2 start npm --name "tokshop-admin" -- start
-
-# Start Marketplace app
-cd /var/www/web-full-platform/marketplace-app
-pm2 start npm --name "tokshop-marketplace" -- start
-
-# Save configuration
+cd /var/www/web-full-platform
+pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup systemd
 # Run the command it shows you
@@ -401,20 +411,51 @@ Visit both sites:
 
 ---
 
+## Changing Your API URL
+
+Both apps connect to an external API server. You need to configure your API URL before deploying.
+
+### To Change the API URL:
+
+The apps use PM2 ecosystem configuration for environment variables. This is better than `.env` files for production.
+
+**Edit `ecosystem.config.cjs`:**
+
+```bash
+cd /var/www/web-full-platform  # or admin-for-flutter
+nano ecosystem.config.cjs
+```
+
+Find the `BASE_URL` lines and change them to your API:
+
+```javascript
+// ⚠️ CHANGE THIS to point to your API server
+BASE_URL: 'https://your-api-server.com'  // Change this!
+```
+
+**Restart the apps:**
+
+```bash
+pm2 delete all
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+That's it! Your apps will now connect to your new API server.
+
+---
+
 ## Environment Variables Reference
 
-All apps require these environment variables in their `.env` file:
+All apps use these environment variables (configured in `ecosystem.config.cjs`):
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `BASE_URL` | Icona API endpoint | `https://api.iconaapp.com` |
-| `SESSION_SECRET` | Session encryption key | `a9f8d7c6b5e4a3b2c1d0...` |
+| `BASE_URL` | Your API server endpoint | `https://api.yourdomain.com` |
+| `NODE_ENV` | Environment mode | `production` |
 | `PORT` | App port number | `5000` (admin) or `5001` (marketplace) |
 
-**Generate SESSION_SECRET:**
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+**Note**: The new installation process automatically creates `ecosystem.config.cjs` with clear comments on how to change the BASE_URL.
 
 ---
 

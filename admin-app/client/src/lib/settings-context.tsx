@@ -1,4 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { initializeFirebase } from './firebase';
+
+interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  appId: string;
+}
 
 interface AppSettings {
   app_name: string;
@@ -8,6 +17,7 @@ interface AppSettings {
   secondary_color: string;
   stripe_publishable_key: string;
   commission_rate: number;
+  firebase_config?: FirebaseConfig;
 }
 
 interface SettingsContextType {
@@ -24,6 +34,13 @@ const defaultSettings: AppSettings = {
   secondary_color: '#1A1A1A',
   stripe_publishable_key: '',
   commission_rate: 0, // Default 0% commission
+  firebase_config: {
+    apiKey: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
+    authDomain: "icona-e7769.firebaseapp.com",
+    projectId: "icona-e7769",
+    storageBucket: "icona-e7769.firebasestorage.app",
+    appId: "1:167886286942:web:f13314bc30af1005e384cf",
+  },
 };
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -152,10 +169,21 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           if (data.success && data.data) {
             console.log('⚙️ Settings data:', data.data);
             setSettings(data.data);
+            
+            // Initialize Firebase with dynamic config if available
+            if (data.data.firebase_config) {
+              console.log('🔥 Initializing Firebase with dynamic config');
+              initializeFirebase(data.data.firebase_config);
+            } else {
+              console.log('🔥 No Firebase config in settings, using default');
+              initializeFirebase();
+            }
           }
         }
       } catch (error) {
         console.error('Failed to fetch app settings:', error);
+        // Initialize Firebase with default config on error
+        initializeFirebase();
       } finally {
         setIsLoading(false);
       }

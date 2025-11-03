@@ -50,6 +50,11 @@ export default function AdminSettings() {
     privacy_url: '',
     terms_url: '',
     FIREBASE_API_KEY: '',
+    firebase_api_key: '',
+    firebase_auth_domain: '',
+    firebase_project_id: '',
+    firebase_storage_bucket: '',
+    firebase_app_id: '',
     shippo_api_key: '',
     stripeSecretKey: '',
     stripepublickey: '',
@@ -92,6 +97,11 @@ export default function AdminSettings() {
       privacy_url: settings?.privacy_url || '',
       terms_url: settings?.terms_url || '',
       FIREBASE_API_KEY: settings?.FIREBASE_API_KEY || '',
+      firebase_api_key: settings?.firebase_config?.apiKey || settings?.firebase_api_key || '',
+      firebase_auth_domain: settings?.firebase_config?.authDomain || settings?.firebase_auth_domain || '',
+      firebase_project_id: settings?.firebase_config?.projectId || settings?.firebase_project_id || '',
+      firebase_storage_bucket: settings?.firebase_config?.storageBucket || settings?.firebase_storage_bucket || '',
+      firebase_app_id: settings?.firebase_config?.appId || settings?.firebase_app_id || '',
       shippo_api_key: settings?.shippo_api_key || '',
       stripeSecretKey: settings?.stripeSecretKey || '',
       stripepublickey: settings?.stripepublickey || '',
@@ -692,12 +702,97 @@ export default function AdminSettings() {
           <TabsContent value="api-keys" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>External Service API Keys</CardTitle>
-                <CardDescription>API keys for third-party services</CardDescription>
+                <CardTitle>Firebase Configuration</CardTitle>
+                <CardDescription>Configure Firebase for authentication and storage (web apps)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    These settings configure Firebase for your web applications (admin panel and marketplace). Get these values from your Firebase Console → Project Settings → General → Your apps.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <Label htmlFor="firebase_api_key">Firebase API Key</Label>
+                  <Input
+                    id="firebase_api_key"
+                    type={formData.demoMode ? 'text' : 'password'}
+                    value={formData.demoMode ? maskKey(formData.firebase_api_key) : formData.firebase_api_key}
+                    onChange={(e) => handleInputChange('firebase_api_key', e.target.value)}
+                    placeholder="AIzaSy..."
+                    data-testid="input-firebase-api-key-web"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                    onCopy={(e) => formData.demoMode && e.preventDefault()}
+                    onCut={(e) => formData.demoMode && e.preventDefault()}
+                    onPaste={(e) => formData.demoMode && e.preventDefault()}
+                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="firebase_auth_domain">Firebase Auth Domain</Label>
+                  <Input
+                    id="firebase_auth_domain"
+                    value={formData.firebase_auth_domain}
+                    onChange={(e) => handleInputChange('firebase_auth_domain', e.target.value)}
+                    placeholder="your-project.firebaseapp.com"
+                    data-testid="input-firebase-auth-domain"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="firebase_project_id">Firebase Project ID</Label>
+                  <Input
+                    id="firebase_project_id"
+                    value={formData.firebase_project_id}
+                    onChange={(e) => handleInputChange('firebase_project_id', e.target.value)}
+                    placeholder="your-project-id"
+                    data-testid="input-firebase-project-id"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="firebase_storage_bucket">Firebase Storage Bucket</Label>
+                  <Input
+                    id="firebase_storage_bucket"
+                    value={formData.firebase_storage_bucket}
+                    onChange={(e) => handleInputChange('firebase_storage_bucket', e.target.value)}
+                    placeholder="your-project.appspot.com"
+                    data-testid="input-firebase-storage-bucket"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="firebase_app_id">Firebase App ID</Label>
+                  <Input
+                    id="firebase_app_id"
+                    value={formData.firebase_app_id}
+                    onChange={(e) => handleInputChange('firebase_app_id', e.target.value)}
+                    placeholder="1:123456789:web:abc123def456"
+                    data-testid="input-firebase-app-id"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Other API Keys</CardTitle>
+                <CardDescription>Additional third-party service keys</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="FIREBASE_API_KEY">Firebase API Key</Label>
+                  <Label htmlFor="FIREBASE_API_KEY">Firebase API Key (Mobile Apps - Legacy)</Label>
                   <Input
                     id="FIREBASE_API_KEY"
                     type={formData.demoMode ? 'text' : 'password'}
@@ -712,6 +807,9 @@ export default function AdminSettings() {
                     onPaste={(e) => formData.demoMode && e.preventDefault()}
                     className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    For mobile apps only (Flutter/React Native)
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="shippo_api_key">Shippo API Key</Label>

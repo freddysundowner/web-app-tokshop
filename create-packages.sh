@@ -121,26 +121,72 @@ echo ""
 echo "✅ All apps installed and built successfully!"
 echo ""
 
+# Create PM2 ecosystem configuration
+echo "📝 Creating PM2 ecosystem configuration..."
+cat > "$SCRIPT_DIR/ecosystem.config.cjs" << 'ECOEOF'
+// ============================================
+// TokShop PM2 Ecosystem Configuration
+// ============================================
+// 
+// TO CHANGE YOUR API URL:
+// 1. Edit the BASE_URL value below
+// 2. Run: pm2 delete all && pm2 start ecosystem.config.cjs
+// 3. Run: pm2 save
+//
+// ⚠️ IMPORTANT: Set your API domain below
+// ============================================
+
+module.exports = {
+  apps: [
+    {
+      name: 'tokshop-admin',
+      cwd: './admin-app',
+      script: 'npm',
+      args: 'start',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5000,
+        // ⚠️ CHANGE THIS to your API server URL
+        BASE_URL: 'https://api.yourdomain.com'
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '500M'
+    },
+    {
+      name: 'tokshop-marketplace',
+      cwd: './marketplace-app',
+      script: 'npm',
+      args: 'start',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5001,
+        // ⚠️ CHANGE THIS to your API server URL
+        BASE_URL: 'https://api.yourdomain.com'
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '500M'
+    }
+  ]
+};
+ECOEOF
+echo "   ✅ ecosystem.config.cjs created"
+echo ""
+
 # Stop any existing PM2 processes
 echo "🛑 Stopping existing PM2 processes..."
 pm2 delete tokshop-admin 2>/dev/null || echo "   (tokshop-admin not running)"
 pm2 delete tokshop-marketplace 2>/dev/null || echo "   (tokshop-marketplace not running)"
 echo ""
 
-# Start admin app with PM2
-echo "🚀 Starting Admin app (port 5000) with PM2..."
-cd "$SCRIPT_DIR/admin-app"
-pm2 start npm --name "tokshop-admin" -- start
-echo "   ✅ Admin app started"
-
-# Start marketplace app with PM2
-echo ""
-echo "🚀 Starting Marketplace app (port 5001) with PM2..."
-cd "$SCRIPT_DIR/marketplace-app"
-pm2 start npm --name "tokshop-marketplace" -- start
-echo "   ✅ Marketplace app started"
-
+# Start both apps with ecosystem config
+echo "🚀 Starting both apps with PM2 ecosystem config..."
 cd "$SCRIPT_DIR"
+pm2 start ecosystem.config.cjs
+echo "   ✅ Both apps started"
 
 # Save PM2 configuration
 echo ""
@@ -148,14 +194,35 @@ echo "💾 Saving PM2 configuration..."
 pm2 save
 
 echo ""
-echo "✅ COMPLETE! Both apps are running in production mode!"
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║                                                            ║"
+echo "║         ✅  Installation Complete!                        ║"
+echo "║                                                            ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+echo "🎯 IMPORTANT: Configure Your API URL Before Starting"
+echo ""
+echo "1. Edit the configuration file:"
+echo "   nano ecosystem.config.cjs"
+echo ""
+echo "2. Change this line in BOTH apps:"
+echo "   BASE_URL: 'https://api.yourdomain.com'"
+echo "   to your actual API server URL"
+echo ""
+echo "3. Save and exit (Ctrl+X, then Y, then Enter)"
+echo ""
+echo "4. Start the apps:"
+echo "   pm2 start ecosystem.config.cjs"
+echo "   pm2 save"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "📊 Check status:"
-echo "  pm2 status"
+echo "   pm2 status"
 echo ""
 echo "📋 View logs:"
-echo "  pm2 logs tokshop-admin"
-echo "  pm2 logs tokshop-marketplace"
+echo "   pm2 logs tokshop-admin"
+echo "   pm2 logs tokshop-marketplace"
 EOF
 
 chmod +x packages/web-full-platform/install-all.sh
@@ -246,18 +313,55 @@ echo ""
 echo "✅ Admin app installed and built successfully!"
 echo ""
 
+# Create PM2 ecosystem configuration
+echo "📝 Creating PM2 ecosystem configuration..."
+cat > "$SCRIPT_DIR/ecosystem.config.cjs" << 'ECOEOF'
+// ============================================
+// TokShop Admin PM2 Ecosystem Configuration
+// ============================================
+// 
+// TO CHANGE YOUR API URL:
+// 1. Edit the BASE_URL value below
+// 2. Run: pm2 delete tokshop-admin && pm2 start ecosystem.config.cjs
+// 3. Run: pm2 save
+//
+// ⚠️ IMPORTANT: Set your API domain below
+// ============================================
+
+module.exports = {
+  apps: [
+    {
+      name: 'tokshop-admin',
+      cwd: './admin-app',
+      script: 'npm',
+      args: 'start',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5000,
+        // ⚠️ CHANGE THIS to your API server URL
+        BASE_URL: 'https://api.yourdomain.com'
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '500M'
+    }
+  ]
+};
+ECOEOF
+echo "   ✅ ecosystem.config.cjs created"
+echo ""
+
 # Stop any existing PM2 process
 echo "🛑 Stopping existing PM2 process..."
 pm2 delete tokshop-admin 2>/dev/null || echo "   (tokshop-admin not running)"
 echo ""
 
-# Start admin app with PM2
-echo "🚀 Starting Admin app (port 5000) with PM2..."
-cd "$SCRIPT_DIR/admin-app"
-pm2 start npm --name "tokshop-admin" -- start
-echo "   ✅ Admin app started"
-
+# Start admin app with ecosystem config
+echo "🚀 Starting Admin app with PM2 ecosystem config..."
 cd "$SCRIPT_DIR"
+pm2 start ecosystem.config.cjs
+echo "   ✅ Admin app started"
 
 # Save PM2 configuration
 echo ""
@@ -265,13 +369,34 @@ echo "💾 Saving PM2 configuration..."
 pm2 save
 
 echo ""
-echo "✅ COMPLETE! Admin app is running in production mode!"
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║                                                            ║"
+echo "║         ✅  Installation Complete!                        ║"
+echo "║                                                            ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+echo "🎯 IMPORTANT: Configure Your API URL Before Starting"
+echo ""
+echo "1. Edit the configuration file:"
+echo "   nano ecosystem.config.cjs"
+echo ""
+echo "2. Change this line:"
+echo "   BASE_URL: 'https://api.yourdomain.com'"
+echo "   to your actual API server URL"
+echo ""
+echo "3. Save and exit (Ctrl+X, then Y, then Enter)"
+echo ""
+echo "4. Start the app:"
+echo "   pm2 start ecosystem.config.cjs"
+echo "   pm2 save"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "📊 Check status:"
-echo "  pm2 status"
+echo "   pm2 status"
 echo ""
 echo "📋 View logs:"
-echo "  pm2 logs tokshop-admin"
+echo "   pm2 logs tokshop-admin"
 EOF
 
 chmod +x packages/admin-for-flutter/install.sh

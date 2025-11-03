@@ -1,7 +1,8 @@
 // Firebase configuration and authentication setup
-import { initializeApp } from "firebase/app";
+import { initializeApp, FirebaseApp } from "firebase/app";
 import {
   getAuth,
+  Auth,
   signInWithRedirect,
   signInWithPopup,
   getRedirectResult,
@@ -10,10 +11,19 @@ import {
   onAuthStateChanged,
   signOut,
 } from "firebase/auth";
-import { getStorage } from "firebase/storage";
-import { getFirestore } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage";
+import { getFirestore, Firestore } from "firebase/firestore";
 
-const firebaseConfig = {
+interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  appId: string;
+}
+
+// Default config as fallback
+const defaultConfig: FirebaseConfig = {
   apiKey: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
   authDomain: "icona-e7769.firebaseapp.com",
   projectId: "icona-e7769",
@@ -21,10 +31,76 @@ const firebaseConfig = {
   appId: "1:167886286942:web:f13314bc30af1005e384cf",
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const storage = getStorage(app);
-export const db = getFirestore(app);
+// Firebase instances (will be initialized dynamically)
+let app: FirebaseApp;
+let _auth: Auth;
+let _storage: FirebaseStorage;
+let _db: Firestore;
+let isInitialized = false;
+
+// Initialize Firebase with dynamic config
+export function initializeFirebase(config?: FirebaseConfig) {
+  if (isInitialized) {
+    console.log('🔥 Firebase already initialized');
+    return;
+  }
+
+  const firebaseConfig = config || defaultConfig;
+  console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
+
+  app = initializeApp(firebaseConfig);
+  _auth = getAuth(app);
+  _storage = getStorage(app);
+  _db = getFirestore(app);
+  isInitialized = true;
+
+  console.log('✅ Firebase initialized successfully');
+}
+
+// Getters that ensure Firebase is initialized
+export const getFirebaseAuth = (): Auth => {
+  if (!isInitialized) {
+    console.warn('⚠️ Firebase not initialized yet, using default config');
+    initializeFirebase();
+  }
+  return _auth;
+};
+
+export const getFirebaseStorage = (): FirebaseStorage => {
+  if (!isInitialized) {
+    console.warn('⚠️ Firebase not initialized yet, using default config');
+    initializeFirebase();
+  }
+  return _storage;
+};
+
+export const getFirebaseDb = (): Firestore => {
+  if (!isInitialized) {
+    console.warn('⚠️ Firebase not initialized yet, using default config');
+    initializeFirebase();
+  }
+  return _db;
+};
+
+// Export for backward compatibility
+export const auth = new Proxy({} as Auth, {
+  get: (target, prop) => {
+    return (getFirebaseAuth() as any)[prop];
+  }
+});
+
+export const storage = new Proxy({} as FirebaseStorage, {
+  get: (target, prop) => {
+    return (getFirebaseStorage() as any)[prop];
+  }
+});
+
+export const db = new Proxy({} as Firestore, {
+  get: (target, prop) => {
+    return (getFirebaseDb() as any)[prop];
+  }
+});
+
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider("apple.com");
 
@@ -39,7 +115,7 @@ appleProvider.addScope("name");
 // Google Sign In with popup (better UX than redirect)
 export const signInWithGoogle = async () => {
   try {
-    return await signInWithPopup(auth, googleProvider);
+    return await signInWithPopup(getFirebaseAuth(), googleProvider);
   } catch (error: any) {
     // If popup is blocked, fall back to redirect
     if (error.code === "auth/popup-blocked") {
@@ -52,23 +128,23 @@ export const signInWithGoogle = async () => {
 
 // Google Sign In with redirect (fallback if popup is blocked)
 export const signInWithGoogleRedirect = () => {
-  return signInWithRedirect(auth, googleProvider);
+  return signInWithRedirect(getFirebaseAuth(), googleProvider);
 };
 
 // Handle redirect result (call this on app initialization)
 export const handleAuthRedirect = () => {
-  return getRedirectResult(auth);
+  return getRedirectResult(getFirebaseAuth());
 };
 
 // Sign out
 export const firebaseSignOut = () => {
-  return signOut(auth);
+  return signOut(getFirebaseAuth());
 };
 
 // Apple Sign In with popup (better UX than redirect)
 export const signInWithApple = async () => {
   try {
-    return await signInWithPopup(auth, appleProvider);
+    return await signInWithPopup(getFirebaseAuth(), appleProvider);
   } catch (error: any) {
     // If popup is blocked, fall back to redirect
     if (error.code === "auth/popup-blocked") {
@@ -81,10 +157,10 @@ export const signInWithApple = async () => {
 
 // Apple Sign In with redirect (fallback if popup is blocked)
 export const signInWithAppleRedirect = () => {
-  return signInWithRedirect(auth, appleProvider);
+  return signInWithRedirect(getFirebaseAuth(), appleProvider);
 };
 
 // Auth state observer
 export const onAuthStateChange = (callback: (user: any) => void) => {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(getFirebaseAuth(), callback);
 };
