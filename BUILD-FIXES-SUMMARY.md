@@ -1,8 +1,8 @@
-# Icona Monorepo - Build Fixes Summary
+# TokShop Monorepo - Build Fixes Summary
 
 ## ✅ All Issues Resolved
 
-This document summarizes the critical build issues that were identified and fixed in the Icona monorepo structure.
+This document summarizes the critical build issues that were identified and fixed in the TokShop monorepo structure.
 
 ---
 

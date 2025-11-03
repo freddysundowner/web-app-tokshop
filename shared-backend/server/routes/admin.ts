@@ -3233,6 +3233,9 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const appName = settings.app_name || "Our App";
+      
+      // Derive frontend URL from BASE_URL (remove 'api.' subdomain)
+      const frontendUrl = BASE_URL.replace(/\/\/api\./, '//');
 
       // Send emails in batches to avoid rate limiting
       // Note: New Mailgun accounts have probation limits (100 emails/hour)
@@ -3518,10 +3521,10 @@ export function registerAdminRoutes(app: Express) {
                           🍎 Update on iOS
                         </a>
                       ` : ''}
-                      <a href="https://admin.iconaapp.com/" class="button">
+                      <a href="${frontendUrl}/" class="button">
                         🏪 Seller Hub Portal
                       </a>
-                      <a href="https://admin.iconaapp.com/admin/login" class="button">
+                      <a href="${frontendUrl}/admin/login" class="button">
                         🔐 Admin Portal
                       </a>
                     </div>
@@ -3601,8 +3604,8 @@ ${androidVersion && androidLink ? `Android: ${androidLink}` : ''}
 ${iosVersion && iosLink ? `iOS: ${iosLink}` : ''}
 
 Quick Access:
-- Seller Hub Portal: https://admin.iconaapp.com/
-- Admin Portal: https://admin.iconaapp.com/admin/login
+- Seller Hub Portal: ${frontendUrl}/
+- Admin Portal: ${frontendUrl}/admin/login
 
 💬 Contact Us on WhatsApp: https://wa.me/254791334234
 

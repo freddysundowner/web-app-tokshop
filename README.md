@@ -1,6 +1,6 @@
-# Icona Live Shopping - Package Distribution
+# TokShop - Package Distribution
 
-This project contains two separate, independently packageable applications for the Icona Live Shopping marketplace platform.
+This project contains two separate, independently packageable applications for the TokShop live shopping marketplace platform.
 
 ## 📦 Available Packages
 
@@ -58,8 +58,8 @@ web-full-platform/
 - Complete e-commerce functionality
 
 **Deployment:**
-- Admin: `admin.yourdomain.com`
-- Marketplace: `yourdomain.com`
+- Admin: `admin.tokshoplive.com`
+- Marketplace: `tokshoplive.com`
 
 ---
 
@@ -86,7 +86,7 @@ admin-for-flutter/
 - Transaction and payout tracking
 
 **Deployment:**
-- Admin: `admin.yourdomain.com`
+- Admin: `admin.tokshoplive.com`
 
 **Works with:** Flutter mobile app for buyers and sellers
 
@@ -183,7 +183,7 @@ zip -r admin-for-flutter.zip admin-for-flutter/
 
 ## 🎨 Customization
 
-Each package connects to the Icona API at `https://api.iconaapp.com`. Customers can customize:
+Each package connects to the external backend API (customers configure their API URL in `ecosystem.config.cjs`). Customers can customize:
 
 - Domain names
 - Branding and styling

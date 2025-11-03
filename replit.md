@@ -1,7 +1,7 @@
 # TokShop - Live Streaming Marketplace Platform
 
 ## Overview
-TokShop is a live streaming marketplace platform, similar to TikTok Shop, designed to allow sellers to host live shows, display products, and process transactions in real-time. Viewers can browse, purchase, and interact during these live streams. The project is a monorepo containing two React web applications: an Admin Panel for platform management and a Marketplace App for buyers and sellers. It is built as a pure API client, connecting to an external Icona API for all data operations, and is designed for easy deployment on DigitalOcean. The vision is to create a dynamic e-commerce ecosystem leveraging live video.
+TokShop is a live streaming marketplace platform, similar to TikTok Shop, designed to allow sellers to host live shows, display products, and process transactions in real-time. Viewers can browse, purchase, and interact during these live streams. The project is a monorepo containing two React web applications: an Admin Panel for platform management and a Marketplace App for buyers and sellers. It is built as a pure API client, connecting to an external backend API for all data operations, and is designed for easy deployment on DigitalOcean. The vision is to create a dynamic e-commerce ecosystem leveraging live video.
 
 ## User Preferences
 **Communication Style**: Simple, everyday language - avoid technical jargon
@@ -40,4 +40,4 @@ The project relies on several key external services and APIs:
 -   **LiveKit Cloud**: Provides the infrastructure for live video streaming capabilities.
 -   **Socket.IO**: Used for real-time chat and interactions within the platform.
 -   **SendGrid**: Utilized for email delivery services.
--   **PostgreSQL**: The external Icona API uses PostgreSQL as its database.
+-   **PostgreSQL**: The external backend API uses PostgreSQL as its database.

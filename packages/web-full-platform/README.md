@@ -5,13 +5,13 @@ Complete guide for deploying TokShop to DigitalOcean with custom domains.
 ## Choose Your Deployment Scenario
 
 **Scenario 1: Admin Panel Only** (for Flutter mobile app)
-- Deploy admin web dashboard at `admin.yourstore.com`
+- Deploy admin web dashboard at `admin.tokshoplive.com`
 - Users shop via Flutter mobile app
 - You manage platform via web admin panel
 
 **Scenario 2: Full Web Platform** (admin + marketplace)
-- Deploy admin panel at `admin.yourstore.com`
-- Deploy marketplace/seller dashboard at `yourstore.com`
+- Deploy admin panel at `admin.tokshoplive.com`
+- Deploy marketplace/seller dashboard at `tokshoplive.com`
 - Complete web-based platform (no mobile app needed)
 
 ---
@@ -19,7 +19,7 @@ Complete guide for deploying TokShop to DigitalOcean with custom domains.
 ## Prerequisites
 
 - DigitalOcean account
-- Domain name (e.g., `yourstore.com`)
+- Domain name (e.g., `tokshoplive.com`)
 - Basic terminal knowledge
 - SSH access to your server
 
@@ -31,7 +31,7 @@ Complete guide for deploying TokShop to DigitalOcean with custom domains.
 
 ## What You'll Deploy
 
-- **Admin Panel** at `admin.yourstore.com`
+- **Admin Panel** at `admin.tokshoplive.com`
 - **Port**: 5000
 - **Package**: `packages/admin-for-flutter/`
 
@@ -61,7 +61,7 @@ ns3.digitalocean.com
 Add A record:
 - Type: **A**
 - Hostname: `admin`
-- Will create: `admin.yourstore.com`
+- Will create: `admin.tokshoplive.com`
 - Value: Your Droplet IP
 
 Wait 1-2 hours for DNS propagation.
@@ -107,7 +107,7 @@ nano ecosystem.config.cjs
 
 Find this line:
 ```javascript
-BASE_URL: 'https://api.yourdomain.com'
+BASE_URL: 'https://api.tokshoplive.com'
 ```
 
 **Change it to your actual API server URL**, for example:
@@ -145,14 +145,14 @@ pm2 startup systemd
 ### Step 7: Configure Nginx
 
 ```bash
-nano /etc/nginx/sites-available/admin.yourstore.com
+nano /etc/nginx/sites-available/admin.tokshoplive.com
 ```
 
-Paste (replace `admin.yourstore.com`):
+Paste (replace `admin.tokshoplive.com`):
 ```nginx
 server {
     listen 80;
-    server_name admin.yourstore.com;
+    server_name admin.tokshoplive.com;
 
     location / {
         proxy_pass http://localhost:5000;
@@ -171,7 +171,7 @@ server {
 Enable site:
 ```bash
 rm /etc/nginx/sites-enabled/default
-ln -s /etc/nginx/sites-available/admin.yourstore.com /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/admin.tokshoplive.com /etc/nginx/sites-enabled/
 nginx -t
 systemctl restart nginx
 ```
@@ -180,14 +180,14 @@ systemctl restart nginx
 
 ```bash
 apt install certbot python3-certbot-nginx -y
-certbot --nginx -d admin.yourstore.com
+certbot --nginx -d admin.tokshoplive.com
 # Choose option 2 (redirect HTTP to HTTPS)
 certbot renew --dry-run
 ```
 
 ### ✅ Test Deployment
 
-Visit: **https://admin.yourstore.com**
+Visit: **https://admin.tokshoplive.com**
 
 ---
 
@@ -197,8 +197,8 @@ Visit: **https://admin.yourstore.com**
 
 ## What You'll Deploy
 
-- **Admin Panel** at `admin.yourstore.com` (Port 5000)
-- **Marketplace** at `yourstore.com` (Port 5001)
+- **Admin Panel** at `admin.tokshoplive.com` (Port 5000)
+- **Marketplace** at `tokshoplive.com` (Port 5001)
 - **Package**: `packages/web-full-platform/`
 
 ### Step 1: Create DigitalOcean Droplet
@@ -225,9 +225,9 @@ ns3.digitalocean.com
 **In DigitalOcean (Networking → Domains):**
 
 Add these A records:
-- Type: **A**, Hostname: `@`, Value: Your Droplet IP (creates `yourstore.com`)
-- Type: **A**, Hostname: `www`, Value: Your Droplet IP (creates `www.yourstore.com`)
-- Type: **A**, Hostname: `admin`, Value: Your Droplet IP (creates `admin.yourstore.com`)
+- Type: **A**, Hostname: `@`, Value: Your Droplet IP (creates `tokshoplive.com`)
+- Type: **A**, Hostname: `www`, Value: Your Droplet IP (creates `www.tokshoplive.com`)
+- Type: **A**, Hostname: `admin`, Value: Your Droplet IP (creates `admin.tokshoplive.com`)
 
 Wait 1-2 hours for DNS propagation.
 
@@ -278,7 +278,7 @@ You'll see **TWO apps** in the file. Find these lines and change **BOTH**:
   name: 'tokshop-admin',
   ...
   env: {
-    BASE_URL: 'https://api.yourdomain.com'  // ⚠️ CHANGE THIS
+    BASE_URL: 'https://api.tokshoplive.com'  // ⚠️ CHANGE THIS
   }
 }
 
@@ -287,7 +287,7 @@ You'll see **TWO apps** in the file. Find these lines and change **BOTH**:
   name: 'tokshop-marketplace',
   ...
   env: {
-    BASE_URL: 'https://api.yourdomain.com'  // ⚠️ CHANGE THIS TOO
+    BASE_URL: 'https://api.tokshoplive.com'  // ⚠️ CHANGE THIS TOO
   }
 }
 ```
@@ -331,14 +331,14 @@ pm2 startup systemd
 **Admin Panel Configuration:**
 
 ```bash
-nano /etc/nginx/sites-available/admin.yourstore.com
+nano /etc/nginx/sites-available/admin.tokshoplive.com
 ```
 
-Paste (replace `admin.yourstore.com`):
+Paste (replace `admin.tokshoplive.com`):
 ```nginx
 server {
     listen 80;
-    server_name admin.yourstore.com;
+    server_name admin.tokshoplive.com;
 
     location / {
         proxy_pass http://localhost:5000;
@@ -357,14 +357,14 @@ server {
 **Marketplace Configuration:**
 
 ```bash
-nano /etc/nginx/sites-available/yourstore.com
+nano /etc/nginx/sites-available/tokshoplive.com
 ```
 
-Paste (replace `yourstore.com`):
+Paste (replace `tokshoplive.com`):
 ```nginx
 server {
     listen 80;
-    server_name yourstore.com www.yourstore.com;
+    server_name tokshoplive.com www.tokshoplive.com;
 
     location / {
         proxy_pass http://localhost:5001;
@@ -384,8 +384,8 @@ server {
 
 ```bash
 rm /etc/nginx/sites-enabled/default
-ln -s /etc/nginx/sites-available/admin.yourstore.com /etc/nginx/sites-enabled/
-ln -s /etc/nginx/sites-available/yourstore.com /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/admin.tokshoplive.com /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/tokshoplive.com /etc/nginx/sites-enabled/
 nginx -t
 systemctl restart nginx
 ```
@@ -396,10 +396,10 @@ systemctl restart nginx
 apt install certbot python3-certbot-nginx -y
 
 # Get SSL for Admin
-certbot --nginx -d admin.yourstore.com
+certbot --nginx -d admin.tokshoplive.com
 
 # Get SSL for Marketplace
-certbot --nginx -d yourstore.com -d www.yourstore.com
+certbot --nginx -d tokshoplive.com -d www.tokshoplive.com
 
 # Choose option 2 (redirect HTTP to HTTPS) for both
 certbot renew --dry-run
@@ -408,8 +408,8 @@ certbot renew --dry-run
 ### ✅ Test Deployment
 
 Visit both sites:
-- **Admin Panel**: https://admin.yourstore.com
-- **Marketplace**: https://yourstore.com
+- **Admin Panel**: https://admin.tokshoplive.com
+- **Marketplace**: https://tokshoplive.com
 
 ---
 
@@ -453,7 +453,7 @@ All apps use these environment variables (configured in `ecosystem.config.cjs`):
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `BASE_URL` | Your API server endpoint | `https://api.yourdomain.com` |
+| `BASE_URL` | Your API server endpoint | `https://api.tokshoplive.com` |
 | `NODE_ENV` | Environment mode | `production` |
 | `PORT` | App port number | `5000` (admin) or `5001` (marketplace) |
 
@@ -546,8 +546,8 @@ pm2 restart all  # Restart after fixing
 
 ```bash
 # Check DNS propagation
-dig admin.yourstore.com
-dig yourstore.com
+dig admin.tokshoplive.com
+dig tokshoplive.com
 
 # Wait up to 48 hours for full propagation
 ```
@@ -596,7 +596,7 @@ systemctl status certbot.timer  # Check auto-renewal
            ↑
 ┌──────────┴──────────┐
 │   Admin Web Panel   │  ← You manage here
-│ admin.yourstore.com │
+│ admin.tokshoplive.com │
 │      Port 5000      │
 └─────────────────────┘
 ```
@@ -607,7 +607,7 @@ systemctl status certbot.timer  # Check auto-renewal
 ┌─────────────────────────────────────────┐
 │         Your Domains                    │
 │                                         │
-│  admin.yourstore.com  yourstore.com     │
+│  admin.tokshoplive.com  tokshoplive.com     │
 └──────────────┬──────────────────────────┘
                │
                ↓

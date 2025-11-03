@@ -20,7 +20,7 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 5000,
         // ⚠️ CHANGE THIS to your API server URL
-        BASE_URL: 'https://api.yourdomain.com'
+        BASE_URL: 'https://api.tokshoplive.com'
       },
       instances: 1,
       autorestart: true,
@@ -36,7 +36,7 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 5001,
         // ⚠️ CHANGE THIS to your API server URL
-        BASE_URL: 'https://api.yourdomain.com'
+        BASE_URL: 'https://api.tokshoplive.com'
       },
       instances: 1,
       autorestart: true,

@@ -1,6 +1,5 @@
 import type { Express } from "express";
-
-const BASE_URL = 'https://api.iconaapp.com';
+import { BASE_URL } from "../utils";
 
 export function registerStripeRoutes(app: Express) {
   // Create Stripe Connect account
