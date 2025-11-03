@@ -135,9 +135,10 @@ function Router() {
   // Show public marketplace pages if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-col h-screen bg-background">
-        <main className="flex-1 overflow-y-auto">
-          <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<LoadingSpinner />}>
+        <div className="flex flex-col h-screen bg-background">
+          <AppHeader hideLogo={false} />
+          <main className="flex-1 overflow-y-auto">
             <Switch>
               <Route path="/" component={LandingPage} />
               <Route path="/landing-2" component={LandingPage2} />
@@ -164,9 +165,9 @@ function Router() {
               <Route path="/faq" component={FAQ} />
               <Route component={LandingPage} />
             </Switch>
-          </Suspense>
-        </main>
-      </div>
+          </main>
+        </div>
+      </Suspense>
     );
   }
 
