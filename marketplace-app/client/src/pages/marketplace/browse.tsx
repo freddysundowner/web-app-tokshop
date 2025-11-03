@@ -120,7 +120,7 @@ export default function Browse() {
             {sortedCategories.map((category) => {
               // Construct full image URL from icon path using dynamic API URL
               const iconUrl = category.icon ? getImageUrl(category.icon, externalApiUrl) : null;
-              const imageUrl = category.image || iconUrl;
+              const imageUrl = category.image ? getImageUrl(category.image, externalApiUrl) : iconUrl;
               
               return (
                 <Link key={category._id} href={`/category/${category._id}`} data-testid={`link-category-${category._id}`}>

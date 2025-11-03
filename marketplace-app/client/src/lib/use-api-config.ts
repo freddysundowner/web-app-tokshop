@@ -26,6 +26,8 @@ export function getImageUrl(imagePath: string | undefined | null, externalApiUrl
     return imagePath;
   }
   
+  // Use fallback URL if externalApiUrl is not loaded yet
+  const baseUrl = externalApiUrl || 'https://api.tokshoplive.com';
   const cleanPath = imagePath.replace(/^\//, '');
-  return `${externalApiUrl}/${cleanPath}`;
+  return `${baseUrl}/${cleanPath}`;
 }
