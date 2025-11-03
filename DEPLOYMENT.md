@@ -89,28 +89,17 @@ ufw allow 'Nginx Full'
 ufw enable
 ```
 
-### Step 4: Upload & Install Package
+### Step 4: Upload Package
 
 ```bash
 # Upload package to server
 scp -r packages/admin-for-flutter/ root@YOUR_DROPLET_IP:/var/www/
-
-# On server, install and build
-cd /var/www/admin-for-flutter
-chmod +x install.sh
-./install.sh
 ```
-
-The installation script will:
-- ✅ Install all dependencies
-- ✅ Build the admin app  
-- ✅ Create PM2 configuration file
 
 ### Step 5: Configure Your API URL
 
-**🎯 IMPORTANT:** You must configure your API URL before starting the app.
+**🎯 IMPORTANT:** Configure your API URL BEFORE running the installation.
 
-Open the configuration file:
 ```bash
 cd /var/www/admin-for-flutter
 nano ecosystem.config.cjs
@@ -131,7 +120,19 @@ BASE_URL: 'https://api.tokshoplive.com'
 - Press `Y` to confirm
 - Press `Enter` to save
 
-### Step 6: Start with PM2
+### Step 6: Install & Build
+
+```bash
+cd /var/www/admin-for-flutter
+chmod +x install.sh
+./install.sh
+```
+
+The installation script will:
+- ✅ Install all dependencies
+- ✅ Build the admin app
+
+### Step 7: Start with PM2
 
 ```bash
 cd /var/www/admin-for-flutter
@@ -253,28 +254,17 @@ ufw allow 'Nginx Full'
 ufw enable
 ```
 
-### Step 4: Upload & Install Package
+### Step 4: Upload Package
 
 ```bash
 # Upload package to server
 scp -r packages/web-full-platform/ root@YOUR_DROPLET_IP:/var/www/
-
-# On server, install and build
-cd /var/www/web-full-platform
-chmod +x install-all.sh
-./install-all.sh
 ```
-
-The installation script will:
-- ✅ Install all dependencies for both apps
-- ✅ Build admin and marketplace apps
-- ✅ Create PM2 configuration file
 
 ### Step 5: Configure Your API URL
 
-**🎯 IMPORTANT:** You must configure your API URL before starting the apps.
+**🎯 IMPORTANT:** Configure your API URL BEFORE running the installation.
 
-Open the configuration file:
 ```bash
 cd /var/www/web-full-platform
 nano ecosystem.config.cjs
@@ -314,7 +304,19 @@ BASE_URL: 'https://api.tokshoplive.com'
 - Press `Y` to confirm
 - Press `Enter` to save
 
-### Step 6: Start Both Apps with PM2
+### Step 6: Install & Build Both Apps
+
+```bash
+cd /var/www/web-full-platform
+chmod +x install-all.sh
+./install-all.sh
+```
+
+The installation script will:
+- ✅ Install all dependencies for both apps
+- ✅ Build admin and marketplace apps
+
+### Step 7: Start Both Apps with PM2
 
 ```bash
 cd /var/www/web-full-platform

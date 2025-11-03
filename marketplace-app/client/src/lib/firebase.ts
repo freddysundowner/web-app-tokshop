@@ -22,13 +22,14 @@ interface FirebaseConfig {
   appId: string;
 }
 
-// Default config as fallback
+// Default config as fallback - these are placeholder values
+// Real config should come from the API settings
 const defaultConfig: FirebaseConfig = {
-  apiKey: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
-  authDomain: "icona-e7769.firebaseapp.com",
-  projectId: "icona-e7769",
-  storageBucket: "icona-e7769.firebasestorage.app",
-  appId: "1:167886286942:web:f13314bc30af1005e384cf",
+  apiKey: "your-api-key",
+  authDomain: "your-app.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-app.appspot.com",
+  appId: "your-app-id",
 };
 
 // Firebase instances (will be initialized dynamically)
@@ -40,15 +41,21 @@ let isInitialized = false;
 
 // Initialize Firebase with dynamic config
 export function initializeFirebase(config?: FirebaseConfig) {
-  if (isInitialized) {
-    console.log('🔥 Firebase already initialized');
+  // Don't re-initialize with placeholder config
+  if (!config || config.projectId === 'your-project-id') {
+    console.warn('⚠️ Refusing to initialize Firebase with placeholder/missing config');
     return;
   }
 
-  const firebaseConfig = config || defaultConfig;
-  console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
+  // Allow re-initialization if config has changed (for development hot-reload)
+  if (isInitialized) {
+    console.log('🔥 Firebase already initialized, skipping re-initialization');
+    return;
+  }
 
-  app = initializeApp(firebaseConfig);
+  console.log('🔥 Initializing Firebase with config:', { projectId: config.projectId });
+
+  app = initializeApp(config);
   _auth = getAuth(app);
   _storage = getStorage(app);
   _db = getFirestore(app);
@@ -60,24 +67,21 @@ export function initializeFirebase(config?: FirebaseConfig) {
 // Getters that ensure Firebase is initialized
 export const getFirebaseAuth = (): Auth => {
   if (!isInitialized) {
-    console.warn('⚠️ Firebase not initialized yet, using default config');
-    initializeFirebase();
+    throw new Error('Firebase not initialized. Make sure SettingsProvider loads settings first.');
   }
   return _auth;
 };
 
 export const getFirebaseStorage = (): FirebaseStorage => {
   if (!isInitialized) {
-    console.warn('⚠️ Firebase not initialized yet, using default config');
-    initializeFirebase();
+    throw new Error('Firebase not initialized. Make sure SettingsProvider loads settings first.');
   }
   return _storage;
 };
 
 export const getFirebaseDb = (): Firestore => {
   if (!isInitialized) {
-    console.warn('⚠️ Firebase not initialized yet, using default config');
-    initializeFirebase();
+    throw new Error('Firebase not initialized. Make sure SettingsProvider loads settings first.');
   }
   return _db;
 };

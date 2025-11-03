@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -115,7 +115,7 @@ export default function Inbox() {
     // This will be called when opening inbox to ensure profile photos are current
     const updateUserProfileInChats = async () => {
       try {
-        const chatsRef = collection(db, 'chats');
+        const chatsRef = collection(getFirebaseDb(), 'chats');
         const chatsQuery = query(chatsRef, where('userIds', 'array-contains', userId));
         const chatsSnapshot = await getDocs(chatsQuery);
         
@@ -134,7 +134,7 @@ export default function Inbox() {
             
             // Only update if there were changes
             if (JSON.stringify(users) !== JSON.stringify(updatedUsers)) {
-              await updateDoc(doc(db, 'chats', chatDoc.id), { users: updatedUsers });
+              await updateDoc(doc(getFirebaseDb(), 'chats', chatDoc.id), { users: updatedUsers });
               console.log('Updated profile photo in chat:', chatDoc.id);
             }
           } catch (err) {

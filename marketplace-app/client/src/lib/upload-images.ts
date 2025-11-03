@@ -1,4 +1,4 @@
-import { storage } from "@/lib/firebase";
+import { getFirebaseStorage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export interface UploadImageResult {
@@ -10,6 +10,8 @@ export async function uploadImagesToFirebase(
   files: File[],
   productId: string
 ): Promise<UploadImageResult[]> {
+  const storage = getFirebaseStorage();
+  
   const uploadPromises = files.map(async (file, index) => {
     try {
       const fileExtension = file.name.split('.').pop() || 'jpg';
@@ -42,6 +44,8 @@ export async function uploadShowThumbnail(
   showId: string
 ): Promise<string> {
   try {
+    const storage = getFirebaseStorage();
+    
     const fileExtension = file.name.split('.').pop() || 'jpg';
     const filename = `${showId}_thumbnail.${fileExtension}`;
     

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
 import { ChevronRight } from 'lucide-react';
 import { ShowCard } from '@/components/show-card';
+import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
 
 interface Category {
   _id: string;
@@ -54,6 +55,7 @@ export default function Category() {
   const [following, setFollowing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { externalApiUrl } = useApiConfig();
 
   // Get current user session
   const { data: sessionData } = useQuery<{ success: boolean; data: { _id: string; id: string } }>({
@@ -324,7 +326,7 @@ export default function Category() {
               <div className="mb-6 overflow-x-auto scrollbar-hide" data-testid="subcategories-container">
                 <div className="flex gap-3">
                   {subCategories.map((subCat) => {
-                    const iconUrl = subCat.icon ? `https://api.iconaapp.com/${subCat.icon}` : '';
+                    const iconUrl = subCat.icon ? getImageUrl(subCat.icon, externalApiUrl) : '';
                     
                     return (
                       <Link

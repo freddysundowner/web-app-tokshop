@@ -16,7 +16,7 @@ import {
   arrayRemove
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './firebase';
+import { getFirebaseDb, getFirebaseStorage } from './firebase';
 
 export interface ChatMessage {
   id: string;
@@ -68,7 +68,7 @@ export function subscribeToChats(
   onError?: (error: Error) => void
 ) {
   try {
-    const chatsRef = collection(db, 'chats');
+    const chatsRef = collection(getFirebaseDb(), 'chats');
     
     // Query for chats where the userId is in the userIds array
     const chatsQuery = query(
@@ -102,7 +102,7 @@ export function subscribeToChats(
         
         // Subscribe to presence for this user if not already subscribed
         if (otherUserId && !presenceUnsubscribers.has(otherUserId)) {
-          const presenceRef = doc(db, 'presence', otherUserId);
+          const presenceRef = doc(getFirebaseDb(), 'presence', otherUserId);
           const unsubPresence = onSnapshot(presenceRef, (presenceDoc) => {
             const isOnline = presenceDoc.exists() && presenceDoc.data()?.online === true;
             presenceData.set(otherUserId, isOnline);
@@ -117,7 +117,7 @@ export function subscribeToChats(
         const lastReadTimestamp = chatData[lastReadField] || 0;
         
         // Get messages to calculate unread count
-        const messagesRef = collection(db, 'chats', chatId, 'messages');
+        const messagesRef = collection(getFirebaseDb(), 'chats', chatId, 'messages');
         const messagesQuery = query(
           messagesRef,
           orderBy('date', 'desc')
@@ -220,7 +220,7 @@ export function subscribeToMessages(
   onError?: (error: Error) => void
 ) {
   try {
-    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const messagesRef = collection(getFirebaseDb(), 'chats', chatId, 'messages');
     const messagesQuery = query(messagesRef, orderBy('date', 'asc'));
     
     const unsubscribe = onSnapshot(
@@ -254,7 +254,7 @@ export function subscribeToRoomMessages(
   onError?: (error: Error) => void
 ) {
   try {
-    const messagesRef = collection(db, 'chats', showId, 'room_messages');
+    const messagesRef = collection(getFirebaseDb(), 'chats', showId, 'room_messages');
     
     const unsubscribe = onSnapshot(
       messagesRef,
@@ -325,7 +325,7 @@ export async function sendRoomMessage(
   mentions: Array<{ id: string; name: string }> = []
 ) {
   try {
-    const messagesRef = collection(db, 'chats', showId, 'room_messages');
+    const messagesRef = collection(getFirebaseDb(), 'chats', showId, 'room_messages');
     
     const newMessage = {
       message,
@@ -356,7 +356,7 @@ export async function sendMessage(
 ) {
   try {
     // Get chat to find other user
-    const chatRef = doc(db, 'chats', chatId);
+    const chatRef = doc(getFirebaseDb(), 'chats', chatId);
     const chatDoc = await getDoc(chatRef);
     
     if (!chatDoc.exists()) {
@@ -374,7 +374,7 @@ export async function sendMessage(
       }
     }
     
-    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const messagesRef = collection(getFirebaseDb(), 'chats', chatId, 'messages');
     
     const newMessage = {
       message,
@@ -417,7 +417,7 @@ export async function sendMessage(
 // Mark messages as read
 export async function markMessagesAsRead(chatId: string, userId: string) {
   try {
-    const chatRef = doc(db, 'chats', chatId);
+    const chatRef = doc(getFirebaseDb(), 'chats', chatId);
     const updateData = {
       [`last_read_${userId}`]: Date.now()
     };
@@ -439,7 +439,7 @@ export async function getOrCreateChat(
 ): Promise<string> {
   try {
     // Try to find existing chat using userIds array
-    const chatsRef = collection(db, 'chats');
+    const chatsRef = collection(getFirebaseDb(), 'chats');
     const q = query(chatsRef, where('userIds', 'array-contains', userId1));
     const snapshot = await getDocs(q);
     
@@ -490,7 +490,7 @@ export async function uploadImageToStorage(file: File, senderId: string): Promis
   try {
     const timestamp = Date.now();
     const fileName = `${senderId}_${timestamp}_${file.name}`;
-    const storageRef = ref(storage, `chat_images/${fileName}`);
+    const storageRef = ref(getFirebaseStorage(), `chat_images/${fileName}`);
     
     // Upload the file
     await uploadBytes(storageRef, file);
@@ -517,7 +517,7 @@ export function isImageMessage(message: string): boolean {
 // Block a user
 export async function blockUser(currentUserId: string, targetUserId: string): Promise<boolean> {
   try {
-    const blockRef = doc(db, 'blocked_users', currentUserId);
+    const blockRef = doc(getFirebaseDb(), 'blocked_users', currentUserId);
     
     await setDoc(blockRef, {
       blockedUsers: arrayUnion(targetUserId)
@@ -533,7 +533,7 @@ export async function blockUser(currentUserId: string, targetUserId: string): Pr
 // Unblock a user
 export async function unblockUser(currentUserId: string, targetUserId: string): Promise<boolean> {
   try {
-    const blockRef = doc(db, 'blocked_users', currentUserId);
+    const blockRef = doc(getFirebaseDb(), 'blocked_users', currentUserId);
     
     await updateDoc(blockRef, {
       blockedUsers: arrayRemove(targetUserId)
@@ -553,13 +553,13 @@ export async function checkBlockStatus(currentUserId: string, otherUserId: strin
 }> {
   try {
     // Check if current user has blocked the other user
-    const currentUserBlockRef = doc(db, 'blocked_users', currentUserId);
+    const currentUserBlockRef = doc(getFirebaseDb(), 'blocked_users', currentUserId);
     const currentUserBlockDoc = await getDoc(currentUserBlockRef);
     const hasBlockedOther = currentUserBlockDoc.exists() && 
       currentUserBlockDoc.data()?.blockedUsers?.includes(otherUserId);
     
     // Check if current user is blocked by the other user
-    const otherUserBlockRef = doc(db, 'blocked_users', otherUserId);
+    const otherUserBlockRef = doc(getFirebaseDb(), 'blocked_users', otherUserId);
     const otherUserBlockDoc = await getDoc(otherUserBlockRef);
     const isBlockedByOther = otherUserBlockDoc.exists() && 
       otherUserBlockDoc.data()?.blockedUsers?.includes(currentUserId);
@@ -574,7 +574,7 @@ export async function checkBlockStatus(currentUserId: string, otherUserId: strin
 // Update online status with better lifecycle management
 export async function updateOnlineStatus(userId: string, isOnline: boolean): Promise<void> {
   try {
-    const presenceRef = doc(db, 'presence', userId);
+    const presenceRef = doc(getFirebaseDb(), 'presence', userId);
     
     await setDoc(presenceRef, {
       online: isOnline,
@@ -650,7 +650,7 @@ export async function updateOnlineStatus(userId: string, isOnline: boolean): Pro
 // Update typing status
 export async function updateTypingStatus(chatId: string, userId: string, isTyping: boolean): Promise<void> {
   try {
-    const chatRef = doc(db, 'chats', chatId);
+    const chatRef = doc(getFirebaseDb(), 'chats', chatId);
     
     await updateDoc(chatRef, {
       [`typing_${userId}`]: isTyping
@@ -667,7 +667,7 @@ export function subscribeToPresence(
   onError?: (error: Error) => void
 ) {
   try {
-    const presenceRef = doc(db, 'presence', userId);
+    const presenceRef = doc(getFirebaseDb(), 'presence', userId);
     
     const unsubscribe = onSnapshot(
       presenceRef,
@@ -709,7 +709,7 @@ export function subscribeToTypingStatus(
   onError?: (error: Error) => void
 ) {
   try {
-    const chatRef = doc(db, 'chats', chatId);
+    const chatRef = doc(getFirebaseDb(), 'chats', chatId);
     
     const unsubscribe = onSnapshot(
       chatRef,

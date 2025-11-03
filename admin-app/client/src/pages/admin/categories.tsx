@@ -14,6 +14,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 
 interface Category {
   _id: string;
@@ -43,6 +44,7 @@ export default function AdminCategories() {
   const [editCategoryName, setEditCategoryName] = useState("");
   const [editCategoryIcon, setEditCategoryIcon] = useState<File | null>(null);
   const [convertToChildDialogOpen, setConvertToChildDialogOpen] = useState(false);
+  const { externalApiUrl } = useApiConfig();
   const [categoryToConvert, setCategoryToConvert] = useState<Category | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string>("");
   const { toast } = useToast();
@@ -565,7 +567,7 @@ export default function AdminCategories() {
                           <td className="py-3 px-4">
                             {category.icon ? (
                               <img
-                                src={`https://api.iconaapp.com/${category.icon}`}
+                                src={getImageUrl(category.icon, externalApiUrl)}
                                 alt={category.name}
                                 className="w-16 h-16 object-cover rounded-md"
                                 data-testid={`img-category-${category._id}`}
@@ -791,7 +793,7 @@ export default function AdminCategories() {
                 <div className="mt-2">
                   <p className="text-sm text-muted-foreground mb-1">Current Icon:</p>
                   <img
-                    src={`https://api.iconaapp.com/${categoryToEdit.icon}`}
+                    src={getImageUrl(categoryToEdit.icon, externalApiUrl)}
                     alt={categoryToEdit.name}
                     className="w-16 h-16 object-cover rounded-md"
                   />

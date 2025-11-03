@@ -3,6 +3,7 @@ import { onAuthStateChange, signInWithGoogle, signInWithApple, firebaseSignOut, 
 import type { User as FirebaseUser } from "firebase/auth";
 import { loginSchema, signupSchema, socialAuthSchema, socialAuthCompleteSchema, type LoginData, type SignupData, type SocialAuthData, type SocialAuthCompleteData } from "@shared/schema";
 import { apiRequest } from "./queryClient";
+import { useSettings } from "./settings-context";
 
 interface User {
   id: string;
@@ -48,6 +49,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   console.log('[AuthProvider] Initializing AuthProvider');
   
+  const { isFirebaseReady } = useSettings();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingSocialAuth, setPendingSocialAuth] = useState(false);
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const lastRefreshTime = useRef<number>(0);
   const isRefreshing = useRef(false);
 
-  console.log('[AuthProvider] Current state - isLoading:', isLoading, 'user:', user ? user.id : 'null', 'isAuthenticated:', !!user);
+  console.log('[AuthProvider] Current state - isLoading:', isLoading, 'user:', user ? user.id : 'null', 'isAuthenticated:', !!user, 'isFirebaseReady:', isFirebaseReady);
 
   const isAuthenticated = !!user;
 
@@ -591,6 +593,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
+    // Only set up Firebase listener after Firebase is initialized
+    if (!isFirebaseReady) {
+      console.log('[AuthProvider] Waiting for Firebase to be ready...');
+      return;
+    }
+
+    console.log('[AuthProvider] Firebase ready, setting up auth listener');
+    
     // Set up Firebase auth state listener (mainly for logout events now)
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       console.log('[Firebase Listener] Auth state changed, user:', firebaseUser ? 'EXISTS' : 'NONE', 'hasCheckedAuth:', hasCheckedAuth.current);
@@ -614,7 +624,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
 
     return () => unsubscribe();
-  }, []);
+  }, [isFirebaseReady]);
 
   const value: AuthContextType = {
     user,

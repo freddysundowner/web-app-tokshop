@@ -15,8 +15,19 @@ import { registerAdminRoutes } from "./routes/admin";
 import { registerSettingsRoutes } from "./routes/settings";
 import { registerGiveawayRoutes } from "./routes/giveaways";
 import { registerStripeRoutes } from "./routes/stripe";
+import { BASE_URL } from "./utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configuration endpoint - exposes external API URL for Socket.IO connections
+  app.get('/api/config', (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        externalApiUrl: BASE_URL
+      }
+    });
+  });
+
   // Register all route modules
   registerSettingsRoutes(app);
   registerAuthRoutes(app);

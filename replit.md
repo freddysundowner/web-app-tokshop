@@ -21,10 +21,11 @@ TokShop's architecture is centered around being a pure API client. Neither the A
 - **Dynamic Branding**: App name, primary, and secondary theme colors are loaded dynamically from the external API's settings endpoint via `SettingsContext`. Colors are converted to HSL and applied via CSS variables.
 
 **Technical Implementations:**
-- **Authentication**: Firebase Auth (Google, Facebook, email/password) is used. Firebase configuration is loaded dynamically from the external API's settings endpoint (via the `firebase_config` field), with a default fallback config if not provided. The frontend sends Firebase tokens to the backend for validation, and sessions are managed via cookies.
+- **Authentication**: Firebase Auth (Google, Facebook, email/password) is used. Firebase configuration is loaded dynamically from the external API's settings endpoint via individual fields (firebase_api_key, firebase_auth_domain, firebase_project_id, firebase_storage_bucket, firebase_app_id). The SettingsContext builds the firebase_config object from these fields and initializes Firebase. The AuthProvider waits for `isFirebaseReady` before setting up auth listeners. Firebase initialization is protected against placeholder config to prevent invalid Firestore operations.
 - **API Requests**: All API calls are managed using `@tanstack/react-query`, with a custom `apiRequest` wrapper for authentication.
 - **Forms**: `react-hook-form` is used with Zod validation for robust and consistent form handling.
 - **Build System**: Vite is used for development with HMR. For production, Vite builds the frontend, and ESBuild bundles the backend.
+- **Deployment Configuration**: Each package includes a pre-configured `ecosystem.config.cjs` file with PM2 settings. Customers edit this file to set their API URL before installation, simplifying the deployment process.
 
 **Feature Specifications:**
 - **Admin App Routes**: Dashboard, User Management, Product Management, Order Management, App Settings.

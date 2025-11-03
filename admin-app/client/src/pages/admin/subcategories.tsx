@@ -13,6 +13,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 
 interface SubCategory {
   _id: string;
@@ -41,6 +42,7 @@ export default function AdminSubCategories() {
   const [subcategoryIcon, setSubcategoryIcon] = useState<File | null>(null);
   const [subcategoryToDelete, setSubcategoryToDelete] = useState<string | null>(null);
   const { toast } = useToast();
+  const { externalApiUrl } = useApiConfig();
 
   const { data: categoryData, isLoading } = useQuery<any>({
     queryKey: ['/api/admin/categories', categoryId],
@@ -246,7 +248,7 @@ export default function AdminSubCategories() {
           <div className="flex items-center gap-4">
             {category?.icon ? (
               <img
-                src={`https://api.iconaapp.com/${category.icon}`}
+                src={getImageUrl(category.icon, externalApiUrl)}
                 alt={category.name}
                 className="w-20 h-20 object-cover rounded-lg"
               />
@@ -409,7 +411,7 @@ export default function AdminSubCategories() {
                         <td className="py-3 px-4">
                           {sub.icon ? (
                             <img
-                              src={`https://api.iconaapp.com/${sub.icon}`}
+                              src={getImageUrl(sub.icon, externalApiUrl)}
                               alt={sub.name}
                               className="w-16 h-16 object-cover rounded-md"
                               data-testid={`img-subcategory-${sub._id}`}

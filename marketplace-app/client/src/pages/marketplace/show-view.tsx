@@ -2608,16 +2608,41 @@ export default function ShowViewNew() {
                         </p>
                       )}
                       
-                      <Button
-                        onClick={() => {
-                          window.location.href = `/checkout/${pinnedProduct._id}`;
-                        }}
-                        className="mt-6 w-full h-11 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-base transition-colors"
-                        data-testid="button-buy-now-overlay"
-                      >
-                        <ShoppingBag className="h-5 w-5 mr-2" />
-                        Buy Now
-                      </Button>
+                      {!isShowOwner && (
+                        <Button
+                          onClick={() => {
+                            window.location.href = `/checkout/${pinnedProduct._id}`;
+                          }}
+                          className="mt-6 w-full h-11 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-base transition-colors"
+                          data-testid="button-buy-now-overlay"
+                        >
+                          <ShoppingBag className="h-5 w-5 mr-2" />
+                          Buy Now
+                        </Button>
+                      )}
+                      
+                      {isShowOwner && (
+                        <Button
+                          onClick={() => {
+                            if (!socket || !id) return;
+                            socket.emit('pin-product', {
+                              pinned: false,
+                              product: pinnedProduct._id,
+                              tokshow: id
+                            });
+                            console.log('📌 Unpin product emitted:', {
+                              pinned: false,
+                              product: pinnedProduct._id,
+                              tokshow: id
+                            });
+                          }}
+                          className="mt-6 w-full h-11 rounded-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold text-base transition-colors"
+                          data-testid="button-unpin-overlay"
+                        >
+                          <Bookmark className="h-5 w-5 mr-2" />
+                          Unpin Product
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

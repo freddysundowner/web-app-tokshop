@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { X, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
-import { storage } from "@/lib/firebase";
+import { getFirebaseStorage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useSettings } from "@/lib/settings-context";
 
 interface ImageUploaderProps {
   value: string[];
@@ -28,6 +29,7 @@ export function ImageUploader({
   disabled = false,
   allowFileStorage = false,
 }: ImageUploaderProps) {
+  const { isFirebaseReady } = useSettings();
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [tempFiles, setTempFiles] = useState<File[]>([]);
@@ -73,6 +75,14 @@ export function ImageUploader({
     setUploading(true);
 
     try {
+      // Check if Firebase is ready before uploading
+      if (!isFirebaseReady) {
+        console.error('Firebase is not initialized yet. Please wait for app to load.');
+        throw new Error('Firebase is not ready. Please wait a moment and try again.');
+      }
+
+      const storage = getFirebaseStorage();
+
       const uploadPromises = filesToProcess.map(async (file) => {
         try {
           // Generate unique filename
@@ -103,6 +113,7 @@ export function ImageUploader({
       }
     } catch (error) {
       console.error('Upload error:', error);
+      alert('Failed to upload images. Please make sure the app has finished loading and try again.');
     } finally {
       setUploading(false);
     }
@@ -185,12 +196,12 @@ export function ImageUploader({
               <Button
                 type="button"
                 variant="outline"
-                disabled={disabled || uploading}
+                disabled={disabled || uploading || !isFirebaseReady}
                 onClick={() => fileInputRef.current?.click()}
                 data-testid="button-select-images"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                {uploading ? 'Uploading...' : 'Select Images'}
+                {!isFirebaseReady ? 'Loading...' : uploading ? 'Uploading...' : 'Select Images'}
               </Button>
               <Input
                 ref={fileInputRef}

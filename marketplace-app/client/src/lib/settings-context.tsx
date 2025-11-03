@@ -23,6 +23,7 @@ interface AppSettings {
 interface SettingsContextType {
   settings: AppSettings;
   isLoading: boolean;
+  isFirebaseReady: boolean;
   appName: string;
 }
 
@@ -34,18 +35,12 @@ const defaultSettings: AppSettings = {
   secondary_color: '#1A1A1A',
   stripe_publishable_key: '',
   commission_rate: 0, // Default 0% commission
-  firebase_config: {
-    apiKey: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
-    authDomain: "icona-e7769.firebaseapp.com",
-    projectId: "icona-e7769",
-    storageBucket: "icona-e7769.firebasestorage.app",
-    appId: "1:167886286942:web:f13314bc30af1005e384cf",
-  },
 };
 
 const SettingsContext = createContext<SettingsContextType>({
   settings: defaultSettings,
   isLoading: true,
+  isFirebaseReady: false,
   appName: 'TokShop',
 });
 
@@ -158,6 +153,7 @@ function applyThemeColors(primaryColor: string, secondaryColor: string) {
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -170,20 +166,38 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             console.log('⚙️ Settings data:', data.data);
             setSettings(data.data);
             
-            // Initialize Firebase with dynamic config if available
+            // Build Firebase config from either nested object or individual fields
+            let firebaseConfig: FirebaseConfig | undefined;
+            
             if (data.data.firebase_config) {
-              console.log('🔥 Initializing Firebase with dynamic config');
-              initializeFirebase(data.data.firebase_config);
+              // Use nested firebase_config object if available
+              firebaseConfig = data.data.firebase_config;
+              console.log('🔥 Using nested firebase_config from API');
+            } else if (data.data.firebase_auth_domain || data.data.firebase_project_id) {
+              // Build from individual fields (from admin panel settings)
+              firebaseConfig = {
+                apiKey: data.data.firebase_api_key || data.data.FIREBASE_API_KEY || '',
+                authDomain: data.data.firebase_auth_domain || '',
+                projectId: data.data.firebase_project_id || '',
+                storageBucket: data.data.firebase_storage_bucket || '',
+                appId: data.data.firebase_app_id || '',
+              };
+              console.log('🔥 Built firebase_config from individual fields');
+            }
+            
+            // Initialize Firebase with dynamic config if available
+            if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
+              console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
+              initializeFirebase(firebaseConfig);
+              setIsFirebaseReady(true);
             } else {
-              console.log('🔥 No Firebase config in settings, using default');
-              initializeFirebase();
+              console.warn('⚠️ No valid Firebase config found in settings');
             }
           }
         }
       } catch (error) {
         console.error('Failed to fetch app settings:', error);
-        // Initialize Firebase with default config on error
-        initializeFirebase();
+        console.warn('⚠️ Cannot initialize Firebase without settings');
       } finally {
         setIsLoading(false);
       }
@@ -202,7 +216,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const appName = settings.app_name || 'TokShop';
 
   return (
-    <SettingsContext.Provider value={{ settings, isLoading, appName }}>
+    <SettingsContext.Provider value={{ settings, isLoading, isFirebaseReady, appName }}>
       {children}
     </SettingsContext.Provider>
   );

@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ArrowLeft, AlertTriangle, Package, User, ShoppingCart, Scale, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 
 interface Dispute {
   _id: string;
@@ -49,6 +50,7 @@ export default function AdminDisputeDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const disputeId = params?.disputeId;
+  const { externalApiUrl } = useApiConfig();
 
   const [adminNotes, setAdminNotes] = useState("");
   const [showResolveDialog, setShowResolveDialog] = useState(false);
@@ -303,7 +305,7 @@ export default function AdminDisputeDetail() {
                         >
                           {item.productId?.images?.[0] ? (
                             <img
-                              src={`https://api.iconaapp.com/${item.productId.images[0]}`}
+                              src={getImageUrl(item.productId.images[0], externalApiUrl)}
                               alt={item.productId.name}
                               className="w-16 h-16 object-cover rounded"
                             />

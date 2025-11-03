@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
+import { useApiConfig } from "@/lib/use-api-config";
 import {
   Card,
   CardContent,
@@ -212,8 +213,7 @@ export default function Inventory() {
   };
 
   const handleViewProduct = (product: IconaProduct) => {
-    // TODO: Open product details modal or navigate to details page
-    toast({ title: `View product: ${product.name}` });
+    navigate(`/product/${product._id}`);
   };
 
   const handleAddProduct = () => {

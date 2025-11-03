@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { usePageTitle } from '@/hooks/use-page-title';
+import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
 
 type SortOption = 'recommended' | 'popular' | 'a-z';
 
@@ -17,6 +18,7 @@ interface Category {
 export default function Browse() {
   usePageTitle('Browse Categories');
   const [sortBy, setSortBy] = useState<SortOption>('recommended');
+  const { externalApiUrl } = useApiConfig();
 
   // Fetch categories from API
   const { data: categoriesData, isLoading } = useQuery<{ categories: Category[] }>({
@@ -116,8 +118,8 @@ export default function Browse() {
           {/* Categories Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4" data-testid="grid-categories">
             {sortedCategories.map((category) => {
-              // Construct full image URL from icon path
-              const iconUrl = category.icon ? `https://api.iconaapp.com/${category.icon}` : null;
+              // Construct full image URL from icon path using dynamic API URL
+              const iconUrl = category.icon ? getImageUrl(category.icon, externalApiUrl) : null;
               const imageUrl = category.image || iconUrl;
               
               return (

@@ -49,7 +49,7 @@ export function registerSettingsRoutes(app: Express) {
       // Log the raw response from external API for debugging
       console.log('Raw settings from external API:', JSON.stringify(settings, null, 2));
       
-      // Extract public branding information and Stripe publishable key
+      // Extract public branding information, Stripe publishable key, and Firebase config
       const publicSettings = {
         app_name: settings?.app_name || "App",
         seo_title: settings?.seo_title || "",
@@ -59,6 +59,12 @@ export function registerSettingsRoutes(app: Express) {
         // API returns 'stripepublickey' not 'stripe_publishable_key'
         stripe_publishable_key: settings?.stripepublickey || settings?.stripe_publishable_key || "",
         commission_rate: parseFloat(settings?.commission || "0"), // API returns 'commission' as string
+        // Firebase configuration (individual fields)
+        firebase_api_key: settings?.firebase_api_key || settings?.FIREBASE_API_KEY || "",
+        firebase_auth_domain: settings?.firebase_auth_domain || "",
+        firebase_project_id: settings?.firebase_project_id || "",
+        firebase_storage_bucket: settings?.firebase_storage_bucket || "",
+        firebase_app_id: settings?.firebase_app_id || "",
       };
       
       res.json({

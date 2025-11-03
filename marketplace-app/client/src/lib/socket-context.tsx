@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
+import { useSettings } from './settings-context';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -17,37 +18,55 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Connect to Socket.IO server on Icona API
-    const ICONA_API_BASE = import.meta.env.VITE_ICONA_API_BASE || 'https://api.iconaapp.com';
-    console.log('🔌 Connecting to Socket.IO server:', ICONA_API_BASE);
-    
-    const socketInstance = io(ICONA_API_BASE, {
-      transports: ['websocket'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5
-    });
+    // Fetch external API URL from backend config, then connect to Socket.IO
+    const initializeSocket = async () => {
+      try {
+        // Get the external API URL from backend configuration
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        
+        if (!config.success || !config.data?.externalApiUrl) {
+          throw new Error('Failed to fetch external API URL from config');
+        }
+        
+        const EXTERNAL_API_URL = config.data.externalApiUrl;
+        console.log('🔌 Connecting to Socket.IO server at external API:', EXTERNAL_API_URL);
+        
+        const socketInstance = io(EXTERNAL_API_URL, {
+          transports: ['websocket', 'polling'],
+          autoConnect: true,
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5
+        });
 
-    socketInstance.on('connect', () => {
-      console.log('✅ Socket.IO connected to:', ICONA_API_BASE);
-      console.log('Socket ID:', socketInstance.id);
-      setIsConnected(true);
-    });
+        socketInstance.on('connect', () => {
+          console.log('✅ Socket.IO connected to external API:', EXTERNAL_API_URL);
+          console.log('Socket ID:', socketInstance.id);
+          setIsConnected(true);
+        });
 
-    socketInstance.on('disconnect', () => {
-      console.log('Socket.IO disconnected');
-      setIsConnected(false);
-    });
+        socketInstance.on('disconnect', () => {
+          console.log('Socket.IO disconnected');
+          setIsConnected(false);
+        });
 
-    socketInstance.on('connect_error', (error) => {
-      console.error('Socket.IO connection error:', error);
-    });
+        socketInstance.on('connect_error', (error) => {
+          console.error('Socket.IO connection error:', error);
+        });
 
-    setSocket(socketInstance);
+        setSocket(socketInstance);
+      } catch (error) {
+        console.error('Failed to initialize Socket.IO:', error);
+      }
+    };
+
+    initializeSocket();
 
     return () => {
-      socketInstance.disconnect();
+      if (socket) {
+        socket.disconnect();
+      }
     };
   }, []);
 

@@ -13,6 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Settings, DollarSign, Key, Video, Package, Link as LinkIcon, Smartphone, ShieldX, Mail, Info, Languages, Plus, Trash2, Download, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -20,6 +21,7 @@ export default function AdminSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const { externalApiUrl } = useApiConfig();
 
   const { data: settingsData, isLoading } = useQuery<any>({
     queryKey: ['/api/admin/settings'],
@@ -408,7 +410,7 @@ export default function AdminSettings() {
                           src={
                             formData.app_logo.startsWith('http') 
                               ? formData.app_logo 
-                              : `${import.meta.env.VITE_ICONA_API_BASE || 'https://api.iconaapp.com'}/${formData.app_logo.replace(/^\//, '')}`
+                              : getImageUrl(formData.app_logo, externalApiUrl)
                           } 
                           alt="App Logo" 
                           className="h-20 w-20 object-contain rounded border border-border bg-muted p-2"
@@ -714,24 +716,6 @@ export default function AdminSettings() {
                 </Alert>
 
                 <div className="space-y-2">
-                  <Label htmlFor="firebase_api_key">Firebase API Key</Label>
-                  <Input
-                    id="firebase_api_key"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.firebase_api_key) : formData.firebase_api_key}
-                    onChange={(e) => handleInputChange('firebase_api_key', e.target.value)}
-                    placeholder="AIzaSy..."
-                    data-testid="input-firebase-api-key-web"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="firebase_auth_domain">Firebase Auth Domain</Label>
                   <Input
                     id="firebase_auth_domain"
@@ -782,6 +766,30 @@ export default function AdminSettings() {
                     disabled={formData.demoMode}
                   />
                 </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-medium mb-4">Mobile App (Legacy)</h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="FIREBASE_API_KEY">Firebase API Key (Mobile Apps)</Label>
+                    <Input
+                      id="FIREBASE_API_KEY"
+                      type={formData.demoMode ? 'text' : 'password'}
+                      value={formData.demoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
+                      onChange={(e) => handleInputChange('FIREBASE_API_KEY', e.target.value)}
+                      placeholder="AIza..."
+                      data-testid="input-firebase-api-key"
+                      readOnly={formData.demoMode}
+                      disabled={formData.demoMode}
+                      onCopy={(e) => formData.demoMode && e.preventDefault()}
+                      onCut={(e) => formData.demoMode && e.preventDefault()}
+                      onPaste={(e) => formData.demoMode && e.preventDefault()}
+                      className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      For mobile apps only (Flutter/React Native)
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -791,26 +799,6 @@ export default function AdminSettings() {
                 <CardDescription>Additional third-party service keys</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="FIREBASE_API_KEY">Firebase API Key (Mobile Apps - Legacy)</Label>
-                  <Input
-                    id="FIREBASE_API_KEY"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
-                    onChange={(e) => handleInputChange('FIREBASE_API_KEY', e.target.value)}
-                    placeholder="AIza..."
-                    data-testid="input-firebase-api-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    For mobile apps only (Flutter/React Native)
-                  </p>
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="shippo_api_key">Shippo API Key</Label>
                   <Input

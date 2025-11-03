@@ -2,6 +2,7 @@ import type { Express } from "express";
 import fetch from "node-fetch";
 import { BASE_URL } from "../utils";
 import { z } from "zod";
+import { deleteImagesFromStorage } from "../firebase-admin";
 
 // Product creation schema for validation
 const createProductSchema = z.object({
@@ -596,6 +597,38 @@ export function registerProductRoutes(app: Express) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
 
+      // Step 1: Fetch the product to get its images
+      console.log("Fetching product details to get images:", productId);
+      const productResponse = await fetch(
+        `${BASE_URL}/products/products/${productId}`,
+        {
+          method: "GET",
+          headers,
+        },
+      );
+
+      if (productResponse.ok) {
+        const productData = await productResponse.json();
+        const images = productData?.images || [];
+
+        // Step 2: Delete images from Firebase Storage
+        if (images.length > 0) {
+          console.log(`Found ${images.length} images to delete from Firebase Storage`);
+          try {
+            await deleteImagesFromStorage(images);
+            console.log("✅ Successfully deleted product images from Firebase Storage");
+          } catch (storageError) {
+            // Log error but continue with product deletion
+            console.error("⚠️ Error deleting images from Firebase Storage:", storageError);
+          }
+        } else {
+          console.log("No images to delete from Firebase Storage");
+        }
+      } else {
+        console.warn("Could not fetch product details for image cleanup");
+      }
+
+      // Step 3: Soft delete the product
       const response = await fetch(
         `${BASE_URL}/products/products/${productId}`,
         {
