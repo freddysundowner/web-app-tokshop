@@ -29,15 +29,15 @@ import {
   ChevronDown,
   Users
 } from "lucide-react";
-import type { IconaOrder, ShippingEstimateRequest, ShippingEstimateResponse, ShippingLabelPurchaseRequest, ShippingLabelPurchaseResponse, ShipmentBundle } from "@shared/schema";
+import type { TokshopOrder, ShippingEstimateRequest, ShippingEstimateResponse, ShippingLabelPurchaseRequest, ShippingLabelPurchaseResponse, ShipmentBundle } from "@shared/schema";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { BulkLabelDialog } from "./bulk-label-dialog";
 
 interface ShippingDrawerProps {
-  order?: IconaOrder;
-  bundle?: ShipmentBundle & { orders: IconaOrder[] };
+  order?: TokshopOrder;
+  bundle?: ShipmentBundle & { orders: TokshopOrder[] };
   children: React.ReactNode;
   currentTab?: string;
 }

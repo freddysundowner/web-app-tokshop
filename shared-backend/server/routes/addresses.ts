@@ -28,7 +28,7 @@ export function registerAddressRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json() as any[];
@@ -68,7 +68,7 @@ export function registerAddressRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const addresses = await response.json() as any[];
@@ -111,7 +111,7 @@ export function registerAddressRoutes(app: Express) {
       }
       
       const validatedData = validationResult.data;
-      console.log('Creating address via Icona API for user:', validatedData.userId);
+      console.log('Creating address via Tokshop API for user:', validatedData.userId);
       
       // Transform and clean the request body according to specified format
       const transformedBody = {
@@ -133,7 +133,7 @@ export function registerAddressRoutes(app: Express) {
         validate: true,
       };
       
-      console.log('Sending to Icona API:', JSON.stringify(transformedBody, null, 2));
+      console.log('Sending to Tokshop API:', JSON.stringify(transformedBody, null, 2));
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -150,8 +150,8 @@ export function registerAddressRoutes(app: Express) {
       });
       
       const responseText = await response.text();
-      console.log('Icona API response status:', response.status);
-      console.log('Icona API response body:', responseText);
+      console.log('Tokshop API response status:', response.status);
+      console.log('Tokshop API response body:', responseText);
       
       // Check if this is actually an error (external API returns 400 even on success)
       let isActualError = !response.ok;
@@ -165,7 +165,7 @@ export function registerAddressRoutes(app: Express) {
       }
       
       if (isActualError) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         
         // Parse the API error response and return the actual validation message
         try {
@@ -214,7 +214,7 @@ export function registerAddressRoutes(app: Express) {
       }
       
       const validatedData = validationResult.data;
-      console.log('Updating address via Icona API:', addressId);
+      console.log('Updating address via Tokshop API:', addressId);
       
       // Transform and clean the request body according to specified format (same as POST)
       const transformedBody = {
@@ -236,7 +236,7 @@ export function registerAddressRoutes(app: Express) {
         validate: true,
       };
       
-      console.log('Sending to Icona API:', JSON.stringify(transformedBody, null, 2));
+      console.log('Sending to Tokshop API:', JSON.stringify(transformedBody, null, 2));
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -253,8 +253,8 @@ export function registerAddressRoutes(app: Express) {
       });
       
       const responseText = await response.text();
-      console.log('Icona API response status:', response.status);
-      console.log('Icona API response body:', responseText);
+      console.log('Tokshop API response status:', response.status);
+      console.log('Tokshop API response body:', responseText);
       
       // Check if this is actually an error (external API returns 400 even on success)
       let isActualError = !response.ok;
@@ -268,7 +268,7 @@ export function registerAddressRoutes(app: Express) {
       }
       
       if (isActualError) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         
         // Parse the API error response and return the actual validation message
         try {
@@ -328,10 +328,10 @@ export function registerAddressRoutes(app: Express) {
       }
       
       const validatedData = validationResult.data;
-      console.log('Setting address as primary via Icona API:', addressId);
+      console.log('Setting address as primary via Tokshop API:', addressId);
       
       const requestBody = { primary: validatedData.primary, userId: validatedData.userId };
-      console.log('Sending to Icona API:', JSON.stringify(requestBody, null, 2));
+      console.log('Sending to Tokshop API:', JSON.stringify(requestBody, null, 2));
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -348,11 +348,11 @@ export function registerAddressRoutes(app: Express) {
       });
       
       const responseText = await response.text();
-      console.log('Icona API response status:', response.status);
-      console.log('Icona API response body:', responseText);
+      console.log('Tokshop API response status:', response.status);
+      console.log('Tokshop API response body:', responseText);
       
       if (!response.ok) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         
         // Parse the API error response and return the actual validation message
         try {
@@ -394,7 +394,7 @@ export function registerAddressRoutes(app: Express) {
   app.delete("/api/address/:addressId", async (req, res) => {
     try {
       const { addressId } = req.params;
-      console.log('Deleting address via Icona API:', addressId);
+      console.log('Deleting address via Tokshop API:', addressId);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -410,7 +410,7 @@ export function registerAddressRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();

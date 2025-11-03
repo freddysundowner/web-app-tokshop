@@ -31,9 +31,9 @@ import { useState, useEffect } from "react";
 import {
   productFormSchema,
   type ProductFormData,
-  type IconaCategoriesResponse,
+  type TokshopCategoriesResponse,
   type ListingType,
-  type IconaCategory,
+  type TokshopCategory,
 } from "@shared/schema";
 import {
   Dialog,
@@ -92,7 +92,7 @@ export function ProductForm({
   const currentListingType = form.watch('listingType');
 
   // Fetch categories
-  const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<IconaCategoriesResponse>({
+  const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories", user?.id],
     queryFn: async () => {
       const response = await fetch(
@@ -339,7 +339,7 @@ export function ProductForm({
 
   // Category dialog state
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
-  const [selectedParentCategory, setSelectedParentCategory] = useState<IconaCategory | null>(null);
+  const [selectedParentCategory, setSelectedParentCategory] = useState<TokshopCategory | null>(null);
   const [recentCategories, setRecentCategories] = useState<string[]>([]);
 
   // Load recent categories on mount
@@ -355,7 +355,7 @@ export function ProductForm({
   }, []);
 
   // Save category to recent when selected
-  const handleCategorySelect = (category: IconaCategory, parentName?: string) => {
+  const handleCategorySelect = (category: TokshopCategory, parentName?: string) => {
     form.setValue('category', category._id);
     
     // Update recent categories

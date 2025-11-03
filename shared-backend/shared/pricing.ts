@@ -1,10 +1,10 @@
-import type { IconaOrder } from "./schema";
+import type { TokshopOrder } from "./schema";
 
 /**
  * Centralized order total calculation function
  * Handles proper currency conversion and business logic consistently
  */
-export function calculateOrderTotal(order: IconaOrder): number {
+export function calculateOrderTotal(order: TokshopOrder): number {
   if (!order) return 0;
 
   // Calculate actual subtotal from item quantities and prices
@@ -42,7 +42,7 @@ export function formatCurrency(amount: number, currency: string = 'USD'): string
 /**
  * Calculate order subtotal (items only, before fees and taxes)
  */
-export function calculateOrderSubtotal(order: IconaOrder): number {
+export function calculateOrderSubtotal(order: TokshopOrder): number {
   if (!order?.items) return 0;
   
   return order.items.reduce((sum, item) => {
@@ -55,7 +55,7 @@ export function calculateOrderSubtotal(order: IconaOrder): number {
 /**
  * Get order breakdown for detailed display
  */
-export function getOrderBreakdown(order: IconaOrder) {
+export function getOrderBreakdown(order: TokshopOrder) {
   const subtotal = calculateOrderSubtotal(order);
   const serviceFee = order.servicefee || 0;
   const tax = order.tax || 0;

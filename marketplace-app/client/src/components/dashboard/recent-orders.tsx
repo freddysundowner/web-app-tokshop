@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { IconaOrder, IconaOrdersResponse } from "@shared/schema";
+import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 
 const statusColors = {
   ended: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
@@ -12,7 +12,7 @@ const statusColors = {
 };
 
 export function RecentOrders() {
-  const { data: ordersResponse, isLoading } = useQuery<IconaOrdersResponse>({
+  const { data: ordersResponse, isLoading } = useQuery<TokshopOrdersResponse>({
     queryKey: ["/api/orders"],
   });
 

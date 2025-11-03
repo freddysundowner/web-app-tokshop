@@ -56,7 +56,7 @@ import {
   Weight,
   Ruler,
 } from "lucide-react";
-import type { IconaShippingProfile, IconaShippingProfilesResponse } from "@shared/schema";
+import type { TokshopShippingProfile, TokshopShippingProfilesResponse } from "@shared/schema";
 
 const WEIGHT_UNIT_OPTIONS = [
   { key: "lb", label: "Pound (lb)" },
@@ -75,7 +75,7 @@ interface ShippingProfileFormData {
 export default function ShippingProfiles() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<IconaShippingProfile | null>(null);
+  const [editingProfile, setEditingProfile] = useState<TokshopShippingProfile | null>(null);
   const [formData, setFormData] = useState<ShippingProfileFormData>({
     name: "",
     description: "",
@@ -104,7 +104,7 @@ export default function ShippingProfiles() {
     data: shippingProfiles = [],
     isLoading,
     error,
-  } = useQuery<IconaShippingProfilesResponse>({
+  } = useQuery<TokshopShippingProfilesResponse>({
     queryKey: ["shipping-profiles", user?.id],
     queryFn: async () => {
       const response = await fetch(`/api/shipping/profiles/${user?.id}`);
@@ -214,7 +214,7 @@ export default function ShippingProfiles() {
     resetForm();
   };
 
-  const handleEdit = (profile: IconaShippingProfile) => {
+  const handleEdit = (profile: TokshopShippingProfile) => {
     setEditingProfile(profile);
     setFormData({
       name: profile.name,

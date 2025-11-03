@@ -6,10 +6,10 @@ export function registerCategoryRoutes(app: Express) {
   // Categories proxy route with parameter mapping (userId → userid)
   app.get("/api/categories", async (req, res) => {
     try {
-      console.log('Proxying categories request to Icona API');
+      console.log('Proxying categories request to Tokshop API');
       console.log('Query params received:', req.query);
       
-      // Build query parameters for Icona API with proper mapping
+      // Build query parameters for Tokshop API with proper mapping
       const queryParams = new URLSearchParams();
       
       // Map userId to userid for the external API
@@ -41,14 +41,14 @@ export function registerCategoryRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error('Categories proxy error:', error);
-      res.status(500).json({ error: "Failed to fetch categories from Icona API" });
+      res.status(500).json({ error: "Failed to fetch categories from Tokshop API" });
     }
   });
 }

@@ -78,28 +78,28 @@ export const authResponseSchema = z.object({
 
 export type AuthResponse = z.infer<typeof authResponseSchema>;
 
-// Icona API authentication response types
-export const iconaAuthResponseSchema = z.object({
+// Tokshop API authentication response types
+export const tokshopAuthResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
-  data: z.any(), // User data from Icona API
+  data: z.any(), // User data from Tokshop API
   accessToken: z.string().optional(),
   authtoken: z.string().optional(), // Also returned by API
   newuser: z.boolean().optional(), // For signup responses
 });
 
-export const iconaApiErrorResponseSchema = z.object({
+export const tokshopApiErrorResponseSchema = z.object({
   success: z.boolean().optional(),
   message: z.string(),
   error: z.string().optional(),
   details: z.any().optional(),
 });
 
-export type IconaAuthResponse = z.infer<typeof iconaAuthResponseSchema>;
-export type IconaApiErrorResponse = z.infer<typeof iconaApiErrorResponseSchema>;
+export type TokshopAuthResponse = z.infer<typeof tokshopAuthResponseSchema>;
+export type TokshopApiErrorResponse = z.infer<typeof tokshopApiErrorResponseSchema>;
 
-// Icona API Response types
-export const iconaOrderSchema = z.object({
+// Tokshop API Response types
+export const tokshopOrderSchema = z.object({
   _id: z.string(),
   customer: z.object({
     _id: z.string(),
@@ -203,17 +203,17 @@ export const iconaOrderSchema = z.object({
   scale: z.string().optional(),
 });
 
-export const iconaOrdersResponseSchema = z.object({
-  orders: z.array(iconaOrderSchema),
+export const tokshopOrdersResponseSchema = z.object({
+  orders: z.array(tokshopOrderSchema),
   limits: z.number(),
   pages: z.number(),
   total: z.number(),
 });
 
-export type IconaOrder = z.infer<typeof iconaOrderSchema>;
-export type IconaOrdersResponse = z.infer<typeof iconaOrdersResponseSchema>;
+export type TokshopOrder = z.infer<typeof tokshopOrderSchema>;
+export type TokshopOrdersResponse = z.infer<typeof tokshopOrdersResponseSchema>;
 
-export const iconaDashboardResponseSchema = z.object({
+export const tokshopDashboardResponseSchema = z.object({
   totalOrder: z.number(),
   totalAmount: z.string(),
   todayOrder: z.array(z.any()),
@@ -227,10 +227,10 @@ export const iconaDashboardResponseSchema = z.object({
   weeklySaleReport: z.array(z.any()),
 });
 
-export type IconaDashboardResponse = z.infer<typeof iconaDashboardResponseSchema>;
+export type TokshopDashboardResponse = z.infer<typeof tokshopDashboardResponseSchema>;
 
-// Icona Product API Response types
-export const iconaProductSchema = z.object({
+// Tokshop Product API Response types
+export const tokshopProductSchema = z.object({
   _id: z.string(),
   name: z.string(),
   description: z.string().optional(),
@@ -267,39 +267,39 @@ export const iconaProductSchema = z.object({
   updatedAt: z.string().optional(),
 });
 
-export const iconaProductsResponseSchema = z.object({
-  products: z.array(iconaProductSchema),
+export const tokshopProductsResponseSchema = z.object({
+  products: z.array(tokshopProductSchema),
   limits: z.number(),
   pages: z.number(),
   totalDoc: z.number(),
 });
 
-export type IconaProduct = z.infer<typeof iconaProductSchema>;
-export type IconaProductsResponse = z.infer<typeof iconaProductsResponseSchema>;
+export type TokshopProduct = z.infer<typeof tokshopProductSchema>;
+export type TokshopProductsResponse = z.infer<typeof tokshopProductsResponseSchema>;
 
 // External API Category schema
-export const iconaCategorySchema: z.ZodType<any> = z.lazy(() => z.object({
+export const tokshopCategorySchema: z.ZodType<any> = z.lazy(() => z.object({
   _id: z.string(),
   name: z.string(),
   description: z.string().optional(),
   status: z.string().optional(),
   icon: z.string().optional(),
   type: z.string().optional(),
-  subCategories: z.array(iconaCategorySchema).optional(),
+  subCategories: z.array(tokshopCategorySchema).optional(),
 }));
 
-export const iconaCategoriesResponseSchema = z.object({
-  categories: z.array(iconaCategorySchema),
+export const tokshopCategoriesResponseSchema = z.object({
+  categories: z.array(tokshopCategorySchema),
   limits: z.number().optional(),
   pages: z.number().optional(),
   total: z.number().optional(),
 });
 
-export type IconaCategory = z.infer<typeof iconaCategorySchema>;
-export type IconaCategoriesResponse = z.infer<typeof iconaCategoriesResponseSchema>;
+export type TokshopCategory = z.infer<typeof tokshopCategorySchema>;
+export type TokshopCategoriesResponse = z.infer<typeof tokshopCategoriesResponseSchema>;
 
 // External API Shipping Profile schema
-export const iconaShippingProfileSchema = z.object({
+export const tokshopShippingProfileSchema = z.object({
   _id: z.string(),
   name: z.string(),
   weight: z.number(),
@@ -307,10 +307,10 @@ export const iconaShippingProfileSchema = z.object({
   description: z.string().optional(),
 });
 
-export const iconaShippingProfilesResponseSchema = z.array(iconaShippingProfileSchema);
+export const tokshopShippingProfilesResponseSchema = z.array(tokshopShippingProfileSchema);
 
-export type IconaShippingProfile = z.infer<typeof iconaShippingProfileSchema>;
-export type IconaShippingProfilesResponse = z.infer<typeof iconaShippingProfilesResponseSchema>;
+export type TokshopShippingProfile = z.infer<typeof tokshopShippingProfileSchema>;
+export type TokshopShippingProfilesResponse = z.infer<typeof tokshopShippingProfilesResponseSchema>;
 
 // Product form schemas
 export const listingTypeSchema = z.enum(['auction', 'buy_now', 'giveaway']);
@@ -383,11 +383,11 @@ export const bundleSchema = z.object({
 
 export type Bundle = z.infer<typeof bundleSchema>;
 
-// Address type for Icona API
+// Address type for Tokshop API
 export type Address = {
   _id: string;
   name: string;
-  addrress1: string; // Note: keeping the typo as in original Icona API schema
+  addrress1: string; // Note: keeping the typo as in original Tokshop API schema
   primary?: boolean;
   addrress2?: string;
   city?: string;

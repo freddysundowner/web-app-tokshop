@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Package, ArrowRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { IconaOrder } from "@shared/schema";
+import type { TokshopOrder } from "@shared/schema";
 
 export default function ThankYou() {
   const [, params] = useRoute("/thank-you/:orderId");
@@ -13,7 +13,7 @@ export default function ThankYou() {
   const orderId = params?.orderId;
 
   // Fetch order details
-  const { data: order, isLoading } = useQuery<IconaOrder>({
+  const { data: order, isLoading } = useQuery<TokshopOrder>({
     queryKey: ['/api/orders', orderId],
     queryFn: async () => {
       const response = await fetch(`/api/orders/${orderId}`);

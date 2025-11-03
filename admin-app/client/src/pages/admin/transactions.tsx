@@ -71,7 +71,7 @@ export default function AdminTransactions() {
   });
 
   const allTransactions = transactionsData?.transactions || transactionsData?.data || [];
-  const supportEmail = settingsData?.support_email || 'support@icona.com';
+  const supportEmail = settingsData?.support_email || '';
   const settingsStripeFee = settingsData?.stripe_fee || '0';
   const settingsExtraCharges = settingsData?.extra_charges || '0';
 

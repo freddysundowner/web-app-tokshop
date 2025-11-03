@@ -65,7 +65,7 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Use local API endpoints (which proxy to Icona API)
+  // Use local API endpoints (which proxy to Tokshop API)
   const apiUrl = url;
   
   // Get access token and user data from localStorage if available

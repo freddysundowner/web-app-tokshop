@@ -206,12 +206,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     fetchSettings();
   }, []);
 
-  // Apply theme colors whenever settings change
+  // Apply theme colors when settings are first loaded
   useEffect(() => {
-    if (settings.primary_color && settings.secondary_color) {
+    if (!isLoading && settings.primary_color && settings.secondary_color) {
       applyThemeColors(settings.primary_color, settings.secondary_color);
     }
-  }, [settings.primary_color, settings.secondary_color]);
+  }, [isLoading]);
 
   const appName = settings.app_name || 'TokShop';
 

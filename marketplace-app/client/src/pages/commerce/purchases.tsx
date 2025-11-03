@@ -30,7 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Search, Filter, MoreHorizontal, Package, Printer, Truck, Ship, X } from "lucide-react";
-import type { IconaOrder, IconaOrdersResponse } from "@shared/schema";
+import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal, formatCurrency, getOrderBreakdown } from "@shared/pricing";
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
@@ -66,13 +66,13 @@ export default function Purchases() {
   const [sortBy, setSortBy] = useState<string>("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [selectedOrder, setSelectedOrder] = useState<IconaOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<TokshopOrder | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const { user } = useAuth();
   const { settings } = useSettings();
   const { toast } = useToast();
 
-  const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<IconaOrdersResponse>({
+  const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
     queryKey: ["external-purchases", user?.id, statusFilter, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -124,7 +124,7 @@ export default function Purchases() {
   }, []);
 
   // Process and filter data
-  const orders: IconaOrder[] = orderResponse?.orders || [];
+  const orders: TokshopOrder[] = orderResponse?.orders || [];
   const totalOrders = orderResponse?.total || orders.length;
   const totalPages = Math.ceil(totalOrders / itemsPerPage);
 
@@ -159,7 +159,7 @@ export default function Purchases() {
   });
 
   // Action handlers
-  const trackOrder = (order: IconaOrder) => {
+  const trackOrder = (order: TokshopOrder) => {
     if (!order.tracking_number) {
       toast({
         title: "No Tracking Available",
@@ -174,12 +174,12 @@ export default function Purchases() {
     window.open(trackingUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const viewOrderDetails = (order: IconaOrder) => {
+  const viewOrderDetails = (order: TokshopOrder) => {
     setSelectedOrder(order);
     setIsDetailsDialogOpen(true);
   };
 
-  const printReceipt = (order: IconaOrder) => {
+  const printReceipt = (order: TokshopOrder) => {
     const orderBreakdown = getOrderBreakdown(order);
     
     // Create printable HTML content

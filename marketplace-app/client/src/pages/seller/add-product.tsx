@@ -45,8 +45,8 @@ import { ImageUploader } from "@/components/ui/image-uploader";
 import {
   productFormSchema,
   type ProductFormData,
-  type IconaCategoriesResponse,
-  type IconaShippingProfilesResponse,
+  type TokshopCategoriesResponse,
+  type TokshopShippingProfilesResponse,
 } from "@shared/schema";
 
 export default function AddProduct() {
@@ -90,7 +90,7 @@ export default function AddProduct() {
   });
 
   // Fetch categories
-  const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<IconaCategoriesResponse>({
+  const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories", user?.id],
     queryFn: async () => {
       const response = await fetch(

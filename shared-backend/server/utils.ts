@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { IconaOrder, Bundle } from "../shared/schema";
+import type { TokshopOrder, Bundle } from "../shared/schema";
 
 // API Configuration - Load from environment variable
 // Remove trailing slash to prevent double slashes in URLs
@@ -16,7 +16,7 @@ export function generateBundleId(orderIds: string[]): string {
   return `bundle_${hash.substring(0, 12)}`;
 }
 
-export function aggregateOrdersData(orders: IconaOrder[]) {
+export function aggregateOrdersData(orders: TokshopOrder[]) {
   let totalWeight = 0;
   let maxLength = 0;
   let maxWidth = 0;
@@ -72,14 +72,14 @@ export function aggregateOrdersData(orders: IconaOrder[]) {
   };
 }
 
-export function computeBundlesFromOrders(orders: IconaOrder[]): Bundle[] {
+export function computeBundlesFromOrders(orders: TokshopOrder[]): Bundle[] {
   // Filter orders that can be bundled (processing status, no tracking number)
   const bundleableOrders = orders.filter(
     (order) => order.status === "processing" && !order.tracking_number,
   );
 
   // Group by customer ID
-  const ordersByCustomer = new Map<string, IconaOrder[]>();
+  const ordersByCustomer = new Map<string, TokshopOrder[]>();
 
   bundleableOrders.forEach((order) => {
     const customerId =

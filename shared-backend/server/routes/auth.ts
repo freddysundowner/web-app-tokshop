@@ -7,9 +7,9 @@ import {
   loginSchema,
   socialAuthSchema,
   socialAuthCompleteSchema,
-  iconaAuthResponseSchema,
-  IconaAuthResponse,
-  IconaApiErrorResponse,
+  tokshopAuthResponseSchema,
+  TokshopAuthResponse,
+  TokshopApiErrorResponse,
 } from "../../shared/schema";
 
 // Resilient fetch helper that handles non-JSON responses gracefully
@@ -65,7 +65,7 @@ export function registerAuthRoutes(app: Express) {
   // Authentication signup proxy
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      console.log("Proxying signup request to Icona API");
+      console.log("Proxying signup request to Tokshop API");
       console.log("Signup payload received:", {
         ...req.body,
         password: "[REDACTED]",
@@ -103,8 +103,8 @@ export function registerAuthRoutes(app: Express) {
       );
 
       if (!response.ok) {
-        const errorData = responseData as IconaApiErrorResponse;
-        console.error("Icona API signup error:", errorData);
+        const errorData = responseData as TokshopApiErrorResponse;
+        console.error("Tokshop API signup error:", errorData);
 
         // Return the actual API message instead of friendly messages
         return res.status(response.status).json({
@@ -116,7 +116,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       // Validate the successful response
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid signup response structure:", parseResult.error);
         return res.status(500).json({
@@ -152,7 +152,7 @@ export function registerAuthRoutes(app: Express) {
   // Authentication login proxy
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("Proxying login request to Icona API");
+      console.log("Proxying login request to Tokshop API");
       console.log("Login payload received:", {
         ...req.body,
         password: "[REDACTED]",
@@ -185,8 +185,8 @@ export function registerAuthRoutes(app: Express) {
       );
 
       if (!response.ok) {
-        const errorData = responseData as IconaApiErrorResponse;
-        console.error("Icona API login error:", errorData);
+        const errorData = responseData as TokshopApiErrorResponse;
+        console.error("Tokshop API login error:", errorData);
 
         // Return the actual API message instead of friendly messages
         return res.status(response.status).json({
@@ -198,7 +198,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       // Validate the successful response
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid login response structure:", parseResult.error);
         return res.status(500).json({
@@ -282,8 +282,8 @@ export function registerAuthRoutes(app: Express) {
       );
 
       if (!response.ok) {
-        const errorData = responseData as IconaApiErrorResponse;
-        console.error("Icona API social auth error:", errorData);
+        const errorData = responseData as TokshopApiErrorResponse;
+        console.error("Tokshop API social auth error:", errorData);
         return res.status(response.status).json({
           success: false,
           error: errorData.message || "Social authentication failed",
@@ -292,7 +292,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       // Validate the successful response
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid social auth response structure:", parseResult.error);
         return res.status(500).json({
@@ -329,7 +329,7 @@ export function registerAuthRoutes(app: Express) {
   // Social auth completion endpoint for new users
   app.post("/api/auth/social/complete", async (req, res) => {
     try {
-      console.log("Proxying social auth completion request to Icona API");
+      console.log("Proxying social auth completion request to Tokshop API");
       console.log("Social auth completion payload received:", req.body);
 
       // Use the completion schema for validation (doesn't require idToken)
@@ -378,8 +378,8 @@ export function registerAuthRoutes(app: Express) {
       });
 
       if (!response.ok) {
-        const errorData = responseData as IconaApiErrorResponse;
-        console.error("Icona API social auth completion error:", errorData);
+        const errorData = responseData as TokshopApiErrorResponse;
+        console.error("Tokshop API social auth completion error:", errorData);
         return res.status(response.status).json({
           success: false,
           error: errorData.message || "Social authentication completion failed",
@@ -388,7 +388,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       // Validate the successful response
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid social auth completion response structure:", parseResult.error);
         return res.status(500).json({
@@ -529,7 +529,7 @@ export function registerAuthRoutes(app: Express) {
 
       console.log(`Sending mention notifications to ${ids.length} users`);
 
-      // Send notification via Icona API
+      // Send notification via Tokshop API
       const url = `${BASE_URL}/notifications`;
       console.log(`Notification API URL: ${url}`);
       
@@ -605,7 +605,7 @@ export function registerAuthRoutes(app: Express) {
 
       console.log(`Searching users with title: ${title}`);
 
-      // Search users via Icona API with correct parameters
+      // Search users via Tokshop API with correct parameters
       const params = new URLSearchParams({
         page: page as string,
         limit: limit as string,
@@ -728,7 +728,7 @@ export function registerAuthRoutes(app: Express) {
       console.log(`Fetching default payment method for user: ${requestedUserId}`);
 
       try {
-        // Attempt to fetch default payment method from Icona API with timeout
+        // Attempt to fetch default payment method from Tokshop API with timeout
         const { response, data: responseData } = await resilientFetch(
           `${BASE_URL}/stripe/default/paymentmethod/default/${requestedUserId}`,
           {
@@ -792,7 +792,7 @@ export function registerAuthRoutes(app: Express) {
 
       console.log(`Fetching all payment methods for user: ${requestedUserId}`);
 
-      // Fetch all payment methods from Icona API
+      // Fetch all payment methods from Tokshop API
       const { response, data: responseData } = await resilientFetch(
         `${BASE_URL}/users/paymentmethod/${requestedUserId}`,
         {
@@ -805,7 +805,7 @@ export function registerAuthRoutes(app: Express) {
       );
 
       if (!response.ok) {
-        console.error(`Icona API error fetching payment methods ${requestedUserId}:`, responseData);
+        console.error(`Tokshop API error fetching payment methods ${requestedUserId}:`, responseData);
         return res.status(response.status).json({
           success: false,
           error: (responseData as any)?.message || "Failed to fetch payment methods",
@@ -1548,10 +1548,10 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // Admin login proxy - uses different Icona API endpoint
+  // Admin login proxy - uses different Tokshop API endpoint
   app.post("/api/admin/auth/login", async (req, res) => {
     try {
-      console.log("Proxying admin login request to Icona API");
+      console.log("Proxying admin login request to Tokshop API");
       console.log("Admin login payload received:", {
         ...req.body,
         password: "[REDACTED]",
@@ -1585,8 +1585,8 @@ export function registerAuthRoutes(app: Express) {
       );
 
       if (!response.ok) {
-        const errorData = responseData as IconaApiErrorResponse;
-        console.error("Icona API admin login error:", errorData);
+        const errorData = responseData as TokshopApiErrorResponse;
+        console.error("Tokshop API admin login error:", errorData);
 
         // Return the actual API message
         return res.status(response.status).json({
@@ -1611,7 +1611,7 @@ export function registerAuthRoutes(app: Express) {
       };
 
       // Validate the normalized response
-      const parseResult = iconaAuthResponseSchema.safeParse(normalizedResponse);
+      const parseResult = tokshopAuthResponseSchema.safeParse(normalizedResponse);
       if (!parseResult.success) {
         console.error("Invalid admin login response structure:", parseResult.error);
         console.error("Raw response data:", JSON.stringify(responseData).substring(0, 500));
@@ -1779,7 +1779,7 @@ export function registerAuthRoutes(app: Express) {
         data: {
           stripe_fee: settings?.stripe_fee || '0',
           extra_charges: settings?.extra_charges || '0',
-          support_email: settings?.support_email || 'support@icona.com',
+          support_email: settings?.support_email || '',
         },
       });
     } catch (error: any) {

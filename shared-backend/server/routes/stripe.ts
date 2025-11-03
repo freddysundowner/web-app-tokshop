@@ -12,7 +12,7 @@ export function registerStripeRoutes(app: Express) {
         return res.status(401).json({ success: false, error: 'Not authenticated' });
       }
 
-      // Forward request to Icona API
+      // Forward request to Tokshop API
       const response = await fetch(`${BASE_URL}/stripe/connect/${userId}`, {
         method: 'POST',
         headers: {

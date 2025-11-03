@@ -180,7 +180,7 @@ export default function AdminUserDetail() {
   const purchases = purchasesData?.orders || purchasesData?.data || [];
   const transactionsArray = transactionsData?.data?.data || transactionsData?.transactions || transactionsData?.data || [];
   const transactions = Array.isArray(transactionsArray) ? transactionsArray : [];
-  const supportEmail = settingsData?.support_email || 'support@icona.com';
+  const supportEmail = settingsData?.support_email || '';
   const settingsStripeFee = settingsData?.stripe_fee || '0';
   const settingsExtraCharges = settingsData?.extra_charges || '0';
   const allActivities = [...orders, ...purchases];

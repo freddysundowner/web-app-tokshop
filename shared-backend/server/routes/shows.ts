@@ -23,14 +23,14 @@ export function registerShowRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: 'User not found' });
       }
 
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching user from Icona API:", error);
+      console.error("Error fetching user from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch user" });
     }
   });
@@ -63,7 +63,7 @@ export function registerShowRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: 'Room not found' });
       }
 
@@ -79,7 +79,7 @@ export function registerShowRoutes(app: Express) {
       
       res.json(data);
     } catch (error) {
-      console.error("Error fetching room from Icona API:", error);
+      console.error("Error fetching room from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch room" });
     }
   });
@@ -109,7 +109,7 @@ export function registerShowRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         console.error('Error details:', errorText);
         return res.status(response.status).json({ error: 'Failed to update room' });
@@ -118,7 +118,7 @@ export function registerShowRoutes(app: Express) {
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error updating room from Icona API:", error);
+      console.error("Error updating room from Tokshop API:", error);
       res.status(500).json({ error: "Failed to update room" });
     }
   });
@@ -153,7 +153,7 @@ export function registerShowRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         console.error('Error details:', errorText);
         return res.status(response.status).json({ error: 'Failed to delete room' });
@@ -163,7 +163,7 @@ export function registerShowRoutes(app: Express) {
       console.log('Room deleted successfully:', data);
       res.json(data);
     } catch (error) {
-      console.error("Error deleting room from Icona API:", error);
+      console.error("Error deleting room from Tokshop API:", error);
       res.status(500).json({ error: "Failed to delete room" });
     }
   });
@@ -171,7 +171,7 @@ export function registerShowRoutes(app: Express) {
   // Create room (schedule show) - proxy to external API
   app.post("/api/rooms", async (req, res) => {
     try {
-      console.log("Creating room/show via Icona API");
+      console.log("Creating room/show via Tokshop API");
       console.log("Request body:", req.body);
       
       const headers: Record<string, string> = {
@@ -193,7 +193,7 @@ export function registerShowRoutes(app: Express) {
       });
 
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         console.error('Error details:', errorText);
         return res.status(response.status).json({ error: 'Failed to create room' });
@@ -203,7 +203,7 @@ export function registerShowRoutes(app: Express) {
       console.log('Room created successfully:', data);
       res.status(201).json(data);
     } catch (error) {
-      console.error("Error creating room via Icona API:", error);
+      console.error("Error creating room via Tokshop API:", error);
       res.status(500).json({ error: "Failed to create room" });
     }
   });
@@ -211,7 +211,7 @@ export function registerShowRoutes(app: Express) {
   // Rooms endpoint for homepage shows - proxy to external API
   app.get("/api/rooms", async (req, res) => {
     try {
-      console.log("Proxying rooms request to Icona API");
+      console.log("Proxying rooms request to Tokshop API");
       
       // Build query params manually to preserve empty parameters
       const params: string[] = [];
@@ -242,19 +242,19 @@ export function registerShowRoutes(app: Express) {
       });
 
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        throw new Error(`Icona API returned ${response.status}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}`);
       }
 
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching rooms from Icona API:", error);
+      console.error("Error fetching rooms from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch rooms" });
     }
   });
 
-  // Get LiveKit token for room - proxy to external Icona API
+  // Get LiveKit token for room - proxy to external Tokshop API
   app.post("/livekit/token", async (req, res) => {
     try {
       const { room: roomId, userId: clientUserId, userName } = req.body;
@@ -316,7 +316,7 @@ export function registerShowRoutes(app: Express) {
 
       console.log('📤 Sending to external API:', requestBody);
 
-      // Proxy request to external Icona API
+      // Proxy request to external Tokshop API
       const response = await fetch(`${BASE_URL}/livekit/token`, {
         method: 'POST',
         headers,
@@ -325,14 +325,14 @@ export function registerShowRoutes(app: Express) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Icona API returned ${response.status}:`, errorText);
+        console.error(`❌ Tokshop API returned ${response.status}:`, errorText);
         return res.status(response.status).json({ 
           error: errorText || 'Failed to get LiveKit token from external API' 
         });
       }
 
       const data = await response.json();
-      console.log('✅ LiveKit token received from Icona API');
+      console.log('✅ LiveKit token received from Tokshop API');
 
       // Add the role we determined to the response
       res.json({

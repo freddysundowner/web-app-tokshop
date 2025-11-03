@@ -24,7 +24,7 @@ export function registerPaymentMethodRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Send to Icona API
+      // Send to Tokshop API
       const response = await fetch(`${BASE_URL}/users/paymentmethod/${userId}`, {
         method: 'GET',
         headers,
@@ -34,7 +34,7 @@ export function registerPaymentMethodRoutes(app: Express) {
       console.log('Get payment methods response status:', response.status);
       
       if (!response.ok) {
-        console.error(`Icona API get payment methods error ${response.status}`);
+        console.error(`Tokshop API get payment methods error ${response.status}`);
         
         try {
           const errorJson = JSON.parse(responseText);
@@ -84,7 +84,7 @@ export function registerPaymentMethodRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Send to Icona API
+      // Send to Tokshop API
       const response = await fetch(`${BASE_URL}/stripe/remove`, {
         method: 'DELETE',
         headers,
@@ -95,7 +95,7 @@ export function registerPaymentMethodRoutes(app: Express) {
       console.log('Delete payment method response status:', response.status);
       
       if (!response.ok) {
-        console.error(`Icona API delete error ${response.status}`);
+        console.error(`Tokshop API delete error ${response.status}`);
         
         try {
           const errorJson = JSON.parse(responseText);
@@ -145,7 +145,7 @@ export function registerPaymentMethodRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Send to Icona API
+      // Send to Tokshop API
       const response = await fetch(`${BASE_URL}/stripe/default`, {
         method: 'PUT',
         headers,
@@ -156,7 +156,7 @@ export function registerPaymentMethodRoutes(app: Express) {
       console.log('Set default payment method response status:', response.status);
       
       if (!response.ok) {
-        console.error(`Icona API set default error ${response.status}`);
+        console.error(`Tokshop API set default error ${response.status}`);
         
         try {
           const errorJson = JSON.parse(responseText);
@@ -196,7 +196,7 @@ export function registerPaymentMethodRoutes(app: Express) {
         });
       }
       
-      console.log('Adding payment method via Icona API:', { paymentMethodId, userId });
+      console.log('Adding payment method via Tokshop API:', { paymentMethodId, userId });
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -206,7 +206,7 @@ export function registerPaymentMethodRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Send to Icona API
+      // Send to Tokshop API
       const response = await fetch(`${BASE_URL}/users/paymentmethod`, {
         method: 'POST',
         headers,
@@ -217,11 +217,11 @@ export function registerPaymentMethodRoutes(app: Express) {
       });
       
       const responseText = await response.text();
-      console.log('Icona API response status:', response.status);
-      console.log('Icona API response body:', responseText);
+      console.log('Tokshop API response status:', response.status);
+      console.log('Tokshop API response body:', responseText);
       
       if (!response.ok) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         
         try {
           const errorJson = JSON.parse(responseText);
@@ -271,7 +271,7 @@ export function registerPaymentMethodRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Send to Icona API stripe setup intent endpoint
+      // Send to Tokshop API stripe setup intent endpoint
       const response = await fetch(`${BASE_URL}/stripe/setupitent`, {
         method: 'POST',
         headers,
@@ -342,7 +342,7 @@ export function registerPaymentMethodRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Send to Icona API stripe endpoint
+      // Send to Tokshop API stripe endpoint
       const payload: any = {
         customer_id: trimmedCustomerId,
         userid: trimmedUserId,

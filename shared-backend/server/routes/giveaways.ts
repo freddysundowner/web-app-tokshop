@@ -30,14 +30,14 @@ export function registerGiveawayRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: 'Failed to fetch giveaways' });
       }
 
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching giveaways from Icona API:", error);
+      console.error("Error fetching giveaways from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch giveaways" });
     }
   });
@@ -64,14 +64,14 @@ export function registerGiveawayRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: 'Giveaway not found' });
       }
 
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching giveaway from Icona API:", error);
+      console.error("Error fetching giveaway from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch giveaway" });
     }
   });
@@ -101,7 +101,7 @@ export function registerGiveawayRoutes(app: Express) {
       };
 
       const url = `${BASE_URL}/giveaways`;
-      console.log('Posting to Icona API:', url);
+      console.log('Posting to Tokshop API:', url);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -110,11 +110,11 @@ export function registerGiveawayRoutes(app: Express) {
       });
       
       const responseText = await response.text();
-      console.log('Icona API response status:', response.status);
-      console.log('Icona API response body:', responseText);
+      console.log('Tokshop API response status:', response.status);
+      console.log('Tokshop API response body:', responseText);
 
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         let errorData;
         try {
           errorData = JSON.parse(responseText);
@@ -148,7 +148,7 @@ export function registerGiveawayRoutes(app: Express) {
       };
 
       const url = `${BASE_URL}/giveaways/${id}`;
-      console.log('Putting to Icona API:', url);
+      console.log('Putting to Tokshop API:', url);
       
       const response = await fetch(url, {
         method: 'PUT',
@@ -157,11 +157,11 @@ export function registerGiveawayRoutes(app: Express) {
       });
       
       const responseText = await response.text();
-      console.log('Icona API response status:', response.status);
-      console.log('Icona API response body:', responseText);
+      console.log('Tokshop API response status:', response.status);
+      console.log('Tokshop API response body:', responseText);
 
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         let errorData;
         try {
           errorData = JSON.parse(responseText);
@@ -201,7 +201,7 @@ export function registerGiveawayRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         let errorData;
         try {

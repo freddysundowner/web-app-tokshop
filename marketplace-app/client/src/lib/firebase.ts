@@ -166,5 +166,10 @@ export const signInWithAppleRedirect = () => {
 
 // Auth state observer
 export const onAuthStateChange = (callback: (user: any) => void) => {
+  if (!isInitialized) {
+    console.warn('⚠️ Firebase not initialized, cannot set up auth listener');
+    // Return a no-op unsubscribe function
+    return () => {};
+  }
   return onAuthStateChanged(getFirebaseAuth(), callback);
 };

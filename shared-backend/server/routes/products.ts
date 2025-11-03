@@ -37,7 +37,7 @@ export function registerProductRoutes(app: Express) {
   app.get("/api/products/search", async (req, res) => {
     try {
       const { q } = req.query;
-      console.log("Proxying product search request to Icona API with query:", q);
+      console.log("Proxying product search request to Tokshop API with query:", q);
 
       if (!q || typeof q !== 'string') {
         return res.json({ products: [] });
@@ -62,7 +62,7 @@ export function registerProductRoutes(app: Express) {
 
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`,
+          `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -76,7 +76,7 @@ export function registerProductRoutes(app: Express) {
       res.json(data);
     } catch (error) {
       console.error("Product search proxy error:", error);
-      res.status(500).json({ error: "Failed to search products from Icona API", products: [] });
+      res.status(500).json({ error: "Failed to search products from Tokshop API", products: [] });
     }
   });
 
@@ -85,7 +85,7 @@ export function registerProductRoutes(app: Express) {
     try {
       const { id } = req.params;
       console.log(
-        "Proxying individual product request to Icona API for product:",
+        "Proxying individual product request to Tokshop API for product:",
         id,
       );
 
@@ -110,7 +110,7 @@ export function registerProductRoutes(app: Express) {
 
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`,
+          `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -118,17 +118,17 @@ export function registerProductRoutes(app: Express) {
       res.json(data);
     } catch (error) {
       console.error("Individual product proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch product from Icona API" });
+      res.status(500).json({ error: "Failed to fetch product from Tokshop API" });
     }
   });
 
   // Products proxy for GET requests (list all products)
   app.get("/api/products", async (req, res) => {
     try {
-      console.log("Proxying products request to Icona API");
+      console.log("Proxying products request to Tokshop API");
       console.log("Query params received:", req.query);
 
-      // Build query parameters for Icona API
+      // Build query parameters for Tokshop API
       const queryParams = new URLSearchParams();
 
       // Add userId parameter (this is the key parameter for filtering user's products)
@@ -186,7 +186,7 @@ export function registerProductRoutes(app: Express) {
 
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`,
+          `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -213,7 +213,7 @@ export function registerProductRoutes(app: Express) {
       console.error("Products proxy error:", error);
       res
         .status(500)
-        .json({ error: "Failed to fetch products from Icona API" });
+        .json({ error: "Failed to fetch products from Tokshop API" });
     }
   });
 
@@ -221,7 +221,7 @@ export function registerProductRoutes(app: Express) {
   app.post("/api/products/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Creating product via Icona API for user:", userId);
+      console.log("Creating product via Tokshop API for user:", userId);
       console.log("Product data received:", req.body);
 
       if (!userId) {
@@ -240,8 +240,8 @@ export function registerProductRoutes(app: Express) {
 
       const productData = validationResult.data;
 
-      // Prepare data for Icona API with correct field mapping
-      const iconaProductData = {
+      // Prepare data for Tokshop API with correct field mapping
+      const tokshopProductData = {
         name: productData.name,
         ...(productData.price && { price: productData.price }),
         quantity: productData.quantity,
@@ -302,21 +302,21 @@ export function registerProductRoutes(app: Express) {
       }
 
       console.log(
-        "Sending to Icona API:",
-        JSON.stringify(iconaProductData, null, 2),
+        "Sending to Tokshop API:",
+        JSON.stringify(tokshopProductData, null, 2),
       );
 
       const response = await fetch(`${BASE_URL}/products/${userId}`, {
         method: "POST",
         headers,
-        body: JSON.stringify(iconaProductData),
+        body: JSON.stringify(tokshopProductData),
       });
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as any;
         throw new Error(
           errorData.message ||
-            `Icona API returned ${response.status}: ${response.statusText}`,
+            `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -336,7 +336,7 @@ export function registerProductRoutes(app: Express) {
   app.post("/api/products/bulkadd/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Bulk adding products via Icona API for user:", userId);
+      console.log("Bulk adding products via Tokshop API for user:", userId);
       console.log(
         "Number of products received:",
         req.body.products?.length || 0,
@@ -376,8 +376,8 @@ export function registerProductRoutes(app: Express) {
         });
       }
 
-      // Prepare products for Icona API
-      const iconaProducts = validatedProducts.map((productData) => ({
+      // Prepare products for Tokshop API
+      const tokshopProducts = validatedProducts.map((productData) => ({
         name: productData.name,
         price: productData.price,
         quantity: productData.quantity,
@@ -404,19 +404,19 @@ export function registerProductRoutes(app: Express) {
         );
       }
 
-      console.log("Sending bulk products to Icona API:", {
+      console.log("Sending bulk products to Tokshop API:", {
         endpoint: `${BASE_URL}/products/products/bulkadd`,
-        productCount: iconaProducts.length,
+        productCount: tokshopProducts.length,
       });
       
-      console.log("Actual payload being sent:", JSON.stringify({ products: iconaProducts }, null, 2));
+      console.log("Actual payload being sent:", JSON.stringify({ products: tokshopProducts }, null, 2));
 
       const response = await fetch(
         `${BASE_URL}/products/products/bulkadd`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ products: iconaProducts }),
+          body: JSON.stringify({ products: tokshopProducts }),
         },
       );
 
@@ -424,7 +424,7 @@ export function registerProductRoutes(app: Express) {
         const errorData = (await response.json().catch(() => ({}))) as any;
         throw new Error(
           errorData.message ||
-            `Icona API returned ${response.status}: ${response.statusText}`,
+            `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -447,7 +447,7 @@ export function registerProductRoutes(app: Express) {
   app.post("/api/products/images/:productId", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Updating product images via Icona API:", productId);
+      console.log("Updating product images via Tokshop API:", productId);
 
       const { images } = req.body;
       if (!images || !Array.isArray(images)) {
@@ -476,7 +476,7 @@ export function registerProductRoutes(app: Express) {
         const errorData = (await response.json().catch(() => ({}))) as any;
         throw new Error(
           errorData.message ||
-            `Icona API returned ${response.status}: ${response.statusText}`,
+            `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -497,7 +497,7 @@ export function registerProductRoutes(app: Express) {
   app.patch("/api/products/:productId", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Updating product via Icona API:", productId);
+      console.log("Updating product via Tokshop API:", productId);
       console.log("Raw request body featured field:", req.body.featured);
 
       // Validate the request body
@@ -514,7 +514,7 @@ export function registerProductRoutes(app: Express) {
       console.log("Validated featured field:", productData.featured);
 
       // Prepare update data with correct field mapping
-      const iconaUpdateData = {
+      const tokshopUpdateData = {
         name: productData.name,
         price: productData.price,
         quantity: productData.quantity,
@@ -539,10 +539,10 @@ export function registerProductRoutes(app: Express) {
 
       console.log(
         "Sending to external API - featured field:",
-        iconaUpdateData.featured,
+        tokshopUpdateData.featured,
       );
-      console.log("Sending to external API - sudden:", iconaUpdateData.sudden);
-      console.log("Sending to external API - duration:", iconaUpdateData.duration);
+      console.log("Sending to external API - sudden:", tokshopUpdateData.sudden);
+      console.log("Sending to external API - duration:", tokshopUpdateData.duration);
 
       // Include authentication token from session
       const headers: Record<string, string> = {
@@ -558,7 +558,7 @@ export function registerProductRoutes(app: Express) {
         {
           method: "PUT",
           headers,
-          body: JSON.stringify(iconaUpdateData),
+          body: JSON.stringify(tokshopUpdateData),
         },
       );
 
@@ -566,7 +566,7 @@ export function registerProductRoutes(app: Express) {
         const errorData = (await response.json().catch(() => ({}))) as any;
         throw new Error(
           errorData.message ||
-            `Icona API returned ${response.status}: ${response.statusText}`,
+            `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -586,7 +586,7 @@ export function registerProductRoutes(app: Express) {
     try {
       const { productId } = req.params;
 
-      console.log("Soft deleting product via Icona API:", productId);
+      console.log("Soft deleting product via Tokshop API:", productId);
 
       // Include authentication token from session
       const headers: Record<string, string> = {
@@ -642,7 +642,7 @@ export function registerProductRoutes(app: Express) {
         const errorData = (await response.json().catch(() => ({}))) as any;
         throw new Error(
           errorData.message ||
-            `Icona API returned ${response.status}: ${response.statusText}`,
+            `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -657,7 +657,7 @@ export function registerProductRoutes(app: Express) {
     }
   });
 
-  // Bulk edit products endpoint (proxies to Icona API)
+  // Bulk edit products endpoint (proxies to Tokshop API)
   app.put("/api/products/bulkedit", async (req, res) => {
     try {
       const { productIds, updates } = req.body;
@@ -676,8 +676,8 @@ export function registerProductRoutes(app: Express) {
 
       console.log(`Bulk editing ${productIds.length} products:`, { productIds, updates });
 
-      // Map camelCase to snake_case for Icona API
-      const iconaUpdates = {
+      // Map camelCase to snake_case for Tokshop API
+      const tokshopUpdates = {
         ...updates,
         // Map shippingProfile to shipping_profile if present
         ...(updates.shippingProfile && {
@@ -687,18 +687,18 @@ export function registerProductRoutes(app: Express) {
       };
 
       // Remove undefined fields
-      Object.keys(iconaUpdates).forEach(key => {
-        if (iconaUpdates[key] === undefined) {
-          delete iconaUpdates[key];
+      Object.keys(tokshopUpdates).forEach(key => {
+        if (tokshopUpdates[key] === undefined) {
+          delete tokshopUpdates[key];
         }
       });
 
       const payload = {
         productIds,
-        updates: iconaUpdates
+        updates: tokshopUpdates
       };
 
-      console.log("Sending to Icona API:", JSON.stringify(payload, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(payload, null, 2));
 
       // Include authentication token from session
       const headers: Record<string, string> = {
@@ -718,14 +718,14 @@ export function registerProductRoutes(app: Express) {
         body: JSON.stringify(payload),
       });
 
-      console.log(`Icona API response status: ${response.status}`);
+      console.log(`Tokshop API response status: ${response.status}`);
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as any;
-        console.error("Icona API error:", errorData);
+        console.error("Tokshop API error:", errorData);
         throw new Error(
           errorData.message ||
-            `Icona API returned ${response.status}: ${response.statusText}`,
+            `Tokshop API returned ${response.status}: ${response.statusText}`,
         );
       }
 

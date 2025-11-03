@@ -59,7 +59,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import type { IconaProduct, IconaProductsResponse } from "@shared/schema";
+import type { TokshopProduct, TokshopProductsResponse } from "@shared/schema";
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
 import { CSVUploadModal } from "@/components/inventory/csv-upload-modal";
@@ -120,7 +120,7 @@ export default function Inventory() {
     error: productsError,
     isError,
     refetch,
-  } = useQuery<IconaProductsResponse>({
+  } = useQuery<TokshopProductsResponse>({
     queryKey: [
       "external-products",
       user?.id,
@@ -202,7 +202,7 @@ export default function Inventory() {
     },
   });
 
-  const handleEditProduct = (product: IconaProduct) => {
+  const handleEditProduct = (product: TokshopProduct) => {
     navigate(`/inventory/edit/${product._id}`);
   };
 
@@ -212,7 +212,7 @@ export default function Inventory() {
     }
   };
 
-  const handleViewProduct = (product: IconaProduct) => {
+  const handleViewProduct = (product: TokshopProduct) => {
     navigate(`/product/${product._id}`);
   };
 
@@ -582,7 +582,7 @@ export default function Inventory() {
   // Apply client-side search and sorting (filtering is done server-side now)
   const filteredProducts =
     products
-      ?.filter((product: IconaProduct) => {
+      ?.filter((product: TokshopProduct) => {
         const searchMatch =
           searchTerm === "" ||
           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { MessageSquare, HelpCircle, Package, X, Truck, Info } from "lucide-react";
-import type { IconaOrder } from "@shared/schema";
+import type { TokshopOrder } from "@shared/schema";
 import { formatCurrency, calculateOrderSubtotal } from "@shared/pricing";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
@@ -14,12 +14,12 @@ import { getOrCreateChat } from "@/lib/firebase-chat";
 import { useSettings } from "@/lib/settings-context";
 
 interface OrderDetailsDrawerProps {
-  order: IconaOrder | null;
+  order: TokshopOrder | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCancelOrder?: (orderId: string) => void;
-  onViewShipment?: (order: IconaOrder) => void;
-  onMessageBuyer?: (order: IconaOrder) => void;
+  onViewShipment?: (order: TokshopOrder) => void;
+  onMessageBuyer?: (order: TokshopOrder) => void;
   cancelLoading?: boolean;
 }
 

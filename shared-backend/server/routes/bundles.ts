@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
 import { BASE_URL } from "../utils";
-import { iconaOrderSchema, Bundle } from "../../shared/schema";
+import { tokshopOrderSchema, Bundle } from "../../shared/schema";
 
 export function registerBundleRoutes(app: Express) {
   // Get bundles from orders with assigned bundle IDs
@@ -10,7 +10,7 @@ export function registerBundleRoutes(app: Express) {
       console.log('Fetching bundles from orders with assigned bundle IDs');
       console.log('Query params received:', req.query);
       
-      // Build query parameters for Icona API to get orders
+      // Build query parameters for Tokshop API to get orders
       const queryParams = new URLSearchParams();
       
       // Add userId or customer parameter (required for filtering user's orders)
@@ -25,7 +25,7 @@ export function registerBundleRoutes(app: Express) {
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? '?' + queryString : ''}`;
       
-      console.log('Fetching orders from Icona API:', url);
+      console.log('Fetching orders from Tokshop API:', url);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -41,7 +41,7 @@ export function registerBundleRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json() as any;

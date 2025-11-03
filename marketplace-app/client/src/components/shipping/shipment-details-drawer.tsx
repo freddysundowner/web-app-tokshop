@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Package, Truck, MapPin, Download, ExternalLink } from "lucide-react";
-import type { IconaOrder } from "@shared/schema";
+import type { TokshopOrder } from "@shared/schema";
 
 interface ShipmentDetailsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order: IconaOrder | null;
+  order: TokshopOrder | null;
 }
 
 export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDetailsDrawerProps) {

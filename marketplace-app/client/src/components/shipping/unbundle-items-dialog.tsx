@@ -13,12 +13,12 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Package } from "lucide-react";
-import type { IconaOrder } from "@shared/schema";
+import type { TokshopOrder } from "@shared/schema";
 
 interface UnbundleItemsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order: IconaOrder | null;
+  order: TokshopOrder | null;
   onUnbundle: (itemIds: string[]) => void;
   isPending: boolean;
 }

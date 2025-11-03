@@ -535,7 +535,7 @@ cat /var/www/web-full-platform/admin-app/.env
 cat /var/www/web-full-platform/marketplace-app/.env
 
 # .env must contain:
-# BASE_URL=https://api.iconaapp.com
+# BASE_URL=https://api.tokshoplive.com
 # SESSION_SECRET=your-secret-here
 # PORT=5000 (or 5001)
 
@@ -627,7 +627,7 @@ systemctl status certbot.timer  # Check auto-renewal
                   ↓
          ┌────────────────┐
          │ External API   │
-         │ iconaapp.com   │
+         │ tokshoplive.com   │
          └────────────────┘
 ```
 

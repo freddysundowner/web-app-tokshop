@@ -1,84 +1,76 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Sidebar } from "@/components/layout/sidebar";
-import { AppHeader } from "@/components/layout/app-header";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { SocketProvider } from "@/lib/socket-context";
-import { SocialAuthCompleteForm } from "@/components/auth/social-auth-complete-form";
-import Dashboard from "@/pages/dashboard";
-import Orders from "@/pages/commerce/orders";
-import Purchases from "@/pages/commerce/purchases";
-import ThankYou from "@/pages/commerce/thank-you";
-import Inventory from "@/pages/seller/inventory";
-import AddProduct from "@/pages/seller/add-product";
-import EditProduct from "@/pages/seller/edit-product";
-import Shipping from "@/pages/seller/shipping";
-import ShippingProfiles from "@/pages/seller/shipping-profiles";
-import Addresses from "@/pages/addresses";
-import Analytics from "@/pages/seller/analytics";
-import LiveShows from "@/pages/seller/live-shows";
-import Settings from "@/pages/settings";
-import Profile from "@/pages/profile";
-import ProfileView from "@/pages/marketplace/profile-view";
-import ProductDetail from "@/pages/marketplace/product-detail";
-import Account from "@/pages/account";
-import Payments from "@/pages/payments";
-import Login from "@/pages/auth/login";
-import Signup from "@/pages/auth/signup";
-import Transactions from "@/pages/commerce/transactions";
-import MarketplaceHome from "@/pages/marketplace/home";
-import Browse from "@/pages/marketplace/browse";
-import Category from "@/pages/marketplace/category";
-import SearchResults from "@/pages/marketplace/search-results";
-import LandingPage from "@/pages/marketplace/landing-page";
-import SellerLogin from "@/pages/auth/seller-login";
-import ShowView from "@/pages/marketplace/show-view";
-import PrivacyPolicy from "@/pages/marketplace/privacy-policy";
-import TermsOfService from "@/pages/marketplace/terms-of-service";
-import ContactUs from "@/pages/marketplace/contact";
-import UserReports from "@/pages/marketplace/user-reports";
-import FAQ from "@/pages/marketplace/faq";
-import SellerHub from "@/pages/seller/hub";
-import Inbox from "@/pages/social/inbox";
-import Friends from "@/pages/social/friends";
-import Help from "@/pages/help";
-import SellerSetup from "@/pages/seller/setup";
-import ScheduleShow from "@/pages/seller/schedule-show";
-import NotFound from "@/pages/not-found";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
 
-// Home redirect component based on seller status
-function HomeRedirect() {
-  const { user } = useAuth();
-  const [, setLocation] = useLocation();
+// Lazy load all pages to prevent circular dependencies
+const Sidebar = lazy(() => import("@/components/layout/sidebar").then(m => ({ default: m.Sidebar })));
+const AppHeader = lazy(() => import("@/components/layout/app-header").then(m => ({ default: m.AppHeader })));
+const SocialAuthCompleteForm = lazy(() => import("@/components/auth/social-auth-complete-form").then(m => ({ default: m.SocialAuthCompleteForm })));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Orders = lazy(() => import("@/pages/commerce/orders"));
+const Purchases = lazy(() => import("@/pages/commerce/purchases"));
+const ThankYou = lazy(() => import("@/pages/commerce/thank-you"));
+const Inventory = lazy(() => import("@/pages/seller/inventory"));
+const AddProduct = lazy(() => import("@/pages/seller/add-product"));
+const EditProduct = lazy(() => import("@/pages/seller/edit-product"));
+const Shipping = lazy(() => import("@/pages/seller/shipping"));
+const ShippingProfiles = lazy(() => import("@/pages/seller/shipping-profiles"));
+const Addresses = lazy(() => import("@/pages/addresses"));
+const Analytics = lazy(() => import("@/pages/seller/analytics"));
+const LiveShows = lazy(() => import("@/pages/seller/live-shows"));
+const Settings = lazy(() => import("@/pages/settings"));
+const Profile = lazy(() => import("@/pages/profile"));
+const ProfileView = lazy(() => import("@/pages/marketplace/profile-view"));
+const ProductDetail = lazy(() => import("@/pages/marketplace/product-detail"));
+const Account = lazy(() => import("@/pages/account"));
+const Payments = lazy(() => import("@/pages/payments"));
+const Login = lazy(() => import("@/pages/auth/login"));
+const Signup = lazy(() => import("@/pages/auth/signup"));
+const Transactions = lazy(() => import("@/pages/commerce/transactions"));
+const MarketplaceHome = lazy(() => import("@/pages/marketplace/home"));
+const Browse = lazy(() => import("@/pages/marketplace/browse"));
+const Category = lazy(() => import("@/pages/marketplace/category"));
+const SearchResults = lazy(() => import("@/pages/marketplace/search-results"));
+const LandingPage = lazy(() => import("@/pages/marketplace/landing-page"));
+const LandingPage2 = lazy(() => import("@/pages/marketplace/landing-page-2"));
+const LandingPage3 = lazy(() => import("@/pages/marketplace/landing-page-3"));
+const LandingPage4 = lazy(() => import("@/pages/marketplace/landing-page-4"));
+const LandingPage5 = lazy(() => import("@/pages/marketplace/landing-page-5"));
+const LandingPage6 = lazy(() => import("@/pages/marketplace/landing-page-6"));
+const LandingPage7 = lazy(() => import("@/pages/marketplace/landing-page-7"));
+const SellerLogin = lazy(() => import("@/pages/auth/seller-login"));
+const ShowView = lazy(() => import("@/pages/marketplace/show-view"));
+const PrivacyPolicy = lazy(() => import("@/pages/marketplace/privacy-policy"));
+const TermsOfService = lazy(() => import("@/pages/marketplace/terms-of-service"));
+const ContactUs = lazy(() => import("@/pages/marketplace/contact"));
+const UserReports = lazy(() => import("@/pages/marketplace/user-reports"));
+const FAQ = lazy(() => import("@/pages/marketplace/faq"));
+const SellerHub = lazy(() => import("@/pages/seller/hub"));
+const Inbox = lazy(() => import("@/pages/social/inbox"));
+const Friends = lazy(() => import("@/pages/social/friends"));
+const Help = lazy(() => import("@/pages/help"));
+const SellerSetup = lazy(() => import("@/pages/seller/setup"));
+const ScheduleShow = lazy(() => import("@/pages/seller/schedule-show"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
-  useEffect(() => {
-    // Redirect based on seller status
-    if (user?.seller) {
-      setLocation('/orders');
-    } else {
-      setLocation('/purchases');
-    }
-  }, [user?.seller, setLocation]);
-
-  return null;
-}
-
-// Login redirect
-function LoginRedirect() {
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    setLocation('/');
-  }, [setLocation]);
-
-  return null;
+// Loading component
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
 }
 
 function Router() {
@@ -110,7 +102,6 @@ function Router() {
       setJustCompletedSocialAuth(true);
     } catch (error) {
       console.error('Social auth completion failed:', error);
-      // Error handling is done in the component via toast
     }
   };
 
@@ -124,25 +115,20 @@ function Router() {
 
   // Show loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   // Show social auth completion form if pending
   if (pendingSocialAuth && pendingSocialAuthEmail && pendingSocialAuthData) {
     return (
-      <SocialAuthCompleteForm
-        userEmail={pendingSocialAuthEmail}
-        socialAuthData={pendingSocialAuthData}
-        onComplete={handleSocialAuthComplete}
-        isLoading={isLoading}
-      />
+      <Suspense fallback={<LoadingSpinner />}>
+        <SocialAuthCompleteForm
+          userEmail={pendingSocialAuthEmail}
+          socialAuthData={pendingSocialAuthData}
+          onComplete={handleSocialAuthComplete}
+          isLoading={isLoading}
+        />
+      </Suspense>
     );
   }
 
@@ -150,36 +136,40 @@ function Router() {
   if (!isAuthenticated) {
     return (
       <div className="flex flex-col h-screen bg-background">
-        <AppHeader hideLogo={false} hideNavigation={true} />
         <main className="flex-1 overflow-y-auto">
-          <Switch>
-            <Route path="/" component={LandingPage} />
-            <Route path="/marketplace" component={MarketplaceHome} />
-            <Route path="/browse" component={Browse} />
-            <Route path="/category/:id" component={Category} />
-            <Route path="/search" component={SearchResults} />
-            <Route path="/show/:id" component={ShowView} />
-            <Route path="/product/:productId" component={ProductDetail} />
-            <Route path="/user" component={ProfileView} />
-            <Route path="/profile/:userId" component={ProfileView} />
-            <Route path="/seller/login" component={SellerLogin} />
-            <Route path="/login" component={Login} />
-            <Route path="/signup" component={Signup} />
-            <Route path="/privacy-policy" component={PrivacyPolicy} />
-            <Route path="/terms-of-service" component={TermsOfService} />
-            <Route path="/contact" component={ContactUs} />
-            <Route path="/reports" component={UserReports} />
-            <Route path="/faq" component={FAQ} />
-            {/* Fallback to landing page */}
-            <Route component={LandingPage} />
-          </Switch>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Switch>
+              <Route path="/" component={LandingPage} />
+              <Route path="/landing-2" component={LandingPage2} />
+              <Route path="/landing-3" component={LandingPage3} />
+              <Route path="/landing-4" component={LandingPage4} />
+              <Route path="/landing-5" component={LandingPage5} />
+              <Route path="/landing-6" component={LandingPage6} />
+              <Route path="/landing-7" component={LandingPage7} />
+              <Route path="/marketplace" component={MarketplaceHome} />
+              <Route path="/browse" component={Browse} />
+              <Route path="/category/:id" component={Category} />
+              <Route path="/search" component={SearchResults} />
+              <Route path="/show/:id" component={ShowView} />
+              <Route path="/product/:productId" component={ProductDetail} />
+              <Route path="/user" component={ProfileView} />
+              <Route path="/profile/:userId" component={ProfileView} />
+              <Route path="/seller/login" component={SellerLogin} />
+              <Route path="/login" component={Login} />
+              <Route path="/signup" component={Signup} />
+              <Route path="/privacy-policy" component={PrivacyPolicy} />
+              <Route path="/terms-of-service" component={TermsOfService} />
+              <Route path="/contact" component={ContactUs} />
+              <Route path="/reports" component={UserReports} />
+              <Route path="/faq" component={FAQ} />
+              <Route component={LandingPage} />
+            </Switch>
+          </Suspense>
         </main>
       </div>
     );
   }
 
-  // Show main app for authenticated users
-  // Marketplace pages (no sidebar) vs Dashboard pages (with sidebar)
   const isDashboardRoute = location.startsWith('/orders') || 
                           location.startsWith('/purchases') || 
                           location.startsWith('/thank-you') ||
@@ -199,93 +189,104 @@ function Router() {
                           location.startsWith('/live-shows') ||
                           location.startsWith('/schedule-show');
 
-  // Dashboard pages with sidebar
   if (isDashboardRoute) {
     return (
-      <div className="flex h-screen bg-background">
-        {/* Desktop Sidebar - Hidden on mobile */}
-        <div className="hidden lg:block">
-          <Sidebar 
-            isCollapsed={sidebarCollapsed} 
-            onToggle={toggleSidebar} 
-            isMobileOpen={false}
-            onMobileClose={closeMobileMenu}
-          />
+      <Suspense fallback={<LoadingSpinner />}>
+        <div className="flex h-screen bg-background">
+          <div className="hidden lg:block">
+            <Sidebar 
+              isCollapsed={sidebarCollapsed} 
+              onToggle={toggleSidebar} 
+              isMobileOpen={false}
+              onMobileClose={closeMobileMenu}
+            />
+          </div>
+          <div className="flex flex-col flex-1 min-w-0">
+            <AppHeader 
+              onMobileMenuToggle={toggleMobileMenu}
+              mobileMenuOpen={mobileMenuOpen}
+              hideLogo={false}
+            />
+            {mobileMenuOpen && (
+              <div className="lg:hidden">
+                <Sidebar 
+                  isCollapsed={false} 
+                  onToggle={toggleSidebar} 
+                  isMobileOpen={true}
+                  onMobileClose={closeMobileMenu}
+                />
+              </div>
+            )}
+            <main className="flex-1 min-h-0 overflow-y-auto p-6">
+              <Switch>
+                <Route path="/dashboard" component={Dashboard} />
+                <Route path="/orders" component={Orders} />
+                <Route path="/purchases" component={Purchases} />
+                <Route path="/thank-you" component={ThankYou} />
+                <Route path="/inventory" component={Inventory} />
+                <Route path="/add-product" component={AddProduct} />
+                <Route path="/edit-product/:id" component={EditProduct} />
+                <Route path="/shipping" component={Shipping} />
+                <Route path="/shipping-profiles" component={ShippingProfiles} />
+                <Route path="/addresses" component={Addresses} />
+                <Route path="/transactions" component={Transactions} />
+                <Route path="/profile" component={Profile} />
+                <Route path="/account" component={Account} />
+                <Route path="/payments" component={Payments} />
+                <Route path="/settings" component={Settings} />
+                <Route path="/analytics" component={Analytics} />
+                <Route path="/live-shows" component={LiveShows} />
+                <Route path="/schedule-show" component={ScheduleShow} />
+                <Route path="/seller/hub" component={SellerHub} />
+                <Route path="/friends" component={Friends} />
+                <Route component={NotFound} />
+              </Switch>
+            </main>
+          </div>
         </div>
-        <div className="flex flex-col flex-1 min-w-0">
-          <AppHeader 
-            onMobileMenuToggle={toggleMobileMenu}
-            mobileMenuOpen={mobileMenuOpen}
-            onMobileMenuClose={closeMobileMenu}
-            hideLogo={true}
-          />
-          <main className="flex-1 overflow-y-auto focus:outline-none">
-            <Switch>
-              <Route path="/seller/hub" component={SellerHub} />
-              <Route path="/orders" component={Orders} />
-              <Route path="/purchases" component={Purchases} />
-              <Route path="/thank-you/:orderId" component={ThankYou} />
-              <Route path="/inventory" component={Inventory} />
-              <Route path="/inventory/add" component={AddProduct} />
-              <Route path="/inventory/edit/:id" component={EditProduct} />
-              <Route path="/shipping" component={Shipping} />
-              <Route path="/shipping-profiles" component={ShippingProfiles} />
-              <Route path="/addresses" component={Addresses} />
-              <Route path="/transactions" component={Transactions} />
-              <Route path="/profile-view" component={ProfileView} />
-              <Route path="/profile" component={Profile} />
-              <Route path="/account" component={Account} />
-              <Route path="/payments" component={Payments} />
-              <Route path="/settings" component={Settings} />
-              <Route path="/friends" component={Friends} />
-              <Route path="/live-shows" component={LiveShows} />
-              <Route path="/schedule-show" component={ScheduleShow} />
-              <Route component={NotFound} />
-            </Switch>
-          </main>
-        </div>
-      </div>
+      </Suspense>
     );
   }
 
-  // Marketplace pages without sidebar but with unified header
   const isShowViewPage = location.startsWith('/show/');
   
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <div className={cn(isShowViewPage && "hidden lg:block")}>
-        <AppHeader hideLogo={false} />
+    <Suspense fallback={<LoadingSpinner />}>
+      <div className="flex flex-col h-screen bg-background">
+        <div className={cn(isShowViewPage && "hidden lg:block")}>
+          <AppHeader hideLogo={false} />
+        </div>
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <Switch>
+            <Route path="/" component={MarketplaceHome} />
+            <Route path="/marketplace" component={MarketplaceHome} />
+            <Route path="/browse" component={Browse} />
+            <Route path="/category/:id" component={Category} />
+            <Route path="/search" component={SearchResults} />
+            <Route path="/show/:id" component={ShowView} />
+            <Route path="/product/:productId" component={ProductDetail} />
+            <Route path="/user" component={ProfileView} />
+            <Route path="/profile/:userId" component={ProfileView} />
+            <Route path="/inbox/:userId?" component={Inbox} />
+            <Route path="/seller/setup" component={SellerSetup} />
+            <Route path="/login" component={MarketplaceHome} />
+            <Route path="/signup" component={MarketplaceHome} />
+            <Route path="/seller/login" component={MarketplaceHome} />
+            <Route path="/privacy-policy" component={PrivacyPolicy} />
+            <Route path="/terms-of-service" component={TermsOfService} />
+            <Route path="/contact" component={ContactUs} />
+            <Route path="/reports" component={UserReports} />
+            <Route path="/faq" component={FAQ} />
+            <Route path="/help" component={Help} />
+            <Route component={NotFound} />
+          </Switch>
+        </main>
       </div>
-      <main className="flex-1 min-h-0 overflow-y-auto">
-        <Switch>
-          <Route path="/" component={MarketplaceHome} />
-          <Route path="/marketplace" component={MarketplaceHome} />
-          <Route path="/browse" component={Browse} />
-          <Route path="/category/:id" component={Category} />
-          <Route path="/search" component={SearchResults} />
-          <Route path="/show/:id" component={ShowView} />
-          <Route path="/product/:productId" component={ProductDetail} />
-          <Route path="/user" component={ProfileView} />
-          <Route path="/profile/:userId" component={ProfileView} />
-          <Route path="/inbox/:userId?" component={Inbox} />
-          <Route path="/seller/setup" component={SellerSetup} />
-          <Route path="/login" component={MarketplaceHome} />
-          <Route path="/signup" component={MarketplaceHome} />
-          <Route path="/seller/login" component={MarketplaceHome} />
-          <Route path="/privacy-policy" component={PrivacyPolicy} />
-          <Route path="/terms-of-service" component={TermsOfService} />
-          <Route path="/contact" component={ContactUs} />
-          <Route path="/reports" component={UserReports} />
-          <Route path="/faq" component={FAQ} />
-          <Route path="/help" component={Help} />
-          <Route component={NotFound} />
-        </Switch>
-      </main>
-    </div>
+    </Suspense>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SettingsProvider>
@@ -301,5 +302,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;

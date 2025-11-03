@@ -222,7 +222,7 @@ export function PaymentShippingSheet({
                           if (!pm) return 'Payment method on file';
                           
                           // Try to build a descriptive string from available fields
-                          // Check name first (Icona API uses 'name' for card brand like "visa", "mastercard")
+                          // Check name first (Tokshop API uses 'name' for card brand like "visa", "mastercard")
                           const brand = pm.name || pm.brand || pm.card_type || pm.type || '';
                           const last4 = pm.last4 || pm.lastFour || pm.last_four || '';
                           

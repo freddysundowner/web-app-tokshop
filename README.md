@@ -148,7 +148,7 @@ Both apps share the backend during development but are packaged separately for d
 - Express.js + Node.js
 - Socket.IO (real-time features - marketplace only)
 - LiveKit (live streaming - marketplace only)
-- External API integration (https://api.iconaapp.com)
+- External API integration (https://api.tokshoplive.com)
 
 **Deployment:**
 - PM2 (process manager)

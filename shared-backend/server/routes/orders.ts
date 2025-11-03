@@ -34,7 +34,7 @@ export function registerOrderRoutes(app: Express) {
             error: "Order not found" 
           });
         }
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json() as any;
@@ -64,7 +64,7 @@ export function registerOrderRoutes(app: Express) {
       console.error('Single order fetch error:', error);
       res.status(500).json({ 
         success: false,
-        error: "Failed to fetch order from Icona API" 
+        error: "Failed to fetch order from Tokshop API" 
       });
     }
   });
@@ -72,10 +72,10 @@ export function registerOrderRoutes(app: Express) {
   // Orders proxy
   app.get("/api/orders", async (req, res) => {
     try {
-      console.log('Proxying orders request to Icona API');
+      console.log('Proxying orders request to Tokshop API');
       console.log('Query params received:', req.query);
       
-      // Build query parameters for Icona API
+      // Build query parameters for Tokshop API
       const queryParams = new URLSearchParams();
       
       // Add userId parameter (this is the key parameter for filtering user's orders)
@@ -127,14 +127,14 @@ export function registerOrderRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error('Orders proxy error:', error);
-      res.status(500).json({ error: "Failed to fetch orders from Icona API" });
+      res.status(500).json({ error: "Failed to fetch orders from Tokshop API" });
     }
   });
 
@@ -182,7 +182,7 @@ export function registerOrderRoutes(app: Express) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to create order in Icona API:', response.status, errorText);
+        console.error('Failed to create order in Tokshop API:', response.status, errorText);
         return res.status(response.status).json({ 
           success: false,
           error: `Failed to create order: ${response.status}`,
@@ -238,7 +238,7 @@ export function registerOrderRoutes(app: Express) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to update order in Icona API:', response.status, errorText);
+        console.error('Failed to update order in Tokshop API:', response.status, errorText);
         return res.status(response.status).json({ 
           error: `Failed to update order: ${response.status}`,
           details: errorText
@@ -279,7 +279,7 @@ export function registerOrderRoutes(app: Express) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to PUT update order in Icona API:', response.status, errorText);
+        console.error('Failed to PUT update order in Tokshop API:', response.status, errorText);
         return res.status(response.status).json({ 
           error: `Failed to update order: ${response.status}`,
           details: errorText

@@ -31,9 +31,9 @@ import {
   ArrowDown,
 } from "lucide-react";
 import type {
-  IconaOrder,
+  TokshopOrder,
   ShipmentBundle,
-  IconaOrdersResponse,
+  TokshopOrdersResponse,
 } from "@shared/schema";
 import { format } from "date-fns";
 import { ShippingDrawer } from "@/components/shipping/shipping-drawer";
@@ -116,7 +116,7 @@ export default function Shipping() {
   const [unbundleOrderId, setUnbundleOrderId] = useState<string | null>(null);
   const [bulkLabelDialogOpen, setBulkLabelDialogOpen] = useState(false);
   const [shipmentDetailsOpen, setShipmentDetailsOpen] = useState(false);
-  const [shipmentDetailsOrder, setShipmentDetailsOrder] = useState<IconaOrder | null>(null);
+  const [shipmentDetailsOrder, setShipmentDetailsOrder] = useState<TokshopOrder | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const { user } = useAuth();
@@ -167,7 +167,7 @@ export default function Shipping() {
     }
   };
 
-  const canCancelOrder = (order: IconaOrder) => {
+  const canCancelOrder = (order: TokshopOrder) => {
     // Can't cancel if already cancelled, shipped, delivered, or ended
     if (
       order.status === "cancelled" ||
@@ -272,7 +272,7 @@ export default function Shipping() {
     });
 
   const { data: orderResponse, isLoading: ordersLoading, error: ordersError, isError: ordersIsError, refetch: refetchOrders } =
-    useQuery<IconaOrdersResponse>({
+    useQuery<TokshopOrdersResponse>({
       queryKey: ["external-orders", user?.id, statusFilter, selectedCustomerId, currentPage, itemsPerPage],
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -322,7 +322,7 @@ export default function Shipping() {
   const totalPages = orderResponse?.pages || 0;
 
   // Separate unfiltered query for bundle status calculation
-  const { data: allOrdersResponse, refetch: refetchAllOrders } = useQuery<IconaOrdersResponse>({
+  const { data: allOrdersResponse, refetch: refetchAllOrders } = useQuery<TokshopOrdersResponse>({
     queryKey: ["external-orders", user?.id, "all", "all"],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -467,7 +467,7 @@ export default function Shipping() {
 
   // Combine unbundled orders and multi-item orders (as bundles) for display
   // DO NOT use the bundles API - only check item count
-  type DisplayItem = IconaOrder | (ShipmentBundle & { isBundle: true; isSingleOrder?: boolean; customerName: string });
+  type DisplayItem = TokshopOrder | (ShipmentBundle & { isBundle: true; isSingleOrder?: boolean; customerName: string });
   const displayItems: DisplayItem[] = [
     ...unbundledOrders,
     ...multiItemOrders.map((order) => ({
@@ -493,24 +493,24 @@ export default function Shipping() {
       let compareValue = 0;
       
       if (sortColumn === 'customer') {
-        const nameA = isBundle_a ? (a as any).customerName : `${(a as IconaOrder).customer?.firstName || ''} ${(a as IconaOrder).customer?.lastName || ''}`;
-        const nameB = isBundle_b ? (b as any).customerName : `${(b as IconaOrder).customer?.firstName || ''} ${(b as IconaOrder).customer?.lastName || ''}`;
+        const nameA = isBundle_a ? (a as any).customerName : `${(a as TokshopOrder).customer?.firstName || ''} ${(a as TokshopOrder).customer?.lastName || ''}`;
+        const nameB = isBundle_b ? (b as any).customerName : `${(b as TokshopOrder).customer?.firstName || ''} ${(b as TokshopOrder).customer?.lastName || ''}`;
         compareValue = nameA.localeCompare(nameB);
       } else if (sortColumn === 'orderDate') {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         compareValue = dateA - dateB;
       } else if (sortColumn === 'items') {
-        const itemsA = isBundle_a ? 0 : ((a as IconaOrder).giveaway ? 1 : ((a as IconaOrder).items?.length || 0));
-        const itemsB = isBundle_b ? 0 : ((b as IconaOrder).giveaway ? 1 : ((b as IconaOrder).items?.length || 0));
+        const itemsA = isBundle_a ? 0 : ((a as TokshopOrder).giveaway ? 1 : ((a as TokshopOrder).items?.length || 0));
+        const itemsB = isBundle_b ? 0 : ((b as TokshopOrder).giveaway ? 1 : ((b as TokshopOrder).items?.length || 0));
         compareValue = itemsA - itemsB;
       } else if (sortColumn === 'total') {
-        const totalA = isBundle_a ? 0 : ((a as IconaOrder).total || 0) + ((a as IconaOrder).tax || 0) + ((a as IconaOrder).shipping_fee || 0);
-        const totalB = isBundle_b ? 0 : ((b as IconaOrder).total || 0) + ((b as IconaOrder).tax || 0) + ((b as IconaOrder).shipping_fee || 0);
+        const totalA = isBundle_a ? 0 : ((a as TokshopOrder).total || 0) + ((a as TokshopOrder).tax || 0) + ((a as TokshopOrder).shipping_fee || 0);
+        const totalB = isBundle_b ? 0 : ((b as TokshopOrder).total || 0) + ((b as TokshopOrder).tax || 0) + ((b as TokshopOrder).shipping_fee || 0);
         compareValue = totalA - totalB;
       } else if (sortColumn === 'status') {
-        const statusA = isBundle_a ? '' : (a as IconaOrder).status || '';
-        const statusB = isBundle_b ? '' : (b as IconaOrder).status || '';
+        const statusA = isBundle_a ? '' : (a as TokshopOrder).status || '';
+        const statusB = isBundle_b ? '' : (b as TokshopOrder).status || '';
         compareValue = statusA.localeCompare(statusB);
       }
       
@@ -546,7 +546,7 @@ export default function Shipping() {
       // Only select orders with 'processing' status for bundling
       const processingOrderIds = displayItems
         .filter((item) => !("isBundle" in item))
-        .map((item) => item as IconaOrder)
+        .map((item) => item as TokshopOrder)
         .filter((order) => order.status === "processing")
         .map((order) => order._id);
       setSelectedOrders(processingOrderIds);
@@ -1340,7 +1340,7 @@ export default function Shipping() {
                       // Get the actual orders that belong to this bundle
                       // For multi-item orders (isSingleOrder = true), just get that single order
                       // For real bundles, filter by bundleId
-                      const bundleOrders: IconaOrder[] = bundle.isSingleOrder
+                      const bundleOrders: TokshopOrder[] = bundle.isSingleOrder
                         ? (allOrders?.filter((order) => order._id === bundle.id) || [])
                         : (allOrders?.filter((order) => order.bundleId === bundle.id) || []);
                       
@@ -1853,7 +1853,7 @@ export default function Shipping() {
                         </React.Fragment>
                       );
                     } else {
-                      const order = item as IconaOrder;
+                      const order = item as TokshopOrder;
 
                       return (
                         <React.Fragment key={order._id}>
@@ -2368,7 +2368,7 @@ export default function Shipping() {
           onOpenChange={setUnbundleDialogOpen}
           bundleOrders={
             unbundleBundleId
-              ? [allOrders?.find((order) => order._id === unbundleBundleId)].filter(Boolean) as IconaOrder[]
+              ? [allOrders?.find((order) => order._id === unbundleBundleId)].filter(Boolean) as TokshopOrder[]
               : []
           }
           onUnbundle={confirmUnbundle}

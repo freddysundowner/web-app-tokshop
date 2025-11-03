@@ -4,14 +4,14 @@ import https from 'https';
 import { URL } from 'url';
 import { BASE_URL } from "../utils";
 import type { 
-  IconaOrdersResponse, 
+  TokshopOrdersResponse, 
   ShippingEstimateRequest, 
   ShippingEstimateResponse,
   ShippingLabelPurchaseRequest,
   ShippingLabelPurchaseResponse,
   BundleLabelPurchaseRequest,
   BundleLabelPurchaseResponse,
-  IconaOrder
+  TokshopOrder
 } from "../../shared/schema";
 import { 
   shippingEstimateRequestSchema,
@@ -79,7 +79,7 @@ export function registerShippingRoutes(app: Express) {
   app.get("/api/shipping/profiles/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log('Proxying shipping profiles request to Icona API for user:', userId);
+      console.log('Proxying shipping profiles request to Tokshop API for user:', userId);
       
       // Build the URL for the external API
       const url = `${BASE_URL}/shipping/profiles/${userId}`;
@@ -99,14 +99,14 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error('Shipping profiles proxy error:', error);
-      res.status(500).json({ error: "Failed to fetch shipping profiles from Icona API" });
+      res.status(500).json({ error: "Failed to fetch shipping profiles from Tokshop API" });
     }
   });
 
@@ -119,7 +119,7 @@ export function registerShippingRoutes(app: Express) {
         return res.status(400).json({ error: "userId is required" });
       }
 
-      console.log('Creating shipping profile via Icona API for user:', userId);
+      console.log('Creating shipping profile via Tokshop API for user:', userId);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
@@ -152,7 +152,7 @@ export function registerShippingRoutes(app: Express) {
     try {
       const { id } = req.params;
       
-      console.log('Updating shipping profile via Icona API:', id);
+      console.log('Updating shipping profile via Tokshop API:', id);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -169,7 +169,7 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
@@ -185,7 +185,7 @@ export function registerShippingRoutes(app: Express) {
     try {
       const { id } = req.params;
       
-      console.log('Deleting shipping profile via Icona API:', id);
+      console.log('Deleting shipping profile via Tokshop API:', id);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -201,7 +201,7 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
@@ -246,7 +246,7 @@ export function registerShippingRoutes(app: Express) {
         throw new Error(`External API returned ${response.status}: ${response.statusText}`);
       }
       
-      const data = await response.json() as IconaOrdersResponse;
+      const data = await response.json() as TokshopOrdersResponse;
       const orders = data.orders || [];
       
       
@@ -598,7 +598,7 @@ export function registerShippingRoutes(app: Express) {
           throw new Error(`Failed to fetch order ${orderId}: ${response.status} ${response.statusText}`);
         }
         
-        return response.json() as Promise<IconaOrder>;
+        return response.json() as Promise<TokshopOrder>;
       });
 
       const orders = await Promise.all(orderFetchPromises);
@@ -732,7 +732,7 @@ export function registerShippingRoutes(app: Express) {
         order: bundleId
       }];
 
-      console.log('Creating bundle label with Icona API');
+      console.log('Creating bundle label with Tokshop API');
       console.log('Bundle request:', { rates });
       
       const labelHeaders: Record<string, string> = {

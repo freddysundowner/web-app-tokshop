@@ -18,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
-import type { IconaOrder, IconaOrdersResponse } from "@shared/schema";
+import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal, formatCurrency } from "@shared/pricing";
 import { format } from "date-fns";
 
@@ -42,7 +42,7 @@ export function OrderTable({ statusFilter, dateFilter }: OrderTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: orderResponse, isLoading } = useQuery<IconaOrdersResponse>({
+  const { data: orderResponse, isLoading } = useQuery<TokshopOrdersResponse>({
     queryKey: ["/api/orders", { status: statusFilter, date: dateFilter }],
   });
 

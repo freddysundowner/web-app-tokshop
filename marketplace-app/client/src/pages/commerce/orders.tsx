@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Search, Filter, MoreHorizontal, Package, Printer, Truck, Ship, X, MessageSquare, Info } from "lucide-react";
-import type { IconaOrder, IconaOrdersResponse } from "@shared/schema";
+import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal, formatCurrency, calculateOrderSubtotal } from "@shared/pricing";
 import { useSettings } from "@/lib/settings-context";
 import { format } from "date-fns";
@@ -55,7 +55,7 @@ export default function Orders() {
   const [sortBy, setSortBy] = useState<string>("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [selectedOrder, setSelectedOrder] = useState<IconaOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<TokshopOrder | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -63,7 +63,7 @@ export default function Orders() {
   const [, setLocation] = useLocation();
   const [messagingOrderId, setMessagingOrderId] = useState<string | null>(null);
 
-  const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<IconaOrdersResponse>({
+  const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
     queryKey: ["external-orders", user?.id, statusFilter, selectedCustomerId, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -157,7 +157,7 @@ export default function Orders() {
   });
 
 
-  const handlePrintLabel = (order: IconaOrder) => {
+  const handlePrintLabel = (order: TokshopOrder) => {
     if (order.label) {
       window.open(order.label, '_blank');
     } else {
@@ -165,7 +165,7 @@ export default function Orders() {
     }
   };
 
-  const handleTrackPackage = (order: IconaOrder) => {
+  const handleTrackPackage = (order: TokshopOrder) => {
     if (order.tracking_number) {
       // TODO: Open tracking modal or navigate to tracking page
       toast({ title: `Tracking: ${order.tracking_number}` });
@@ -185,7 +185,7 @@ export default function Orders() {
   };
 
   // Handle message buyer from table
-  const handleMessageBuyer = async (order: IconaOrder) => {
+  const handleMessageBuyer = async (order: TokshopOrder) => {
     const buyerId = order.customer?._id;
     const currentUserId = (user as any)?._id || (user as any)?.id;
     
@@ -273,7 +273,7 @@ export default function Orders() {
   const calculateTotal = calculateOrderTotal;
 
   // Calculate net earnings for an order
-  const calculateNetEarnings = (order: IconaOrder) => {
+  const calculateNetEarnings = (order: TokshopOrder) => {
     // If it's a giveaway, earnings are 0
     if (order.giveaway || order.ordertype === 'giveaway') {
       return 0;
@@ -299,7 +299,7 @@ export default function Orders() {
   }, []) || [];
 
   // Apply client-side search and sorting (filtering is done server-side now)
-  const filteredOrders = orders?.filter((order: IconaOrder) => {
+  const filteredOrders = orders?.filter((order: TokshopOrder) => {
     const customerName = `${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`.trim();
     const orderNumber = order.invoice?.toString() || order._id.slice(-8);
     const itemName = order.giveaway?.name || '';
@@ -310,7 +310,7 @@ export default function Orders() {
       itemName.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesSearch;
-  }).sort((a: IconaOrder, b: IconaOrder) => {
+  }).sort((a: TokshopOrder, b: TokshopOrder) => {
     switch (sortBy) {
       case "newest":
         const aDate = a.date ? new Date(a.date) : new Date(a.createdAt || 0);

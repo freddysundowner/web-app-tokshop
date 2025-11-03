@@ -11,12 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Package2 } from "lucide-react";
-import type { IconaOrder } from "@shared/schema";
+import type { TokshopOrder } from "@shared/schema";
 
 interface SelectiveUnbundleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  bundleOrders: IconaOrder[];
+  bundleOrders: TokshopOrder[];
   onUnbundle: (itemsByOrder: Record<string, string[]>) => void;
   isPending: boolean;
 }

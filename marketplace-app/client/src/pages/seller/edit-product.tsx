@@ -45,9 +45,9 @@ import { ImageUploader } from "@/components/ui/image-uploader";
 import {
   productFormSchema,
   type ProductFormData,
-  type IconaProduct,
-  type IconaCategoriesResponse,
-  type IconaShippingProfilesResponse,
+  type TokshopProduct,
+  type TokshopCategoriesResponse,
+  type TokshopShippingProfilesResponse,
 } from "@shared/schema";
 
 export default function EditProduct() {
@@ -95,7 +95,7 @@ export default function EditProduct() {
   });
 
   // Fetch existing product data
-  const { data: product, isLoading: loadingProduct, isError } = useQuery<IconaProduct>({
+  const { data: product, isLoading: loadingProduct, isError } = useQuery<TokshopProduct>({
     queryKey: ["external-product", productId],
     queryFn: async () => {
       if (!productId) throw new Error("Product ID required");
@@ -119,7 +119,7 @@ export default function EditProduct() {
   });
 
   // Fetch categories
-  const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<IconaCategoriesResponse>({
+  const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories", user?.id],
     queryFn: async () => {
       const response = await fetch(
@@ -141,7 +141,7 @@ export default function EditProduct() {
   });
 
   // Fetch shipping profiles
-  const { data: shippingProfilesResponse, isLoading: loadingShippingProfiles } = useQuery<IconaShippingProfilesResponse>({
+  const { data: shippingProfilesResponse, isLoading: loadingShippingProfiles } = useQuery<TokshopShippingProfilesResponse>({
     queryKey: ["external-shipping-profiles", user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");

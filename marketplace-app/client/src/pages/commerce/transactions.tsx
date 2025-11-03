@@ -69,7 +69,7 @@ export default function Transactions() {
   const totalPages = transactionsData?.pages || transactionsData?.totalPages || 1;
   const totalTransactions = transactionsData?.total || transactionsData?.totalRecords || 0;
   
-  const supportEmail = settingsData?.support_email || 'support@icona.com';
+  const supportEmail = settingsData?.support_email || '';
   const settingsStripeFee = settingsData?.stripe_fee || '0';
   const settingsExtraCharges = settingsData?.extra_charges || '0';
 

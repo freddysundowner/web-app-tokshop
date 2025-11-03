@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { DollarSign, ShoppingCart, Users, Video } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import type { IconaDashboardResponse } from "@shared/schema";
+import type { TokshopDashboardResponse } from "@shared/schema";
 
 interface Metric {
   title: string;
@@ -12,7 +12,7 @@ interface Metric {
 }
 
 export function MetricsGrid() {
-  const { data: metrics, isLoading } = useQuery<IconaDashboardResponse>({
+  const { data: metrics, isLoading } = useQuery<TokshopDashboardResponse>({
     queryKey: ["/api/dashboard/metrics"],
   });
 

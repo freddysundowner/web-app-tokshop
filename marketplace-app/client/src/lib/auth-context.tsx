@@ -18,8 +18,8 @@ interface User {
   admin?: boolean;
   role?: 'superAdmin' | 'admin';
   authProvider?: 'email' | 'google' | 'apple'; // Track how user signed up
-  address?: any; // Shipping address from Icona API
-  defaultpaymentmethod?: any; // Default payment method from Icona API
+  address?: any; // Shipping address from Tokshop API
+  defaultpaymentmethod?: any; // Default payment method from Tokshop API
 }
 
 interface AuthContextType {
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isAuthenticated = !!user;
 
   // Call backend social auth API after successful Firebase auth
-  const authenticateWithIcona = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false) => {
+  const authenticateWithTokshop = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false) => {
     try {
       // Get Firebase ID token for server-side verification
       const idToken = await firebaseUser.getIdToken(true);
@@ -136,57 +136,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Send to backend with Firebase token - let server handle validation and user correlation
       const response = await apiRequest('POST', '/api/auth/social', socialAuthData);
 
-      const iconaResponse = await response.json();
+      const tokshopResponse = await response.json();
       
       if (!response.ok) {
-        throw new Error(iconaResponse.error || `Authentication failed: ${response.status}`);
+        throw new Error(tokshopResponse.error || `Authentication failed: ${response.status}`);
       }
       
-      if (iconaResponse.success) {
+      if (tokshopResponse.success) {
         // Check if this is a new user who needs to complete their profile
         // Only show completion form if explicitly marked as a new user by the backend
         // Skip this check if we already verified user existence before calling this function
-        if (!skipNewUserCheck && iconaResponse.newuser === true) {
+        if (!skipNewUserCheck && tokshopResponse.newuser === true) {
           // Set pending social auth state instead of completing authentication
           setPendingSocialAuth(true);
           setPendingSocialAuthEmail(firebaseUser.email || '');
           setPendingSocialAuthData(firebaseUser);
-          return iconaResponse;
+          return tokshopResponse;
         }
 
         // Existing user - complete authentication immediately
         const userData = {
-          id: iconaResponse.data._id || iconaResponse.data.id,
-          email: iconaResponse.data.email,
-          firstName: iconaResponse.data.firstName,
-          lastName: iconaResponse.data.lastName || '',
-          profilePhoto: iconaResponse.data.profilePhoto || firebaseUser.photoURL || '',
-          userName: iconaResponse.data.userName,
-          country: iconaResponse.data.country || '',
-          phone: iconaResponse.data.phone || '',
-          seller: iconaResponse.data.seller || false,
-          admin: iconaResponse.data.admin || false,
+          id: tokshopResponse.data._id || tokshopResponse.data.id,
+          email: tokshopResponse.data.email,
+          firstName: tokshopResponse.data.firstName,
+          lastName: tokshopResponse.data.lastName || '',
+          profilePhoto: tokshopResponse.data.profilePhoto || firebaseUser.photoURL || '',
+          userName: tokshopResponse.data.userName,
+          country: tokshopResponse.data.country || '',
+          phone: tokshopResponse.data.phone || '',
+          seller: tokshopResponse.data.seller || false,
+          admin: tokshopResponse.data.admin || false,
           authProvider: authType as 'google' | 'apple',
-          address: iconaResponse.data.address,
-          defaultpaymentmethod: iconaResponse.data.defaultpaymentmethod
+          address: tokshopResponse.data.address,
+          defaultpaymentmethod: tokshopResponse.data.defaultpaymentmethod
         };
         
         setUser(userData);
         // Store complete user data and access token in localStorage for header-based persistence
         localStorage.setItem('userId', userData.id);
         localStorage.setItem('user', JSON.stringify(userData));
-        if (iconaResponse.accessToken) {
-          localStorage.setItem('accessToken', iconaResponse.accessToken);
+        if (tokshopResponse.accessToken) {
+          localStorage.setItem('accessToken', tokshopResponse.accessToken);
         }
         // Clear any pending auth state
         setPendingSocialAuth(false);
         setPendingSocialAuthEmail(null);
         setPendingSocialAuthData(null);
       } else {
-        throw new Error(iconaResponse.message || 'Authentication failed');
+        throw new Error(tokshopResponse.message || 'Authentication failed');
       }
 
-      return iconaResponse;
+      return tokshopResponse;
     } catch (error: any) {
       console.error('Authentication failed:', error?.message || error);
       throw error;
@@ -313,7 +313,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         if (checkData.exists) {
           // User exists - proceed with normal authentication
-          await authenticateWithIcona(result.user, (result as any)?.additionalUserInfo, true);
+          await authenticateWithTokshop(result.user, (result as any)?.additionalUserInfo, true);
         } else {
           // User doesn't exist - set pending auth state for data collection
           setPendingSocialAuth(true);
@@ -336,7 +336,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const result = await signInWithApple();
       // Handle authentication directly to capture additionalUserInfo for Apple
       if (result?.user) {
-        await authenticateWithIcona(result.user, (result as any)?.additionalUserInfo);
+        await authenticateWithTokshop(result.user, (result as any)?.additionalUserInfo);
       }
     } catch (error) {
       console.error('Apple login failed:', error);
@@ -466,7 +466,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isProcessingRef.current = true;
         try {
           // Handle redirect result with additionalUserInfo
-          await authenticateWithIcona(redirectResult.user, redirectResult?.additionalUserInfo);
+          await authenticateWithTokshop(redirectResult.user, redirectResult?.additionalUserInfo);
         } finally {
           isProcessingRef.current = false;
         }
