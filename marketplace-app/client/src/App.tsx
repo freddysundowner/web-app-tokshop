@@ -29,7 +29,8 @@ const LiveShows = lazy(() => import("@/pages/seller/live-shows"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Profile = lazy(() => import("@/pages/profile"));
 const ProfileView = lazy(() => import("@/pages/marketplace/profile-view"));
-const ProductDetail = lazy(() => import("@/pages/marketplace/product-detail"));
+// Load ProductDetail eagerly instead of lazy to avoid loading timeout
+import ProductDetail from "@/pages/marketplace/product-detail";
 const Account = lazy(() => import("@/pages/account"));
 const Payments = lazy(() => import("@/pages/payments"));
 const Login = lazy(() => import("@/pages/auth/login"));
@@ -226,7 +227,7 @@ function Router() {
                 <Route path="/dashboard" component={Dashboard} />
                 <Route path="/orders" component={Orders} />
                 <Route path="/purchases" component={Purchases} />
-                <Route path="/thank-you" component={ThankYou} />
+                <Route path="/thank-you/:orderId" component={ThankYou} />
                 <Route path="/inventory" component={Inventory} />
                 <Route path="/add-product" component={AddProduct} />
                 <Route path="/edit-product/:id" component={EditProduct} />
@@ -235,6 +236,7 @@ function Router() {
                 <Route path="/addresses" component={Addresses} />
                 <Route path="/transactions" component={Transactions} />
                 <Route path="/profile" component={Profile} />
+                <Route path="/profile-view" component={ProfileView} />
                 <Route path="/account" component={Account} />
                 <Route path="/payments" component={Payments} />
                 <Route path="/settings" component={Settings} />

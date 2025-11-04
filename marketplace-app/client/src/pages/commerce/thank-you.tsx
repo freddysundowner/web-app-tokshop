@@ -66,7 +66,7 @@ export default function ThankYou() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Order Number</span>
                   <span className="font-mono font-semibold" data-testid="text-order-id">
-                    #{(order._id || '').slice(-8).toUpperCase()}
+                    #{order.invoice || order._id?.slice(-8).toUpperCase() || 'N/A'}
                   </span>
                 </div>
                 <Separator />

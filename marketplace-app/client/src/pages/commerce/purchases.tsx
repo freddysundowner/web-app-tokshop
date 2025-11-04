@@ -187,7 +187,7 @@ export default function Purchases() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt - Order #${order._id.slice(-8)}</title>
+          <title>Receipt - Order #${order.invoice || order._id?.slice(-8) || 'N/A'}</title>
           <style>
             body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
             .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
@@ -208,7 +208,7 @@ export default function Purchases() {
           </div>
           
           <div class="order-info">
-            <h3>Order #${order._id.slice(-8)}</h3>
+            <h3>Order #${order.invoice || order._id?.slice(-8) || 'N/A'}</h3>
             <p><strong>Date:</strong> ${order.createdAt ? format(new Date(order.createdAt), "MMM d, yyyy 'at' h:mm a") : "Date unknown"}</p>
             <p><strong>Status:</strong> ${formatStatus(order.status)}</p>
             <p><strong>Customer:</strong> ${order.customer?.firstName || ""} ${order.customer?.lastName || ""}</p>
@@ -577,7 +577,7 @@ export default function Purchases() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
                 <div>
                   <h3 className="font-semibold text-lg mb-2" data-testid={`text-details-order-id`}>
-                    Order #{selectedOrder._id.slice(-8)}
+                    Order #{selectedOrder.invoice || selectedOrder._id?.slice(-8) || 'N/A'}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-1">
                     <strong>Date:</strong> {selectedOrder.createdAt ? format(new Date(selectedOrder.createdAt), "MMM d, yyyy 'at' h:mm a") : "Date unknown"}

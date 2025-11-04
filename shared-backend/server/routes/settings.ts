@@ -46,9 +46,6 @@ export function registerSettingsRoutes(app: Express) {
       const data = await response.json();
       const settings = Array.isArray(data) ? data[0] : data;
       
-      // Log the raw response from external API for debugging
-      console.log('Raw settings from external API:', JSON.stringify(settings, null, 2));
-      
       // Extract public branding information, Stripe publishable key, and Firebase config
       const publicSettings = {
         app_name: settings?.app_name || "App",

@@ -36,14 +36,27 @@ export function registerProductRoutes(app: Express) {
   // Search products endpoint
   app.get("/api/products/search", async (req, res) => {
     try {
-      const { q } = req.query;
-      console.log("Proxying product search request to Tokshop API with query:", q);
+      const { q, page = '1', limit = '20', filter = 'all' } = req.query;
+      console.log("Proxying product search request to Tokshop API with query:", q, "page:", page, "limit:", limit, "filter:", filter);
 
       if (!q || typeof q !== 'string') {
-        return res.json({ products: [] });
+        return res.json({ 
+          query: q || '',
+          results: { products: [], rooms: [], users: [] },
+          pagination: { page: 1, limit: 20, total: 0, pages: 0 }
+        });
       }
 
-      const url = `${BASE_URL}/products/search?q=${encodeURIComponent(q)}`;
+      // Build query parameters
+      const params = new URLSearchParams({
+        q: q,
+        page: page as string,
+        limit: limit as string,
+        filter: filter as string,
+        populate: 'category' // Populate category field for rooms/shows
+      });
+      
+      const url = `${BASE_URL}/products/search?${params.toString()}`;
       console.log("Final search API URL being called:", url);
 
       // Include authentication token from session
@@ -68,9 +81,12 @@ export function registerProductRoutes(app: Express) {
 
       const data = await response.json();
       
-      // Log user data structure for debugging
+      // Log data structure for debugging
       if (data?.results?.users && data.results.users.length > 0) {
         console.log("Sample user from search results:", JSON.stringify(data.results.users[0], null, 2));
+      }
+      if (data?.results?.products && data.results.products.length > 0) {
+        console.log("Sample product from search results:", JSON.stringify(data.results.products[0], null, 2));
       }
       
       res.json(data);

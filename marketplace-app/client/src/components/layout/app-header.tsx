@@ -96,7 +96,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
     queryKey: ['/api/products/search', debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery.trim()) {
-        return { results: { products: [], rooms: [], users: [] } };
+        return { results: { products: { data: [] }, rooms: { data: [] }, users: { data: [] } } };
       }
       const response = await fetch(`/api/products/search?q=${encodeURIComponent(debouncedQuery)}`);
       if (!response.ok) {
@@ -107,9 +107,9 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
     enabled: debouncedQuery.length > 0,
   });
 
-  const products = searchResults?.results?.products || [];
-  const shows = searchResults?.results?.rooms || [];
-  const users = searchResults?.results?.users || [];
+  const products = searchResults?.results?.products?.data || [];
+  const shows = searchResults?.results?.rooms?.data || [];
+  const users = searchResults?.results?.users?.data || [];
 
   // Close autocomplete when clicking outside
   useEffect(() => {
@@ -261,7 +261,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                             key={user._id}
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              handleResultClick(`/profile/${user._id}`);
+                              handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=users`);
                             }}
                             className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
                             data-testid={`autocomplete-user-${user._id}`}
@@ -291,7 +291,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                           key={show._id}
                           onMouseDown={(e) => {
                             e.preventDefault();
-                            handleResultClick(`/show/${show._id}`);
+                            handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=shows`);
                           }}
                           className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
                           data-testid={`autocomplete-show-${show._id}`}
@@ -314,7 +314,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                           key={product._id}
                           onMouseDown={(e) => {
                             e.preventDefault();
-                            handleResultClick(`/product/${product._id}`);
+                            handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=products`);
                           }}
                           className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
                           data-testid={`autocomplete-product-${product._id}`}
@@ -510,7 +510,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                             key={user._id}
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              handleResultClick(`/profile/${user._id}`);
+                              handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=users`);
                             }}
                             className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
                           >
@@ -539,7 +539,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                           key={show._id}
                           onMouseDown={(e) => {
                             e.preventDefault();
-                            handleResultClick(`/show/${show._id}`);
+                            handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=shows`);
                           }}
                           className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
                         >
@@ -561,7 +561,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                           key={product._id}
                           onMouseDown={(e) => {
                             e.preventDefault();
-                            handleResultClick(`/product/${product._id}`);
+                            handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=products`);
                           }}
                           className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
                         >

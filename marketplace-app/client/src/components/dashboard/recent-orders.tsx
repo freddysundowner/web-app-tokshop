@@ -68,7 +68,7 @@ export function RecentOrders() {
               {recentOrders.map((order) => (
                 <tr key={order._id} data-testid={`row-order-${order._id}`}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                    {order._id.slice(-8)}
+                    {order.invoice || order._id?.slice(-8) || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                     {`${order.customer.firstName} ${order.customer.lastName || ''}`.trim()}

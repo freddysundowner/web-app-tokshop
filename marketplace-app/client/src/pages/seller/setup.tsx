@@ -332,6 +332,13 @@ export default function SellerSetup() {
   const appliedSeller = currentUser?.applied_seller;
   const isSeller = currentUser?.seller;
 
+  // Redirect sellers to homepage - they don't need setup
+  useEffect(() => {
+    if (isSeller) {
+      setLocation('/marketplace');
+    }
+  }, [isSeller, setLocation]);
+
   // If already applied but not approved, show review in progress page
   if (appliedSeller && !isSeller) {
     return (

@@ -46,6 +46,110 @@ export function OrderDetailsDrawer({
   const productName = product?.name || order.giveaway?.name || "Product";
   const category = product?.category?.name || order.giveaway?.category?.name || "N/A";
   const isGiveaway = !!order.giveaway || order.ordertype === 'giveaway';
+
+  // Print receipt handler
+  const printReceipt = () => {
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - Order #${order.invoice || order._id?.slice(-8) || 'N/A'}</title>
+          <style>
+            body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+            .order-info { margin-bottom: 20px; }
+            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .items-table th { background-color: #f2f2f2; }
+            .totals { margin-top: 20px; text-align: right; }
+            .total-line { display: flex; justify-content: space-between; margin: 5px 0; }
+            .final-total { font-weight: bold; border-top: 2px solid #000; padding-top: 5px; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Order Receipt</h1>
+            <p>${settings.app_name || 'TokShop'}</p>
+          </div>
+          
+          <div class="order-info">
+            <h3>Order #${order.invoice || order._id?.slice(-8) || 'N/A'}</h3>
+            <p><strong>Date:</strong> ${format(orderDate, "MMM d, yyyy 'at' h:mm a")}</p>
+            <p><strong>Status:</strong> ${order.label ? 'Label Created' : order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}</p>
+            <p><strong>Customer:</strong> ${buyerName}</p>
+            ${order.customer?.email ? `<p><strong>Email:</strong> ${order.customer.email}</p>` : ''}
+            ${order.tracking_number ? `<p><strong>Tracking:</strong> ${order.tracking_number}</p>` : ''}
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(order.items || []).map(item => `
+                <tr>
+                  <td>${item.productId?.name || "Unknown Product"}</td>
+                  <td>${item.quantity || 0}</td>
+                  <td>${formatCurrency(item.price || 0)}</td>
+                  <td>${formatCurrency((item.quantity || 0) * (item.price || 0))}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <div class="total-line">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(price)}</span>
+            </div>
+            ${tax > 0 ? `
+              <div class="total-line">
+                <span>Tax:</span>
+                <span>${formatCurrency(tax)}</span>
+              </div>
+            ` : ''}
+            ${shippingFee > 0 ? `
+              <div class="total-line">
+                <span>Shipping:</span>
+                <span>${formatCurrency(shippingFee)}</span>
+              </div>
+            ` : ''}
+            <div class="total-line final-total">
+              <span>Total:</span>
+              <span>${formatCurrency(orderTotal)}</span>
+            </div>
+          </div>
+
+          <div class="no-print" style="text-align: center; margin-top: 30px;">
+            <button onclick="window.print()">Print Receipt</button>
+            <button onclick="window.close()" style="margin-left: 10px;">Close</button>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(receiptHTML);
+      printWindow.document.close();
+      
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    } else {
+      toast({
+        title: "Print Blocked",
+        description: "Unable to open print window. Please allow popups and try again.",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Financial calculations - calculate from items
   const price = calculateOrderSubtotal(order);
@@ -156,7 +260,7 @@ export function OrderDetailsDrawer({
             <div>
               <SheetTitle className="text-2xl">Order</SheetTitle>
               <SheetDescription className="text-lg text-muted-foreground mt-1" data-testid="text-order-id">
-                #{order.invoice || order._id.slice(-8)}
+                #{order.invoice || order._id?.slice(-8) || 'N/A'}
               </SheetDescription>
             </div>
           </div>
@@ -204,6 +308,7 @@ export function OrderDetailsDrawer({
                         {/* Video receipt inline - only for non-giveaway */}
                         {!isGiveaway && (
                           <button 
+                            onClick={printReceipt}
                             className="text-xs text-primary font-medium whitespace-nowrap"
                             data-testid={`button-view-receipt-${idx}`}
                           >
