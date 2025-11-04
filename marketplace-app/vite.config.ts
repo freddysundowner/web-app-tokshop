@@ -7,6 +7,12 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 // Compatible with older Node.js versions
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Determine zod location: check local node_modules first, then root
+import { existsSync } from 'fs';
+const localZodPath = path.resolve(__dirname, "node_modules/zod");
+const rootZodPath = path.resolve(__dirname, "../node_modules/zod");
+const zodPath = existsSync(localZodPath) ? localZodPath : rootZodPath;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -25,8 +31,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "../shared-backend/shared"),
       "@assets": path.resolve(__dirname, "../attached_assets"),
-      // Explicitly map zod to root node_modules
-      "zod": path.resolve(__dirname, "../node_modules/zod"),
+      // Smart zod resolution: works in both Replit (root) and production (local)
+      "zod": zodPath,
     },
     // Ensure dependencies are resolved from app's node_modules
     preserveSymlinks: false,
@@ -39,6 +45,10 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      // Ensure external dependencies can be resolved
+      external: [],
+    },
   },
   server: {
     fs: {

@@ -593,9 +593,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
-    // Only set up Firebase listener after Firebase is initialized
+    // Admin app doesn't require Firebase to function (it's where Firebase gets configured!)
+    // If Firebase isn't ready, still allow admin panel access
     if (!isFirebaseReady) {
-      console.log('[AuthProvider] Waiting for Firebase to be ready...');
+      console.log('[AuthProvider] Firebase not configured yet - admin can still access panel to configure it');
+      // Still complete auth check without Firebase so admin panel loads
+      if (!hasCheckedAuth.current) {
+        checkAuth();
+      }
       return;
     }
 
