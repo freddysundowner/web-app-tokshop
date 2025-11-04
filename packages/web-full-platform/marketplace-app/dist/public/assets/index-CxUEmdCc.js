@@ -1,0 +1,1 @@
+import{r as s,a9 as o,N as u}from"./index-DOZKoalF.js";var c=o[" useId ".trim().toString()]||(()=>{}),n=0;function i(t){const[a,r]=s.useState(c());return u(()=>{r(e=>e??String(n++))},[t]),t||(a?`radix-${a}`:"")}export{i as u};
