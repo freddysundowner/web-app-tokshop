@@ -175,6 +175,8 @@ function Router() {
                           location.startsWith('/purchases') || 
                           location.startsWith('/thank-you') ||
                           location.startsWith('/inventory') || 
+                          location.startsWith('/add-product') || 
+                          location.startsWith('/edit-product') || 
                           location.startsWith('/shipping') || 
                           location.startsWith('/addresses') || 
                           location.startsWith('/transactions') || 
@@ -193,23 +195,24 @@ function Router() {
   if (isDashboardRoute) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
-        <div className="flex h-screen bg-background">
-          <div className="hidden lg:block">
-            <Sidebar 
-              isCollapsed={sidebarCollapsed} 
-              onToggle={toggleSidebar} 
-              isMobileOpen={false}
-              onMobileClose={closeMobileMenu}
-            />
-          </div>
-          <div className="flex flex-col flex-1 min-w-0">
-            <AppHeader 
-              onMobileMenuToggle={toggleMobileMenu}
-              mobileMenuOpen={mobileMenuOpen}
-              hideLogo={false}
-            />
+        <div className="flex flex-col h-screen bg-background">
+          <AppHeader 
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            hideLogo={false}
+            isDashboard={true}
+          />
+          <div className="flex flex-1 min-h-0">
+            <div className="hidden lg:block">
+              <Sidebar 
+                isCollapsed={sidebarCollapsed} 
+                onToggle={toggleSidebar} 
+                isMobileOpen={false}
+                onMobileClose={closeMobileMenu}
+              />
+            </div>
             {mobileMenuOpen && (
-              <div className="lg:hidden">
+              <div className="lg:hidden fixed inset-0 z-50 bg-background">
                 <Sidebar 
                   isCollapsed={false} 
                   onToggle={toggleSidebar} 
@@ -218,7 +221,7 @@ function Router() {
                 />
               </div>
             )}
-            <main className="flex-1 min-h-0 overflow-y-auto p-6">
+            <main className="flex-1 overflow-y-auto p-6">
               <Switch>
                 <Route path="/dashboard" component={Dashboard} />
                 <Route path="/orders" component={Orders} />

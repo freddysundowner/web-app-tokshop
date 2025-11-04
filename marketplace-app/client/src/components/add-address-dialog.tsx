@@ -387,3 +387,6 @@ export function AddAddressDialog({
     </Dialog>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default AddAddressDialog;

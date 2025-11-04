@@ -397,3 +397,6 @@ export function BuyNowDialog({
     </Dialog>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default BuyNowDialog;

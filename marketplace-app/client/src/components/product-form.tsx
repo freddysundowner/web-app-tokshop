@@ -1055,3 +1055,6 @@ export function ProductForm({
     </Form>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default ProductForm;

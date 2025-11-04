@@ -7,11 +7,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
-import { AddAddressDialog } from './add-address-dialog';
 import { MapPin, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
+import AddAddressDialog from './add-address-dialog';
 
 interface AddressListDialogProps {
   open: boolean;
@@ -272,3 +272,6 @@ export function AddressListDialog({
     </>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default AddressListDialog;

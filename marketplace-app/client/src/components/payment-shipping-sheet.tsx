@@ -9,11 +9,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Package, CreditCard, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { AddPaymentDialog } from './add-payment-dialog';
-import { AddAddressDialog } from './add-address-dialog';
-import { AddressListDialog } from './address-list-dialog';
-import { PaymentMethodListDialog } from './payment-method-list-dialog';
 import { useQuery } from '@tanstack/react-query';
+import AddPaymentDialog from './add-payment-dialog';
+import AddAddressDialog from './add-address-dialog';
+import AddressListDialog from './address-list-dialog';
+import PaymentMethodListDialog from './payment-method-list-dialog';
 
 interface PaymentShippingSheetProps {
   open: boolean;
@@ -117,7 +117,7 @@ export function PaymentShippingSheet({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleOpenChange} modal={false}>
+      <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetContent 
           side="bottom" 
           className="h-auto max-h-[80vh] overflow-y-auto left-0 right-0 lg:left-96 lg:right-72"
@@ -307,3 +307,6 @@ export function PaymentShippingSheet({
     </>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default PaymentShippingSheet;

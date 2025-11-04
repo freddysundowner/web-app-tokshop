@@ -271,3 +271,6 @@ export function AddPaymentDialog({
     </Dialog>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default AddPaymentDialog;

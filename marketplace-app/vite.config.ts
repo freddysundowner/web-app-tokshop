@@ -25,8 +25,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "../shared-backend/shared"),
       "@assets": path.resolve(__dirname, "../attached_assets"),
-      // Explicitly map zod to app's node_modules so imports from @shared can find it
-      "zod": path.resolve(__dirname, "node_modules/zod"),
+      // Explicitly map zod to root node_modules
+      "zod": path.resolve(__dirname, "../node_modules/zod"),
     },
     // Ensure dependencies are resolved from app's node_modules
     preserveSymlinks: false,
@@ -43,6 +43,12 @@ export default defineConfig({
   server: {
     fs: {
       strict: true,
+      allow: [
+        path.resolve(__dirname, "client"),
+        path.resolve(__dirname, "../shared-backend"),
+        path.resolve(__dirname, "../attached_assets"),
+        path.resolve(__dirname, "../node_modules"),
+      ],
       deny: ["**/.*"],
     },
   },

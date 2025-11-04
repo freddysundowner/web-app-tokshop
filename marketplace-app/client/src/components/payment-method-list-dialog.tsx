@@ -7,11 +7,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
-import { AddPaymentDialog } from './add-payment-dialog';
 import { CreditCard, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
+import AddPaymentDialog from './add-payment-dialog';
 
 interface PaymentMethodListDialogProps {
   open: boolean;
@@ -274,3 +274,6 @@ export function PaymentMethodListDialog({
     </>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default PaymentMethodListDialog;

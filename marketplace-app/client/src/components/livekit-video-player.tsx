@@ -47,3 +47,6 @@ export function LiveKitVideoPlayer({ room }: LiveKitVideoPlayerProps) {
     </RoomContext.Provider>
   );
 }
+
+// Add default export for lazy loading compatibility
+export default LiveKitVideoPlayer;

@@ -91,27 +91,6 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
   // Sidebar content component (reused for desktop and mobile)
   const SidebarContent = () => (
     <div className="flex flex-col flex-grow overflow-y-auto">
-      {/* Header with toggle */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border" data-testid="logo-container">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="text-primary w-5 h-5">
-              <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-            </svg>
-          </div>
-          <h1 className="text-lg font-bold text-foreground">{settings.app_name}</h1>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggle}
-          className="hidden lg:flex flex-shrink-0"
-          data-testid="button-toggle-sidebar"
-        >
-          <ChevronLeft size={16} />
-        </Button>
-      </div>
-
       {/* Profile Section */}
       <div className="px-4 py-6" data-testid="user-profile">
         <div className="flex items-center gap-3">

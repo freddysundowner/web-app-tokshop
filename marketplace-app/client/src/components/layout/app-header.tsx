@@ -23,9 +23,10 @@ interface AppHeaderProps {
   onMobileMenuClose?: () => void;
   hideLogo?: boolean;
   hideNavigation?: boolean;
+  isDashboard?: boolean;
 }
 
-export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobileMenuClose, hideLogo = false, hideNavigation = false }: AppHeaderProps) {
+export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobileMenuClose, hideLogo = false, hideNavigation = false, isDashboard = false }: AppHeaderProps) {
   const { settings } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
   const [, setLocation] = useLocation();
@@ -162,8 +163,8 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
   return (
     <>
       <header className={`sticky top-0 z-50 border-b ${isShowPage ? 'bg-black border-zinc-800' : 'bg-background border-border'}`}>
-        <div className="flex justify-center w-full">
-          <div className="flex items-center justify-between h-14 px-3 sm:px-6 w-full lg:w-[90%]">
+        <div className={`flex w-full ${isDashboard ? '' : 'justify-center'}`}>
+          <div className={`flex items-center justify-between h-14 px-3 sm:px-6 w-full ${isDashboard ? '' : 'lg:w-[90%]'}`}>
           {/* Left Section */}
           <div className="flex items-center gap-2">
             {/* Mobile Menu Button - Only show when authenticated */}
@@ -193,8 +194,8 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
               </Link>
             )}
 
-            {/* Navigation - Hidden on small screens */}
-            {!hideNavigation && (
+            {/* Navigation - Hidden on small screens and when not authenticated */}
+            {!hideNavigation && isAuthenticated && (
               <div className="hidden md:flex items-center gap-2 ml-4">
                 <Link href="/">
                   <Button 
@@ -353,7 +354,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        <Link href="/inventory/add" className="flex items-center gap-2 cursor-pointer">
+                        <Link href="/add-product" className="flex items-center gap-2 cursor-pointer">
                           <PackagePlus className="h-4 w-4" />
                           <span>Add Listing</span>
                         </Link>

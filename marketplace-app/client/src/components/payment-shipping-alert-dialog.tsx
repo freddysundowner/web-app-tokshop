@@ -9,8 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Package, CreditCard, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { AddPaymentDialog } from './add-payment-dialog';
-import { AddAddressDialog } from './add-address-dialog';
+import AddPaymentDialog from './add-payment-dialog';
+import AddAddressDialog from './add-address-dialog';
 
 interface PaymentShippingAlertDialogProps {
   open: boolean;

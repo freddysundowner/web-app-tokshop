@@ -23,21 +23,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy } from 'react';
 import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
 import { useSocket } from '@/lib/socket-context';
-import { PaymentShippingSheet } from '@/components/payment-shipping-sheet';
-import { BuyNowDialog } from '@/components/buy-now-dialog';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useToast } from '@/hooks/use-toast';
-import { ProductForm } from '@/components/product-form';
 import { cn } from '@/lib/utils';
 import { subscribeToRoomMessages, sendRoomMessage } from '@/lib/firebase-chat';
 import { useLiveKit } from '@/hooks/use-livekit';
-import { LiveKitVideoPlayer } from '@/components/livekit-video-player';
+
+// Lazy load heavy components
+const PaymentShippingSheet = lazy(() => import('@/components/payment-shipping-sheet'));
+const BuyNowDialog = lazy(() => import('@/components/buy-now-dialog'));
+const ProductForm = lazy(() => import('@/components/product-form'));
+const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
 export default function ShowViewNew() {
   usePageTitle('Live Show');
@@ -2495,6 +2497,28 @@ export default function ShowViewNew() {
                 </div>
               )}
 
+              {/* Show waiting for host state - for viewers when connected but no video yet */}
+              {livekit.isConnected && !livekit.hasVideo && !livekit.isConnecting && !isShowOwner && (
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-black/85 via-black/80 to-black/85 z-30 flex items-center justify-center backdrop-blur-sm">
+                  <div className="flex flex-col items-center gap-6 text-white max-w-md mx-4 text-center">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
+                      <div className="relative bg-gradient-to-br from-primary/30 to-primary/10 rounded-full p-6 border border-primary/30">
+                        <Radio className="h-12 w-12 text-primary animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xl font-bold">Show is starting soon</p>
+                      <p className="text-sm text-white/70">The host is preparing their camera...</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-white/60">
+                      <div className="h-2 w-2 bg-primary rounded-full animate-pulse"></div>
+                      <span>Connected and waiting</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Show error state */}
               {livekit.error && !livekit.isConnected && (
                 <div className="absolute inset-0 w-full h-full bg-black/80 z-15 flex items-center justify-center">
@@ -3088,27 +3112,31 @@ export default function ShowViewNew() {
             </div>
 
             {/* Payment & Shipping Sheet - Bottom of video section */}
-            <div className="relative z-50">
-              <PaymentShippingSheet
-                open={showPaymentShippingAlert}
-                onOpenChange={setShowPaymentShippingAlert}
-              />
-            </div>
+            {showPaymentShippingAlert && (
+              <div className="relative z-50">
+                <PaymentShippingSheet
+                  open={showPaymentShippingAlert}
+                  onOpenChange={setShowPaymentShippingAlert}
+                />
+              </div>
+            )}
 
             {/* Buy Now Dialog */}
-            <BuyNowDialog
-              open={showBuyNowDialog}
-              onOpenChange={setShowBuyNowDialog}
-              product={buyNowProduct}
-              onOpenPaymentMethods={() => {
-                setShowBuyNowDialog(false);
-                setShowPaymentShippingAlert(true);
-              }}
-              onOpenShippingAddresses={() => {
-                setShowBuyNowDialog(false);
-                setShowPaymentShippingAlert(true);
-              }}
-            />
+            {showBuyNowDialog && buyNowProduct && (
+              <BuyNowDialog
+                open={showBuyNowDialog}
+                onOpenChange={setShowBuyNowDialog}
+                product={buyNowProduct}
+                onOpenPaymentMethods={() => {
+                  setShowBuyNowDialog(false);
+                  setShowPaymentShippingAlert(true);
+                }}
+                onOpenShippingAddresses={() => {
+                  setShowBuyNowDialog(false);
+                  setShowPaymentShippingAlert(true);
+                }}
+              />
+            )}
           </div>
         </div>
 
@@ -3641,69 +3669,73 @@ export default function ShowViewNew() {
       </Dialog>
 
       {/* Add Product Dialog */}
-      <Dialog open={showAddProductDialog} onOpenChange={setShowAddProductDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl max-h-[85vh] p-0">
-          <div className="sticky top-0 bg-zinc-900 px-6 pt-6 pb-4 border-b border-zinc-800 z-10">
-            <DialogTitle className="text-white text-lg">
-              Add Listing
-            </DialogTitle>
-          </div>
-          <div className="overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(85vh - 80px)' }}>
-            <ProductForm
-              listingType={addProductType}
-              roomId={id}
-              onSuccess={() => {
-                setShowAddProductDialog(false);
-                // Refetch products based on type
-                if (addProductType === 'auction') refetchAuction();
-                if (addProductType === 'buy_now') refetchBuyNow();
-              }}
-              onCancel={() => setShowAddProductDialog(false)}
-              submitButtonText="Create Product"
-              showCancelButton={true}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {showAddProductDialog && (
+        <Dialog open={showAddProductDialog} onOpenChange={setShowAddProductDialog}>
+          <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl max-h-[85vh] p-0">
+            <div className="sticky top-0 bg-zinc-900 px-6 pt-6 pb-4 border-b border-zinc-800 z-10">
+              <DialogTitle className="text-white text-lg">
+                Add Listing
+              </DialogTitle>
+            </div>
+            <div className="overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+              <ProductForm
+                listingType={addProductType}
+                roomId={id}
+                onSuccess={() => {
+                  setShowAddProductDialog(false);
+                  // Refetch products based on type
+                  if (addProductType === 'auction') refetchAuction();
+                  if (addProductType === 'buy_now') refetchBuyNow();
+                }}
+                onCancel={() => setShowAddProductDialog(false)}
+                submitButtonText="Create Product"
+                showCancelButton={true}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Edit Product Dialog */}
-      <Dialog open={showEditProductDialog} onOpenChange={setShowEditProductDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl max-h-[85vh] p-0">
-          <div className="sticky top-0 bg-zinc-900 px-6 pt-6 pb-4 border-b border-zinc-800 z-10">
-            <DialogTitle className="text-white text-lg">
-              Edit Listing
-            </DialogTitle>
-          </div>
-          <div className="overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(85vh - 80px)' }}>
-            <ProductForm
-              listingType={
-                // Check if it's a giveaway by looking in the giveaways array
-                giveaways.some((g: any) => g._id === editingProduct?._id)
-                  ? 'giveaway'
-                  : (editingProduct?.listing_type || editingProduct?.saletype || 'buy_now')
-              }
-              roomId={id}
-              existingProduct={editingProduct}
-              onSuccess={() => {
-                setShowEditProductDialog(false);
-                setEditingProduct(null);
-                // Refetch products based on type
-                const isGiveaway = giveaways.some((g: any) => g._id === editingProduct?._id);
-                const listingType = isGiveaway ? 'giveaway' : (editingProduct?.listing_type || editingProduct?.saletype);
-                if (listingType === 'auction') refetchAuction();
-                if (listingType === 'buy_now') refetchBuyNow();
-                if (listingType === 'giveaway') refetchGiveaways();
-              }}
-              onCancel={() => {
-                setShowEditProductDialog(false);
-                setEditingProduct(null);
-              }}
-              submitButtonText="Update Product"
-              showCancelButton={true}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {showEditProductDialog && editingProduct && (
+        <Dialog open={showEditProductDialog} onOpenChange={setShowEditProductDialog}>
+          <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl max-h-[85vh] p-0">
+            <div className="sticky top-0 bg-zinc-900 px-6 pt-6 pb-4 border-b border-zinc-800 z-10">
+              <DialogTitle className="text-white text-lg">
+                Edit Listing
+              </DialogTitle>
+            </div>
+            <div className="overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+              <ProductForm
+                listingType={
+                  // Check if it's a giveaway by looking in the giveaways array
+                  giveaways.some((g: any) => g._id === editingProduct?._id)
+                    ? 'giveaway'
+                    : (editingProduct?.listing_type || editingProduct?.saletype || 'buy_now')
+                }
+                roomId={id}
+                existingProduct={editingProduct}
+                onSuccess={() => {
+                  setShowEditProductDialog(false);
+                  setEditingProduct(null);
+                  // Refetch products based on type
+                  const isGiveaway = giveaways.some((g: any) => g._id === editingProduct?._id);
+                  const listingType = isGiveaway ? 'giveaway' : (editingProduct?.listing_type || editingProduct?.saletype);
+                  if (listingType === 'auction') refetchAuction();
+                  if (listingType === 'buy_now') refetchBuyNow();
+                  if (listingType === 'giveaway') refetchGiveaways();
+                }}
+                onCancel={() => {
+                  setShowEditProductDialog(false);
+                  setEditingProduct(null);
+                }}
+                submitButtonText="Update Product"
+                showCancelButton={true}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Share Dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
