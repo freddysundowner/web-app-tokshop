@@ -127,6 +127,7 @@ export default function ShippingProfiles() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["external-shipping-profiles"] });
       setIsCreateDialogOpen(false);
       resetForm();
       toast({
@@ -158,6 +159,7 @@ export default function ShippingProfiles() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["external-shipping-profiles"] });
       setIsEditDialogOpen(false);
       setEditingProfile(null);
       resetForm();
@@ -186,6 +188,7 @@ export default function ShippingProfiles() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["external-shipping-profiles"] });
       toast({
         title: "Success",
         description: "Shipping profile deleted successfully",

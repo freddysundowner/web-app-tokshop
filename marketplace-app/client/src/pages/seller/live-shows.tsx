@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Video, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Copy, Video, Plus, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { TokshopCategoriesResponse } from "@shared/schema";
 
 interface Show {
   _id: string;
@@ -39,12 +42,60 @@ export default function LiveShows() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
+  
+  // Filter states
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   // Determine status based on active tab
   const statusFilter = activeTab === "upcoming" ? "active" : "inactive";
 
+  // Debounced search effect
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1); // Reset to first page when searching
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchInput]);
+
+  // Fetch categories
+  const { data: categoriesData } = useQuery<TokshopCategoriesResponse>({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const response = await fetch(`/api/categories`);
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      return response.json();
+    },
+  });
+
+  // Flatten categories to include subcategories
+  const flattenCategories = (categories: any[]): any[] => {
+    const result: any[] = [];
+    categories.forEach((category) => {
+      result.push(category);
+      if (category.subCategories && category.subCategories.length > 0) {
+        category.subCategories.forEach((subCat: any) => {
+          result.push({
+            ...subCat,
+            name: `${category.name} > ${subCat.name}`,
+          });
+        });
+      }
+    });
+    return result;
+  };
+
+  const categories = categoriesData?.categories 
+    ? flattenCategories(categoriesData.categories) 
+    : [];
+
   const { data: showsData, isLoading } = useQuery<ShowsResponse>({
-    queryKey: ["/api/rooms", user?.id, currentPage, statusFilter],
+    queryKey: ["/api/rooms", user?.id, currentPage, statusFilter, searchTerm, selectedCategory],
     queryFn: async () => {
       if (!user?.id) return { rooms: [], totalDoc: 0, limits: 15, pages: 0 };
       
@@ -53,8 +104,8 @@ export default function LiveShows() {
         limit: "15",
         userid: user.id,
         currentUserId: user.id,
-        category: "",
-        title: "",
+        category: selectedCategory === "all" ? "" : selectedCategory,
+        title: searchTerm,
         status: statusFilter
       });
       
@@ -207,6 +258,19 @@ export default function LiveShows() {
     setCurrentPage(1);
   };
 
+  // Reset filters
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setSearchTerm("");
+    setSelectedCategory("all");
+    setCurrentPage(1);
+  };
+
   const renderShowCard = (show: Show) => {
     const now = Date.now();
     const isPastShow = show.date <= now;
@@ -342,6 +406,49 @@ export default function LiveShows() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto px-6 py-6">
+        {/* Filters */}
+        <div className="mb-4 flex flex-col sm:flex-row gap-3">
+          {/* Search */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by title..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-9"
+              data-testid="input-search-shows"
+            />
+          </div>
+
+          {/* Category Filter */}
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+            <SelectTrigger className="w-full sm:w-48" data-testid="select-category">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category._id} value={category._id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Clear Filters Button */}
+          {(searchInput || selectedCategory !== "all") && (
+            <Button
+              variant="outline"
+              size="default"
+              onClick={handleClearFilters}
+              data-testid="button-clear-filters"
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="mb-4" data-testid="tabs-shows">
             <TabsTrigger value="upcoming" data-testid="tab-upcoming">

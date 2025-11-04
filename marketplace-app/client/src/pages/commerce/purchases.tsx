@@ -63,7 +63,7 @@ const formatStatus = (status: string | undefined): string => {
 export default function Purchases() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest");
+  const [sortBy, setSortBy] = useState<string>("status");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedOrder, setSelectedOrder] = useState<TokshopOrder | null>(null);
@@ -141,10 +141,6 @@ export default function Purchases() {
   // Sort orders
   const sortedOrders = [...filteredOrders].sort((a, b) => {
     switch (sortBy) {
-      case "newest":
-        return (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-      case "oldest":
-        return (a.createdAt ? new Date(a.createdAt).getTime() : 0) - (b.createdAt ? new Date(b.createdAt).getTime() : 0);
       case "total-high":
         return calculateOrderTotal(b) - calculateOrderTotal(a);
       case "total-low":
@@ -408,8 +404,6 @@ export default function Purchases() {
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
               <SelectItem value="total-high">Total: High to Low</SelectItem>
               <SelectItem value="total-low">Total: Low to High</SelectItem>
               <SelectItem value="status">Status</SelectItem>

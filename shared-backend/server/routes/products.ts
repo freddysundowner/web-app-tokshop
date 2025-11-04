@@ -36,25 +36,24 @@ export function registerProductRoutes(app: Express) {
   // Search products endpoint
   app.get("/api/products/search", async (req, res) => {
     try {
-      const { q, page = '1', limit = '20', filter = 'all' } = req.query;
-      console.log("Proxying product search request to Tokshop API with query:", q, "page:", page, "limit:", limit, "filter:", filter);
+      const queryParams = req.query;
+      console.log("Proxying product search request to Tokshop API with params:", queryParams);
 
-      if (!q || typeof q !== 'string') {
+      if (!queryParams.q || typeof queryParams.q !== 'string') {
         return res.json({ 
-          query: q || '',
+          query: queryParams.q || '',
           results: { products: [], rooms: [], users: [] },
           pagination: { page: 1, limit: 20, total: 0, pages: 0 }
         });
       }
 
-      // Build query parameters
-      const params = new URLSearchParams({
-        q: q,
-        page: page as string,
-        limit: limit as string,
-        filter: filter as string,
-        populate: 'category' // Populate category field for rooms/shows
-      });
+      // Build query parameters - forward all query params from frontend
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(queryParams)) {
+        if (value && typeof value === 'string') {
+          params.set(key, value);
+        }
+      }
       
       const url = `${BASE_URL}/products/search?${params.toString()}`;
       console.log("Final search API URL being called:", url);
@@ -186,6 +185,9 @@ export function registerProductRoutes(app: Express) {
       }
       if (req.query.featured !== undefined) {
         queryParams.set("featured", req.query.featured as string);
+      }
+      if (req.query.title) {
+        queryParams.set("title", req.query.title as string);
       }
 
       const queryString = queryParams.toString();

@@ -102,13 +102,18 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
       if (!response.ok) {
         throw new Error('Search failed');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('🔍 Autocomplete API response:', data);
+      console.log('🔍 Products count:', data?.results?.products?.data?.length || 0);
+      console.log('🔍 Shows/Rooms count:', data?.results?.rooms?.data?.length || 0);
+      console.log('🔍 Users count:', data?.results?.users?.data?.length || 0);
+      return data;
     },
     enabled: debouncedQuery.length > 0,
   });
 
   const products = searchResults?.results?.products?.data || [];
-  const shows = searchResults?.results?.rooms?.data || [];
+  const shows = searchResults?.results?.shows?.data || [];
   const users = searchResults?.results?.users?.data || [];
 
   // Close autocomplete when clicking outside
@@ -256,6 +261,21 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     <div>
                       {users.slice(0, 3).map((user: any) => {
                         const displayName = getUserDisplayName(user);
+                        const followerCount = user.followers_count || user.followersCount || 0;
+                        const isLive = user.is_live || user.isLive || false;
+                        const liveViewers = user.live_viewers || user.liveViewers || 0;
+                        
+                        // Format follower count
+                        const formatCount = (count: number) => {
+                          if (count >= 1000000) {
+                            return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+                          }
+                          if (count >= 1000) {
+                            return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+                          }
+                          return count.toString();
+                        };
+                        
                         return (
                           <div
                             key={user._id}
@@ -266,15 +286,25 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                             className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
                             data-testid={`autocomplete-user-${user._id}`}
                           >
-                            <Avatar className="h-8 w-8">
+                            <Avatar className="h-10 w-10">
                               <AvatarImage src={user.profilePhoto} />
                               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                 {displayName[0].toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {displayName}
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {displayName}
+                                </p>
+                                {isLive && (
+                                  <Badge variant="destructive" className="h-5 px-1.5 text-xs font-medium">
+                                    Live • {formatCount(liveViewers)}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {formatCount(followerCount)} followers
                               </p>
                             </div>
                           </div>
@@ -283,49 +313,43 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     </div>
                   )}
 
-                  {/* Shows */}
+                  {/* Shows - Single Entry */}
                   {shows.length > 0 && (
                     <div>
-                      {shows.slice(0, 3).map((show: any) => (
-                        <div
-                          key={show._id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=shows`);
-                          }}
-                          className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
-                          data-testid={`autocomplete-show-${show._id}`}
-                        >
-                          <Search className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{show.title}</p>
-                            <p className="text-xs text-muted-foreground">in Shows</p>
-                          </div>
+                      <div
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=shows`);
+                        }}
+                        className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
+                        data-testid="autocomplete-shows"
+                      >
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{searchQuery}</p>
+                          <p className="text-xs text-muted-foreground">in Shows</p>
                         </div>
-                      ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* Products */}
+                  {/* Products - Single Entry */}
                   {products.length > 0 && (
                     <div>
-                      {products.slice(0, 3).map((product: any) => (
-                        <div
-                          key={product._id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=products`);
-                          }}
-                          className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
-                          data-testid={`autocomplete-product-${product._id}`}
-                        >
-                          <Search className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">in Products</p>
-                          </div>
+                      <div
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleResultClick(`/search?q=${encodeURIComponent(searchQuery)}&filter=products`);
+                        }}
+                        className="flex items-center gap-3 px-3 py-2 hover-elevate cursor-pointer"
+                        data-testid="autocomplete-products"
+                      >
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{searchQuery}</p>
+                          <p className="text-xs text-muted-foreground">in Products</p>
                         </div>
-                      ))}
+                      </div>
                     </div>
                   )}
                 </div>

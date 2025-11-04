@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShowCard } from '@/components/show-card';
 import { cn } from '@/lib/utils';
@@ -220,6 +221,16 @@ export default function SearchResults() {
   const activeFilter = (params.get('filter') || 'all') as FilterType;
   const [sortBy, setSortBy] = useState<SortType>('relevant');
   
+  // Show filters state from URL params
+  const showLive = params.get('live') === 'true';
+  const showUpcoming = params.get('upcoming') === 'true';
+  const showFreeShipping = params.get('freeShipping') === 'true';
+  const showReducedShipping = params.get('reducedShipping') === 'true';
+  
+  // Collapsible sections state
+  const [timeOfShowExpanded, setTimeOfShowExpanded] = useState(true);
+  const [shippingExpanded, setShippingExpanded] = useState(true);
+  
   const currentUserId = (user as any)?._id || (user as any)?.id || '';
 
   // Set page title
@@ -234,15 +245,34 @@ export default function SearchResults() {
     isLoading,
     error,
   } = useInfiniteQuery<SearchResponse>({
-    queryKey: ['/api/products/search', searchQuery, activeFilter],
+    queryKey: ['/api/products/search', searchQuery, activeFilter, showLive, showUpcoming, showFreeShipping, showReducedShipping],
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async ({ pageParam = 1 }) => {
-      const params = new URLSearchParams({
+      const apiParams = new URLSearchParams({
         q: searchQuery,
         page: String(pageParam),
         limit: '20',
-        filter: activeFilter,
+        type: activeFilter, // Send type parameter for all filters
       });
-      const response = await fetch(`/api/products/search?${params.toString()}`);
+      
+      // Add show-specific filters if active
+      if (showLive) {
+        apiParams.set('started', 'true');
+        apiParams.set('ended', 'false');
+      }
+      if (showUpcoming) {
+        apiParams.set('started', 'false');
+        apiParams.set('ended', 'false');
+      }
+      if (showFreeShipping) {
+        apiParams.set('freeShipping', 'true');
+      }
+      if (showReducedShipping) {
+        apiParams.set('reducedShipping', 'true');
+      }
+      
+      const response = await fetch(`/api/products/search?${apiParams.toString()}`);
       if (!response.ok) {
         throw new Error('Search failed');
       }
@@ -256,14 +286,14 @@ export default function SearchResults() {
       if (activeFilter === 'products') {
         totalPages = lastPage.results.products.pages;
       } else if (activeFilter === 'shows') {
-        totalPages = lastPage.results.rooms.pages;
+        totalPages = lastPage.results.shows.pages;
       } else if (activeFilter === 'users') {
         totalPages = lastPage.results.users.pages;
       } else {
         // For 'all', use the max pages from any category
         totalPages = Math.max(
           lastPage.results.products.pages,
-          lastPage.results.rooms.pages,
+          lastPage.results.shows.pages,
           lastPage.results.users.pages
         );
       }
@@ -294,13 +324,13 @@ export default function SearchResults() {
 
   // Flatten all pages of data
   const allProducts = data?.pages.flatMap(page => page.results.products?.data || []) || [];
-  const allShows = data?.pages.flatMap(page => page.results.rooms?.data || []) || [];
+  const allShows = data?.pages.flatMap(page => page.results.shows?.data || []) || [];
   const allUsers = data?.pages.flatMap(page => page.results.users?.data || []) || [];
 
   // Get totals from first page
   const totals = data?.pages[0]?.results || {
     products: { total: 0 },
-    rooms: { total: 0 },
+    shows: { total: 0 },
     users: { total: 0 },
   };
 
@@ -310,6 +340,17 @@ export default function SearchResults() {
     setLocation(`/search?${params.toString()}`);
   };
 
+  // Handle show filter changes
+  const handleShowFilterChange = (filterName: string, checked: boolean) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (checked) {
+      newParams.set(filterName, 'true');
+    } else {
+      newParams.delete(filterName);
+    }
+    setLocation(`/search?${newParams.toString()}`);
+  };
+
   // Determine which results to show
   const showProducts = activeFilter === 'all' || activeFilter === 'products';
   const showShows = activeFilter === 'all' || activeFilter === 'shows';
@@ -317,10 +358,10 @@ export default function SearchResults() {
   
   // Calculate results count based on active filter
   const getResultsCount = () => {
-    if (activeFilter === 'products') return totals.products.total;
-    if (activeFilter === 'shows') return totals.rooms.total;
-    if (activeFilter === 'users') return totals.users.total;
-    return totals.products.total + totals.rooms.total + totals.users.total;
+    if (activeFilter === 'products') return totals.products?.total || 0;
+    if (activeFilter === 'shows') return totals.shows?.total || 0;
+    if (activeFilter === 'users') return totals.users?.total || 0;
+    return (totals.products?.total || 0) + (totals.shows?.total || 0) + (totals.users?.total || 0);
   };
   
   const resultsCount = getResultsCount();
@@ -331,7 +372,7 @@ export default function SearchResults() {
         <div className="w-full lg:w-[90%]">
           <div className="flex gap-6 px-4 md:px-6 lg:px-8 py-6">
             {/* Left Sidebar - Filters */}
-            <div className="hidden md:block flex-shrink-0 w-64 space-y-6">
+            <div className="hidden md:block flex-shrink-0 w-64 space-y-6 sticky top-6 self-start">
               {/* Filter by Section */}
               <div>
                 <h3 className="font-semibold text-foreground mb-3">Filter by</h3>
@@ -386,6 +427,107 @@ export default function SearchResults() {
                   </button>
                 </div>
               </div>
+
+              {/* Show Filters - Only visible when viewing shows */}
+              {(activeFilter === 'shows' || activeFilter === 'all') && (
+                <>
+                  {/* Time of Show */}
+                  <div className="border-t border-border pt-6">
+                    <button
+                      onClick={() => setTimeOfShowExpanded(!timeOfShowExpanded)}
+                      className="w-full flex items-center justify-between mb-3"
+                      data-testid="toggle-time-of-show"
+                    >
+                      <h3 className="font-semibold text-foreground">Time of Show</h3>
+                      {timeOfShowExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </button>
+                    {timeOfShowExpanded && (
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="live"
+                            checked={showLive}
+                            onCheckedChange={(checked) => handleShowFilterChange('live', checked as boolean)}
+                            data-testid="checkbox-live"
+                          />
+                          <label
+                            htmlFor="live"
+                            className="text-sm text-foreground cursor-pointer"
+                          >
+                            Live
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="upcoming"
+                            checked={showUpcoming}
+                            onCheckedChange={(checked) => handleShowFilterChange('upcoming', checked as boolean)}
+                            data-testid="checkbox-upcoming"
+                          />
+                          <label
+                            htmlFor="upcoming"
+                            className="text-sm text-foreground cursor-pointer"
+                          >
+                            Upcoming
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reduced Shipping */}
+                  <div className="border-t border-border pt-6">
+                    <button
+                      onClick={() => setShippingExpanded(!shippingExpanded)}
+                      className="w-full flex items-center justify-between mb-3"
+                      data-testid="toggle-shipping"
+                    >
+                      <h3 className="font-semibold text-foreground">Reduced Shipping</h3>
+                      {shippingExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </button>
+                    {shippingExpanded && (
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="free"
+                            checked={showFreeShipping}
+                            onCheckedChange={(checked) => handleShowFilterChange('freeShipping', checked as boolean)}
+                            data-testid="checkbox-free"
+                          />
+                          <label
+                            htmlFor="free"
+                            className="text-sm text-foreground cursor-pointer"
+                          >
+                            FREE
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="reduced"
+                            checked={showReducedShipping}
+                            onCheckedChange={(checked) => handleShowFilterChange('reducedShipping', checked as boolean)}
+                            data-testid="checkbox-reduced"
+                          />
+                          <label
+                            htmlFor="reduced"
+                            className="text-sm text-foreground cursor-pointer"
+                          >
+                            Reduced
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Main Content Area */}
@@ -491,7 +633,7 @@ export default function SearchResults() {
 
             {/* Shows */}
             {showShows && allShows.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {allShows.map((show) => (
                   <ShowCard key={show._id} show={show} currentUserId={currentUserId} />
                 ))}

@@ -51,7 +51,7 @@ import {
 } from "@shared/schema";
 
 export default function EditProduct() {
-  const [, params] = useRoute("/inventory/edit/:id");
+  const [, params] = useRoute("/edit-product/:id");
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();

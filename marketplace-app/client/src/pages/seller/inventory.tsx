@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -59,7 +59,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import type { TokshopProduct, TokshopProductsResponse } from "@shared/schema";
+import type { TokshopProduct, TokshopProductsResponse, TokshopCategoriesResponse } from "@shared/schema";
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
 import { CSVUploadModal } from "@/components/inventory/csv-upload-modal";
@@ -82,11 +82,22 @@ const statusPriority = {
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest");
+  const [listingTypeFilter, setListingTypeFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("name");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -126,6 +137,8 @@ export default function Inventory() {
       user?.id,
       statusFilter,
       categoryFilter,
+      listingTypeFilter,
+      debouncedSearchTerm,
       currentPage,
       itemsPerPage,
     ],
@@ -139,6 +152,12 @@ export default function Inventory() {
       }
       if (categoryFilter && categoryFilter !== "all") {
         params.set("categoryId", categoryFilter);
+      }
+      if (listingTypeFilter && listingTypeFilter !== "all") {
+        params.set("saletype", listingTypeFilter);
+      }
+      if (debouncedSearchTerm) {
+        params.set("title", debouncedSearchTerm);
       }
       // Add type parameter for inventory
       params.set("type", "inventory");
@@ -162,7 +181,36 @@ export default function Inventory() {
       return response.json();
     },
     enabled: !!user?.id, // Only run query when user ID is available
+    staleTime: 0,
+    gcTime: 0,
   });
+
+  // Fetch all categories
+  const { data: categoriesResponse } = useQuery<TokshopCategoriesResponse>({
+    queryKey: ["external-categories"],
+    queryFn: async () => {
+      const response = await fetch(`/api/categories`);
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      return response.json();
+    },
+  });
+
+  // Flatten categories to include subcategories
+  const flattenCategories = (categories: any[]): any[] => {
+    const result: any[] = [];
+    categories.forEach((category) => {
+      result.push(category);
+      if (category.subCategories && category.subCategories.length > 0) {
+        category.subCategories.forEach((subCat: any) => {
+          result.push({
+            ...subCat,
+            name: `${category.name} > ${subCat.name}`,
+          });
+        });
+      }
+    });
+    return result;
+  };
 
   // Fetch shipping profiles for bulk assignment
   const {
@@ -203,7 +251,7 @@ export default function Inventory() {
   });
 
   const handleEditProduct = (product: TokshopProduct) => {
-    navigate(`/inventory/edit/${product._id}`);
+    navigate(`/edit-product/${product._id}`);
   };
 
   const handleDeleteProduct = (productId: string, productName: string) => {
@@ -217,7 +265,7 @@ export default function Inventory() {
   };
 
   const handleAddProduct = () => {
-    navigate("/inventory/add");
+    navigate("/add-product");
   };
 
   const handleBulkUpload = () => {
@@ -556,6 +604,11 @@ export default function Inventory() {
     resetPaginationOnFilterChange();
   };
 
+  const handleListingTypeFilterChange = (newType: string) => {
+    setListingTypeFilter(newType);
+    resetPaginationOnFilterChange();
+  };
+
   const handleSortChange = (newSort: string) => {
     setSortBy(newSort);
     resetPaginationOnFilterChange();
@@ -566,18 +619,10 @@ export default function Inventory() {
   const totalProducts = productResponse?.totalDoc || 0;
   const totalPages = productResponse?.pages || 0;
 
-  // Get unique categories from products for the filter dropdown
-  const uniqueCategories =
-    products?.reduce((acc: any[], product) => {
-      if (
-        product.category &&
-        product.category._id &&
-        !acc.find((c) => c._id === product.category!._id)
-      ) {
-        acc.push(product.category);
-      }
-      return acc;
-    }, []) || [];
+  // Get all categories from the categories API and flatten subcategories
+  const uniqueCategories = categoriesResponse?.categories 
+    ? flattenCategories(categoriesResponse.categories) 
+    : [];
 
   // Apply client-side search and sorting (filtering is done server-side now)
   const filteredProducts =
@@ -639,39 +684,6 @@ export default function Inventory() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
-            <p className="text-muted-foreground">
-              Manage your product inventory
-            </p>
-          </div>
-          <div className="h-10 w-32 bg-muted animate-pulse rounded" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <div className="h-48 bg-muted animate-pulse" />
-              <CardHeader>
-                <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-                <div className="h-3 bg-muted animate-pulse rounded w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="h-3 bg-muted animate-pulse rounded w-full" />
-                  <div className="h-3 bg-muted animate-pulse rounded w-2/3" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   if (isError) {
     return (
@@ -793,14 +805,29 @@ export default function Inventory() {
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="price-high">Price: High to Low</SelectItem>
               <SelectItem value="price-low">Price: Low to High</SelectItem>
               <SelectItem value="quantity-high">Stock: High to Low</SelectItem>
               <SelectItem value="quantity-low">Stock: Low to High</SelectItem>
               <SelectItem value="status">Status</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={listingTypeFilter}
+            onValueChange={handleListingTypeFilterChange}
+          >
+            <SelectTrigger
+              className="w-[140px]"
+              data-testid="select-listing-type-filter"
+            >
+              <SelectValue placeholder="Listing Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="auction">Auction</SelectItem>
+              <SelectItem value="buy_now">Buy Now</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -841,7 +868,61 @@ export default function Inventory() {
       )}
 
       {/* Products Grid */}
-      {filteredProducts.length === 0 ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-4 font-medium w-12"></th>
+                    <th className="text-left p-4 font-medium">Image</th>
+                    <th className="text-left p-4 font-medium">Product</th>
+                    <th className="text-left p-4 font-medium">Category</th>
+                    <th className="text-left p-4 font-medium">Price</th>
+                    <th className="text-left p-4 font-medium">Stock</th>
+                    <th className="text-left p-4 font-medium">Status</th>
+                    <th className="text-left p-4 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="border-b">
+                      <td className="p-4">
+                        <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                      </td>
+                      <td className="p-4">
+                        <div className="w-12 h-12 bg-muted animate-pulse rounded" />
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-2">
+                          <div className="h-4 bg-muted animate-pulse rounded w-48" />
+                          <div className="h-3 bg-muted animate-pulse rounded w-32" />
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="h-5 bg-muted animate-pulse rounded w-24" />
+                      </td>
+                      <td className="p-4">
+                        <div className="h-4 bg-muted animate-pulse rounded w-16" />
+                      </td>
+                      <td className="p-4">
+                        <div className="h-4 bg-muted animate-pulse rounded w-12" />
+                      </td>
+                      <td className="p-4">
+                        <div className="h-5 bg-muted animate-pulse rounded w-20" />
+                      </td>
+                      <td className="p-4">
+                        <div className="h-8 bg-muted animate-pulse rounded w-8" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : filteredProducts.length === 0 ? (
         <Card className="p-8 text-center">
           <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">
