@@ -241,7 +241,7 @@ export function AddressListDialog({
           <div className="flex gap-3">
             <Button
               variant="default"
-              className="flex-1 bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 rounded-full"
+              className="flex-1 bg-secondary text-secondary-foreground rounded-full"
               onClick={() => onOpenChange(false)}
               data-testid="button-cancel-address-list"
             >
@@ -249,7 +249,7 @@ export function AddressListDialog({
             </Button>
             <Button
               variant="default"
-              className="flex-1 bg-yellow-400 text-black hover:bg-yellow-500 dark:bg-yellow-400 dark:text-black dark:hover:bg-yellow-500 rounded-full"
+              className="flex-1 bg-primary text-primary-foreground rounded-full"
               onClick={() => {
                 onOpenChange(false);
                 if (onSuccess) onSuccess();

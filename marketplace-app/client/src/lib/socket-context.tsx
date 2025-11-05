@@ -64,11 +64,18 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     initializeSocket();
 
     return () => {
+      // Cleanup socket connection on unmount
+    };
+  }, []);
+  
+  // Cleanup socket on unmount
+  useEffect(() => {
+    return () => {
       if (socket) {
         socket.disconnect();
       }
     };
-  }, []);
+  }, [socket]);
 
   const joinRoom = (roomId: string) => {
     if (!socket) {

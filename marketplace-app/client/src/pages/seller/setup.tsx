@@ -348,8 +348,8 @@ export default function SellerSetup() {
             <CardContent className="pt-6">
               <div className="text-center space-y-6 py-8">
                 <div className="flex justify-center">
-                  <div className="h-20 w-20 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                    <Clock className="h-10 w-10 text-yellow-600" />
+                  <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Clock className="h-10 w-10 text-primary" />
                   </div>
                 </div>
                 <div>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from "react";
 import { onAuthStateChange, signInWithGoogle, signInWithApple, firebaseSignOut, handleAuthRedirect } from "./firebase";
 import type { User as FirebaseUser } from "firebase/auth";
 import { loginSchema, signupSchema, socialAuthSchema, socialAuthCompleteSchema, type LoginData, type SignupData, type SocialAuthData, type SocialAuthCompleteData } from "@shared/schema";
@@ -64,8 +64,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const isAuthenticated = !!user;
 
-  // Call backend social auth API after successful Firebase auth
-  const authenticateWithTokshop = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false) => {
+  // Call backend social auth API after successful Firebase auth  
+  const authenticateWithTokshopRef = useRef<(firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck?: boolean) => Promise<any>>();
+  
+  authenticateWithTokshopRef.current = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false) => {
     try {
       // Get Firebase ID token for server-side verification
       const idToken = await firebaseUser.getIdToken(true);
@@ -190,6 +192,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error: any) {
       console.error('Authentication failed:', error?.message || error);
       throw error;
+    }
+  };
+  
+  const authenticateWithTokshop = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false) => {
+    if (authenticateWithTokshopRef.current) {
+      return await authenticateWithTokshopRef.current(firebaseUser, additionalUserInfo, skipNewUserCheck);
     }
   };
 
@@ -453,7 +461,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const checkAuth = async () => {
+  const checkAuthRef = useRef<() => Promise<void>>();
+  
+  checkAuthRef.current = async () => {
+    // Prevent multiple simultaneous calls
+    if (hasCheckedAuth.current) {
+      console.log('[checkAuth] Already checked, skipping');
+      return;
+    }
+    
     try {
       console.log('[checkAuth] Starting auth check...');
       
@@ -528,6 +544,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('[checkAuth] Auth check complete, setting hasCheckedAuth = true, isLoading = false');
       hasCheckedAuth.current = true;
       setIsLoading(false);
+    }
+  };
+
+  const checkAuth = async () => {
+    if (checkAuthRef.current) {
+      await checkAuthRef.current();
     }
   };
 

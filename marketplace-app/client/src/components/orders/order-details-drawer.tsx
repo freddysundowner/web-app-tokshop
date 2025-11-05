@@ -272,79 +272,105 @@ export function OrderDetailsDrawer({
             {getStatusBadge()}
           </div>
 
-          {/* Items List */}
+          {/* Items Table */}
           <div>
             <h3 className="font-semibold text-lg mb-3">Items</h3>
-            <div className="space-y-3">
-              {order.items && order.items.length > 0 ? (
-                order.items.map((item, idx) => {
-                  const itemProduct = item.productId;
-                  const itemImage = itemProduct?.images?.[0] || "";
-                  const itemName = itemProduct?.name || "Product";
-                  
-                  return (
-                    <div key={idx} className="space-y-2">
-                      <div className="flex gap-3 items-center">
-                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {itemImage ? (
-                            <img 
-                              src={itemImage} 
-                              alt={itemName}
-                              className="w-full h-full object-cover"
-                              data-testid={`img-product-${idx}`}
-                            />
-                          ) : (
-                            <Package className="w-6 h-6 text-muted-foreground" />
-                          )}
+            <div className="border border-border rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left text-xs font-medium text-muted-foreground py-2 px-3">Product</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground py-2 px-3">Qty</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground py-2 px-3">Price</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground py-2 px-3">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items && order.items.length > 0 ? (
+                    order.items.map((item, idx) => {
+                      const itemProduct = item.productId;
+                      const itemImage = itemProduct?.images?.[0] || "";
+                      const itemName = itemProduct?.name || "Product";
+                      const itemTotal = (item.quantity || 1) * (item.price || 0);
+                      
+                      return (
+                        <tr key={idx} className="border-t border-border" data-testid={`row-product-${idx}`}>
+                          <td className="py-3 px-3">
+                            <div className="flex gap-2 items-center">
+                              <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {itemImage ? (
+                                  <img 
+                                    src={itemImage} 
+                                    alt={itemName}
+                                    className="w-full h-full object-cover"
+                                    data-testid={`img-product-${idx}`}
+                                  />
+                                ) : (
+                                  <Package className="w-5 h-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <span className="font-medium text-sm text-foreground" data-testid={`text-product-name-${idx}`}>
+                                {itemName}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-center text-sm text-foreground" data-testid={`text-quantity-${idx}`}>
+                            {item.quantity || 1}
+                          </td>
+                          <td className="py-3 px-3 text-right text-sm text-foreground" data-testid={`text-price-${idx}`}>
+                            {formatCurrency(item.price || 0)}
+                          </td>
+                          <td className="py-3 px-3 text-right text-sm font-medium text-foreground" data-testid={`text-total-${idx}`}>
+                            {formatCurrency(itemTotal)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : order.giveaway ? (
+                    <tr className="border-t border-border" data-testid="row-product-giveaway">
+                      <td className="py-3 px-3">
+                        <div className="flex gap-2 items-center">
+                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {order.giveaway.images?.[0] ? (
+                              <img 
+                                src={order.giveaway.images[0]} 
+                                alt={order.giveaway.name}
+                                className="w-full h-full object-cover"
+                                data-testid="img-product-giveaway"
+                              />
+                            ) : (
+                              <Package className="w-5 h-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <span className="font-medium text-sm text-foreground" data-testid="text-product-name-giveaway">
+                            {order.giveaway.name}
+                          </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm text-foreground" data-testid={`text-product-name-${idx}`}>
-                            {itemName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Qty: {item.quantity || 1} × {formatCurrency(item.price || 0)}
-                          </p>
-                        </div>
-                        {/* Video receipt inline - only for non-giveaway */}
-                        {!isGiveaway && (
-                          <button 
-                            onClick={printReceipt}
-                            className="text-xs text-primary font-medium whitespace-nowrap"
-                            data-testid={`button-view-receipt-${idx}`}
-                          >
-                            View receipt
-                          </button>
-                        )}
-                      </div>
-                      {idx < (order.items?.length || 0) - 1 && <Separator />}
-                    </div>
-                  );
-                })
-              ) : order.giveaway ? (
-                <div className="flex gap-3 items-center">
-                  <div className="w-12 h-12 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {order.giveaway.images?.[0] ? (
-                      <img 
-                        src={order.giveaway.images[0]} 
-                        alt={order.giveaway.name}
-                        className="w-full h-full object-cover"
-                        data-testid="img-product-giveaway"
-                      />
-                    ) : (
-                      <Package className="w-6 h-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-foreground" data-testid="text-product-name-giveaway">
-                      {order.giveaway.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Giveaway Item
-                    </p>
-                  </div>
-                </div>
-              ) : null}
+                      </td>
+                      <td className="py-3 px-3 text-center text-sm text-muted-foreground">
+                        1
+                      </td>
+                      <td className="py-3 px-3 text-right text-sm text-muted-foreground">
+                        Giveaway
+                      </td>
+                      <td className="py-3 px-3 text-right text-sm text-muted-foreground">
+                        {formatCurrency(0)}
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
             </div>
+            {/* View Receipt Button - only for non-giveaway */}
+            {!isGiveaway && (
+              <button 
+                onClick={printReceipt}
+                className="mt-3 text-sm text-primary font-medium hover:underline"
+                data-testid="button-view-receipt"
+              >
+                View receipt
+              </button>
+            )}
           </div>
 
           {/* Message Buyer */}

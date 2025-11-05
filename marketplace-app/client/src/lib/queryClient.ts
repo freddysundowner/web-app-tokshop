@@ -83,6 +83,8 @@ export async function apiRequest(
   // Send regular user token if available (for all routes)
   if (userToken) {
     headers['x-access-token'] = userToken;
+    // Also send as Authorization Bearer token for auction/bidding endpoints
+    headers['Authorization'] = `Bearer ${userToken}`;
   }
   
   // Send user data for session restoration (base64 encoded to handle UTF-8 characters)

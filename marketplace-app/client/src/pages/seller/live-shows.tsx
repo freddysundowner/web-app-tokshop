@@ -392,7 +392,7 @@ export default function LiveShows() {
           </h1>
           <div className="flex items-center gap-2">
             <Button 
-              className="bg-yellow-400 hover:bg-yellow-500 text-black dark:bg-yellow-500 dark:hover:bg-yellow-600"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
               size="sm"
               onClick={() => setLocation("/schedule-show")}
               data-testid="button-schedule-show"

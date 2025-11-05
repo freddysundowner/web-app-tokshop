@@ -378,7 +378,7 @@ export function AddAddressDialog({
             onClick={handleAddAddress} 
             disabled={isLoading}
             data-testid="button-add-address" 
-            className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black"
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isLoading ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update Address" : "Add Address")}
           </Button>

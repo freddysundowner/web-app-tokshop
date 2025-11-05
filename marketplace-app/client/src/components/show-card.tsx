@@ -324,7 +324,7 @@ export function ShowCard({ show, currentUserId, variant = 'grid', categoryName, 
               <button 
                 className={cn(
                   "font-semibold px-2 py-0.5 text-xs rounded-full flex items-center gap-1 cursor-pointer hover:opacity-90 transition-opacity",
-                  isBookmarked ? "bg-yellow-400 text-black" : "bg-white text-black"
+                  isBookmarked ? "bg-primary text-primary-foreground" : "bg-white text-black"
                 )}
                 data-testid={`badge-bookmarks-${showId}`}
                 onClick={handleBookmarkToggle}

@@ -110,7 +110,7 @@ export default function ThankYou() {
               Continue Shopping
             </Button>
             <Button
-              className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               onClick={handleViewOrder}
               data-testid="button-view-order"
             >

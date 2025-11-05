@@ -1448,6 +1448,60 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
+  // Send tip to seller
+  app.post("/users/tip", async (req, res) => {
+    try {
+      console.log("Proxying tip request to Tokshop API");
+      console.log("Tip payload received:", req.body);
+
+      const { amount, from, to, note } = req.body;
+
+      // Validate required fields
+      if (!amount || !from || !to) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: amount, from, to",
+        });
+      }
+
+      // Forward to external API
+      const { response, data: responseData } = await resilientFetch(
+        `${BASE_URL}/users/tip`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount,
+            from,
+            to,
+            note: note || "tip",
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        console.error("Tokshop API tip error:", responseData);
+        return res.status(response.status).json({
+          success: false,
+          error: (responseData as any)?.message || "Failed to send tip",
+          details: responseData,
+        });
+      }
+
+      console.log("Tip sent successfully:", responseData);
+      res.json(responseData);
+    } catch (error) {
+      console.error("Tip request error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to send tip",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
   // Check if user exists by email
   app.get("/api/users/userexists/email", async (req, res) => {
     try {

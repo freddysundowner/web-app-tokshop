@@ -211,7 +211,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (!isLoading && settings.primary_color && settings.secondary_color) {
       applyThemeColors(settings.primary_color, settings.secondary_color);
     }
-  }, [isLoading]);
+  }, [isLoading, settings.primary_color, settings.secondary_color]);
 
   const appName = settings.app_name || 'TokShop';
 

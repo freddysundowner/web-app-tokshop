@@ -309,7 +309,7 @@ export default function Category() {
                   "rounded-full font-semibold px-4 lg:px-6 h-9 lg:h-10",
                   following 
                     ? "bg-muted text-foreground hover:bg-muted/80" 
-                    : "bg-yellow-400 text-black hover:bg-yellow-500"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
                 )}
                 onClick={handleFollowClick}
                 disabled={followMutation.isPending || unfollowMutation.isPending}

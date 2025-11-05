@@ -34,11 +34,13 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { subscribeToRoomMessages, sendRoomMessage } from '@/lib/firebase-chat';
 import { useLiveKit } from '@/hooks/use-livekit';
+import { ProductForm } from '@/components/product-form';
+import { ShareDialog } from '@/components/share-dialog';
+import { BuyNowDialog } from '@/components/buy-now-dialog';
+import { TipSellerDialog } from '@/components/tip-seller-dialog';
+import { PaymentShippingSheet } from '@/components/payment-shipping-sheet';
 
 // Lazy load heavy components
-const PaymentShippingSheet = lazy(() => import('@/components/payment-shipping-sheet'));
-const BuyNowDialog = lazy(() => import('@/components/buy-now-dialog'));
-const ProductForm = lazy(() => import('@/components/product-form'));
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
 export default function ShowViewNew() {
@@ -79,6 +81,9 @@ export default function ShowViewNew() {
     sudden: false,
     counterBidTime: 5
   });
+  const [showPrebidDialog, setShowPrebidDialog] = useState(false);
+  const [prebidAuction, setPrebidAuction] = useState<any>(null);
+  const [prebidAmount, setPrebidAmount] = useState('');
   
   // Real-time State
   const [viewers, setViewers] = useState<any[]>([]);
@@ -107,9 +112,13 @@ export default function ShowViewNew() {
   const [showBuyNowDialog, setShowBuyNowDialog] = useState<boolean>(false);
   const [buyNowProduct, setBuyNowProduct] = useState<any>(null);
   
+  // Tip Seller Dialog
+  const [showTipDialog, setShowTipDialog] = useState<boolean>(false);
+  
   // Order Detail Dialog
   const [showOrderDetailDialog, setShowOrderDetailDialog] = useState<boolean>(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [orderItemsPage, setOrderItemsPage] = useState<number>(1);
   
   // Track if join message has been sent
   const hasJoinedRef = useRef(false);
@@ -352,6 +361,13 @@ export default function ShowViewNew() {
     
     const serverOffset = auction.serverOffset || 0;
     
+    // Calculate and set initial time IMMEDIATELY (don't wait for interval)
+    const adjustedNow = Date.now() + serverOffset;
+    const initialRemaining = Math.floor((auction.endTime - adjustedNow) / 1000);
+    if (initialRemaining > 0) {
+      setAuctionTimeLeft(initialRemaining);
+    }
+    
     auctionTimerRef.current = setInterval(() => {
       // Get current endTime from state instead of closure
       setActiveAuction((currentAuction: any) => {
@@ -371,7 +387,8 @@ export default function ShowViewNew() {
           if (auctionTimerRef.current) {
             clearInterval(auctionTimerRef.current);
           }
-          return { ...currentAuction, ended: true };
+          // Don't set ended: true here! Wait for server's auction-ended event
+          return currentAuction;
         } else {
           setAuctionTimeLeft(remaining);
           return currentAuction;
@@ -687,27 +704,31 @@ export default function ShowViewNew() {
 
     // Auction started
     socket.on('auction-started', (auctionData: any) => {
-      console.log('🎉 AUCTION-STARTED EVENT RECEIVED BY HOST:', auctionData);
+      console.log('🎉 AUCTION-STARTED EVENT RECEIVED:', auctionData);
       
-      // Calculate endTime if not present (currentTime + duration in seconds)
-      if (!auctionData.endTime && auctionData.duration > 0) {
-        auctionData.endTime = Date.now() + (auctionData.duration * 1000);
+      // Calculate serverOffset from server timestamp to sync clocks
+      if (auctionData.serverTime) {
+        auctionData.serverOffset = auctionData.serverTime - Date.now();
+        console.log('🔄 Calculated serverOffset:', auctionData.serverOffset, 'from serverTime:', auctionData.serverTime);
       }
       
-      // Mark auction as not ended
-      auctionData.ended = false;
+      // Server already sends endTime in milliseconds
+      console.log('⏰ Auction timing:', {
+        endTime: auctionData.endTime,
+        serverTime: auctionData.serverTime,
+        serverOffset: auctionData.serverOffset,
+        currentTime: Date.now(),
+        timeLeft: auctionData.endTime ? Math.floor((auctionData.endTime - Date.now()) / 1000) : 0
+      });
       
-      // Set as active auction
+      // Set as active auction (don't modify ended field - let server control it)
       setActiveAuction(auctionData);
       setPinnedProduct(null); // Clear pinned product when auction starts
       
       // Find winner from bids
       findWinner(auctionData.bids || []);
       
-      // Reset timer display
-      setAuctionTimeLeft(0);
-      
-      // Start timer with endTime
+      // Start timer with endTime (it will set auctionTimeLeft immediately)
       startTimerWithEndTime(auctionData);
       
       // Get shipping estimate
@@ -726,9 +747,6 @@ export default function ShowViewNew() {
       console.log('🔍 BID-UPDATED RECEIVED:');
       console.log('  Full auction object:', auction);
       console.log('  Has endTime?:', auction.endTime);
-      console.log('  Has serverOffset?:', auction.serverOffset);
-      console.log('  Has serverTime?:', auction.serverTime);
-      console.log('  Has duration?:', auction.duration);
       console.log('  Bids count:', auction.bids?.length);
       console.log('  newbaseprice:', auction.newbaseprice);
       
@@ -748,7 +766,7 @@ export default function ShowViewNew() {
           bids: auction.bids || prev.bids,
           higestbid: auction.higestbid !== undefined ? auction.higestbid : prev.higestbid,
           newbaseprice: auction.newbaseprice !== undefined ? auction.newbaseprice : prev.newbaseprice,
-          // DON'T touch: endTime, serverOffset, serverTime, duration
+          // DON'T touch: endTime, serverOffset (will be updated by auction-time-extended)
         };
         
         console.log('  Updated auction endTime:', updated.endTime);
@@ -1244,6 +1262,54 @@ export default function ShowViewNew() {
     }
   });
 
+  // Prebid mutation
+  const prebidMutation = useMutation({
+    mutationFn: async ({ listing, amount }: { listing: any; amount: number }) => {
+      // Check if user has payment and shipping info before prebidding
+      if (!hasPaymentAndShipping()) {
+        setShowPaymentShippingAlert(true);
+        throw new Error('Please add payment and shipping information before prebidding');
+      }
+
+      // Use the NESTED auction ID from listing.auction._id
+      const auctionId = listing.auction?._id || listing.auction?.id;
+      if (!auctionId) {
+        throw new Error('Auction ID not found in listing');
+      }
+      
+      const payload = {
+        user: currentUserId,
+        amount: amount,
+        increaseBidBy: listing.auction?.increaseBidBy || listing.increaseBidBy || 5,
+        auction: auctionId,  // This is the nested auction ID
+        prebid: true,
+        autobid: true,
+        autobidamount: amount,
+        roomId: id
+      };
+
+      const response = await apiRequest('PUT', `/api/auction/bid/${auctionId}`, payload);
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Prebid Placed!",
+        description: "Your prebid has been registered successfully"
+      });
+      setShowPrebidDialog(false);
+      setPrebidAmount('');
+      setPrebidAuction(null);
+      refetchAuction();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Place Prebid",
+        description: error.message || "Failed to place prebid",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Join giveaway mutation
   const joinGiveawayMutation = useMutation({
     mutationFn: async () => {
@@ -1501,7 +1567,11 @@ export default function ShowViewNew() {
   };
   const scheduledTimeText = scheduledAt ? formatScheduledTime(scheduledAt) : null;
   
-  const currentBid = activeAuction?.currentBid || activeAuction?.higestbid || activeAuction?.newbaseprice || activeAuction?.bids?.[activeAuction.bids.length - 1]?.amount || activeAuction?.product?.startingPrice || activeAuction?.startingPrice || 0;
+  // Calculate actual highest bid from bids array (newbaseprice is already +1, so don't use it)
+  const highestBidFromArray = activeAuction?.bids?.reduce((max: number, bid: any) => 
+    Math.max(max, bid.amount || 0), 0
+  ) || 0;
+  const currentBid = highestBidFromArray || activeAuction?.product?.startingPrice || activeAuction?.startingPrice || 0;
   const isUserWinning = activeAuction?.bids?.some((b: any) => 
     (b.bidder?.id === currentUserId || b.bidder?._id === currentUserId) && 
     b.amount === currentBid
@@ -1637,18 +1707,20 @@ export default function ShowViewNew() {
   const handleStartAuctionWithSettings = () => {
     if (!socket || !selectedProduct) return;
     
-    // Use the existing auction ID from the product
-    const auctionId = selectedProduct.auction?._id || selectedProduct.auction;
+    // Extract auction ID from product
+    const auctionId = typeof selectedProduct.auction === 'string' 
+      ? selectedProduct.auction 
+      : selectedProduct.auction?._id;
     
     console.log('🎯 Product auction info:', {
       productId: selectedProduct._id,
       auctionField: selectedProduct.auction,
-      auctionId
+      extractedAuctionId: auctionId
     });
     
-    // Build auction object matching Flutter app structure
+    // Build auction object manually - don't spread all auction fields
     const auctionData = {
-      _id: auctionId, // Use the auction ID from the product
+      _id: auctionId,
       winner: null,
       higestbid: 0,
       winning: false,
@@ -1687,10 +1759,6 @@ export default function ShowViewNew() {
     
     setShowAuctionSettingsDialog(false);
     setSelectedProduct(null);
-    toast({
-      title: "Auction Started!",
-      description: selectedProduct.name
-    });
   };
 
   // Handler to start giveaway
@@ -1737,7 +1805,7 @@ export default function ShowViewNew() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading && !show) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
@@ -1863,13 +1931,41 @@ export default function ShowViewNew() {
                   .filter((product: any) => product._id !== pinnedProduct?._id)
                   .map((product: any, index: number) => {
                   const isActiveAuction = activeAuction?.product?._id === product._id;
+                  // Check if user already has a bid on this auction and get their bid
+                  const userBid = product.auction?.bids?.find((bid: any) => 
+                    bid.user?._id === currentUserId || 
+                    bid.user?.id === currentUserId ||
+                    bid.bidder?._id === currentUserId || 
+                    bid.bidder?.id === currentUserId
+                  );
+                  const userHasBid = !!userBid;
+                  const userBidAmount = userBid?.autobidamount || userBid?.amount;
+                  
                   return (
                     <div key={product._id || product.id || index} className="px-4 py-4 border-b border-zinc-700 relative" data-testid={`product-auction-${product._id || index}`}>
                       <div className="flex justify-between gap-4">
                         <div className="flex-1">
                           <h3 className="text-lg font-bold text-white mb-2 leading-tight">{product.name}</h3>
                           <p className="text-sm text-zinc-400 mb-1">{product.auction?.bids?.length || 0} bids</p>
-                          <p className="text-sm text-zinc-400">1 Available</p>
+                          <p className="text-sm text-zinc-400 mb-2">1 Available</p>
+                          {!isShowOwner && !isActiveAuction && userHasBid && (
+                            <p className="text-sm text-primary font-semibold mt-2" data-testid={`text-my-bid-${product._id || index}`}>
+                              Your Bid: ${userBidAmount?.toFixed(2) || '0.00'}
+                            </p>
+                          )}
+                          {!isShowOwner && !isActiveAuction && !userHasBid && (
+                            <Button
+                              size="sm"
+                              className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                              onClick={() => {
+                                setPrebidAuction(product);
+                                setShowPrebidDialog(true);
+                              }}
+                              data-testid={`button-prebid-${product._id || index}`}
+                            >
+                              Prebid
+                            </Button>
+                          )}
                         </div>
                         <div className="w-20 h-20 flex-shrink-0 relative">
                           <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
@@ -2209,21 +2305,31 @@ export default function ShowViewNew() {
                       <span className="text-sm font-semibold">{averageReviews.toFixed(1)}</span>
                     </div>
                     {!isShowOwner && (
-                      <Badge 
-                        className={`${
-                          isFollowingHost 
-                            ? 'bg-zinc-700 hover:bg-zinc-600 text-white' 
-                            : 'bg-yellow-400 hover:bg-yellow-500 text-black'
-                        } font-bold px-3 py-0.5 text-xs h-6 w-fit rounded-full cursor-pointer transition-colors`}
-                        onClick={handleFollowToggle}
-                        data-testid="badge-follow-status"
-                      >
-                        {followMutation.isPending || unfollowMutation.isPending ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          isFollowingHost ? 'Following' : 'Follow'
-                        )}
-                      </Badge>
+                      <>
+                        <Badge 
+                          className={`${
+                            isFollowingHost 
+                              ? 'bg-zinc-700 hover:bg-zinc-600 text-white' 
+                              : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                          } font-bold px-3 py-0.5 text-xs h-6 w-fit rounded-full cursor-pointer transition-colors`}
+                          onClick={handleFollowToggle}
+                          data-testid="badge-follow-status"
+                        >
+                          {followMutation.isPending || unfollowMutation.isPending ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            isFollowingHost ? 'Following' : 'Follow'
+                          )}
+                        </Badge>
+                        <Badge 
+                          className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold px-3 py-0.5 text-xs h-6 w-fit rounded-full cursor-pointer transition-colors"
+                          onClick={() => setShowTipDialog(true)}
+                          data-testid="badge-tip-seller"
+                        >
+                          <DollarSign className="h-3 w-3 mr-0.5" />
+                          Tip
+                        </Badge>
+                      </>
                     )}
                   </div>
                 </div>
@@ -2561,14 +2667,17 @@ export default function ShowViewNew() {
               <div 
                 className={cn(
                   "hidden lg:block absolute left-0 right-24 px-4 pointer-events-none z-30",
-                  activeAuction && !activeAuction.ended && auctionTimeLeft > 0 && !isShowOwner ? "bottom-20" : "bottom-4"
+                  "bottom-4"
                 )}
               >
                 <div className="pointer-events-auto max-w-md">
                   {/* Active Auction Info */}
                   {activeAuction && (
                     <div className="space-y-1.5">
-                      {activeAuction.bids && activeAuction.bids.length > 0 && !activeAuction.ended && (
+                      {activeAuction.bids && activeAuction.bids.length > 0 && (() => {
+                        const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
+                        return !(activeAuction.startedTime && Date.now() > calculatedEndTime);
+                      })() && (
                         <p className="text-xs font-bold uppercase tracking-wide drop-shadow-lg">
                           <span className="text-white">{winningUser?.userName || winningUser?.firstName || 'Someone'}</span>{' '}
                           <span className="text-teal-400">winning!</span>
@@ -2596,21 +2705,65 @@ export default function ShowViewNew() {
                       )}
                       
                       {/* Rerun Auction Button - Show when auction ended with no bids and user is owner */}
-                      {activeAuction.ended && isShowOwner && (!activeAuction.bids || activeAuction.bids.length === 0) && (
+                      {(() => {
+                        const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
+                        const isEnded = activeAuction.startedTime && (Date.now() > calculatedEndTime);
+                        return isEnded && isShowOwner && (!activeAuction.bids || activeAuction.bids.length === 0);
+                      })() && (
                         <Button
                           onClick={handleRerunAuction}
-                          className="mt-6 w-full h-11 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-base transition-colors"
+                          className="mt-6 w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base transition-colors"
                           data-testid="button-rerun-auction"
                         >
                           <Play className="h-5 w-5 mr-2" />
                           Rerun Auction
                         </Button>
                       )}
+                      
+                      {/* Bid Buttons - Desktop */}
+                      {(() => {
+                        const hasAuction = !!activeAuction;
+                        const notEnded = activeAuction && auctionTimeLeft > 0;
+                        const hasTimeLeft = auctionTimeLeft > 0;
+                        const notOwner = !isShowOwner;
+                        const shouldShow = hasAuction && notEnded && hasTimeLeft && notOwner;
+                        
+                        if (!shouldShow) return null;
+                        
+                        return (
+                          <div className="flex gap-2 mt-4">
+                            <button
+                              className="h-11 w-[100px] rounded-full border-2 border-white/90 text-white font-semibold text-lg bg-transparent hover:bg-white/10 transition-colors flex-shrink-0"
+                              data-testid="button-custom-bid-desktop"
+                            >
+                              Custom
+                            </button>
+                            <button
+                              onClick={() => {
+                                const amount = currentBid + 1;
+                                placeBidMutation.mutate(amount);
+                              }}
+                              disabled={placeBidMutation.isPending}
+                              className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg transition-colors disabled:opacity-50"
+                              data-testid="button-place-bid-desktop"
+                            >
+                              {placeBidMutation.isPending ? (
+                                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                              ) : (
+                                `Bid: $${(currentBid + 1).toFixed(0)}`
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                   
                   {/* Pinned Product Info */}
-                  {(!activeAuction || activeAuction.ended) && pinnedProduct && (
+                  {(!activeAuction || (() => {
+                    const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
+                    return activeAuction.startedTime && Date.now() > calculatedEndTime;
+                  })()) && pinnedProduct && (
                     <div className="space-y-1.5">
                       <h2 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
                         {pinnedProduct.name || 'Product'}
@@ -2635,9 +2788,10 @@ export default function ShowViewNew() {
                       {!isShowOwner && (
                         <Button
                           onClick={() => {
-                            window.location.href = `/checkout/${pinnedProduct._id}`;
+                            setBuyNowProduct(pinnedProduct);
+                            setShowBuyNowDialog(true);
                           }}
-                          className="mt-6 w-full h-11 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-base transition-colors"
+                          className="mt-6 w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base transition-colors"
                           data-testid="button-buy-now-overlay"
                         >
                           <ShoppingBag className="h-5 w-5 mr-2" />
@@ -2792,7 +2946,10 @@ export default function ShowViewNew() {
                     {activeAuction && (
                       <div className="space-y-1.5">
                         {/* Current Winning Bidder */}
-                        {activeAuction.bids && activeAuction.bids.length > 0 && !activeAuction.ended && (
+                        {activeAuction.bids && activeAuction.bids.length > 0 && (() => {
+                          const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
+                          return !(activeAuction.startedTime && Date.now() > calculatedEndTime);
+                        })() && (
                           <p className="text-xs font-bold uppercase tracking-wide drop-shadow-lg">
                             <span className="text-white">{winningUser?.userName || winningUser?.firstName || 'Someone'}</span>{' '}
                             <span className="text-teal-400">winning!</span>
@@ -2823,10 +2980,16 @@ export default function ShowViewNew() {
                         )}
                         
                         {/* Rerun Auction Button - Show when auction ended with no bids and user is owner */}
-                        {activeAuction.ended && isShowOwner && (!activeAuction.bids || activeAuction.bids.length === 0) && (
+                        {(() => {
+                          // Use endTime if available (accounts for time extensions), otherwise calculate from duration
+                          const calculatedEndTime = activeAuction.endTime || 
+                            (activeAuction.startedTime + (activeAuction.duration * 1000));
+                          const isEnded = activeAuction.startedTime && (Date.now() > calculatedEndTime);
+                          return isEnded && isShowOwner && (!activeAuction.bids || activeAuction.bids.length === 0);
+                        })() && (
                           <Button
                             onClick={handleRerunAuction}
-                            className="mt-6 w-full h-11 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-base transition-colors"
+                            className="mt-6 w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base transition-colors"
                             data-testid="button-rerun-auction"
                           >
                             <Play className="h-5 w-5 mr-2" />
@@ -2837,7 +3000,10 @@ export default function ShowViewNew() {
                     )}
                     
                     {/* Pinned Product Info */}
-                    {(!activeAuction || activeAuction.ended) && pinnedProduct && (
+                    {(!activeAuction || (() => {
+                      const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
+                      return activeAuction.startedTime && Date.now() > calculatedEndTime;
+                    })()) && pinnedProduct && (
                       <div className="space-y-1.5">
                         {/* Product Name */}
                         <h2 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
@@ -2866,31 +3032,57 @@ export default function ShowViewNew() {
                   </div>
                   
                   {/* Auction Buttons */}
-                  {activeAuction && !activeAuction.ended && auctionTimeLeft > 0 && !isShowOwner && (
-                    <div className="flex gap-2 border-t border-white/10 pt-3">
-                      <button
-                        className="h-11 px-7 rounded-full border-2 border-white/90 text-white font-semibold text-lg bg-transparent hover:bg-white/10 transition-colors"
-                        data-testid="button-custom-bid"
-                      >
-                        Custom
-                      </button>
-                      <button
-                        onClick={() => {
-                          const amount = currentBid + 1;
-                          placeBidMutation.mutate(amount);
-                        }}
-                        disabled={placeBidMutation.isPending}
-                        className="flex-1 h-11 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-lg transition-colors disabled:opacity-50"
-                        data-testid="button-place-bid"
-                      >
-                        {placeBidMutation.isPending ? (
-                          <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                        ) : (
-                          `Bid: $${(currentBid + 1).toFixed(0)}`
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  {(() => {
+                    const hasAuction = !!activeAuction;
+                    const notEnded = activeAuction && auctionTimeLeft > 0;
+                    const hasTimeLeft = auctionTimeLeft > 0;
+                    const notOwner = !isShowOwner;
+                    const shouldShow = hasAuction && notEnded && hasTimeLeft && notOwner;
+                    
+                    console.log('🎯 BID BUTTONS VISIBILITY CHECK:', {
+                      hasAuction,
+                      notEnded,
+                      hasTimeLeft,
+                      auctionTimeLeft,
+                      notOwner,
+                      isShowOwner,
+                      shouldShow,
+                      activeAuction: activeAuction ? {
+                        _id: activeAuction._id,
+                        startedTime: activeAuction.startedTime,
+                        duration: activeAuction.duration,
+                        endTime: activeAuction.endTime
+                      } : null
+                    });
+                    
+                    if (!shouldShow) return null;
+                    
+                    return (
+                      <div className="flex gap-2 border-t border-white/10 pt-3">
+                        <button
+                          className="h-11 w-[100px] rounded-full border-2 border-white/90 text-white font-semibold text-lg bg-transparent hover:bg-white/10 transition-colors flex-shrink-0"
+                          data-testid="button-custom-bid"
+                        >
+                          Custom
+                        </button>
+                        <button
+                          onClick={() => {
+                            const amount = currentBid + 1;
+                            placeBidMutation.mutate(amount);
+                          }}
+                          disabled={placeBidMutation.isPending}
+                          className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg transition-colors disabled:opacity-50"
+                          data-testid="button-place-bid"
+                        >
+                          {placeBidMutation.isPending ? (
+                            <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                          ) : (
+                            `Bid: $${(currentBid + 1).toFixed(0)}`
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -2908,7 +3100,7 @@ export default function ShowViewNew() {
                     <div className="flex flex-col gap-3 w-full max-w-xs">
                       <Button
                         size="lg"
-                        className="w-full h-12 text-base font-bold bg-yellow-400 hover:bg-yellow-500 text-black rounded-full shadow-lg"
+                        className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-lg"
                         onClick={async () => {
                           try {
                             const currentInvitedIds = show?.invitedhostIds || show?.invited_host_ids || [];
@@ -3005,7 +3197,10 @@ export default function ShowViewNew() {
               <div className={cn(
                 "absolute right-4 flex flex-col gap-6 z-40",
                 isShowOwner && !isLive ? "bottom-24" : 
-                (activeAuction && !activeAuction.ended && auctionTimeLeft > 0 && !isShowOwner) ? "bottom-24" : "bottom-4"
+                (activeAuction && (() => {
+                  const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
+                  return !(activeAuction.startedTime && Date.now() > calculatedEndTime);
+                })() && auctionTimeLeft > 0 && !isShowOwner) ? "bottom-24" : "bottom-4"
               )}>
                 <button 
                   className="flex flex-col items-center gap-1 text-white drop-shadow-lg"
@@ -3082,14 +3277,26 @@ export default function ShowViewNew() {
                         ${activeAuction ? currentBid.toFixed(0) : pinnedProduct ? (pinnedProduct.price || 0).toFixed(0) : '0'}
                       </span>
                     </div>
-                    {activeAuction && activeAuction.ended && activeAuction.bids && activeAuction.bids.length > 0 && (
+                    {activeAuction && (() => {
+                      // Use endTime if available (accounts for time extensions), otherwise calculate from duration
+                      const calculatedEndTime = activeAuction.endTime || 
+                        (activeAuction.startedTime + (activeAuction.duration * 1000));
+                      const isEnded = activeAuction.startedTime && Date.now() > calculatedEndTime;
+                      return isEnded && activeAuction.bids && activeAuction.bids.length > 0;
+                    })() && (
                       <div className="flex items-center gap-1">
                         <span className="text-sm font-bold text-red-500">
                           SOLD
                         </span>
                       </div>
                     )}
-                    {activeAuction && !activeAuction.ended && auctionTimeLeft > 0 && (
+                    {activeAuction && (() => {
+                      // Use endTime if available (accounts for time extensions), otherwise calculate from duration
+                      const calculatedEndTime = activeAuction.endTime || 
+                        (activeAuction.startedTime + (activeAuction.duration * 1000));
+                      const isNotEnded = !(activeAuction.startedTime && Date.now() > calculatedEndTime);
+                      return isNotEnded && auctionTimeLeft > 0;
+                    })() && (
                       <div className={cn(
                         "flex items-center gap-1 transition-all duration-200",
                         timeAddedBlink && "scale-125 text-yellow-400"
@@ -3133,6 +3340,19 @@ export default function ShowViewNew() {
                 }}
                 onOpenShippingAddresses={() => {
                   setShowBuyNowDialog(false);
+                  setShowPaymentShippingAlert(true);
+                }}
+              />
+            )}
+
+            {/* Tip Seller Dialog */}
+            {showTipDialog && host && (
+              <TipSellerDialog
+                open={showTipDialog}
+                onOpenChange={setShowTipDialog}
+                seller={host}
+                onOpenPaymentMethods={() => {
+                  setShowTipDialog(false);
                   setShowPaymentShippingAlert(true);
                 }}
               />
@@ -3270,7 +3490,7 @@ export default function ShowViewNew() {
                 {new Date(show.date).toLocaleDateString('en-US', { weekday: 'short' })} {new Date(show.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
               </p>
               <button 
-                className="w-full h-11 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-base transition-colors flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base transition-colors flex items-center justify-center gap-2"
                 data-testid="button-share-show"
                 onClick={() => setShowShareDialog(true)}
               >
@@ -3738,279 +3958,333 @@ export default function ShowViewNew() {
       )}
 
       {/* Share Dialog */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="bg-white text-black max-w-lg">
+      <ShareDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        url={`${window.location.origin}/show/${id}`}
+        title={showTitle}
+        description="Show"
+      />
+
+      {/* Prebid Dialog */}
+      <Dialog open={showPrebidDialog} onOpenChange={setShowPrebidDialog}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md">
           <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-black text-lg font-semibold">Share {showTitle}</DialogTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setShowShareDialog(false)}
-                data-testid="button-close-share-dialog"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <DialogDescription className="text-zinc-600">
-              Share this show with friends and family
+            <DialogTitle className="text-white text-lg">Place Prebid</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Enter your maximum bid for {prebidAuction?.name}
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 mt-2">
-            {/* Search Users */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="prebid-amount" className="text-sm font-medium text-white">
+                Prebid Amount ($)
+              </label>
               <Input
-                placeholder="Search users..."
-                className="pl-10 bg-gray-100 border-gray-300 text-black h-12"
-                data-testid="input-search-users"
+                id="prebid-amount"
+                type="number"
+                placeholder="Enter amount"
+                value={prebidAmount}
+                onChange={(e) => setPrebidAmount(e.target.value)}
+                className="bg-zinc-800 border-zinc-700 text-white"
+                data-testid="input-prebid-amount"
               />
+              <p className="text-xs text-zinc-400">
+                Your prebid will automatically place bids up to this amount
+              </p>
             </div>
-            
-            <p className="text-sm text-gray-500">No users found</p>
-            
-            {/* Share Options */}
-            <div className="border-t pt-4">
-              <div className="flex justify-around items-center gap-4">
-                {/* Copy Link */}
-                <button
-                  className="flex flex-col items-center gap-2"
-                  onClick={() => {
-                    const shareUrl = `${window.location.origin}/show/${id}`;
-                    navigator.clipboard.writeText(shareUrl).then(() => {
-                      toast({
-                        title: "Link copied",
-                        description: "Share link copied to clipboard!"
-                      });
-                      setShowShareDialog(false);
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowPrebidDialog(false);
+                  setPrebidAmount('');
+                  setPrebidAuction(null);
+                }}
+                data-testid="button-cancel-prebid"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const amount = parseFloat(prebidAmount);
+                  if (!amount || amount <= 0) {
+                    toast({
+                      title: "Invalid Amount",
+                      description: "Please enter a valid bid amount",
+                      variant: "destructive"
                     });
-                  }}
-                  data-testid="button-copy-link"
-                >
-                  <div className="w-14 h-14 rounded-full bg-black flex items-center justify-center">
-                    <LinkIcon className="h-6 w-6 text-white" />
-                  </div>
-                  <span className="text-xs text-black">Copy link</span>
-                </button>
-                
-                {/* Reddit */}
-                <button
-                  className="flex flex-col items-center gap-2"
-                  onClick={() => {
-                    const shareUrl = `${window.location.origin}/show/${id}`;
-                    window.open(`https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(showTitle)}`, '_blank');
-                    setShowShareDialog(false);
-                  }}
-                  data-testid="button-share-reddit"
-                >
-                  <div className="w-14 h-14 rounded-full bg-[#FF4500] flex items-center justify-center">
-                    <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/>
-                    </svg>
-                  </div>
-                  <span className="text-xs text-black">Reddit</span>
-                </button>
-                
-                {/* WhatsApp */}
-                <button
-                  className="flex flex-col items-center gap-2"
-                  onClick={() => {
-                    const shareUrl = `${window.location.origin}/show/${id}`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(showTitle + ' ' + shareUrl)}`, '_blank');
-                    setShowShareDialog(false);
-                  }}
-                  data-testid="button-share-whatsapp"
-                >
-                  <div className="w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center">
-                    <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                    </svg>
-                  </div>
-                  <span className="text-xs text-black">WhatsApp</span>
-                </button>
-                
-                {/* X (Twitter) */}
-                <button
-                  className="flex flex-col items-center gap-2"
-                  onClick={() => {
-                    const shareUrl = `${window.location.origin}/show/${id}`;
-                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(showTitle)}&url=${encodeURIComponent(shareUrl)}`, '_blank');
-                    setShowShareDialog(false);
-                  }}
-                  data-testid="button-share-x"
-                >
-                  <div className="w-14 h-14 rounded-full bg-black flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
-                  </div>
-                  <span className="text-xs text-black">X</span>
-                </button>
-                
-                {/* Facebook */}
-                <button
-                  className="flex flex-col items-center gap-2"
-                  onClick={() => {
-                    const shareUrl = `${window.location.origin}/show/${id}`;
-                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
-                    setShowShareDialog(false);
-                  }}
-                  data-testid="button-share-facebook"
-                >
-                  <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center">
-                    <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                  </div>
-                  <span className="text-xs text-black">Facebook</span>
-                </button>
-                
-                {/* More */}
-                <button
-                  className="flex flex-col items-center gap-2"
-                  data-testid="button-share-more"
-                >
-                  <div className="w-14 h-14 rounded-full bg-gray-300 flex items-center justify-center">
-                    <MoreHorizontal className="h-6 w-6 text-gray-700" />
-                  </div>
-                  <span className="text-xs text-black">More</span>
-                </button>
-              </div>
+                    return;
+                  }
+                  prebidMutation.mutate({ listing: prebidAuction, amount });
+                }}
+                disabled={prebidMutation.isPending || !prebidAmount}
+                data-testid="button-submit-prebid"
+              >
+                {prebidMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Placing...
+                  </>
+                ) : (
+                  'Place Prebid'
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Order Detail Dialog */}
-      <Dialog open={showOrderDetailDialog} onOpenChange={setShowOrderDetailDialog}>
+      <Dialog open={showOrderDetailDialog} onOpenChange={(open) => {
+        setShowOrderDetailDialog(open);
+        if (!open) {
+          setOrderItemsPage(1);
+        }
+      }}>
         <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-md" data-testid="dialog-order-detail">
           <DialogHeader>
             <DialogTitle className="text-white text-lg">Order Details</DialogTitle>
           </DialogHeader>
+          <div className="space-y-4">
           {selectedOrder && (() => {
             const isGiveaway = !!selectedOrder.giveaway;
             
-            // For giveaway orders, use selectedOrder.giveaway
-            // For regular orders, use selectedOrder.items array
-            let product, productName, productImage, orderPrice, quantity;
+            // Calculate subtotal from all items
+            const calculateSubtotal = () => {
+              if (isGiveaway) return 0;
+              if (selectedOrder.items && selectedOrder.items.length > 0) {
+                return selectedOrder.items.reduce((sum: number, item: any) => {
+                  const itemPrice = item.price || 0;
+                  const itemQty = item.quantity || 1;
+                  return sum + (itemPrice * itemQty);
+                }, 0);
+              }
+              return 0;
+            };
+            
+            // For display purposes in table
+            let product, productName, productImage, quantity;
             
             if (isGiveaway) {
               product = selectedOrder.giveaway;
               productName = product?.name || product?.title || 'Giveaway Item';
               productImage = product?.images?.[0] || product?.image;
-              orderPrice = 0; // Giveaways are free
               quantity = selectedOrder.quantity || product?.quantity || 1;
             } else {
-              // Regular order with items array
               const firstItem = selectedOrder.items?.[0];
               product = firstItem?.productId || firstItem;
               productName = product?.name || product?.title || 'Item';
               productImage = product?.images?.[0] || product?.image;
-              orderPrice = selectedOrder.total || selectedOrder.price || (firstItem?.price * (firstItem?.quantity || 1)) || 0;
               quantity = selectedOrder.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || 1;
             }
             
             const customerName = `${selectedOrder.customer?.firstName || ''} ${selectedOrder.customer?.lastName || ''}`.trim() || selectedOrder.customer?.userName || selectedOrder.customer?.email || 'Customer';
             const customerEmail = selectedOrder.customer?.email || '';
+            const orderPrice = calculateSubtotal();
             const shippingFee = selectedOrder.shipping_fee || selectedOrder.shippingFee || 0;
             const tax = selectedOrder.tax || 0;
             const total = orderPrice + shippingFee + tax;
             
+            // Pagination logic for items
+            const itemsPerPage = 5;
+            const allItems = selectedOrder.items && selectedOrder.items.length > 0 ? selectedOrder.items : [];
+            const totalPages = Math.ceil(allItems.length / itemsPerPage);
+            const startIndex = (orderItemsPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedItems = allItems.slice(startIndex, endIndex);
+            
             return (
-              <div className="space-y-4 py-2">
-                {/* Product Info */}
-                <div className="flex gap-3">
-                  <div className="w-20 h-20 flex-shrink-0 bg-zinc-800 rounded-lg overflow-hidden">
-                    {productImage ? (
-                      <img src={productImage} alt={productName} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="h-8 w-8 text-zinc-600" />
+              <div className="space-y-4">
+                {/* Order Date and Status - Top */}
+                <div className="flex items-center justify-between gap-4 pb-3 border-b border-zinc-800">
+                  {selectedOrder.date && (
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-0.5">Order Date</p>
+                      <p className="text-sm text-white">
+                        {format(new Date(selectedOrder.date), "MMM dd, yyyy 'at' h:mm a")}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-zinc-500 mb-0.5">Status</p>
+                    <Badge className="bg-green-600 text-white">
+                      {(selectedOrder.status || 'ended').toUpperCase()}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {/* Items Table */}
+                <div>
+                  <p className="text-xs text-zinc-500 mb-2">Items</p>
+                  <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-zinc-800/50">
+                        <tr>
+                          <th className="text-left text-xs font-medium text-zinc-400 py-2 px-3">Product</th>
+                          <th className="text-center text-xs font-medium text-zinc-400 py-2 px-3">Qty</th>
+                          <th className="text-right text-xs font-medium text-zinc-400 py-2 px-3">Price</th>
+                          <th className="text-right text-xs font-medium text-zinc-400 py-2 px-3">Total</th>
+                        </tr>
+                      </thead>
+                    </table>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <table className="w-full">
+                        <tbody>
+                          {paginatedItems.length > 0 ? (
+                            paginatedItems.map((item: any, idx: number) => {
+                            const itemProduct = item.productId || item;
+                            const itemImage = itemProduct?.images?.[0] || itemProduct?.image;
+                            const itemName = itemProduct?.name || itemProduct?.title || 'Item';
+                            const itemPrice = item.price || 0;
+                            const itemQty = item.quantity || 1;
+                            const itemTotal = itemPrice * itemQty;
+                            
+                              return (
+                                <tr key={idx} className="border-t border-zinc-800">
+                                  <td className="py-3 px-3">
+                                    <div className="flex gap-2 items-center">
+                                      <div className="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        {itemImage ? (
+                                          <img src={itemImage} alt={itemName} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <Package className="w-5 h-5 text-zinc-600" />
+                                        )}
+                                      </div>
+                                      <span className="font-medium text-sm text-white">{itemName}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3 text-center text-sm text-white">{itemQty}</td>
+                                  <td className="py-3 px-3 text-right text-sm text-white">${itemPrice.toFixed(2)}</td>
+                                  <td className="py-3 px-3 text-right text-sm font-medium text-white">${itemTotal.toFixed(2)}</td>
+                                </tr>
+                              );
+                            })
+                          ) : isGiveaway ? (
+                            <tr className="border-t border-zinc-800">
+                              <td className="py-3 px-3">
+                                <div className="flex gap-2 items-center">
+                                  <div className="w-10 h-10 bg-zinc-800 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                    {productImage ? (
+                                      <img src={productImage} alt={productName} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <Package className="w-5 h-5 text-zinc-600" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm text-white">{productName}</span>
+                                    <Badge className="bg-purple-600 text-white text-xs px-2 py-0.5">
+                                      Giveaway
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-center text-sm text-zinc-400">{quantity}</td>
+                              <td className="py-3 px-3 text-right text-sm text-zinc-400">Free</td>
+                              <td className="py-3 px-3 text-right text-sm text-zinc-400">$0.00</td>
+                            </tr>
+                          ) : null}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Pagination Controls */}
+                    {allItems.length > itemsPerPage && (
+                      <div className="flex items-center justify-between px-3 py-2 bg-zinc-800/30 border-t border-zinc-800">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setOrderItemsPage(prev => Math.max(1, prev - 1))}
+                          disabled={orderItemsPage === 1}
+                          className="text-white disabled:opacity-50"
+                          data-testid="button-prev-page"
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-xs text-zinc-400">
+                          Page {orderItemsPage} of {totalPages}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setOrderItemsPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={orderItemsPage === totalPages}
+                          className="text-white disabled:opacity-50"
+                          data-testid="button-next-page"
+                        >
+                          Next
+                        </Button>
                       </div>
                     )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-start gap-2 mb-1">
-                      <h3 className="font-semibold text-white flex-1">{productName}</h3>
-                      {isGiveaway && (
-                        <Badge className="bg-purple-600 text-white text-xs px-2 py-0.5">
-                          Giveaway
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-zinc-400">Quantity: {quantity}</p>
+                    
+                    {/* Order Summary - Immediately below table, only for non-giveaways */}
                     {!isGiveaway && (
-                      <p className="text-lg font-bold text-white mt-1">${orderPrice.toFixed(2)}</p>
+                      <div className="border-t-2 border-zinc-800">
+                        <div className="px-3 py-2 space-y-1.5 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-zinc-400">Subtotal</span>
+                            <span className="text-white">${orderPrice.toFixed(2)}</span>
+                          </div>
+                          {shippingFee > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-zinc-400">Shipping</span>
+                              <span className="text-white">${shippingFee.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {tax > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-zinc-400">Tax</span>
+                              <span className="text-white">${tax.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between pt-2 border-t border-zinc-800 font-bold text-base">
+                            <span className="text-white">Total</span>
+                            <span className="text-white">${total.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
                 
-                {/* Customer Info */}
-                <div className="border-t border-zinc-800 pt-3">
-                  <p className="text-xs text-zinc-500 mb-1">Customer</p>
-                  <p className="text-sm font-medium text-white">{customerName}</p>
-                  {customerEmail && (
-                    <p className="text-xs text-zinc-400">{customerEmail}</p>
+                {/* Customer Info & Shipping Address - Side by Side */}
+                <div className="grid grid-cols-2 gap-4 border-t border-zinc-800 pt-3 mt-4">
+                  {/* Customer Info */}
+                  <div>
+                    <p className="text-xs text-zinc-500 mb-1">Customer</p>
+                    <p className="text-sm font-medium text-white">{customerName}</p>
+                    {customerEmail && (
+                      <p className="text-xs text-zinc-400">{customerEmail}</p>
+                    )}
+                  </div>
+                  
+                  {/* Shipping Address */}
+                  {(selectedOrder.customer?.address || selectedOrder.shippingAddress) && (
+                    <div>
+                      <p className="text-xs text-zinc-500 mb-1">Shipping Address</p>
+                      {(() => {
+                        const address = selectedOrder.customer?.address || selectedOrder.shippingAddress;
+                        return (
+                          <div className="text-sm text-white space-y-0.5">
+                            {address.addrress1 && <p>{address.addrress1}</p>}
+                            {address.addrress2 && <p>{address.addrress2}</p>}
+                            <p>
+                              {address.city && `${address.city}, `}
+                              {address.state && `${address.state} `}
+                              {(address.zipcode || address.zip) && `${address.zipcode || address.zip}`}
+                            </p>
+                            {(address.countryCode || address.country) && (
+                              <p>{address.countryCode || address.country}</p>
+                            )}
+                            {address.phone && (
+                              <p className="text-xs text-zinc-400 mt-1">Phone: {address.phone}</p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   )}
                 </div>
-                
-                {/* Shipping Address */}
-                {(selectedOrder.customer?.address || selectedOrder.shippingAddress) && (
-                  <div className="border-t border-zinc-800 pt-3">
-                    <p className="text-xs text-zinc-500 mb-1">Shipping Address</p>
-                    {(() => {
-                      const address = selectedOrder.customer?.address || selectedOrder.shippingAddress;
-                      return (
-                        <div className="text-sm text-white space-y-0.5">
-                          {address.addrress1 && <p>{address.addrress1}</p>}
-                          {address.addrress2 && <p>{address.addrress2}</p>}
-                          <p>
-                            {address.city && `${address.city}, `}
-                            {address.state && `${address.state} `}
-                            {(address.zipcode || address.zip) && `${address.zipcode || address.zip}`}
-                          </p>
-                          {(address.countryCode || address.country) && (
-                            <p>{address.countryCode || address.country}</p>
-                          )}
-                          {address.phone && (
-                            <p className="text-xs text-zinc-400 mt-1">Phone: {address.phone}</p>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-                
-                {/* Order Summary - Only show for non-giveaways */}
-                {!isGiveaway && (
-                  <div className="border-t border-zinc-800 pt-3">
-                    <p className="text-xs text-zinc-500 mb-2">Order Summary</p>
-                    <div className="space-y-1.5 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Subtotal</span>
-                        <span className="text-white">${orderPrice.toFixed(2)}</span>
-                      </div>
-                      {shippingFee > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-400">Shipping</span>
-                          <span className="text-white">${shippingFee.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {tax > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-400">Tax</span>
-                          <span className="text-white">${tax.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between pt-2 border-t border-zinc-800 font-bold">
-                        <span className="text-white">Total</span>
-                        <span className="text-white">${total.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 
                 {/* Tracking Info */}
                 {selectedOrder.tracking_number && (
@@ -4019,27 +4293,10 @@ export default function ShowViewNew() {
                     <p className="text-sm font-mono text-primary">{selectedOrder.tracking_number}</p>
                   </div>
                 )}
-                
-                {/* Order Date */}
-                {selectedOrder.date && (
-                  <div className="border-t border-zinc-800 pt-3">
-                    <p className="text-xs text-zinc-500 mb-1">Order Date</p>
-                    <p className="text-sm text-white">
-                      {format(new Date(selectedOrder.date), "MMMM dd, yyyy 'at' h:mm a")}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Status */}
-                <div className="border-t border-zinc-800 pt-3">
-                  <p className="text-xs text-zinc-500 mb-1">Status</p>
-                  <Badge className="bg-green-600 text-white">
-                    {(selectedOrder.status || 'ended').toUpperCase()}
-                  </Badge>
-                </div>
               </div>
             );
           })()}
+          </div>
         </DialogContent>
       </Dialog>
 

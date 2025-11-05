@@ -18,12 +18,15 @@ interface Category {
 export default function Browse() {
   usePageTitle('Browse Categories');
   const [sortBy, setSortBy] = useState<SortOption>('recommended');
-  const { externalApiUrl } = useApiConfig();
+  const { externalApiUrl, isLoading: isConfigLoading } = useApiConfig();
 
   // Fetch categories from API
-  const { data: categoriesData, isLoading } = useQuery<{ categories: Category[] }>({
+  const { data: categoriesData, isLoading: isCategoriesLoading } = useQuery<{ categories: Category[] }>({
     queryKey: ['/api/categories'],
   });
+  
+  // Don't render until we have the config with externalApiUrl
+  const isLoading = isConfigLoading || isCategoriesLoading || !externalApiUrl;
 
   const categories = categoriesData?.categories || [];
 

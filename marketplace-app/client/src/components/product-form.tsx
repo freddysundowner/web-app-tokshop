@@ -847,7 +847,7 @@ export function ProductForm({
                         className={`
                           w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-medium transition-all
                           ${field.value === seconds 
-                            ? 'border-yellow-500 bg-yellow-500 text-black' 
+                            ? 'border-primary bg-primary text-primary-foreground' 
                             : 'border-zinc-700 bg-zinc-800 text-white hover:border-zinc-600'
                           }
                         `}
@@ -1029,10 +1029,9 @@ export function ProductForm({
           {showCancelButton && onCancel && (
             <Button
               type="button"
-              variant="outline"
               onClick={onCancel}
               disabled={createProductMutation.isPending}
-              className="flex-1"
+              className="flex-1 bg-secondary text-secondary-foreground"
               data-testid="button-cancel"
             >
               Cancel
@@ -1042,7 +1041,7 @@ export function ProductForm({
             type="button"
             disabled={createProductMutation.isPending || isUploadingImages}
             onClick={handleFormSubmit}
-            className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-medium"
+            className="flex-1 bg-primary text-primary-foreground font-medium"
             data-testid="button-submit-product"
           >
             {(createProductMutation.isPending || isUploadingImages) && (

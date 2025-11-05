@@ -176,7 +176,7 @@ function CardForm({ onSuccess, onClose }: { onSuccess?: () => void; onClose: () 
           type="submit"
           disabled={!stripe || isLoading}
           data-testid="button-add-card"
-          className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black"
+          className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           {isLoading ? "Adding..." : "Add Card"}
         </Button>

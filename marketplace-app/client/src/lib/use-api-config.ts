@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 
-interface ApiConfig {
-  externalApiUrl: string;
+interface ApiConfigResponse {
+  success: boolean;
+  data: {
+    externalApiUrl: string;
+  };
 }
 
 export function useApiConfig() {
-  const { data, isLoading, error } = useQuery<ApiConfig>({
+  const { data, isLoading, error } = useQuery<ApiConfigResponse>({
     queryKey: ['/api/config'],
     staleTime: Infinity,
     gcTime: Infinity,
@@ -13,7 +16,7 @@ export function useApiConfig() {
   });
 
   return {
-    externalApiUrl: data?.externalApiUrl || '',
+    externalApiUrl: data?.data?.externalApiUrl || '',
     isLoading,
     error,
   };

@@ -155,7 +155,7 @@ export default function Payments() {
           <Button 
             onClick={() => setAddDialogOpen(true)} 
             data-testid="button-add-card" 
-            className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black"
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Card

@@ -29,8 +29,7 @@ const LiveShows = lazy(() => import("@/pages/seller/live-shows"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Profile = lazy(() => import("@/pages/profile"));
 const ProfileView = lazy(() => import("@/pages/marketplace/profile-view"));
-// Load ProductDetail eagerly instead of lazy to avoid loading timeout
-import ProductDetail from "@/pages/marketplace/product-detail";
+const ProductDetail = lazy(() => import("@/pages/marketplace/product-detail"));
 const Account = lazy(() => import("@/pages/account"));
 const Payments = lazy(() => import("@/pages/payments"));
 const Login = lazy(() => import("@/pages/auth/login"));

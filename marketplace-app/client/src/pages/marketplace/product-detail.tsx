@@ -431,7 +431,7 @@ export default function ProductDetail() {
           {/* Action Buttons */}
           <div>
             <Button 
-              className="w-full bg-yellow-400 hover:bg-yellow-500 text-black disabled:opacity-50 disabled:cursor-not-allowed" 
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed" 
               data-testid="button-buy-now"
               disabled={isOwner}
               onClick={() => {
@@ -721,7 +721,7 @@ export default function ProductDetail() {
               Back
             </Button>
             <Button
-              className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               disabled={isOwner || !defaultPayment || !defaultAddress || checkoutMutation.isPending}
               onClick={() => checkoutMutation.mutate()}
               data-testid="button-checkout"
