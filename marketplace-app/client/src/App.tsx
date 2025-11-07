@@ -30,6 +30,7 @@ const Settings = lazy(() => import("@/pages/settings"));
 const Profile = lazy(() => import("@/pages/profile"));
 const ProfileView = lazy(() => import("@/pages/marketplace/profile-view"));
 const ProductDetail = lazy(() => import("@/pages/marketplace/product-detail"));
+const AuctionDetail = lazy(() => import("@/pages/marketplace/auction-detail"));
 const Account = lazy(() => import("@/pages/account"));
 const Payments = lazy(() => import("@/pages/payments"));
 const Login = lazy(() => import("@/pages/auth/login"));
@@ -39,6 +40,11 @@ const MarketplaceHome = lazy(() => import("@/pages/marketplace/home"));
 const Browse = lazy(() => import("@/pages/marketplace/browse"));
 const Category = lazy(() => import("@/pages/marketplace/category"));
 const SearchResults = lazy(() => import("@/pages/marketplace/search-results"));
+const TrendingProducts = lazy(() => import("@/pages/marketplace/trending-products"));
+const TrendingAuctions = lazy(() => import("@/pages/marketplace/trending-auctions"));
+const Deals = lazy(() => import("@/pages/marketplace/deals"));
+const DealsAuctions = lazy(() => import("@/pages/marketplace/deals-auctions"));
+const DealsTrending = lazy(() => import("@/pages/marketplace/deals-trending"));
 const LandingPage = lazy(() => import("@/pages/marketplace/landing-page"));
 const LandingPage2 = lazy(() => import("@/pages/marketplace/landing-page-2"));
 const LandingPage3 = lazy(() => import("@/pages/marketplace/landing-page-3"));
@@ -47,7 +53,7 @@ const LandingPage5 = lazy(() => import("@/pages/marketplace/landing-page-5"));
 const LandingPage6 = lazy(() => import("@/pages/marketplace/landing-page-6"));
 const LandingPage7 = lazy(() => import("@/pages/marketplace/landing-page-7"));
 const SellerLogin = lazy(() => import("@/pages/auth/seller-login"));
-const ShowView = lazy(() => import("@/pages/marketplace/show-view"));
+const ShowView = lazy(() => import("@/pages/marketplace/show-view").then(module => ({ default: module.default })));
 const PrivacyPolicy = lazy(() => import("@/pages/marketplace/privacy-policy"));
 const TermsOfService = lazy(() => import("@/pages/marketplace/terms-of-service"));
 const ContactUs = lazy(() => import("@/pages/marketplace/contact"));
@@ -149,10 +155,16 @@ function Router() {
               <Route path="/landing-7" component={LandingPage7} />
               <Route path="/marketplace" component={MarketplaceHome} />
               <Route path="/browse" component={Browse} />
+              <Route path="/deals" component={Deals} />
+              <Route path="/deals/auctions" component={DealsAuctions} />
+              <Route path="/deals/trending" component={DealsTrending} />
               <Route path="/category/:id" component={Category} />
               <Route path="/search" component={SearchResults} />
+              <Route path="/trending/products" component={TrendingProducts} />
+              <Route path="/trending/auctions" component={TrendingAuctions} />
               <Route path="/show/:id" component={ShowView} />
               <Route path="/product/:productId" component={ProductDetail} />
+              <Route path="/auction/:auctionId" component={AuctionDetail} />
               <Route path="/user" component={ProfileView} />
               <Route path="/profile/:userId" component={ProfileView} />
               <Route path="/seller/login" component={SellerLogin} />
@@ -195,7 +207,7 @@ function Router() {
   if (isDashboardRoute) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
-        <div className="flex flex-col h-screen bg-background">
+        <div className="flex flex-col min-h-screen bg-background">
           <AppHeader 
             onMobileMenuToggle={toggleMobileMenu}
             mobileMenuOpen={mobileMenuOpen}
@@ -266,10 +278,16 @@ function Router() {
             <Route path="/" component={MarketplaceHome} />
             <Route path="/marketplace" component={MarketplaceHome} />
             <Route path="/browse" component={Browse} />
+            <Route path="/deals" component={Deals} />
+            <Route path="/deals/auctions" component={DealsAuctions} />
+            <Route path="/deals/trending" component={DealsTrending} />
             <Route path="/category/:id" component={Category} />
             <Route path="/search" component={SearchResults} />
+            <Route path="/trending/products" component={TrendingProducts} />
+            <Route path="/trending/auctions" component={TrendingAuctions} />
             <Route path="/show/:id" component={ShowView} />
             <Route path="/product/:productId" component={ProductDetail} />
+            <Route path="/auction/:auctionId" component={AuctionDetail} />
             <Route path="/user" component={ProfileView} />
             <Route path="/profile/:userId" component={ProfileView} />
             <Route path="/inbox/:userId?" component={Inbox} />

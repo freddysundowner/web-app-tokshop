@@ -1,4 +1,4 @@
-import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -22,7 +22,8 @@ import {
   Grid,
   LogOut
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { cn } from '@/lib/utils';
 
 interface ProfileDrawerProps {
@@ -49,6 +50,8 @@ interface MenuItem {
 
 export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
   const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
+  const [shouldShow, setShouldShow] = useState(true);
   
   const userId = (user as any)?._id || user?.id;
   
@@ -62,6 +65,13 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
   // Use fresh user data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
   const [activeTab, setActiveTab] = useState(currentUser?.seller ? 'selling' : 'buying');
+
+  // Reset shouldShow when drawer opens
+  useEffect(() => {
+    if (open) {
+      setShouldShow(true);
+    }
+  }, [open]);
 
   if (!user) return null;
 
@@ -118,20 +128,25 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
   ];
 
   const handleNavigation = (href: string) => {
-    onOpenChange(false);
+    // Force React to commit the close state immediately before navigation
+    flushSync(() => {
+      setShouldShow(false);
+      onOpenChange(false);
+    });
+    // Now navigate - drawer is already closed in the DOM
+    setLocation(href);
   };
 
   const renderActionButton = (action: ActionButton) => (
-    <Link key={action.testId} href={action.href}>
-      <button
-        onClick={() => handleNavigation(action.href)}
-        className="flex flex-col items-center justify-center p-4 rounded-lg hover-elevate active-elevate-2 transition-all"
-        data-testid={action.testId}
-      >
-        <action.icon className="h-6 w-6 text-foreground mb-2" />
-        <span className="text-xs text-center text-foreground font-medium">{action.label}</span>
-      </button>
-    </Link>
+    <button
+      key={action.testId}
+      onClick={() => handleNavigation(action.href)}
+      className="flex flex-col items-center justify-center p-4 rounded-lg hover-elevate active-elevate-2 transition-all"
+      data-testid={action.testId}
+    >
+      <action.icon className="h-6 w-6 text-foreground mb-2" />
+      <span className="text-xs text-center text-foreground font-medium">{action.label}</span>
+    </button>
   );
 
   const renderMenuItem = (item: MenuItem) => {
@@ -162,21 +177,23 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
     }
 
     return (
-      <Link key={item.testId} href={item.href || '#'}>
-        <button
-          onClick={() => handleNavigation(item.href || '#')}
-          className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
-          data-testid={item.testId}
-        >
-          <div className="flex items-center gap-3">
-            <item.icon className="h-5 w-5 text-foreground" />
-            <span className="text-base text-foreground">{item.label}</span>
-          </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </button>
-      </Link>
+      <button
+        key={item.testId}
+        onClick={() => handleNavigation(item.href || '#')}
+        className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
+        data-testid={item.testId}
+      >
+        <div className="flex items-center gap-3">
+          <item.icon className="h-5 w-5 text-foreground" />
+          <span className="text-base text-foreground">{item.label}</span>
+        </div>
+        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+      </button>
     );
   };
+
+  // Don't render Sheet at all when navigating
+  if (!shouldShow) return null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -187,31 +204,29 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
       >
         {/* User Profile Section */}
         <div className="p-4">
-          <Link href="/profile-view">
-            <button
-              onClick={() => handleNavigation('/profile-view')}
-              className="flex items-center gap-3 w-full hover-elevate active-elevate-2 p-2 rounded-lg transition-all"
-              data-testid="button-profile-view"
-            >
-              <Avatar className="h-14 w-14" data-testid="drawer-avatar">
-                <AvatarImage src={currentUser.profilePhoto} alt={currentUser.userName || currentUser.email} />
-                <AvatarFallback className="bg-teal-500 text-white text-lg font-bold">
-                  {getUserInitials()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="font-bold text-foreground text-base truncate" data-testid="text-username">
-                  {getUserDisplayName()}
-                </p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
-                  <span><span className="font-semibold text-foreground">23</span> following</span>
-                  <span>•</span>
-                  <span><span className="font-semibold text-foreground">52</span> followers</span>
-                </div>
+          <button
+            onClick={() => handleNavigation('/profile-view')}
+            className="flex items-center gap-3 w-full hover-elevate active-elevate-2 p-2 rounded-lg transition-all"
+            data-testid="button-profile-view"
+          >
+            <Avatar className="h-14 w-14" data-testid="drawer-avatar">
+              <AvatarImage src={currentUser.profilePhoto} alt={currentUser.userName || currentUser.email} />
+              <AvatarFallback className="bg-teal-500 text-white text-lg font-bold">
+                {getUserInitials()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-bold text-foreground text-base truncate" data-testid="text-username">
+                {getUserDisplayName()}
+              </p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+                <span><span className="font-semibold text-foreground">23</span> following</span>
+                <span>•</span>
+                <span><span className="font-semibold text-foreground">52</span> followers</span>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-            </button>
-          </Link>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          </button>
         </div>
 
         <Separator />
@@ -220,33 +235,29 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
         <div className="md:hidden flex-1">
           <div className="space-y-1 p-2">
             {/* Navigation Links */}
-            <Link href="/marketplace">
-              <button
-                onClick={() => handleNavigation('/marketplace')}
-                className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
-                data-testid="menu-home-mobile"
-              >
-                <div className="flex items-center gap-3">
-                  <Home className="h-5 w-5 text-foreground" />
-                  <span className="text-base text-foreground">Home</span>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
-            </Link>
+            <button
+              onClick={() => handleNavigation('/marketplace')}
+              className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
+              data-testid="menu-home-mobile"
+            >
+              <div className="flex items-center gap-3">
+                <Home className="h-5 w-5 text-foreground" />
+                <span className="text-base text-foreground">Home</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
             
-            <Link href="/browse">
-              <button
-                onClick={() => handleNavigation('/browse')}
-                className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
-                data-testid="menu-browse-mobile"
-              >
-                <div className="flex items-center gap-3">
-                  <Grid className="h-5 w-5 text-foreground" />
-                  <span className="text-base text-foreground">Browse</span>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
-            </Link>
+            <button
+              onClick={() => handleNavigation('/browse')}
+              className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
+              data-testid="menu-browse-mobile"
+            >
+              <div className="flex items-center gap-3">
+                <Grid className="h-5 w-5 text-foreground" />
+                <span className="text-base text-foreground">Browse</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
 
             <Separator className="my-2" />
 
@@ -257,19 +268,18 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
                   Selling
                 </div>
                 {sellingActions.map(action => (
-                  <Link key={action.testId} href={action.href}>
-                    <button
-                      onClick={() => handleNavigation(action.href)}
-                      className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
-                      data-testid={action.testId}
-                    >
-                      <div className="flex items-center gap-3">
-                        <action.icon className="h-5 w-5 text-foreground" />
-                        <span className="text-base text-foreground">{action.label}</span>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </button>
-                  </Link>
+                  <button
+                    key={action.testId}
+                    onClick={() => handleNavigation(action.href)}
+                    className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
+                    data-testid={action.testId}
+                  >
+                    <div className="flex items-center gap-3">
+                      <action.icon className="h-5 w-5 text-foreground" />
+                      <span className="text-base text-foreground">{action.label}</span>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </button>
                 ))}
               </>
             )}
@@ -279,19 +289,18 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
               Buying
             </div>
             {buyingActions.map(action => (
-              <Link key={action.testId} href={action.href}>
-                <button
-                  onClick={() => handleNavigation(action.href)}
-                  className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
-                  data-testid={action.testId}
-                >
-                  <div className="flex items-center gap-3">
-                    <action.icon className="h-5 w-5 text-foreground" />
-                    <span className="text-base text-foreground">{action.label}</span>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </button>
-              </Link>
+              <button
+                key={action.testId}
+                onClick={() => handleNavigation(action.href)}
+                className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
+                data-testid={action.testId}
+              >
+                <div className="flex items-center gap-3">
+                  <action.icon className="h-5 w-5 text-foreground" />
+                  <span className="text-base text-foreground">{action.label}</span>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </button>
             ))}
 
             <Separator className="my-2" />

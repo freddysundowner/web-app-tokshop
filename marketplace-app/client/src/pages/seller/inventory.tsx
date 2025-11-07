@@ -715,18 +715,18 @@ export default function Inventory() {
   }
 
   return (
-    <div className="p-6 space-y-6" data-testid="page-inventory">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6" data-testid="page-inventory">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
         <div>
           <h1
-            className="text-2xl font-bold text-foreground"
+            className="text-xl md:text-2xl font-bold text-foreground"
             data-testid="text-page-title"
           >
             Inventory
           </h1>
           <p
-            className="text-muted-foreground"
+            className="text-sm md:text-base text-muted-foreground"
             data-testid="text-page-description"
           >
             Manage your product inventory ({totalProducts} products)
@@ -737,36 +737,37 @@ export default function Inventory() {
             variant="outline"
             onClick={handleBulkUpload}
             data-testid="button-bulk-upload"
+            className="flex-1 sm:flex-none"
           >
             <Upload className="h-4 w-4 mr-2" />
-            Bulk Upload
+            <span className="hidden sm:inline">Bulk Upload</span>
+            <span className="sm:hidden">Upload</span>
           </Button>
-          <Button onClick={handleAddProduct} data-testid="button-add-product">
+          <Button onClick={handleAddProduct} data-testid="button-add-product" className="flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-2" />
-            Add Product
+            <span className="hidden sm:inline">Add Product</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
       {/* Filters and Search */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-products"
-            />
-          </div>
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-products"
+          />
         </div>
 
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
             <SelectTrigger
-              className="w-[140px]"
+              className="w-full"
               data-testid="select-status-filter"
             >
               <SelectValue placeholder="Status" />
@@ -785,7 +786,7 @@ export default function Inventory() {
             onValueChange={handleCategoryFilterChange}
           >
             <SelectTrigger
-              className="w-[140px]"
+              className="w-full"
               data-testid="select-category-filter"
             >
               <SelectValue placeholder="Category" />
@@ -801,7 +802,7 @@ export default function Inventory() {
           </Select>
 
           <Select value={sortBy} onValueChange={handleSortChange}>
-            <SelectTrigger className="w-[140px]" data-testid="select-sort">
+            <SelectTrigger className="w-full" data-testid="select-sort">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -819,7 +820,7 @@ export default function Inventory() {
             onValueChange={handleListingTypeFilterChange}
           >
             <SelectTrigger
-              className="w-[140px]"
+              className="w-full"
               data-testid="select-listing-type-filter"
             >
               <SelectValue placeholder="Listing Type" />
@@ -836,9 +837,9 @@ export default function Inventory() {
       {/* Bulk Actions Toolbar */}
       {selectedProducts.size > 0 && (
         <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+          <CardContent className="py-3 md:py-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <span className="text-sm font-medium">
                   {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''} selected
                 </span>
@@ -847,16 +848,18 @@ export default function Inventory() {
                   size="sm"
                   onClick={handleClearSelection}
                   data-testid="button-clear-selection"
+                  className="self-start"
                 >
                   Clear Selection
                 </Button>
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2">
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() => setShowBulkEdit(true)}
                   data-testid="button-bulk-edit"
+                  className="flex-1 sm:flex-none"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Bulk Edit
@@ -872,47 +875,47 @@ export default function Inventory() {
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-4 font-medium w-12"></th>
-                    <th className="text-left p-4 font-medium">Image</th>
-                    <th className="text-left p-4 font-medium">Product</th>
-                    <th className="text-left p-4 font-medium">Category</th>
-                    <th className="text-left p-4 font-medium">Price</th>
-                    <th className="text-left p-4 font-medium">Stock</th>
-                    <th className="text-left p-4 font-medium">Status</th>
-                    <th className="text-left p-4 font-medium">Actions</th>
+                    <th className="text-left p-2 md:p-4 font-medium w-10 md:w-12 text-xs md:text-sm"></th>
+                    <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Details</th>
+                    <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Type</th>
+                    <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Price</th>
+                    <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Stock</th>
+                    <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Status</th>
+                    <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="border-b">
-                      <td className="p-4">
+                      <td className="p-2 md:p-4">
                         <div className="h-4 w-4 bg-muted animate-pulse rounded" />
                       </td>
-                      <td className="p-4">
-                        <div className="w-12 h-12 bg-muted animate-pulse rounded" />
-                      </td>
-                      <td className="p-4">
-                        <div className="space-y-2">
-                          <div className="h-4 bg-muted animate-pulse rounded w-48" />
-                          <div className="h-3 bg-muted animate-pulse rounded w-32" />
+                      <td className="p-2 md:p-4">
+                        <div className="flex gap-3 items-start">
+                          <div className="w-12 h-12 md:w-14 md:h-14 bg-muted animate-pulse rounded flex-shrink-0" />
+                          <div className="space-y-2 flex-1">
+                            <div className="h-4 bg-muted animate-pulse rounded w-32 md:w-48" />
+                            <div className="h-3 bg-muted animate-pulse rounded w-24 md:w-32" />
+                            <div className="h-5 bg-muted animate-pulse rounded w-20 md:w-24" />
+                          </div>
                         </div>
                       </td>
-                      <td className="p-4">
-                        <div className="h-5 bg-muted animate-pulse rounded w-24" />
+                      <td className="p-2 md:p-4">
+                        <div className="h-5 bg-muted animate-pulse rounded w-16 md:w-20" />
                       </td>
-                      <td className="p-4">
-                        <div className="h-4 bg-muted animate-pulse rounded w-16" />
+                      <td className="p-2 md:p-4">
+                        <div className="h-4 bg-muted animate-pulse rounded w-14 md:w-16" />
                       </td>
-                      <td className="p-4">
-                        <div className="h-4 bg-muted animate-pulse rounded w-12" />
+                      <td className="p-2 md:p-4">
+                        <div className="h-4 bg-muted animate-pulse rounded w-10 md:w-12" />
                       </td>
-                      <td className="p-4">
-                        <div className="h-5 bg-muted animate-pulse rounded w-20" />
+                      <td className="p-2 md:p-4">
+                        <div className="h-5 bg-muted animate-pulse rounded w-16 md:w-20" />
                       </td>
-                      <td className="p-4">
+                      <td className="p-2 md:p-4">
                         <div className="h-8 bg-muted animate-pulse rounded w-8" />
                       </td>
                     </tr>
@@ -950,23 +953,22 @@ export default function Inventory() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[800px]">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left p-4 font-medium w-12">
+                      <th className="text-left p-2 md:p-4 font-medium w-10 md:w-12">
                         <Checkbox
                           checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
                           onCheckedChange={handleSelectAll}
                           data-testid="checkbox-select-all"
                         />
                       </th>
-                      <th className="text-left p-4 font-medium">Image</th>
-                      <th className="text-left p-4 font-medium">Product</th>
-                      <th className="text-left p-4 font-medium">Category</th>
-                      <th className="text-left p-4 font-medium">Price</th>
-                      <th className="text-left p-4 font-medium">Stock</th>
-                      <th className="text-left p-4 font-medium">Status</th>
-                      <th className="text-left p-4 font-medium">Actions</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Details</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Type</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Price</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Stock</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Status</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -980,77 +982,92 @@ export default function Inventory() {
                         }`}
                         data-testid={`row-product-${product._id}`}
                       >
-                        <td className="p-4">
+                        <td className="p-2 md:p-4">
                           <Checkbox
                             checked={selectedProducts.has(product._id)}
                             onCheckedChange={(checked) => handleSelectProduct(product._id, checked as boolean)}
                             data-testid={`checkbox-product-${product._id}`}
                           />
                         </td>
-                        <td className="p-4">
-                          <div className="w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
-                            {product.images && product.images.length > 0 ? (
-                              <img
-                                src={product.images[0]}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                                data-testid={`img-product-${product._id}`}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="h-6 w-6 text-muted-foreground" />
-                              </div>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="p-4">
-                          <div className="max-w-xs">
-                            <div
-                              className="font-medium text-foreground truncate"
-                              data-testid={`text-product-name-${product._id}`}
-                            >
-                              {product.name}
+                        <td className="p-2 md:p-4">
+                          <div className="flex gap-3 items-start">
+                            <div className="w-12 h-12 md:w-14 md:h-14 bg-muted rounded overflow-hidden flex-shrink-0">
+                              {product.images && product.images.length > 0 ? (
+                                <img
+                                  src={product.images[0]}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                  data-testid={`img-product-${product._id}`}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Package className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
+                                </div>
+                              )}
                             </div>
-                            {product.description && (
+                            <div className="flex-1 min-w-0 space-y-1">
                               <div
-                                className="text-sm text-muted-foreground truncate mt-1"
-                                data-testid={`text-product-description-${product._id}`}
+                                className="font-medium text-sm md:text-base text-foreground truncate"
+                                data-testid={`text-product-name-${product._id}`}
                               >
-                                {product.description}
+                                {product.name}
                               </div>
-                            )}
-                            {(product as any).sku && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                SKU: {(product as any).sku}
+                              {product.description && (
+                                <div
+                                  className="text-xs text-muted-foreground truncate"
+                                  data-testid={`text-product-description-${product._id}`}
+                                >
+                                  {product.description}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs"
+                                  data-testid={`badge-product-category-${product._id}`}
+                                >
+                                  {product.category?.name || "Uncategorized"}
+                                </Badge>
+                                {(product as any).sku && (
+                                  <span className="text-xs text-muted-foreground">
+                                    SKU: {(product as any).sku}
+                                  </span>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </div>
                         </td>
 
-                        <td className="p-4">
+                        <td className="p-2 md:p-4">
                           <Badge
-                            variant="secondary"
-                            className="text-xs"
-                            data-testid={`badge-product-category-${product._id}`}
+                            variant={(product as any).listing_type === 'auction' ? 'default' : (product as any).listing_type === 'giveaway' ? 'outline' : 'secondary'}
+                            className="text-xs whitespace-nowrap"
+                            data-testid={`badge-product-type-${product._id}`}
                           >
-                            {product.category?.name || "Uncategorized"}
+                            {(product as any).listing_type === 'auction' ? 'Auction' : (product as any).listing_type === 'giveaway' ? 'Giveaway' : 'Buy Now'}
                           </Badge>
                         </td>
 
-                        <td className="p-4">
-                          <span
-                            className="font-semibold text-foreground"
-                            data-testid={`text-product-price-${product._id}`}
-                          >
-                            {formatCurrency(product.price)}
-                          </span>
+                        <td className="p-2 md:p-4">
+                          <div className="flex flex-col">
+                            {(product as any).listing_type === 'auction' && (
+                              <span className="text-xs text-muted-foreground mb-0.5">
+                                Starting Price
+                              </span>
+                            )}
+                            <span
+                              className="font-semibold text-xs md:text-sm text-foreground whitespace-nowrap"
+                              data-testid={`text-product-price-${product._id}`}
+                            >
+                              {formatCurrency(product.price)}
+                            </span>
+                          </div>
                         </td>
 
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
+                        <td className="p-2 md:p-4">
+                          <div className="flex items-center space-x-1 md:space-x-2">
                             <span
-                              className={`font-medium ${
+                              className={`font-medium text-xs md:text-sm ${
                                 product.quantity === 0
                                   ? "text-destructive"
                                   : product.quantity <= 10
@@ -1082,11 +1099,11 @@ export default function Inventory() {
                           </div>
                         </td>
 
-                        <td className="p-4">
+                        <td className="p-2 md:p-4">
                           {getStatusBadge(product.status || "draft")}
                         </td>
 
-                        <td className="p-4">
+                        <td className="p-2 md:p-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button

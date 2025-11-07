@@ -117,6 +117,7 @@ export const getQueryFn: <T>(options: {
     
     // Build query parameters
     const queryParams = new URLSearchParams();
+    let apiUrl = endpoint;
     
     // Handle different parameter patterns
     if (params.length > 0) {
@@ -128,6 +129,14 @@ export const getQueryFn: <T>(options: {
         if (searchTitle) queryParams.set('title', String(searchTitle));
         if (searchType) queryParams.set('type', String(searchType));
       }
+      // For individual product/auction fetches: ['/api/products', productId]
+      else if (endpoint === '/api/products' && params.length === 1 && typeof params[0] === 'string') {
+        apiUrl = `${endpoint}/${params[0]}`;
+      }
+      // For individual auction fetches: ['/api/auction', auctionId]
+      else if (endpoint === '/api/auction' && params.length === 1 && typeof params[0] === 'string') {
+        apiUrl = `${endpoint}/${params[0]}`;
+      }
       // For other endpoints that use userId pattern
       else if (params[0] && typeof params[0] === 'string') {
         queryParams.set('userId', params[0]);
@@ -135,7 +144,7 @@ export const getQueryFn: <T>(options: {
     }
     
     // Build final URL with query parameters
-    const apiUrl = `${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    apiUrl = `${apiUrl}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     
     // Get access token and user data from localStorage if available
     const adminToken = localStorage.getItem('adminAccessToken');

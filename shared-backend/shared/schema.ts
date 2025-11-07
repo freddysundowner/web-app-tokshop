@@ -329,6 +329,9 @@ export const productFormSchema = z.object({
   startingPrice: z.coerce.number().optional().nullable(),
   duration: z.coerce.number().int().optional().nullable(),
   sudden: z.boolean().optional().default(false),
+  // Featured auction scheduling fields
+  startTime: z.string().optional().nullable(), // ISO datetime string
+  endTime: z.string().optional().nullable(), // ISO datetime string
   // Buy Now-specific fields
   featured: z.boolean().optional().default(false),
   // Giveaway-specific fields
@@ -336,7 +339,7 @@ export const productFormSchema = z.object({
   // Room association
   tokshow: z.string().optional(),
 }).refine((data) => {
-  // For auction, startingPrice and duration are required
+  // For auction, startingPrice is required
   if (data.listingType === 'auction') {
     return data.startingPrice !== undefined && data.startingPrice !== null && data.startingPrice > 0;
   }
@@ -345,14 +348,32 @@ export const productFormSchema = z.object({
   message: "Starting price must be greater than 0",
   path: ["startingPrice"],
 }).refine((data) => {
-  // For auction, duration is required
-  if (data.listingType === 'auction') {
+  // For non-featured auctions (live show auctions), duration is required
+  if (data.listingType === 'auction' && !data.featured) {
     return data.duration !== undefined && data.duration !== null && data.duration > 0;
   }
   return true;
 }, {
   message: "Duration must be selected",
   path: ["duration"],
+}).refine((data) => {
+  // For featured auctions, startTime and endTime are required
+  if (data.listingType === 'auction' && data.featured) {
+    return data.startTime !== undefined && data.startTime !== null && data.startTime !== '';
+  }
+  return true;
+}, {
+  message: "Auction start time is required for featured auctions",
+  path: ["startTime"],
+}).refine((data) => {
+  // For featured auctions, endTime is required
+  if (data.listingType === 'auction' && data.featured) {
+    return data.endTime !== undefined && data.endTime !== null && data.endTime !== '';
+  }
+  return true;
+}, {
+  message: "Auction end time is required for featured auctions",
+  path: ["endTime"],
 }).refine((data) => {
   // For buy_now, price is required
   if (data.listingType === 'buy_now') {
@@ -453,6 +474,7 @@ export const shippingEstimateRequestSchema = z.object({
   length: z.union([z.string(), z.number()]).transform(Number),
   width: z.union([z.string(), z.number()]).transform(Number),
   height: z.union([z.string(), z.number()]).transform(Number),
+  buying_label: z.boolean().optional().default(true),
 });
 
 export const shippingEstimateResponseSchema = z.object({

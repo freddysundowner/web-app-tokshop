@@ -228,6 +228,19 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     Browse
                   </Button>
                 </Link>
+                <Link href="/deals">
+                  <Button 
+                    className={
+                      location === '/deals' 
+                        ? "bg-primary text-primary-foreground font-semibold px-5 rounded-full h-9 text-sm" 
+                        : `font-medium text-sm h-9 px-4 ${isShowPage ? 'text-white hover:text-white' : ''}`
+                    }
+                    variant={location === '/deals' ? undefined : 'ghost'}
+                    data-testid="button-deals"
+                  >
+                    Deals
+                  </Button>
+                </Link>
               </div>
             )}
             

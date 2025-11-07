@@ -9,6 +9,9 @@ import { useAuth } from '@/lib/auth-context';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { MarketplaceSidebar } from '@/components/layout/marketplace-sidebar';
 import { ShowCard } from '@/components/show-card';
+import { ProductCard } from '@/components/product-card';
+import { AuctionCard } from '@/components/auction-card';
+import { ChevronRight } from 'lucide-react';
 
 export default function MarketplaceHome() {
   const { settings } = useSettings();
@@ -44,6 +47,40 @@ export default function MarketplaceHome() {
 
   // Find the selected tab to get its categoryId
   const selectedTab = tabs.find(tab => tab.label === selectedCategory);
+
+  // Fetch trending products (buy-now products)
+  const { data: trendingProductsData } = useQuery({
+    queryKey: ['/api/products', 'trending', 'buy_now'],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        saletype: 'buy_now',
+        status: 'active',
+        limit: '10',
+        sortBy: 'views' // Sort by views for trending
+      });
+      const response = await fetch(`/api/products?${params.toString()}`);
+      return response.json();
+    }
+  });
+
+  // Fetch trending auctions (standalone auction products)
+  const { data: trendingAuctionsData } = useQuery({
+    queryKey: ['/api/products', 'trending', 'auction'],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        saletype: 'auction',
+        status: 'active',
+        limit: '10',
+        sortBy: 'views', // Sort by views for trending
+        featured: 'true'
+      });
+      const response = await fetch(`/api/products?${params.toString()}`);
+      return response.json();
+    }
+  });
+
+  const trendingProducts = trendingProductsData?.products || [];
+  const trendingAuctions = trendingAuctionsData?.products || [];
 
   // Fetch rooms with infinite scroll
   const {
@@ -190,36 +227,109 @@ export default function MarketplaceHome() {
           
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto scrollbar-hide bg-white dark:bg-background w-full h-full">
-            <div className="w-full px-2 py-3 lg:p-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <p className="text-muted-foreground">Loading shows...</p>
-              </div>
-            ) : rooms.length === 0 ? (
-              <div className="flex items-center justify-center h-64">
-                <p className="text-muted-foreground">No live shows at the moment</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4" data-testid="grid-giveaways">
-                  {rooms.map((room) => (
-                    <ShowCard
-                      key={room._id || room.id}
-                      show={room as any}
-                      currentUserId={currentUserId || ''}
-                      variant="grid"
-                    />
-                  ))}
+            <div className="w-full px-2 py-3 lg:p-6 space-y-6">
+              
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-muted-foreground">Loading shows...</p>
                 </div>
-                
-                {/* Infinite scroll trigger */}
-                <div ref={observerTarget} className="h-20 flex items-center justify-center">
-                  {isFetchingNextPage && (
-                    <p className="text-sm text-muted-foreground">Loading more shows...</p>
+              ) : (
+                <>
+                  {/* First Section: Live Shows (4 rows ≈ 12 shows) */}
+                  <div>
+                    <h2 className="text-lg font-bold mb-3">Live Shows</h2>
+                    {rooms.length === 0 ? (
+                      <div className="flex items-center justify-center h-32">
+                        <p className="text-muted-foreground">No live shows at the moment</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4" data-testid="grid-giveaways">
+                        {rooms.slice(0, 12).map((room) => (
+                          <ShowCard
+                            key={room._id || room.id}
+                            show={room as any}
+                            currentUserId={currentUserId || ''}
+                            variant="grid"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Trending Products Section */}
+                  {trendingProducts.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold">Trending Products</h2>
+                        <Link href="/trending/products">
+                          <Button variant="ghost" size="sm" className="text-primary">
+                            See all <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </Link>
+                      </div>
+                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                        {trendingProducts.map((product: any) => (
+                          <ProductCard key={product._id || product.id} product={product} />
+                        ))}
+                      </div>
+                    </div>
                   )}
-                </div>
-              </>
-            )}
+
+                  {/* Second Section: More Live Shows (4 rows ≈ 12 shows) */}
+                  {rooms.slice(12, 24).length > 0 && (
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4">
+                      {rooms.slice(12, 24).map((room) => (
+                        <ShowCard
+                          key={room._id || room.id}
+                          show={room as any}
+                          currentUserId={currentUserId || ''}
+                          variant="grid"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Trending Auctions Section */}
+                  {trendingAuctions.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold">Trending Auctions</h2>
+                        <Link href="/trending/auctions">
+                          <Button variant="ghost" size="sm" className="text-primary">
+                            See all <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </Link>
+                      </div>
+                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                        {trendingAuctions.map((auction: any) => (
+                          <AuctionCard key={auction._id || auction.id} auction={auction} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remaining Live Shows */}
+                  {rooms.slice(24).length > 0 && (
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4">
+                      {rooms.slice(24).map((room) => (
+                        <ShowCard
+                          key={room._id || room.id}
+                          show={room as any}
+                          currentUserId={currentUserId || ''}
+                          variant="grid"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Infinite scroll trigger */}
+                  <div ref={observerTarget} className="h-20 flex items-center justify-center">
+                    {isFetchingNextPage && (
+                      <p className="text-sm text-muted-foreground">Loading more shows...</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </main>
         </div>

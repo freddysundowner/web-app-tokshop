@@ -24,11 +24,14 @@ const createProductSchema = z.object({
   startingPrice: z.coerce.number().optional(),
   duration: z.coerce.number().optional(),
   sudden: z.boolean().optional(),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
   colors: z.array(z.string()).optional(),
   sizes: z.array(z.string()).optional(),
   reserved: z.boolean().optional(),
   tokshow: z.union([z.boolean(), z.string(), z.null()]).optional(),
   featured: z.boolean().optional().default(false),
+  started: z.boolean().optional().default(false),
   userId: z.string().optional(),
 });
 
@@ -269,6 +272,7 @@ export function registerProductRoutes(app: Express) {
         listing_type: productData.listingType,
         status: productData.status || "draft",
         featured: productData.featured || false,
+        started: (productData.featured && productData.listingType === 'auction') || false,
         // Only include optional fields if they have values (filter out empty strings)
         ...(req.body.images && { images: req.body.images }),
         ...(req.body.discountedPrice && {
@@ -279,6 +283,12 @@ export function registerProductRoutes(app: Express) {
         }),
         ...(req.body.duration && { duration: req.body.duration }),
         ...(req.body.sudden !== undefined && { sudden: req.body.sudden }),
+        ...(req.body.startTime && { 
+          start_time_date: new Date(req.body.startTime).getTime() 
+        }),
+        ...(req.body.endTime && { 
+          end_time_date: new Date(req.body.endTime).getTime() 
+        }),
         ...(req.body.colors && { colors: req.body.colors }),
         ...(req.body.sizes && { sizes: req.body.sizes }),
         ...(req.body.reserved !== undefined && { reserved: req.body.reserved }),
@@ -532,7 +542,7 @@ export function registerProductRoutes(app: Express) {
       console.log("Validated featured field:", productData.featured);
 
       // Prepare update data with correct field mapping
-      const tokshopUpdateData = {
+      const tokshopUpdateData: any = {
         name: productData.name,
         price: productData.price,
         quantity: productData.quantity,
@@ -550,10 +560,27 @@ export function registerProductRoutes(app: Express) {
         listing_type: productData.listingType,
         tokshow: productData.tokshow,
         featured: productData.featured || false,
-        shipping_profile: productData.shippingProfile?.trim()
-          ? productData.shippingProfile
-          : null,
+        started: (productData.featured && productData.listingType === 'auction') || false,
       };
+      
+      // Add scheduling fields for featured auctions (convert to timestamps)
+      if (productData.startTime) {
+        tokshopUpdateData.start_time_date = new Date(productData.startTime).getTime();
+      }
+      if (productData.endTime) {
+        tokshopUpdateData.end_time_date = new Date(productData.endTime).getTime();
+      }
+      
+      // Only include shipping_profile if it has a valid value
+      if (productData.shippingProfile && productData.shippingProfile.trim()) {
+        tokshopUpdateData.shipping_profile = productData.shippingProfile;
+      }
+      
+      // Include auction ID if provided (for editing existing auctions)
+      if (req.body.auction) {
+        tokshopUpdateData.auction = req.body.auction;
+        console.log("Sending to external API - auction ID:", tokshopUpdateData.auction);
+      }
 
       console.log(
         "Sending to external API - featured field:",

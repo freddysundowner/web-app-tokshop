@@ -29,7 +29,73 @@ TokShop's architecture is centered around being a pure API client. Neither the A
 
 **Feature Specifications:**
 - **Admin App Routes**: Dashboard, User Management, Product Management, Order Management, App Settings.
-- **Marketplace App Routes**: Live Show Browsing, Category Browsing, Live Show Viewer, Product Details, Seller Dashboard, User Profile, Authentication flows.
+- **Marketplace App Routes**: Live Show Browsing, Category Browsing, Live Show Viewer, Product Details, Auction Detail Page, Seller Dashboard, User Profile, Authentication flows.
+
+**Recent Updates (November 2025):**
+- **iOS Safari Fixes:**
+  - Resolved "Maximum call stack size exceeded" crash by implementing lazy loading with Suspense wrappers for PaymentShippingSheet and LiveKitVideoPlayer components
+  - Fixed iOS header display using safe-area-inset-top padding and proper z-index hierarchy (header z-40, overlays z-30)
+  - Corrected mobile chat pointer-events hierarchy: only chat avatar links to profile, adjusted positioning (right-20) to prevent overlap with video action icons
+  - Fixed chat input typing issue by eliminating state shadowing: removed local `message` and `currentMentions` state from VideoCenter component in favor of parent-managed state, ensuring proper data flow through props
+
+- **Auction Detail Page (November 7, 2025):**
+  - Created dedicated eBay-style auction detail page at `/auction/:id` for improved auction UX
+  - Features live countdown timer with visual urgency indicators (pulse animation for final 5 minutes)
+  - Displays current bid and quick bidding functionality
+  - Includes product image carousel, seller information, and real-time shipping cost calculation
+  - Fetches actual shipping cost via `/api/shipping/estimate` endpoint (matches product detail page behavior)
+  - Displays shipping cost with service level, shows loading state during calculation
+  - Uses lazy loading with Suspense for CustomBidDialog to optimize bundle size
+  - Polls auction data every 5 seconds to keep bid information fresh
+  - Updated auction cards to navigate to dedicated auction page instead of generic product page
+  - Fixed query client to properly construct product detail URLs (`/api/products/:id` instead of `/api/products?userId=:id`)
+  - Simplified data fetching: single product endpoint returns full auction data with nested bids array
+  - "Place Bid" button displays and sends `newbaseprice` from auction data
+  - Removed bid history section for cleaner UI focused on current bid and placing bids
+
+- **Scheduled Featured Auctions (November 7, 2025):**
+  - Implemented scheduled auction system for featured auctions with absolute start/end times
+  - Added `startTime` and `endTime` datetime fields to product form schema for featured auctions
+  - Form now shows datetime pickers when user selects "Featured = Yes" and "Listing Type = Auction"
+  - Backend sends `scheduledStartTime` and `scheduledEndTime` fields to external API
+  - Auction cards display different states:
+    - "Starts in X time" for auctions that haven't started yet
+    - Live countdown for active auctions
+    - "Ended" overlay for completed auctions
+  - Auction detail page supports both scheduled (featured) and duration-based (live show) auctions
+  - Featured auctions use absolute timestamps while live show auctions use duration + start time
+  - Times are displayed in user's local timezone via browser's date handling
+
+- **Responsive Design Improvements (November 7, 2025):**
+  - **Inventory Page**: Made fully responsive while maintaining table layout
+    - Header stacks vertically on mobile with responsive button text (abbreviated on small screens)
+    - Search bar and filters use grid layout (2 columns on mobile, 4 on desktop)
+    - Table enforces horizontal scrolling on mobile with `min-w-[800px]` constraint
+    - Reduced padding and font sizes on mobile for better space utilization
+    - Hidden less critical content (product descriptions, SKU) on narrow screens
+    - Loading skeleton matches responsive behavior of actual table
+  - **Pagination Component**: Implemented smart mobile pagination logic
+    - Main container stacks vertically on mobile, horizontal on larger screens
+    - Mobile view shows 3-page window centered on current page with boundary handling
+    - First/last page buttons hidden on mobile to save space
+    - Prev/next buttons and page numbers always accessible
+    - Text and icon sizes reduced on mobile for better fit
+    - Always shows current page regardless of position in pagination
+    - For datasets with ≤5 pages, all pages shown on mobile
+
+- **Deals Page (November 7, 2025):**
+  - Created new `/deals` page showcasing featured auctions and trending products
+  - Main deals page displays preview of 10 auctions and 6 trending products in responsive grid
+  - Each section has "View All" button for expanded views
+  - Created `/deals/auctions` page showing all available auctions (up to 100)
+  - Created `/deals/trending` page showing all trending products (up to 100)
+  - All pages feature proper loading states, empty states, and back navigation
+  - Routes positioned next to `/browse` in App.tsx for logical navigation grouping
+  - Uses responsive grid layout: 2 columns on mobile, scaling to 6 columns on extra-large screens
+  - Increased grid spacing to prevent card overlap: `gap-4 md:gap-6` (16px mobile, 24px desktop)
+  - Added "Deals" navigation link to header (appears between Browse and search bar)
+  - Fetches auctions using same API as homepage: `featured=true`, `sortBy=views`, `status=active`
+  - Auction detail page shipping estimate now includes `customer` parameter with current user ID
 
 ## External Dependencies
 The project relies on several key external services and APIs:
