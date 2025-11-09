@@ -311,8 +311,8 @@ export default function Purchases() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6" data-testid="page-purchases">
-        <div className="flex justify-between items-center">
+      <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6" data-testid="page-purchases">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
           <div>
             <div className="h-8 bg-muted rounded w-32 animate-pulse"></div>
             <div className="h-4 bg-muted rounded w-48 mt-2 animate-pulse"></div>
@@ -330,7 +330,7 @@ export default function Purchases() {
   // Error state
   if (isError) {
     return (
-      <div className="p-6" data-testid="page-purchases">
+      <div className="w-full p-4 sm:p-6" data-testid="page-purchases">
         <Card className="p-8 text-center">
           <h3 className="text-lg font-semibold text-foreground mb-2">
             Unable to load purchases
@@ -348,18 +348,18 @@ export default function Purchases() {
   }
 
   return (
-    <div className="p-6 space-y-6" data-testid="page-purchases">
+    <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6" data-testid="page-purchases">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h1
-            className="text-2xl font-bold text-foreground"
+            className="text-2xl sm:text-3xl font-bold text-foreground"
             data-testid="text-page-title"
           >
             My Purchases
           </h1>
           <p
-            className="text-muted-foreground"
+            className="text-sm text-muted-foreground"
             data-testid="text-page-description"
           >
             Track your order history and purchase status ({totalOrders} purchases)

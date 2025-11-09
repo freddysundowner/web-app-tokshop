@@ -33,8 +33,8 @@ export function VideoCenter(props: any) {
     showMobileProducts, showMobileChat, chatMessagesRef, chatMessages,
     imageError, setImageError, toast, user, show, viewers, isAuthenticated, navigate,
     userSuggestions, setUserSuggestions,
-    isEndingShow, setIsEndingShow, socket, setLivekitEnabled, leaveRoom, queryClient,
-    winnerData, giveawayWinnerData, winningUser, shippingEstimate, handleRerunAuction,
+    isEndingShow, setIsEndingShow, socket, socketIsConnected, setLivekitEnabled, leaveRoom, queryClient,
+    refetchShow, winnerData, giveawayWinnerData, winningUser, shippingEstimate, handleRerunAuction,
     placeBidMutation, setBuyNowProduct, renderMessageWithMentions, selectMention,
     handleMessageChange, timeAddedBlink, buyNowProduct,
     host, setShowShareDialog, livekit,
@@ -343,18 +343,20 @@ export function VideoCenter(props: any) {
                           </button>
                         )}
 
-                        {/* Edit Show */}
-                        <button
-                          className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-100 rounded-lg transition-colors"
-                          onClick={() => {
-                            setShowMoreOptionsSheet(false);
-                            navigate(`/schedule-show?edit=${id}`);
-                          }}
-                          data-testid="button-edit-show"
-                        >
-                          <Edit className="h-5 w-5 text-blue-600" />
-                          <span className="flex-1 text-left text-black font-semibold">Edit Show</span>
-                        </button>
+                        {/* Edit Show - Only show when show hasn't started */}
+                        {!isLive && !show?.started && (
+                          <button
+                            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => {
+                              setShowMoreOptionsSheet(false);
+                              navigate(`/schedule-show?edit=${id}`);
+                            }}
+                            data-testid="button-edit-show"
+                          >
+                            <Edit className="h-5 w-5 text-blue-600" />
+                            <span className="flex-1 text-left text-black font-semibold">Edit Show</span>
+                          </button>
+                        )}
                         
                         {/* Cancel */}
                         <button
@@ -1030,20 +1032,40 @@ export function VideoCenter(props: any) {
                     size="lg"
                     className="w-[90%] h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-2xl"
                     onClick={() => {
-                      if (socket) {
-                        socket.emit('start-room', { roomId: id });
+                      if (socket && socketIsConnected) {
+                        console.log('🎬 Start Show button clicked - emitting start-room event');
+                        socket.emit('start-room', { roomId: id, userId: currentUserId });
                         setLivekitEnabled(true);
                         
                         toast({
                           title: "Starting Show",
                           description: "Connecting to live stream..."
                         });
+                      } else if (socket && !socketIsConnected) {
+                        console.warn('⚠️ Socket exists but not connected yet');
+                        toast({
+                          title: "Connecting...",
+                          description: "Please wait a moment and try again.",
+                          variant: "default"
+                        });
+                      } else {
+                        console.error('❌ Socket not initialized');
+                        toast({
+                          title: "Connection Error",
+                          description: "Unable to start show. Please refresh the page.",
+                          variant: "destructive"
+                        });
                       }
                     }}
-                    disabled={livekit.isConnecting}
+                    disabled={livekit.isConnecting || !socketIsConnected}
                     data-testid="button-start-show"
                   >
                     {livekit.isConnecting ? (
+                      <>
+                        <Loader2 className="h-6 w-6 mr-2 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : !socketIsConnected ? (
                       <>
                         <Loader2 className="h-6 w-6 mr-2 animate-spin" />
                         Connecting...

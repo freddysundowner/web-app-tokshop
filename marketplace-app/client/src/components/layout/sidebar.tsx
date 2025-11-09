@@ -108,8 +108,12 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
               className="text-sm text-primary hover:underline" 
               data-testid="link-view-profile"
               onClick={() => {
-                onMobileClose?.();
-                setLocation('/profile-view');
+                if (onMobileClose) {
+                  onMobileClose();
+                  setTimeout(() => setLocation('/profile-view'), 150);
+                } else {
+                  setLocation('/profile-view');
+                }
               }}
             >
               View profile
@@ -138,8 +142,12 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
                 )}
                 data-testid={`nav-${item.name.toLowerCase().replace(" ", "-")}`}
                 onClick={() => {
-                  onMobileClose?.();
-                  setLocation(item.href);
+                  if (onMobileClose) {
+                    onMobileClose();
+                    setTimeout(() => setLocation(item.href), 150);
+                  } else {
+                    setLocation(item.href);
+                  }
                 }}
               >
                 <item.icon className="h-5 w-5" />
@@ -171,8 +179,12 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
                     )}
                     data-testid={`nav-${item.name.toLowerCase().replace(" ", "-")}`}
                     onClick={() => {
-                      onMobileClose?.();
-                      setLocation(item.href);
+                      if (onMobileClose) {
+                        onMobileClose();
+                        setTimeout(() => setLocation(item.href), 150);
+                      } else {
+                        setLocation(item.href);
+                      }
                     }}
                   >
                     <item.icon className="h-5 w-5" />
@@ -205,8 +217,12 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
                 )}
                 data-testid={`nav-${item.name.toLowerCase().replace(" ", "-")}`}
                 onClick={() => {
-                  onMobileClose?.();
-                  setLocation(item.href);
+                  if (onMobileClose) {
+                    onMobileClose();
+                    setTimeout(() => setLocation(item.href), 150);
+                  } else {
+                    setLocation(item.href);
+                  }
                 }}
               >
                 <item.icon className="h-5 w-5" />
@@ -237,8 +253,12 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
                 )}
                 data-testid={`nav-${item.name.toLowerCase().replace(" ", "-")}`}
                 onClick={() => {
-                  onMobileClose?.();
-                  setLocation(item.href);
+                  if (onMobileClose) {
+                    onMobileClose();
+                    setTimeout(() => setLocation(item.href), 150);
+                  } else {
+                    setLocation(item.href);
+                  }
                 }}
               >
                 <item.icon className="h-5 w-5" />
@@ -281,7 +301,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
 
       {/* Mobile Sidebar Sheet */}
       <Sheet open={isMobileOpen} onOpenChange={(open) => !open && onMobileClose?.()}>
-        <SheetContent side="left" className="w-64 p-0 lg:hidden">
+        <SheetContent side="left" className="w-64 p-0 lg:hidden overflow-hidden flex flex-col">
           <SidebarContent />
         </SheetContent>
       </Sheet>

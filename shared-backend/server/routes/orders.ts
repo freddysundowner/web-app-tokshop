@@ -112,6 +112,9 @@ export function registerOrderRoutes(app: Express) {
       const url = `${BASE_URL}/orders${queryString ? '?' + queryString : ''}`;
       
       console.log('Final API URL being called:', url);
+      console.log('[Orders] Session accessToken:', req.session?.accessToken ? 'present' : 'missing');
+      console.log('[Orders] Headers x-access-token:', req.headers['x-access-token'] ? 'present' : 'missing');
+      console.log('[Orders] Headers x-user-data:', req.headers['x-user-data'] ? 'present' : 'missing');
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -119,6 +122,9 @@ export function registerOrderRoutes(app: Express) {
 
       if (req.session?.accessToken) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+        console.log('[Orders] Adding Authorization header to external API request');
+      } else {
+        console.warn('[Orders] No session accessToken found - request will fail!');
       }
 
       const response = await fetch(url, {

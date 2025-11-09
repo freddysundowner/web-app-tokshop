@@ -146,55 +146,62 @@ export function registerProductRoutes(app: Express) {
       console.log("Proxying products request to Tokshop API");
       console.log("Query params received:", req.query);
 
-      // Build query parameters for Tokshop API
-      const queryParams = new URLSearchParams();
+      // Build query parameters in specific order for Tokshop API
+      const queryParts: string[] = [];
 
       // Add userId parameter (this is the key parameter for filtering user's products)
       // Check both userId and userid (camelCase and lowercase)
-      if (req.query.userId || req.query.userid) {
-        queryParams.set("userid", (req.query.userId || req.query.userid) as string);
+      if (req.query.userId !== undefined || req.query.userid !== undefined) {
+        queryParts.push(`userid=${encodeURIComponent((req.query.userId || req.query.userid) as string)}`);
       }
 
-      // Add roomId parameter (for filtering products by room/show)
-      if (req.query.roomId) {
-        console.log("Adding roomId to query:", req.query.roomId);
-        queryParams.set("roomid", req.query.roomId as string);
-      } else {
-        console.log("No roomId in query");
+      // Add roomId parameter - always include even if empty
+      if (req.query.roomId !== undefined || req.query.roomid !== undefined) {
+        queryParts.push(`roomid=${encodeURIComponent((req.query.roomId || req.query.roomid || '') as string)}`);
       }
 
-      // Add saletype parameter (auction, buy_now, etc.)
-      if (req.query.saletype) {
-        console.log("Adding saletype to query:", req.query.saletype);
-        queryParams.set("saletype", req.query.saletype as string);
-      } else {
-        console.log("No saletype in query");
+      // Add type parameter - always include even if empty
+      if (req.query.type !== undefined) {
+        queryParts.push(`type=${encodeURIComponent(req.query.type as string)}`);
       }
 
-      if (req.query.status && req.query.status !== "all") {
-        queryParams.set("status", req.query.status as string);
+      // Add saletype parameter - always include even if empty
+      if (req.query.saletype !== undefined) {
+        queryParts.push(`saletype=${encodeURIComponent(req.query.saletype as string)}`);
       }
-      if (req.query.type) {
-        queryParams.set("type", req.query.type as string);
+
+      // Add category - always include even if empty (check both categoryId and category)
+      if (req.query.categoryId !== undefined || req.query.category !== undefined) {
+        queryParts.push(`category=${encodeURIComponent((req.query.categoryId || req.query.category || '') as string)}`);
       }
-      if (req.query.page) {
-        queryParams.set("page", req.query.page as string);
+      
+      // Add page
+      if (req.query.page !== undefined) {
+        queryParts.push(`page=${encodeURIComponent(req.query.page as string)}`);
       }
-      if (req.query.limit) {
-        queryParams.set("limit", req.query.limit as string);
+      
+      // Add limit
+      if (req.query.limit !== undefined) {
+        queryParts.push(`limit=${encodeURIComponent(req.query.limit as string)}`);
       }
-      if (req.query.categoryId) {
-        queryParams.set("category", req.query.categoryId as string);
-      }
+      
+      // Add featured
       if (req.query.featured !== undefined) {
-        queryParams.set("featured", req.query.featured as string);
+        queryParts.push(`featured=${encodeURIComponent(req.query.featured as string)}`);
       }
-      if (req.query.title) {
-        queryParams.set("title", req.query.title as string);
+      
+      // Add status
+      if (req.query.status !== undefined) {
+        queryParts.push(`status=${encodeURIComponent(req.query.status as string)}`);
+      }
+      
+      // Add title if provided
+      if (req.query.title !== undefined) {
+        queryParts.push(`title=${encodeURIComponent(req.query.title as string)}`);
       }
 
-      const queryString = queryParams.toString();
-      const url = `${BASE_URL}/products${queryString ? "?" + queryString : ""}`;
+      const queryString = queryParts.join('&');
+      const url = `${BASE_URL}/products/${queryString ? "?" + queryString : ""}`;
 
       console.log("Final API URL being called:", url);
 
@@ -283,11 +290,11 @@ export function registerProductRoutes(app: Express) {
         }),
         ...(req.body.duration && { duration: req.body.duration }),
         ...(req.body.sudden !== undefined && { sudden: req.body.sudden }),
-        ...(req.body.startTime && { 
-          start_time_date: new Date(req.body.startTime).getTime() 
+        ...(req.body.startTimeTimestamp && { 
+          start_time_date: req.body.startTimeTimestamp 
         }),
-        ...(req.body.endTime && { 
-          end_time_date: new Date(req.body.endTime).getTime() 
+        ...(req.body.endTimeTimestamp && { 
+          end_time_date: req.body.endTimeTimestamp 
         }),
         ...(req.body.colors && { colors: req.body.colors }),
         ...(req.body.sizes && { sizes: req.body.sizes }),
@@ -340,8 +347,11 @@ export function registerProductRoutes(app: Express) {
         body: JSON.stringify(tokshopProductData),
       });
 
+      console.log("External API response status:", response.status);
+      
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as any;
+        console.log("External API error response:", JSON.stringify(errorData, null, 2));
         throw new Error(
           errorData.message ||
             `Tokshop API returned ${response.status}: ${response.statusText}`,
@@ -349,7 +359,7 @@ export function registerProductRoutes(app: Express) {
       }
 
       const data = await response.json();
-      console.log("Product created successfully:", data);
+      console.log("External API success response:", JSON.stringify(data, null, 2));
       res.json(data);
     } catch (error: any) {
       console.error("Product creation error:", error);
@@ -563,12 +573,12 @@ export function registerProductRoutes(app: Express) {
         started: (productData.featured && productData.listingType === 'auction') || false,
       };
       
-      // Add scheduling fields for featured auctions (convert to timestamps)
-      if (productData.startTime) {
-        tokshopUpdateData.start_time_date = new Date(productData.startTime).getTime();
+      // Add scheduling fields for featured auctions (already converted to timestamps on frontend)
+      if (req.body.startTimeTimestamp) {
+        tokshopUpdateData.start_time_date = req.body.startTimeTimestamp;
       }
-      if (productData.endTime) {
-        tokshopUpdateData.end_time_date = new Date(productData.endTime).getTime();
+      if (req.body.endTimeTimestamp) {
+        tokshopUpdateData.end_time_date = req.body.endTimeTimestamp;
       }
       
       // Only include shipping_profile if it has a valid value

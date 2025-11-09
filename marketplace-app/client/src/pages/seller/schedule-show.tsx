@@ -28,8 +28,8 @@ const scheduleShowSchema = z.object({
   
   // Shipping Settings
   freePickup: z.boolean().default(false),
-  uspsPriorityMail: z.boolean().default(false),
-  uspsGroundAdvantage: z.boolean().default(false),
+  uspsPriorityMail: z.boolean().default(true),
+  uspsGroundAdvantage: z.boolean().default(true),
   shippingProfile: z.string().optional(),
   shippingCoverage: z.enum(["seller_pays_all", "buyer_pays_up_to", "buyer_pays_all"]),
   maxBuyerPays: z.string().optional(),
@@ -131,8 +131,8 @@ export default function ScheduleShow() {
       category: "",
       description: "",
       freePickup: false,
-      uspsPriorityMail: false,
-      uspsGroundAdvantage: false,
+      uspsPriorityMail: true,
+      uspsGroundAdvantage: true,
       shippingProfile: "",
       shippingCoverage: "buyer_pays_all",
       maxBuyerPays: "",
@@ -395,8 +395,8 @@ export default function ScheduleShow() {
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="border-b border-border bg-background px-6 py-4">
-        <div className="flex items-center gap-4">
+      <div className="border-b border-border bg-background px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Button
             variant="ghost"
             size="icon"
@@ -406,10 +406,10 @@ export default function ScheduleShow() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground" data-testid="text-schedule-show-title">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground" data-testid="text-schedule-show-title">
               {isEditMode ? "Edit Show" : "Schedule a Show"}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {isEditMode ? "Update your show details and settings" : "Set up your live selling show with shipping and content settings"}
             </p>
           </div>
@@ -417,8 +417,8 @@ export default function ScheduleShow() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="w-full">
+      <div className="flex-1 overflow-auto px-4 sm:px-6 py-4 sm:py-6">
+        <div className="w-full max-w-7xl mx-auto">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               
@@ -1044,16 +1044,17 @@ export default function ScheduleShow() {
               </div>
 
               {/* Submit Actions */}
-              <div className="flex justify-end gap-4 pt-4">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 pt-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setLocation("/live-shows")}
                   data-testid="button-cancel"
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-schedule">
+                <Button type="submit" data-testid="button-schedule" className="w-full sm:w-auto">
                   {isEditMode ? "Update Show" : "Schedule Show"}
                 </Button>
               </div>

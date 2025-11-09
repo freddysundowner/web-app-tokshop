@@ -262,22 +262,22 @@ export function subscribeToRoomMessages(
         const messages = snapshot.docs.map(doc => {
           const data = doc.data();
           
-          // Normalize field names (some messages use 'name', some use 'senderName')
-          const senderName = data.senderName || data.name || 'Unknown';
-          const senderId = data.sender || data.senderId || '';
-          const senderProfileUrl = data.senderProfileUrl || data.image_url || '';
+          // Use correct field names (new messages use 'name', 'senderId', 'image_url')
+          const senderName = data.name || data.senderName || 'Unknown';
+          const senderId = data.senderId || data.sender || '';
+          const senderProfileUrl = data.image_url || data.senderProfileUrl || '';
           
           // Handle different timestamp formats
           let timestamp = 0;
-          if (data.date) {
-            timestamp = typeof data.date === 'string' ? parseInt(data.date) : data.date;
-          } else if (data.timestamp) {
-            // Handle Firestore Timestamp object
+          if (data.timestamp) {
+            // Handle Firestore Timestamp object (preferred)
             if (data.timestamp.seconds) {
               timestamp = data.timestamp.seconds * 1000;
             } else if (typeof data.timestamp === 'number') {
               timestamp = data.timestamp;
             }
+          } else if (data.date) {
+            timestamp = typeof data.date === 'string' ? parseInt(data.date) : data.date;
           }
           
           return {
@@ -329,10 +329,10 @@ export async function sendRoomMessage(
     
     const newMessage = {
       message,
-      sender: senderId,
-      senderName,
-      senderProfileUrl,
-      date: Date.now().toString(),
+      senderId: senderId,
+      name: senderName,
+      image_url: senderProfileUrl,
+      timestamp: serverTimestamp(),
       seen: false,
       mentions
     };

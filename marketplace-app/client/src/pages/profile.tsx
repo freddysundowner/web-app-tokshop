@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -9,10 +9,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Save, Camera, User, Mail, Phone, MapPin, Edit } from "lucide-react";
+import { Save, Camera, User, Mail, Phone, MapPin, Edit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { z } from "zod";
+import { getFirebaseStorage } from "@/lib/firebase";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 // Profile update schema
 const profileUpdateSchema = z.object({
@@ -26,6 +30,11 @@ const profileUpdateSchema = z.object({
     return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
   }, "Please enter a valid phone number"),
   country: z.string().min(1, "Country is required"),
+  date_of_birth: z.string().optional().refine((date) => {
+    if (!date || date === '') return true;
+    const birthDate = new Date(date);
+    return !isNaN(birthDate.getTime()) && birthDate <= new Date();
+  }, "Please enter a valid date"),
 });
 
 type ProfileUpdateData = z.infer<typeof profileUpdateSchema>;
@@ -34,8 +43,23 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [updateError, setUpdateError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshUserData } = useAuth();
+  
+  const userId = (user as any)?._id || user?.id;
+  
+  // Fetch fresh user data to always show latest profile photo
+  const { data: freshUserData } = useQuery<any>({
+    queryKey: [`/api/profile/${userId}`],
+    enabled: !!userId,
+    staleTime: 0, // Always fetch fresh data
+  });
+  
+  // Use fresh data if available, otherwise fall back to cached user
+  const currentUser = freshUserData || user;
 
   const form = useForm<ProfileUpdateData>({
     resolver: zodResolver(profileUpdateSchema),
@@ -46,6 +70,7 @@ export default function Profile() {
       email: user?.email || "",
       phone: user?.phone || "",
       country: user?.country || "",
+      date_of_birth: user?.date_of_birth || "",
     },
   });
 
@@ -112,14 +137,146 @@ export default function Profile() {
     setUpdateError("");
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a valid image file (JPEG, PNG, GIF, or WebP)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      setUploadProgress(0);
+
+      // Get Firebase Storage instance
+      const storage = getFirebaseStorage();
+      
+      // Create a unique filename
+      const timestamp = Date.now();
+      const fileName = `profile-images/${user?.id || 'unknown'}_${timestamp}_${file.name}`;
+      const storageRef = ref(storage, fileName);
+
+      // Upload file with progress tracking
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          // Track upload progress
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(Math.round(progress));
+        },
+        (error) => {
+          // Handle upload errors
+          console.error('Upload error:', error);
+          toast({
+            title: "Upload failed",
+            description: error.message || "Failed to upload image",
+            variant: "destructive"
+          });
+          setIsUploadingImage(false);
+          setUploadProgress(0);
+        },
+        async () => {
+          // Upload completed successfully, get download URL
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            console.log('Image uploaded successfully:', downloadURL);
+
+            // Update user profile with new image URL
+            const response = await fetch('/api/users/profile', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({ profilePhoto: downloadURL }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+              throw new Error(result.error || 'Failed to update profile photo');
+            }
+
+            // Update localStorage with new user data
+            if (result.data) {
+              const currentUser = localStorage.getItem('user');
+              if (currentUser) {
+                const updatedUser = {
+                  ...JSON.parse(currentUser),
+                  ...result.data,
+                };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+              }
+            }
+
+            // Invalidate all profile-related queries to refresh the UI
+            const userId = (user as any)?._id || user?.id;
+            queryClient.invalidateQueries({ queryKey: ['/api/profile', userId] });
+            queryClient.invalidateQueries({ queryKey: [`/api/profile/${userId}`] });
+            
+            // Refresh auth context to update user data everywhere
+            if (refreshUserData) {
+              await refreshUserData();
+            }
+
+            toast({
+              title: "Profile photo updated",
+              description: "Your profile photo has been successfully updated."
+            });
+          } catch (error) {
+            console.error('Profile update error:', error);
+            toast({
+              title: "Update failed",
+              description: error instanceof Error ? error.message : "Failed to update profile photo",
+              variant: "destructive"
+            });
+          } finally {
+            setIsUploadingImage(false);
+            setUploadProgress(0);
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Image upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload image",
+        variant: "destructive"
+      });
+      setIsUploadingImage(false);
+      setUploadProgress(0);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="w-[90%] mx-auto p-6 space-y-6">
+      <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Profile</h1>
-            <p className="text-muted-foreground">Manage your account information and preferences</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profile</h1>
+            <p className="text-sm text-muted-foreground">Manage your account information and preferences</p>
           </div>
           {!isEditing && (
             <Button 
@@ -132,11 +289,11 @@ export default function Profile() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Profile Picture Card */}
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center text-base sm:text-lg">
                 <Camera className="h-5 w-5 mr-2" />
                 Profile Picture
               </CardTitle>
@@ -144,17 +301,42 @@ export default function Profile() {
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-24 w-24" data-testid="avatar-profile">
-                  <AvatarImage src={user?.profilePhoto} />
+                  <AvatarImage src={currentUser?.profilePhoto} />
                   <AvatarFallback className="text-lg">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                    {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 
                 {isEditing && (
-                  <Button variant="outline" size="sm" data-testid="button-upload-photo">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Change Photo
-                  </Button>
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      data-testid="input-file-upload"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingImage}
+                      data-testid="button-upload-photo"
+                    >
+                      {isUploadingImage ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading {uploadProgress}%
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="h-4 w-4 mr-2" />
+                          Change Photo
+                        </>
+                      )}
+                    </Button>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -163,7 +345,7 @@ export default function Profile() {
           {/* Profile Information Card */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center text-base sm:text-lg">
                 <User className="h-5 w-5 mr-2" />
                 Profile Information
               </CardTitle>
@@ -297,6 +479,29 @@ export default function Profile() {
                       />
                     </div>
 
+                    <FormField
+                      control={form.control}
+                      name="date_of_birth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date of Birth</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date"
+                              placeholder="Select your date of birth"
+                              data-testid="input-date-of-birth"
+                              max={new Date().toISOString().split('T')[0]}
+                              {...field} 
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            You must be at least 18 years old to use this platform
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <Separator className="my-6" />
 
                     <div className="flex justify-end space-x-4">
@@ -394,6 +599,13 @@ export default function Profile() {
                         {user?.country || "Not provided"}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Date of Birth</Label>
+                    <p className="text-foreground" data-testid="text-date-of-birth">
+                      {user?.date_of_birth ? new Date(user.date_of_birth).toLocaleDateString() : "Not provided"}
+                    </p>
                   </div>
                 </div>
               )}

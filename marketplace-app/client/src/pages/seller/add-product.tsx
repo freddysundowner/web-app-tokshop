@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -16,19 +16,12 @@ export default function AddProduct() {
   // Create product mutation
   const createProductMutation = useMutation({
     mutationFn: async (productData: ProductFormData) => {
-      const response = await fetch(`/api/products/${user?.id}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(productData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create product");
-      }
+      const isGiveaway = productData.listingType === 'giveaway';
       
+      // Use giveaways endpoint for giveaways, products endpoint for regular products
+      const url = isGiveaway ? `/api/giveaways` : `/api/products/${user?.id}`;
+      
+      const response = await apiRequest("POST", url, productData);
       return response.json();
     },
     onSuccess: () => {

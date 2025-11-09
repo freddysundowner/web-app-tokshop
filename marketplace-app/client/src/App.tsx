@@ -10,6 +10,9 @@ import { SocketProvider } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
 
+// Import age verification (not lazy loaded since it needs to run immediately)
+import { AgeVerificationDialog } from "@/components/age-verification-dialog";
+
 // Lazy load all pages to prevent circular dependencies
 const Sidebar = lazy(() => import("@/components/layout/sidebar").then(m => ({ default: m.Sidebar })));
 const AppHeader = lazy(() => import("@/components/layout/app-header").then(m => ({ default: m.AppHeader })));
@@ -143,7 +146,23 @@ function Router() {
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <div className="flex flex-col h-screen bg-background">
-          <AppHeader hideLogo={false} />
+          <AppHeader 
+            hideLogo={false}
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            onMobileMenuClose={closeMobileMenu}
+          />
+          
+          {/* Mobile Sidebar Sheet for unauthenticated users - hide desktop version */}
+          <div className="lg:hidden">
+            <Sidebar 
+              isCollapsed={false}
+              onToggle={toggleSidebar}
+              isMobileOpen={mobileMenuOpen}
+              onMobileClose={closeMobileMenu}
+            />
+          </div>
+          
           <main className="flex-1 overflow-y-auto">
             <Switch>
               <Route path="/" component={LandingPage} />
@@ -212,6 +231,7 @@ function Router() {
             onMobileMenuToggle={toggleMobileMenu}
             mobileMenuOpen={mobileMenuOpen}
             hideLogo={false}
+            hideSearch={true}
             isDashboard={true}
           />
           <div className="flex flex-1 min-h-0">
@@ -267,12 +287,40 @@ function Router() {
 
   const isShowViewPage = location.startsWith('/show/');
   
+  // Hide search on detail/inner pages, keep it on marketplace browsing pages
+  // Extract pathname without query parameters
+  const pathname = location.split('?')[0];
+  const isMarketplaceBrowsingPage = pathname === '/' || 
+                                    pathname === '/marketplace' || 
+                                    pathname === '/browse' || 
+                                    pathname.startsWith('/deals') || 
+                                    pathname.startsWith('/category') || 
+                                    pathname === '/search' ||
+                                    pathname.startsWith('/trending');
+  
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <div className="flex flex-col h-screen bg-background">
         <div className={cn(isShowViewPage && "hidden lg:block")}>
-          <AppHeader hideLogo={false} />
+          <AppHeader 
+            hideLogo={false}
+            hideSearch={!isMarketplaceBrowsingPage}
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            onMobileMenuClose={closeMobileMenu}
+          />
         </div>
+        
+        {/* Mobile Sidebar Sheet for non-dashboard pages - hide desktop version */}
+        <div className="lg:hidden">
+          <Sidebar 
+            isCollapsed={false}
+            onToggle={toggleSidebar}
+            isMobileOpen={mobileMenuOpen}
+            onMobileClose={closeMobileMenu}
+          />
+        </div>
+        
         <main className="flex-1 min-h-0 overflow-y-auto">
           <Switch>
             <Route path="/" component={MarketplaceHome} />
@@ -316,6 +364,7 @@ export default function App() {
         <AuthProvider>
           <SocketProvider>
             <TooltipProvider>
+              <AgeVerificationDialog />
               <Toaster />
               <Router />
             </TooltipProvider>

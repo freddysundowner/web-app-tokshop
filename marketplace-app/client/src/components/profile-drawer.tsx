@@ -220,12 +220,11 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
                 {getUserDisplayName()}
               </p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
-                <span><span className="font-semibold text-foreground">23</span> following</span>
+                <span><span className="font-semibold text-foreground">{(currentUser?.followingCount || currentUser?.following?.length || 0).toLocaleString()}</span> following</span>
                 <span>•</span>
-                <span><span className="font-semibold text-foreground">52</span> followers</span>
+                <span><span className="font-semibold text-foreground">{(currentUser?.followersCount || currentUser?.followers?.length || 0).toLocaleString()}</span> followers</span>
               </div>
             </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           </button>
         </div>
 

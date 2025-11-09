@@ -398,22 +398,22 @@ export default function Addresses() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Addresses</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Addresses</h1>
+          <p className="text-sm text-muted-foreground">
             Manage your shipping and billing addresses
           </p>
         </div>
-        <Button onClick={handleCreate} data-testid="button-create-address">
+        <Button onClick={handleCreate} data-testid="button-create-address" className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Add Address
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(3)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>
@@ -454,7 +454,7 @@ export default function Addresses() {
           </Button>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {addresses.map((address) => {
             const addressId = address.id || (address as any)._id;
             return (
@@ -463,7 +463,7 @@ export default function Addresses() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg text-foreground">
+                        <CardTitle className="text-base sm:text-lg text-foreground">
                           {address.name}
                         </CardTitle>
                         {address.primary && (

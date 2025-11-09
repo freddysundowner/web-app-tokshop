@@ -121,8 +121,17 @@ export const getQueryFn: <T>(options: {
     
     // Handle different parameter patterns
     if (params.length > 0) {
+      // For orders: ['/api/orders', userId, statusFilter, selectedCustomerId, currentPage, itemsPerPage]
+      if (endpoint === '/api/orders' && params.length >= 5) {
+        const [userId, statusFilter, selectedCustomerId, currentPage, itemsPerPage] = params;
+        if (userId) queryParams.set('userId', String(userId));
+        if (statusFilter && statusFilter !== 'all') queryParams.set('status', String(statusFilter));
+        if (selectedCustomerId && selectedCustomerId !== 'all') queryParams.set('customerId', String(selectedCustomerId));
+        if (currentPage) queryParams.set('page', String(currentPage));
+        if (itemsPerPage) queryParams.set('limit', String(itemsPerPage));
+      }
       // For admin shows: [page, limit, searchTitle, searchType]
-      if (endpoint === '/api/admin/shows' && params.length >= 2) {
+      else if (endpoint === '/api/admin/shows' && params.length >= 2) {
         const [page, limit, searchTitle, searchType] = params;
         if (page) queryParams.set('page', String(page));
         if (limit) queryParams.set('limit', String(limit));
@@ -163,6 +172,8 @@ export const getQueryFn: <T>(options: {
     // Send regular user token if available (for all routes)
     if (userToken) {
       headers['x-access-token'] = userToken;
+      // Also send as Authorization Bearer token for external API authentication
+      headers['Authorization'] = `Bearer ${userToken}`;
     }
     
     // Send user data for session restoration (base64 encoded to handle UTF-8 characters)

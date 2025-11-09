@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -11,6 +11,7 @@ import { ArrowLeft, Clock, Hammer, ChevronLeft, ChevronRight, User, Truck, Shiel
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
+import { useSocket } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 
 export default function AuctionDetail() {
@@ -19,10 +20,20 @@ export default function AuctionDetail() {
   const { user: currentUser } = useAuth();
   const { settings } = useSettings();
   const { toast } = useToast();
+  const { socket, isConnected, connect, disconnect } = useSocket();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [hasNotStarted, setHasNotStarted] = useState(false);
 
   const productId = params?.auctionId;
+  const currentUserId = (currentUser as any)?._id || currentUser?.id;
+  const userName = (currentUser as any)?.userName || currentUser?.firstName || 'Guest';
+  
+  // Track fallback timeout for cleanup
+  const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track auction ID to avoid re-joining when product data changes
+  const auctionIdRef = useRef<string | null>(null);
 
   console.log('🔍 STEP 1: Product ID from URL params:', productId);
 
@@ -104,24 +115,128 @@ export default function AuctionDetail() {
     estimateData: shippingEstimate
   });
 
+  // Connect socket and join scheduled auction room
+  useEffect(() => {
+    console.log('📱 Auction detail page mounted - connecting socket...');
+    connect();
+    
+    return () => {
+      console.log('📱 Auction detail page unmounting - disconnecting socket...');
+      
+      // Clear any pending fallback timeout
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+        fallbackTimeoutRef.current = null;
+      }
+      
+      disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount/unmount
+
+  // Extract and store auction ID when product loads
+  useEffect(() => {
+    if (product && !auctionIdRef.current) {
+      const auctionInfo = product.auction || product;
+      const auctionId = auctionInfo._id || productId;
+      auctionIdRef.current = auctionId;
+      console.log('📋 Stored auction ID:', auctionId);
+    }
+  }, [product, productId]);
+
+  // Join scheduled auction room when socket connects
+  useEffect(() => {
+    if (!socket || !isConnected || !auctionIdRef.current || !currentUserId) return;
+
+    const auctionId = auctionIdRef.current;
+
+    console.log('📤 Joining scheduled auction:', {
+      auctionId,
+      userId: currentUserId,
+      userName,
+      socketConnected: isConnected
+    });
+
+    socket.emit('join-schedule-auction', {
+      auctionId,
+      userId: currentUserId,
+      userName
+    });
+
+    console.log('✅ Joined scheduled auction room:', auctionId);
+
+    // Socket event handler: Bid updated
+    const handleBidUpdated = (auction: any) => {
+      console.log('🔍 BID-UPDATED received on auction detail page:', auction);
+      // Invalidate and refetch the product query to get updated auction data
+      queryClient.invalidateQueries({ queryKey: ['/api/products', productId] });
+    };
+
+    // Socket event handler: Auction ended
+    const handleAuctionEnded = (auction: any) => {
+      console.log('🏁 AUCTION-ENDED received:', auction);
+      queryClient.invalidateQueries({ queryKey: ['/api/products', productId] });
+      toast({
+        title: "Auction Ended",
+        description: "This auction has concluded.",
+      });
+    };
+
+    // Socket event handler: New scheduled auction created
+    const handleScheduledAuctionCreated = (data: any) => {
+      console.log('🎉 SCHEDULED-AUCTION-CREATED received:', data);
+      // Force immediate refetch to show the new auction
+      refetch().then(() => {
+        // Update auction ID ref to join new auction room if needed
+        if (data.auction?._id) {
+          auctionIdRef.current = data.auction._id;
+        }
+      });
+      toast({
+        title: "New Auction Available",
+        description: "A new auction has been scheduled for this product.",
+      });
+    };
+
+    // Register socket event listeners
+    // Note: No auction-time-extended for scheduled auctions (they have fixed start/end times)
+    socket.on('bid-updated', handleBidUpdated);
+    socket.on('auction-ended', handleAuctionEnded);
+    socket.on('scheduled-auction-created', handleScheduledAuctionCreated);
+
+    return () => {
+      // Cleanup socket event listeners
+      socket.off('bid-updated', handleBidUpdated);
+      socket.off('auction-ended', handleAuctionEnded);
+      socket.off('scheduled-auction-created', handleScheduledAuctionCreated);
+
+      console.log('📤 Leaving scheduled auction:', auctionId);
+      socket.emit('leave-schedule-auction', {
+        auctionId,
+        userId: currentUserId
+      });
+    };
+  }, [socket, isConnected, productId, currentUserId, userName, toast]);
+
   // Calculate time remaining
   useEffect(() => {
-    if (!mergedData || mergedData.ended) {
+    if (!mergedData) {
       setTimeLeft(0);
+      setHasNotStarted(false);
       return;
     }
 
     const calculateTimeLeft = () => {
       const now = Date.now();
       
-      // Check for scheduled times (featured auctions)
-      const auctionInfo = mergedData.auction || mergedData;
-      const startTimeDate = auctionInfo.start_time_date || mergedData.start_time_date;
-      const endTimeDate = auctionInfo.end_time_date || mergedData.end_time_date;
+      // Check for scheduled times (featured auctions) FIRST - before checking ended flag
+      const auctionInfo = mergedData.auction;
+      const startTimeDate = auctionInfo?.start_time_date;
+      const endTimeDate = auctionInfo?.end_time_date;
       const scheduledStartTime = startTimeDate && startTimeDate > 0 ? startTimeDate : null;
       const scheduledEndTime = endTimeDate && endTimeDate > 0 ? endTimeDate : null;
       
-      // For scheduled auctions (absolute start/end times)
+      // For scheduled auctions (absolute start/end times) - takes priority over ended flag
       if (scheduledStartTime && scheduledEndTime) {
         const startMs = scheduledStartTime; // Already a timestamp
         const endMs = scheduledEndTime; // Already a timestamp
@@ -129,6 +244,7 @@ export default function AuctionDetail() {
         // Not started yet
         if (now < startMs) {
           const untilStart = Math.floor((startMs - now) / 1000);
+          setHasNotStarted(true);
           setTimeLeft(untilStart);
           return;
         }
@@ -136,11 +252,20 @@ export default function AuctionDetail() {
         // Started, show time until end
         if (now >= startMs && now < endMs) {
           const remaining = Math.floor((endMs - now) / 1000);
+          setHasNotStarted(false);
           setTimeLeft(remaining);
           return;
         }
         
         // Ended
+        setHasNotStarted(false);
+        setTimeLeft(0);
+        return;
+      }
+      
+      // Fall back to checking ended flag for non-scheduled auctions
+      if (mergedData.ended) {
+        setHasNotStarted(false);
         setTimeLeft(0);
         return;
       }
@@ -217,24 +342,47 @@ export default function AuctionDetail() {
         throw new Error('Please sign in to place a bid');
       }
       
+      if (!socket || !isConnected) {
+        throw new Error('Not connected to server. Please try again.');
+      }
+      
       // Use nested auction ID if available, otherwise fall back to product ID
       const auctionInfo = mergedData.auction || mergedData;
       const auctionId = auctionInfo._id || mergedData._id;
       
-      const response = await apiRequest('POST', '/api/auction/bid', {
-        auctionId: auctionId,
+      console.log('📤 Placing bid via socket:', {
+        user: currentUserId,
         amount: bidAmount,
-        userId: currentUser.id,
+        auction: auctionId,
+        increaseBidBy: auctionInfo.increaseBidBy || bidIncrement
       });
       
-      return response;
+      // Emit socket event (no acknowledgement callback like show-view)
+      socket.emit('place-bid', {
+        user: currentUserId,
+        amount: bidAmount,
+        increaseBidBy: auctionInfo.increaseBidBy || bidIncrement,
+        auction: auctionId,
+        prebid: false,
+        autobid: false,
+        autobidamount: bidAmount,
+        roomId: auctionId, // For scheduled auctions, roomId is the auction ID
+        type: 'scheduled' // Indicate this is a scheduled auction bid
+      });
+      
+      console.log('✅ Bid socket event emitted');
+      
+      // Fallback refetch after emitting bid
+      fallbackTimeoutRef.current = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/products', productId] });
+        fallbackTimeoutRef.current = null;
+      }, 500);
     },
     onSuccess: () => {
       toast({
         title: "Bid placed!",
         description: "Your bid has been placed successfully.",
       });
-      refetch();
     },
     onError: (error: any) => {
       toast({
@@ -255,6 +403,15 @@ export default function AuctionDetail() {
       return;
     }
     
+    if (hasNotStarted) {
+      toast({
+        title: "Auction not started",
+        description: "This auction hasn't started yet. Please wait.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (hasEnded) {
       toast({
         title: "Auction ended",
@@ -264,8 +421,8 @@ export default function AuctionDetail() {
       return;
     }
 
-    // Place bid at the newbaseprice from auction
-    const bidAmount = auctionInfo?.newbaseprice || currentBid;
+    // Use newbaseprice, or default_startprice if newbaseprice is 0
+    const bidAmount = auctionInfo?.newbaseprice || mergedData?.default_startprice || 0;
     placeBidMutation.mutate(bidAmount);
   };
 
@@ -417,11 +574,11 @@ export default function AuctionDetail() {
                 {/* Timer */}
                 <div className={cn(
                   "p-4 rounded-lg border-2",
-                  hasEnded ? "border-muted bg-muted/50" : isEnding ? "border-destructive bg-destructive/10 animate-pulse" : "border-primary bg-primary/10"
+                  hasEnded ? "border-muted bg-muted/50" : hasNotStarted ? "border-primary bg-primary/10" : isEnding ? "border-destructive bg-destructive/10 animate-pulse" : "border-primary bg-primary/10"
                 )}>
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="h-5 w-5" />
-                    <span className="font-semibold">Time Remaining</span>
+                    <span className="font-semibold">{hasNotStarted ? "Starts in" : "Time Remaining"}</span>
                   </div>
                   <p className={cn("text-2xl font-bold", hasEnded ? "text-muted-foreground" : isEnding ? "text-destructive" : "text-primary")}>
                     {formatTime(timeLeft)}
@@ -458,7 +615,14 @@ export default function AuctionDetail() {
 
                 {/* Bidding Buttons */}
                 {!hasEnded ? (
-                  isOwner ? (
+                  hasNotStarted ? (
+                    <div className="p-4 bg-muted rounded-lg text-center">
+                      <p className="font-semibold mb-2">Auction Not Started</p>
+                      <p className="text-sm text-muted-foreground">
+                        Bidding will open when the auction starts
+                      </p>
+                    </div>
+                  ) : isOwner ? (
                     <div className="p-4 bg-muted rounded-lg text-center">
                       <p className="font-semibold mb-2">Your Auction</p>
                       <p className="text-sm text-muted-foreground">
@@ -479,7 +643,7 @@ export default function AuctionDetail() {
                         ) : (
                           <>
                             <Hammer className="h-5 w-5 mr-2" />
-                            Place Bid - ${(auctionInfo?.newbaseprice || 0).toFixed(2)}
+                            Place Bid - ${(auctionInfo?.newbaseprice || mergedData?.default_startprice || 0).toFixed(2)}
                           </>
                         )}
                       </Button>
@@ -530,49 +694,6 @@ export default function AuctionDetail() {
                   <User className="h-4 w-4 mr-2" />
                   View Seller Profile
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Shipping Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Shipping</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-start gap-2">
-                  <Truck className="h-5 w-5 mt-0.5 text-muted-foreground" />
-                  <div className="flex-1">
-                    {isLoadingShipping ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <p className="text-sm text-muted-foreground">Calculating shipping...</p>
-                      </div>
-                    ) : shippingEstimate?.amount ? (
-                      <div>
-                        <p className="text-sm font-semibold">
-                          US${(typeof shippingEstimate.amount === 'string' ? parseFloat(shippingEstimate.amount) : shippingEstimate.amount).toFixed(2)}
-                        </p>
-                        {shippingEstimate.servicelevel?.name && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {shippingEstimate.servicelevel.name}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Ships from: {ownerData?.state || 'United States'}
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-sm">
-                          {mergedData.shippingInfo || 'Shipping costs calculated at checkout'}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Ships from: {ownerData?.state || 'United States'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </CardContent>
             </Card>
 

@@ -42,7 +42,7 @@ app.use(session({
 
 // Session restoration middleware - restores sessions from headers
 app.use((req, res, next) => {
-  // Try to restore session from headers if session is empty
+  // Always restore session from headers to ensure fresh authentication state
   const accessToken = req.headers['x-access-token'] as string;
   const adminToken = req.headers['x-admin-token'] as string;
   const userData = req.headers['x-user-data'] as string;
@@ -57,18 +57,17 @@ app.use((req, res, next) => {
     console.log('  - session.accessToken:', req.session.accessToken ? 'exists' : 'empty');
   }
   
-  // Restore regular user session from headers
-  if (accessToken && !req.session.accessToken) {
+  // Always restore accessToken from headers (regular user token takes priority)
+  if (accessToken) {
     req.session.accessToken = accessToken;
   }
-  
-  // Restore admin token from headers (admin routes use this)
-  if (adminToken && !req.session.accessToken) {
+  // Fall back to admin token if no regular token
+  else if (adminToken) {
     req.session.accessToken = adminToken;
   }
   
-  // Restore user data from headers (base64 encoded)
-  if (userData && !req.session.user) {
+  // Always restore user data from headers if available
+  if (userData) {
     try {
       // Decode from base64 (UTF-8)
       const decoded = Buffer.from(userData, 'base64').toString('utf8');

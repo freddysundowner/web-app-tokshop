@@ -6,6 +6,8 @@ import { useSettings } from './settings-context';
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
+  connect: () => void;
+  disconnect: () => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
 }
@@ -16,6 +18,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const currentRoomIdRef = useRef<string | null>(null);
+  const isManualConnectRef = useRef<boolean>(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -35,7 +38,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         
         const socketInstance = io(EXTERNAL_API_URL, {
           transports: ['websocket', 'polling'],
-          autoConnect: true,
+          autoConnect: false, // Don't connect automatically - only connect when needed
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionAttempts: 5
@@ -47,7 +50,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           setIsConnected(true);
           
           // Automatically rejoin the room if we were in one before disconnect
-          if (currentRoomIdRef.current) {
+          // BUT skip if this is a manual connection (joinRoom will handle the emit)
+          if (currentRoomIdRef.current && !isManualConnectRef.current) {
             console.log('🔄 Reconnected! Auto-rejoining room:', currentRoomIdRef.current);
             const socketId = socketInstance.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
             const userId = user ? ((user as any)._id || (user as any).id || user.id) : `guest_${socketId}`;
@@ -59,6 +63,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
               userName
             });
           }
+          
+          // Reset manual connect flag after handling
+          isManualConnectRef.current = false;
         });
 
         socketInstance.on('disconnect', () => {
@@ -87,9 +94,40 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const connect = () => {
+    if (!socket) {
+      console.warn('⚠️ Cannot connect: socket not initialized');
+      return;
+    }
+    
+    if (!socket.connected) {
+      console.log('🔌 Manually connecting socket...');
+      socket.connect();
+    } else {
+      console.log('✅ Socket already connected');
+    }
+  };
+
+  const disconnect = () => {
+    if (!socket) {
+      console.warn('⚠️ Cannot disconnect: socket not initialized');
+      return;
+    }
+    
+    if (socket.connected) {
+      console.log('🔌 Manually disconnecting socket...');
+      socket.disconnect();
+    }
+  };
+
   const joinRoom = (roomId: string) => {
     if (!socket) {
-      console.warn('⚠️ Cannot join room: socket not connected');
+      console.warn('⚠️ Cannot join room: socket not initialized');
+      return;
+    }
+    
+    if (!socket.connected) {
+      console.warn('⚠️ Cannot join room: socket not connected yet');
       return;
     }
     
@@ -111,7 +149,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
   const leaveRoom = (roomId: string) => {
     if (!socket) {
-      console.warn('⚠️ Cannot leave room: socket not connected');
+      console.warn('⚠️ Cannot leave room: socket not initialized');
       return;
     }
     
@@ -132,7 +170,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, joinRoom, leaveRoom }}>
+    <SocketContext.Provider value={{ socket, isConnected, connect, disconnect, joinRoom, leaveRoom }}>
       {children}
     </SocketContext.Provider>
   );

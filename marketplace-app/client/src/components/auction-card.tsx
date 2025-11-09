@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
-import { Clock, Bookmark, CheckCircle } from 'lucide-react';
+import { Clock, Bookmark, CheckCircle, Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,12 @@ import { useAuth } from '@/lib/auth-context';
 
 interface AuctionCardProps {
   auction: any;
+  layout?: 'grid' | 'carousel';
 }
 
-export function AuctionCard({ auction }: AuctionCardProps) {
+export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
   const [timeLeft, setTimeLeft] = useState(0);
+  const [imageError, setImageError] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -23,7 +25,7 @@ export function AuctionCard({ auction }: AuctionCardProps) {
   
   const productId = auction._id || auction.id;
   const images = auction.images || auction.productImages || [];
-  const firstImage = images.length > 0 ? images[0] : 'https://placehold.co/400x400/e2e8f0/64748b?text=No+Image';
+  const firstImage = images.length > 0 ? images[0] : '';
   const name = auction.name || 'Untitled Auction';
   const bidsCount = auctionData.bids?.length || auction.bids?.length || 0;
   
@@ -37,8 +39,8 @@ export function AuctionCard({ auction }: AuctionCardProps) {
   const isBookmarked = auction.favorited?.includes(currentUserId) || false;
   
   // Check for scheduled times (featured auctions) or duration-based times (live show auctions)
-  const startTimeDate = auctionData.start_time_date || auction.start_time_date;
-  const endTimeDate = auctionData.end_time_date || auction.end_time_date;
+  const startTimeDate = auctionData.start_time_date;
+  const endTimeDate = auctionData.end_time_date;
   const scheduledStartTime = startTimeDate && startTimeDate > 0 ? startTimeDate : null;
   const scheduledEndTime = endTimeDate && endTimeDate > 0 ? endTimeDate : null;
   const duration = auctionData.duration || auction.duration || 0; // Duration in minutes
@@ -203,18 +205,29 @@ export function AuctionCard({ auction }: AuctionCardProps) {
     }
   };
 
+  const cardClassName = layout === 'carousel'
+    ? "hover-elevate active-elevate-2 overflow-hidden flex-shrink-0 w-52 sm:w-60"
+    : "hover-elevate active-elevate-2 overflow-hidden w-full min-w-0";
+
   return (
     <Card 
-      className="hover-elevate active-elevate-2 overflow-hidden flex-shrink-0 w-52 sm:w-60"
+      className={cardClassName}
       data-testid={`card-auction-${productId}`}
     >
       <div className="relative aspect-square bg-muted">
-        <img
-          src={firstImage}
-          alt={name}
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-        />
+        {!imageError && firstImage ? (
+          <img
+            src={firstImage}
+            alt={name}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Package className="h-16 w-16 text-muted-foreground/40" />
+          </div>
+        )}
         {hasEnded && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
             <Badge variant="destructive" className="text-sm">Ended</Badge>

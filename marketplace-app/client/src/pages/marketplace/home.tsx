@@ -269,7 +269,7 @@ export default function MarketplaceHome() {
                       </div>
                       <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
                         {trendingProducts.map((product: any) => (
-                          <ProductCard key={product._id || product.id} product={product} />
+                          <ProductCard key={product._id || product.id} product={product} layout="carousel" />
                         ))}
                       </div>
                     </div>
@@ -302,7 +302,7 @@ export default function MarketplaceHome() {
                       </div>
                       <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
                         {trendingAuctions.map((auction: any) => (
-                          <AuctionCard key={auction._id || auction.id} auction={auction} />
+                          <AuctionCard key={auction._id || auction.id} auction={auction} layout="carousel" />
                         ))}
                       </div>
                     </div>

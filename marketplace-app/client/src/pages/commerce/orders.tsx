@@ -63,41 +63,11 @@ export default function Orders() {
   const [, setLocation] = useLocation();
   const [messagingOrderId, setMessagingOrderId] = useState<string | null>(null);
 
+  // Build query key with parameters for proper caching
+  const ordersQueryKey = ['/api/orders', user?.id, statusFilter, selectedCustomerId, currentPage, itemsPerPage];
+  
   const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
-    queryKey: ["external-orders", user?.id, statusFilter, selectedCustomerId, currentPage, itemsPerPage],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (user?.id) {
-        // Orders page always shows seller orders (using userId parameter)
-        // Non-sellers won't see this page - they get redirected to purchases
-        console.log("User seller status:", user.seller);
-        params.set("userId", user.id);
-      }
-      if (statusFilter && statusFilter !== "all") {
-        params.set("status", statusFilter);
-      }
-      if (selectedCustomerId && selectedCustomerId !== "all") {
-        params.set("customerId", selectedCustomerId);
-      }
-      // Add pagination parameters
-      params.set("page", currentPage.toString());
-      params.set("limit", itemsPerPage.toString());
-
-      const response = await fetch(
-        `/api/orders?${params.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`External API error: ${response.status}`);
-      }
-      return response.json();
-    },
+    queryKey: ordersQueryKey,
     enabled: !!user?.id, // Only run query when user ID is available
     staleTime: 0, // Always fetch fresh data
     refetchOnMount: true, // Refetch when component mounts
@@ -392,11 +362,11 @@ export default function Orders() {
     <div className="py-6">
       <div className="px-4 sm:px-6 md:px-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground" data-testid="text-orders-title">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-orders-title">
             Orders
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground mt-2">
             Manage and track all your customer orders
           </p>
         </div>

@@ -14,6 +14,7 @@ interface User {
   userName?: string;
   country?: string;
   phone?: string;
+  date_of_birth?: string; // YYYY-MM-DD format
   seller?: boolean;
   admin?: boolean;
   role?: 'superAdmin' | 'admin';
@@ -166,6 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           userName: tokshopResponse.data.userName,
           country: tokshopResponse.data.country || '',
           phone: tokshopResponse.data.phone || '',
+          date_of_birth: tokshopResponse.data.date_of_birth || tokshopResponse.data.dateOfBirth,
           seller: tokshopResponse.data.seller || false,
           admin: tokshopResponse.data.admin || false,
           authProvider: authType as 'google' | 'apple',
@@ -226,6 +228,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           userName: loginResponse.data.userName,
           country: loginResponse.data.country || '',
           phone: loginResponse.data.phone || '',
+          date_of_birth: loginResponse.data.date_of_birth || loginResponse.data.dateOfBirth,
           seller: loginResponse.data.seller || false,
           admin: loginResponse.data.admin || false,
           authProvider: 'email' as const,
@@ -274,6 +277,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           userName: signupResponse.data.userName,
           country: signupResponse.data.country || country, // Use from signup form
           phone: signupResponse.data.phone || '',
+          date_of_birth: signupResponse.data.date_of_birth || signupResponse.data.dateOfBirth,
           seller: signupResponse.data.seller || false,
           admin: signupResponse.data.admin || false,
           authProvider: 'email' as const,
@@ -402,6 +406,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           userName: completeResponse.data.userName,
           country: completeResponse.data.country || '',
           phone: completeResponse.data.phone || '',
+          date_of_birth: completeResponse.data.date_of_birth || completeResponse.data.dateOfBirth,
           seller: completeResponse.data.seller || false,
           admin: completeResponse.data.admin || false,
           authProvider: authType as 'google' | 'apple',

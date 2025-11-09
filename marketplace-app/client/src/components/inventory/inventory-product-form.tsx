@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Card, 
   CardContent, 
@@ -31,6 +33,7 @@ import {
 } from "@/components/ui/form";
 import { Save, X, Plus, Check, Calendar, Clock, Users, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Dialog, 
   DialogContent, 
@@ -54,7 +57,6 @@ import {
   type TokshopCategoriesResponse,
   type TokshopShippingProfilesResponse,
 } from "@shared/schema";
-import { useEffect } from "react";
 
 // Predefined color options
 const availableColors = [
@@ -85,6 +87,7 @@ export function InventoryProductForm({
   isPending = false,
 }: InventoryProductFormProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [showDialogOpen, setShowDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -118,9 +121,17 @@ export function InventoryProductForm({
   });
 
   // Watch listing type and show selection to control form visibility
-  const listingType = form.watch('listingType');
-  const selectedShow = form.watch('tokshow');
-  const isFeatured = form.watch('featured');
+  // Use useWatch to ensure proper re-rendering when values change
+  const listingType = useWatch({ control: form.control, name: 'listingType' });
+  const selectedShow = useWatch({ control: form.control, name: 'tokshow' });
+  const isFeatured = useWatch({ control: form.control, name: 'featured' });
+
+  // Force featured to false when listing type is giveaway
+  useEffect(() => {
+    if (listingType === 'giveaway') {
+      form.setValue('featured', false);
+    }
+  }, [listingType, form]);
 
   // Fetch categories
   const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
@@ -175,7 +186,7 @@ export function InventoryProductForm({
       if (!user?.id) throw new Error("User ID required");
 
       const response = await fetch(
-        `/api/rooms?userid=${user.id}&status=true`,
+        `/api/rooms?userid=${user.id}&status=active`,
         {
           method: "GET",
           headers: {
@@ -195,6 +206,13 @@ export function InventoryProductForm({
   const categories = categoriesResponse?.categories || [];
   const shippingProfiles = shippingProfilesResponse || [];
   const shows = showsResponse?.rooms || [];
+
+  // Invalidate shows cache when dialog opens to fetch fresh data
+  useEffect(() => {
+    if (showDialogOpen && user?.id) {
+      queryClient.invalidateQueries({ queryKey: ["external-shows", user.id] });
+    }
+  }, [showDialogOpen, user?.id]);
 
   // Update form when product data is loaded (edit mode)
   useEffect(() => {
@@ -224,11 +242,11 @@ export function InventoryProductForm({
         colors: product.colors || [],
         sizes: product.sizes || [],
         featured: product.featured ?? false,
-        startTime: ((product as any).start_time_date || product.auction?.start_time_date)
-          ? new Date((product as any).start_time_date || product.auction.start_time_date).toISOString().slice(0, 16)
+        startTime: product.auction?.start_time_date
+          ? new Date(product.auction.start_time_date).toISOString().slice(0, 16)
           : null,
-        endTime: ((product as any).end_time_date || product.auction?.end_time_date)
-          ? new Date((product as any).end_time_date || product.auction.end_time_date).toISOString().slice(0, 16)
+        endTime: product.auction?.end_time_date
+          ? new Date(product.auction.end_time_date).toISOString().slice(0, 16)
           : null,
         tokshow: (product as any).tokshow?._id || (product as any).tokshow || "general",
         startingPrice: getStartingPrice(),
@@ -240,16 +258,60 @@ export function InventoryProductForm({
   }, [mode, product, categoriesResponse, form]);
 
   const handleSubmit = (data: ProductFormData) => {
+    // Check if it's a giveaway without a shipping profile selected
+    if (data.listingType === 'giveaway' && (!data.shippingProfile || data.shippingProfile === '')) {
+      toast({
+        title: "Shipping Profile Required",
+        description: "Giveaways must have a shipping profile. Please select a shipping profile to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if it's a live show auction without a show selected
+    if (data.listingType === 'auction' && !data.featured && (!data.tokshow || data.tokshow === 'general')) {
+      toast({
+        title: "Show Required",
+        description: "Live show auctions must be assigned to a show. Please select a show to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if it's a giveaway without a show selected
+    if (data.listingType === 'giveaway' && (!data.tokshow || data.tokshow === 'general')) {
+      toast({
+        title: "Show Required",
+        description: "Giveaways must be assigned to a show. Please select a show to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // If a show is selected, set featured to false
+    // Also force featured to false for giveaways
     const submitData: any = {
       ...data,
-      featured: data.tokshow && data.tokshow !== 'general' ? false : data.featured,
+      featured: data.listingType === 'giveaway' ? false : (data.tokshow && data.tokshow !== 'general' ? false : data.featured),
     };
+    
+    // Force duration to 300 seconds (5 minutes) for giveaways
+    if (data.listingType === 'giveaway') {
+      submitData.duration = 300;
+    }
     
     // For auctions, harmonize price and startingPrice to be the same
     if (data.listingType === 'auction' && data.startingPrice !== undefined) {
       submitData.price = data.startingPrice;
       submitData.startingPrice = data.startingPrice;
+    }
+    
+    // Convert datetime-local to timestamps in user's timezone before sending to server
+    if (data.startTime) {
+      submitData.startTimeTimestamp = new Date(data.startTime).getTime();
+    }
+    if (data.endTime) {
+      submitData.endTimeTimestamp = new Date(data.endTime).getTime();
     }
     
     // Only include tokshow if it's not 'general'
@@ -258,6 +320,12 @@ export function InventoryProductForm({
     } else {
       delete submitData.tokshow;
     }
+    
+    // Rename shippingProfile to shipping_profile for backend (only if provided)
+    if (data.shippingProfile) {
+      submitData.shipping_profile = data.shippingProfile;
+    }
+    delete submitData.shippingProfile;
     
     onSubmit(submitData);
   };
@@ -398,30 +466,6 @@ export function InventoryProductForm({
                   <>
                     <FormField
                       control={form.control}
-                      name="duration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Giveaway Duration (minutes) *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="1"
-                              placeholder="5" 
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              data-testid="input-giveaway-duration"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            How long the giveaway will run
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
                       name="whocanenter"
                       render={({ field }) => (
                         <FormItem>
@@ -515,7 +559,7 @@ export function InventoryProductForm({
                             <SelectItem value="loading" disabled>Loading...</SelectItem>
                           ) : categories && categories.length > 0 ? (
                             <>
-                              {categories.map((category) => [
+                              {categories.map((category: any) => [
                                 /* Parent Category */
                                 <SelectItem key={category._id || category.id} value={category._id || category.id} className="font-semibold">
                                   {category.name}
@@ -546,19 +590,33 @@ export function InventoryProductForm({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="tokshow"
-                  render={({ field }) => {
-                    const selectedShow = shows?.find((s: any) => s._id === field.value);
-                    const filteredShows = shows?.filter((show: any) => 
-                      show.title?.toLowerCase().includes(searchQuery.toLowerCase())
-                    ) || [];
-                    
-                    return (
-                      <FormItem>
-                        <FormLabel>Assign to Show (Optional)</FormLabel>
-                        <Dialog open={showDialogOpen} onOpenChange={setShowDialogOpen}>
+                {/* Hide show dropdown for featured auctions */}
+                {!(listingType === 'auction' && isFeatured) && (
+                  <FormField
+                    control={form.control}
+                    name="tokshow"
+                    render={({ field }) => {
+                      const selectedShow = shows?.find((s: any) => s._id === field.value);
+                      const filteredShows = shows?.filter((show: any) => 
+                        show.title?.toLowerCase().includes(searchQuery.toLowerCase())
+                      ) || [];
+                      
+                      return (
+                        <FormItem>
+                          <FormLabel>
+                            Assign to Show {(listingType === 'auction' && !isFeatured) || listingType === 'giveaway' ? <span className="text-destructive">*</span> : '(Optional)'}
+                          </FormLabel>
+                          {(listingType === 'auction' && !isFeatured) && (
+                            <FormDescription>
+                              Live show auctions must be assigned to a show
+                            </FormDescription>
+                          )}
+                          {listingType === 'giveaway' && (
+                            <FormDescription>
+                              Giveaways must be assigned to a show
+                            </FormDescription>
+                          )}
+                          <Dialog open={showDialogOpen} onOpenChange={setShowDialogOpen}>
                           <DialogTrigger asChild>
                             <Button
                               variant="outline"
@@ -582,14 +640,14 @@ export function InventoryProductForm({
                               )}
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-md p-0">
-                            <DialogHeader className="px-6 pt-6 pb-4">
+                          <DialogContent className="max-w-md sm:max-w-lg">
+                            <DialogHeader>
                               <DialogTitle>Select Show</DialogTitle>
-                              <DialogDescription className="sr-only">
+                              <DialogDescription>
                                 Choose a show for this product or leave as general inventory
                               </DialogDescription>
                             </DialogHeader>
-                            <div className="px-6 pb-2">
+                            <div className="space-y-4">
                               <div className="relative">
                                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -600,9 +658,8 @@ export function InventoryProductForm({
                                   data-testid="input-search-shows"
                                 />
                               </div>
-                            </div>
-                            <div className="px-6 pb-6">
-                              <div className="max-h-[280px] overflow-y-auto space-y-0.5">
+                              <ScrollArea className="h-[300px]">
+                                <div className="space-y-2 pr-4">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -610,13 +667,15 @@ export function InventoryProductForm({
                                     setShowDialogOpen(false);
                                     setSearchQuery("");
                                   }}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-sm rounded hover-elevate active-elevate-2 ${
-                                    field.value === "general" ? "bg-accent" : ""
+                                  className={`w-full max-w-full flex items-start justify-between gap-3 px-4 py-2.5 text-sm text-left rounded-md transition-colors ${
+                                    field.value === "general" 
+                                      ? "bg-primary text-primary-foreground" 
+                                      : "bg-muted hover:bg-muted/80"
                                   }`}
                                   data-testid="option-general-inventory"
                                 >
-                                  <span>General Inventory</span>
-                                  {field.value === "general" && <Check className="h-4 w-4" />}
+                                  <span className="flex-1 min-w-0 whitespace-normal break-words font-medium">General Inventory</span>
+                                  {field.value === "general" && <Check className="h-4 w-4 flex-shrink-0" />}
                                 </button>
                                 {loadingShows ? (
                                   <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
@@ -634,15 +693,17 @@ export function InventoryProductForm({
                                           setShowDialogOpen(false);
                                           setSearchQuery("");
                                         }}
-                                        className={`w-full flex items-center justify-between px-3 py-1.5 text-sm rounded hover-elevate active-elevate-2 ${
-                                          isSelected ? "bg-accent" : ""
+                                        className={`w-full max-w-full flex items-start justify-between gap-3 px-4 py-2.5 text-sm text-left rounded-md transition-colors ${
+                                          isSelected 
+                                            ? "bg-primary text-primary-foreground" 
+                                            : "bg-muted hover:bg-muted/80"
                                         }`}
                                         data-testid={`option-show-${show._id}`}
                                       >
-                                        <span className="flex items-center gap-2 truncate">
-                                          <span className="truncate">{show.title}</span>
+                                        <span className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
+                                          <span className="whitespace-normal break-words font-medium">{show.title}</span>
                                           {isLive && (
-                                            <Badge variant="destructive" className="text-xs px-1 py-0 flex-shrink-0">
+                                            <Badge variant="destructive" className="text-xs px-1.5 py-0 flex-shrink-0">
                                               Live
                                             </Badge>
                                           )}
@@ -656,7 +717,8 @@ export function InventoryProductForm({
                                     {searchQuery ? "No shows found" : "No shows available"}
                                   </div>
                                 )}
-                              </div>
+                                </div>
+                              </ScrollArea>
                             </div>
                           </DialogContent>
                         </Dialog>
@@ -667,7 +729,8 @@ export function InventoryProductForm({
                       </FormItem>
                     );
                   }}
-                />
+                  />
+                )}
               </CardContent>
             </Card>
             
@@ -740,121 +803,119 @@ export function InventoryProductForm({
                   )}
                 />
 
-                {/* Only show Featured option when not assigned to a show */}
-                {selectedShow === 'general' && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="featured"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel>Featured Product</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={(value) => field.onChange(value === "true")}
-                              value={field.value ? "true" : "false"}
-                              className="flex flex-col space-y-1"
-                              data-testid="radio-group-featured"
-                            >
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="false" id="featured-false" data-testid="radio-featured-false" />
-                                <FormLabel htmlFor="featured-false" className="text-sm font-normal">
-                                  No
-                                </FormLabel>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="true" id="featured-true" data-testid="radio-featured-true" />
-                                <FormLabel htmlFor="featured-true" className="text-sm font-normal">
-                                  Yes
-                                </FormLabel>
-                              </div>
-                            </RadioGroup>
-                          </FormControl>
-                          <FormDescription>
-                            Mark this product as featured to highlight it
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Show scheduling fields for auctions */}
-                    {listingType === 'auction' && (
-                      <div className="space-y-4 pt-4 border-t">
-                        {isFeatured ? (
-                          <>
-                            <FormField
-                              control={form.control}
-                              name="startTime"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Auction Start Time *</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      type="datetime-local" 
-                                      {...field}
-                                      value={field.value || ''}
-                                      data-testid="input-auction-start-time"
-                                    />
-                                  </FormControl>
-                                  <FormDescription>
-                                    When should this auction start?
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name="endTime"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Auction End Time *</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      type="datetime-local" 
-                                      {...field}
-                                      value={field.value || ''}
-                                      data-testid="input-auction-end-time"
-                                    />
-                                  </FormControl>
-                                  <FormDescription>
-                                    When should this auction end?
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </>
-                        ) : (
-                          <FormField
-                            control={form.control}
-                            name="duration"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Auction Duration (minutes) *</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="1"
-                                    placeholder="5" 
-                                    {...field}
-                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
-                                    data-testid="input-auction-duration"
-                                  />
-                                </FormControl>
-                                <FormDescription>
-                                  How long the auction will run (for live show auctions)
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        )}
-                      </div>
+                {/* Only show Featured option when not a giveaway and not assigned to a specific show */}
+                {listingType !== 'giveaway' && selectedShow === 'general' && (
+                  <FormField
+                    control={form.control}
+                    name="featured"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>Featured Product</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={(value) => field.onChange(value === "true")}
+                            value={field.value ? "true" : "false"}
+                            className="flex flex-col space-y-1"
+                            data-testid="radio-group-featured"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="false" id="featured-false" data-testid="radio-featured-false" />
+                              <FormLabel htmlFor="featured-false" className="text-sm font-normal">
+                                No
+                              </FormLabel>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="true" id="featured-true" data-testid="radio-featured-true" />
+                              <FormLabel htmlFor="featured-true" className="text-sm font-normal">
+                                Yes
+                              </FormLabel>
+                            </div>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormDescription>
+                          Mark this product as featured to highlight it
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </>
+                  />
+                )}
+
+                {/* Show scheduling/duration fields for auctions */}
+                {listingType === 'auction' && (
+                  <div className="space-y-4 pt-4 border-t">
+                    {selectedShow === 'general' && isFeatured ? (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="startTime"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Auction Start Time *</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="datetime-local" 
+                                  {...field}
+                                  value={field.value || ''}
+                                  data-testid="input-auction-start-time"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                When should this auction start?
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="endTime"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Auction End Time *</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="datetime-local" 
+                                  {...field}
+                                  value={field.value || ''}
+                                  data-testid="input-auction-end-time"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                When should this auction end?
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    ) : (
+                      <FormField
+                        control={form.control}
+                        name="duration"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Auction Duration (minutes) *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="1"
+                                placeholder="5" 
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                data-testid="input-auction-duration"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              How long the auction will run (for live show auctions)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

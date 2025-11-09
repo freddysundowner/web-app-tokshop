@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { Link } from 'wouter';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { AuctionCard } from '@/components/auction-card';
@@ -8,6 +10,12 @@ import { ChevronRight, Loader2 } from 'lucide-react';
 
 export default function Deals() {
   usePageTitle('Deals');
+
+  // Invalidate cache on mount to fetch fresh data
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['/api/products', 'deals', 'auction'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/products', 'deals', 'trending'] });
+  }, []);
 
   // Fetch auctions (same API as homepage)
   const { data: auctionsData, isLoading: isLoadingAuctions } = useQuery({
@@ -58,63 +66,59 @@ export default function Deals() {
               </p>
             </div>
 
-            {/* Auctions Section */}
-            <div className="mb-12">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-foreground">Auctions</h2>
-                <Link href="/deals/auctions">
-                  <Button variant="ghost" className="gap-2" data-testid="button-view-all-auctions">
-                    View All
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </Link>
+            {/* Auctions Section - Only show if loading or has items */}
+            {(isLoadingAuctions || auctions.length > 0) && (
+              <div className="mb-12">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-foreground">Auctions</h2>
+                  <Link href="/deals/auctions">
+                    <Button variant="ghost" className="gap-2" data-testid="button-view-all-auctions">
+                      View All
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+
+                {isLoadingAuctions ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+                    {auctions.slice(0, 6).map((auction: any) => (
+                      <AuctionCard key={auction._id || auction.id} auction={auction} />
+                    ))}
+                  </div>
+                )}
               </div>
+            )}
 
-              {isLoadingAuctions ? (
-                <div className="flex items-center justify-center h-64">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            {/* Trending Products Section - Only show if loading or has items */}
+            {(isLoadingTrending || trendingProducts.length > 0) && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-foreground">Trending Products</h2>
+                  <Link href="/deals/trending">
+                    <Button variant="ghost" className="gap-2" data-testid="button-view-all-trending">
+                      View All
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
                 </div>
-              ) : auctions.length === 0 ? (
-                <div className="flex items-center justify-center h-64">
-                  <p className="text-muted-foreground">No auctions available</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                  {auctions.slice(0, 6).map((auction: any) => (
-                    <AuctionCard key={auction._id || auction.id} auction={auction} />
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Trending Products Section */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-foreground">Trending Products</h2>
-                <Link href="/deals/trending">
-                  <Button variant="ghost" className="gap-2" data-testid="button-view-all-trending">
-                    View All
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </Link>
+                {isLoadingTrending ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+                    {trendingProducts.slice(0, 6).map((product: any) => (
+                      <ProductCard key={product._id || product.id} product={product} />
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {isLoadingTrending ? (
-                <div className="flex items-center justify-center h-64">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : trendingProducts.length === 0 ? (
-                <div className="flex items-center justify-center h-64">
-                  <p className="text-muted-foreground">No trending products available</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-                  {trendingProducts.slice(0, 6).map((product: any) => (
-                    <ProductCard key={product._id || product.id} product={product} />
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </main>

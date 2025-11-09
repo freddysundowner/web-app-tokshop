@@ -176,15 +176,17 @@ export default function ProfileView() {
   const currentUserId = (currentUser as any)?._id || currentUser?.id;
   
   const { data: profileUser, isLoading } = useQuery<any>({
-    queryKey: ['/api/profile', userId],
+    queryKey: ['/api/profile', userId || currentUserId],
     queryFn: async () => {
-      const response = await fetch(`/api/profile/${userId}`);
+      const userIdToFetch = userId || currentUserId;
+      if (!userIdToFetch) throw new Error('No user ID available');
+      const response = await fetch(`/api/profile/${userIdToFetch}`);
       if (!response.ok) throw new Error('Failed to fetch user');
       const data = await response.json();
       // API returns data directly or nested under 'data' key
       return data.data || data;
     },
-    enabled: !!userId && userId !== currentUserId,
+    enabled: !!(userId || currentUserId),
     staleTime: 0,
   });
 
@@ -225,8 +227,7 @@ export default function ProfileView() {
       const params = new URLSearchParams({
         userid: userIdToFetch,
         roomid: '',
-        type: 'inventory',
-        saletype: '',
+        saletype: 'buy_now',
         category: '',
         page: '1',
         limit: '15',
@@ -234,7 +235,7 @@ export default function ProfileView() {
         status: 'active',
       });
       
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetch(`/api/products/?${params.toString()}`);
       if (!response.ok) return { products: [] };
       return response.json();
     },
@@ -859,7 +860,7 @@ export default function ProfileView() {
               </h2>
               
               {productsLoading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="animate-pulse">
                       <div className="aspect-square bg-muted rounded-lg mb-2"></div>
@@ -873,7 +874,7 @@ export default function ProfileView() {
                   <p className="text-muted-foreground">No products in shop</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {userProducts.map((product: any) => (
                     <Link href={`/product/${product._id}`} key={product._id || product.id}>
                       <div 
@@ -936,7 +937,7 @@ export default function ProfileView() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {upcomingShows.map((show: any) => (
                       <ShowCard
                         key={show._id || show.id}

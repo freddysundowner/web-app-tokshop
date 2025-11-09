@@ -89,11 +89,19 @@ export function registerGiveawayRoutes(app: Express) {
         return res.status(401).json({ error: 'Unauthorized - no user ID' });
       }
 
-      // Add user ID to the payload
-      const giveawayData = {
-        ...req.body,
+      // Add user ID to the payload and rename shippingProfile to shipping_profile
+      const { shippingProfile, ...restBody } = req.body;
+      const giveawayData: any = {
+        ...restBody,
         user: req.session.user.id,
+        // Force featured to false for giveaways
+        featured: false,
       };
+      
+      // Only add shipping_profile if it's provided (must be a valid ObjectId)
+      if (shippingProfile) {
+        giveawayData.shipping_profile = shippingProfile;
+      }
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -142,6 +150,19 @@ export function registerGiveawayRoutes(app: Express) {
         return res.status(401).json({ error: 'Unauthorized - no access token' });
       }
 
+      // Rename shippingProfile to shipping_profile for external API
+      const { shippingProfile, ...restBody } = req.body;
+      const giveawayData: any = {
+        ...restBody,
+        // Force featured to false for giveaways
+        featured: false,
+      };
+      
+      // Only add shipping_profile if it's provided (must be a valid ObjectId)
+      if (shippingProfile) {
+        giveawayData.shipping_profile = shippingProfile;
+      }
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${req.session.accessToken}`,
@@ -153,7 +174,7 @@ export function registerGiveawayRoutes(app: Express) {
       const response = await fetch(url, {
         method: 'PUT',
         headers,
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(giveawayData),
       });
       
       const responseText = await response.text();

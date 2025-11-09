@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -89,7 +89,15 @@ export function ProductForm({
   });
 
   // Watch the listing type from the form
-  const currentListingType = form.watch('listingType');
+  // Use useWatch to ensure proper re-rendering when value changes
+  const currentListingType = useWatch({ control: form.control, name: 'listingType' });
+
+  // Force featured to false when listing type is giveaway
+  useEffect(() => {
+    if (currentListingType === 'giveaway') {
+      form.setValue('featured', false);
+    }
+  }, [currentListingType, form]);
 
   // Fetch categories
   const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
@@ -254,6 +262,26 @@ export function ProductForm({
 
   const onSubmit = async (data: ProductFormData) => {
     try {
+      // Check if it's a giveaway without a shipping profile selected
+      if (data.listingType === 'giveaway' && (!data.shippingProfile || data.shippingProfile === '')) {
+        toast({
+          title: "Shipping Profile Required",
+          description: "Giveaways must have a shipping profile. Please select a shipping profile to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Check if it's a giveaway without a show assigned
+      if (data.listingType === 'giveaway' && (!data.tokshow || data.tokshow === '')) {
+        toast({
+          title: "Show Required",
+          description: "Giveaways must be assigned to a show. Please assign a show to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Upload images to Firebase first if there are any
       let imageUrls: string[] = [];
       
@@ -298,9 +326,10 @@ export function ProductForm({
         submitData.sudden = data.sudden;
         submitData.shippingProfile = data.shippingProfile;
       } else if (currentListingType === 'giveaway') {
-        submitData.duration = data.duration; // Giveaway duration (in minutes)
+        submitData.duration = 300; // Giveaway duration: 5 minutes (300 seconds)
         submitData.whocanenter = data.whocanenter;
         submitData.shippingProfile = data.shippingProfile;
+        submitData.featured = false; // Giveaways cannot be featured
       }
       
       console.log('📦 Submitting product data:', {
@@ -941,34 +970,6 @@ export function ProductForm({
                     data-testid="switch-featured"
                   />
                 </FormControl>
-              </FormItem>
-            )}
-          />
-        )}
-
-        {/* Giveaway-specific: Duration */}
-        {currentListingType === 'giveaway' && (
-          <FormField
-            control={form.control}
-            name="duration"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-white font-medium">Duration (minutes)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="Enter duration in minutes"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || 5)}
-                    className="bg-zinc-800 border-zinc-700 text-white"
-                    data-testid="input-giveaway-duration"
-                  />
-                </FormControl>
-                <FormDescription className="text-xs text-zinc-400">
-                  How long the giveaway will run
-                </FormDescription>
-                <FormMessage />
               </FormItem>
             )}
           />

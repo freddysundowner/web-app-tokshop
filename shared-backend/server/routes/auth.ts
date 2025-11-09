@@ -211,13 +211,15 @@ export function registerAuthRoutes(app: Express) {
       console.log("Login successful");
 
       // Store session data and return access token for header-based persistence
+      // API can return either accessToken or authtoken
+      const token = data.accessToken || data.authtoken;
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
+      req.session.accessToken = token;
 
       res.json({
         success: true,
         data: data.data,
-        accessToken: data.accessToken, // Return token for localStorage storage
+        accessToken: token, // Return token for localStorage storage
         message: data.message,
       });
     } catch (error) {
@@ -303,17 +305,33 @@ export function registerAuthRoutes(app: Express) {
 
       const data = parseResult.data;
       console.log("Social auth successful");
+      console.log("Social auth response data keys:", Object.keys(data));
+      console.log("Social auth response:", JSON.stringify(responseData, null, 2));
 
       // Store session data and return access token for header-based persistence
+      // API can return either accessToken or authtoken
+      const token = data.accessToken || data.authtoken;
+      console.log("Extracted token:", token ? "EXISTS" : "NOT FOUND");
+      console.log("Token fields - accessToken:", data.accessToken ? "EXISTS" : "NOT FOUND", "authtoken:", data.authtoken ? "EXISTS" : "NOT FOUND");
+      
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
+      req.session.accessToken = token;
 
-      res.json({
-        success: true,
-        data: data.data,
-        accessToken: data.accessToken, // Return token for localStorage storage
-        message: data.message,
-        newuser: data.newuser || false,
+      // Explicitly save session to ensure it persists
+      req.session.save((err) => {
+        if (err) {
+          console.error('Failed to save session:', err);
+        } else {
+          console.log('Session saved successfully with token');
+        }
+        
+        res.json({
+          success: true,
+          data: data.data,
+          accessToken: token, // Return token for localStorage storage
+          message: data.message,
+          newuser: data.newuser || false,
+        });
       });
     } catch (error) {
       console.error("Social auth proxy error:", error);
@@ -401,13 +419,15 @@ export function registerAuthRoutes(app: Express) {
       console.log("Social auth completion successful");
 
       // Update session data with the completed user info and return token
+      // API can return either accessToken or authtoken
+      const token = data.accessToken || data.authtoken;
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
+      req.session.accessToken = token;
 
       res.json({
         success: true,
         data: data.data,
-        accessToken: data.accessToken, // Return token for localStorage storage
+        accessToken: token, // Return token for localStorage storage
         message: data.message || "Profile completed successfully",
       });
     } catch (error) {

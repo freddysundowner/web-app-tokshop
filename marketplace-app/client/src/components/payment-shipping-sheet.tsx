@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -11,11 +11,11 @@ import { AlertTriangle, Package, CreditCard, ChevronRight, Loader2 } from 'lucid
 import { useAuth } from '@/lib/auth-context';
 import { useQuery } from '@tanstack/react-query';
 
-// Lazy load heavy child components to prevent stack overflow on iPhone Safari
-const AddPaymentDialog = lazy(() => import('./add-payment-dialog'));
-const AddAddressDialog = lazy(() => import('./add-address-dialog'));
-const AddressListDialog = lazy(() => import('./address-list-dialog'));
-const PaymentMethodListDialog = lazy(() => import('./payment-method-list-dialog'));
+// Direct imports - parent component is already lazy-loaded
+import { AddPaymentDialog } from './add-payment-dialog';
+import { AddAddressDialog } from './add-address-dialog';
+import { AddressListDialog } from './address-list-dialog';
+import { PaymentMethodListDialog } from './payment-method-list-dialog';
 
 interface PaymentShippingSheetProps {
   open: boolean;
@@ -279,48 +279,40 @@ export function PaymentShippingSheet({
         </SheetContent>
       </Sheet>
 
-      {/* Address Dialog (for adding new address) - Lazy loaded */}
+      {/* Address Dialog (for adding new address) */}
       {showAddressDialog && (
-        <Suspense fallback={null}>
-          <AddAddressDialog
-            open={showAddressDialog}
-            onOpenChange={setShowAddressDialog}
-            onSuccess={handleAddressSuccess}
-          />
-        </Suspense>
+        <AddAddressDialog
+          open={showAddressDialog}
+          onOpenChange={setShowAddressDialog}
+          onSuccess={handleAddressSuccess}
+        />
       )}
 
-      {/* Address List Dialog (for viewing/editing existing addresses) - Lazy loaded */}
+      {/* Address List Dialog (for viewing/editing existing addresses) */}
       {showAddressListDialog && (
-        <Suspense fallback={null}>
-          <AddressListDialog
-            open={showAddressListDialog}
-            onOpenChange={setShowAddressListDialog}
-            onSuccess={handleAddressSuccess}
-          />
-        </Suspense>
+        <AddressListDialog
+          open={showAddressListDialog}
+          onOpenChange={setShowAddressListDialog}
+          onSuccess={handleAddressSuccess}
+        />
       )}
 
-      {/* Payment Dialog - Lazy loaded */}
+      {/* Payment Dialog */}
       {showPaymentDialog && (
-        <Suspense fallback={null}>
-          <AddPaymentDialog
-            open={showPaymentDialog}
-            onOpenChange={setShowPaymentDialog}
-            onSuccess={handlePaymentSuccess}
-          />
-        </Suspense>
+        <AddPaymentDialog
+          open={showPaymentDialog}
+          onOpenChange={setShowPaymentDialog}
+          onSuccess={handlePaymentSuccess}
+        />
       )}
 
-      {/* Payment List Dialog (for viewing/editing existing payment methods) - Lazy loaded */}
+      {/* Payment List Dialog (for viewing/editing existing payment methods) */}
       {showPaymentListDialog && (
-        <Suspense fallback={null}>
-          <PaymentMethodListDialog
-            open={showPaymentListDialog}
-            onOpenChange={setShowPaymentListDialog}
-            onSuccess={handlePaymentSuccess}
-          />
-        </Suspense>
+        <PaymentMethodListDialog
+          open={showPaymentListDialog}
+          onOpenChange={setShowPaymentListDialog}
+          onSuccess={handlePaymentSuccess}
+        />
       )}
     </>
   );

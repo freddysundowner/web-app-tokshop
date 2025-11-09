@@ -48,15 +48,28 @@ export default function EditProduct() {
     mutationFn: async (productData: ProductFormData) => {
       if (!productId) throw new Error("Product ID required");
       
-      // Use admin endpoint if user is admin, otherwise use regular endpoint
-      const endpoint = user?.admin 
-        ? `/api/admin/products/${productId}` 
-        : `/api/products/${productId}`;
+      const isGiveaway = productData.listingType === 'giveaway';
+      
+      // Determine endpoint based on product type
+      let endpoint: string;
+      let method: string;
+      
+      if (isGiveaway) {
+        // For giveaways, use the giveaways endpoint with PUT
+        endpoint = `/api/giveaways/${productId}`;
+        method = "PUT";
+      } else {
+        // For regular products, use admin endpoint if user is admin, otherwise use regular endpoint
+        endpoint = user?.admin 
+          ? `/api/admin/products/${productId}` 
+          : `/api/products/${productId}`;
+        method = "PATCH";
+      }
       
       // Prepare the payload
       const payload: any = {
         ...productData,
-        shippingProfile: productData.shippingProfile?.trim() ? productData.shippingProfile : null,
+        shippingProfile: productData.shippingProfile?.trim() ? productData.shippingProfile : "skip",
         tokshow: productData.tokshow && productData.tokshow !== "no-show" ? productData.tokshow : null,
         userId: user?.id,
       };
@@ -74,7 +87,7 @@ export default function EditProduct() {
       }
       
       const response = await fetch(endpoint, {
-        method: "PATCH",
+        method,
         headers: {
           "Content-Type": "application/json",
         },

@@ -55,7 +55,7 @@ export default function ShowViewNew() {
   usePageTitle('Live Show');
   const { settings } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
-  const { socket, isConnected, joinRoom, leaveRoom } = useSocket();
+  const { socket, isConnected, joinRoom, leaveRoom, connect, disconnect } = useSocket();
   const { toast } = useToast();
   const { id } = useParams();
   const [, navigate] = useLocation();
@@ -146,6 +146,41 @@ export default function ShowViewNew() {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const messageInputRef = useRef<HTMLInputElement>(null);
   
+  // Connect socket immediately on mount, disconnect on unmount
+  useEffect(() => {
+    console.log('📱 Show view mounted - connecting socket...');
+    connect();
+    
+    return () => {
+      console.log('📱 Show view unmounting - disconnecting socket...');
+      disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount/unmount
+  
+  // Join room immediately when socket is connected
+  const hasJoinedRoomRef = useRef(false);
+  useEffect(() => {
+    if (!id) return;
+    
+    console.log('🔄 Room join check:', {
+      isConnected,
+      hasJoined: hasJoinedRoomRef.current,
+      willJoin: isConnected && !hasJoinedRoomRef.current
+    });
+    
+    if (isConnected && !hasJoinedRoomRef.current) {
+      console.log('✅ Socket connected - joining room immediately:', id);
+      joinRoom(id);
+      hasJoinedRoomRef.current = true;
+    }
+  }, [id, isConnected, joinRoom]);
+  
+  // Reset join flag when room ID changes
+  useEffect(() => {
+    hasJoinedRoomRef.current = false;
+  }, [id]);
+  
   // Set mobile viewport height accounting for browser chrome
   useEffect(() => {
     const setVH = () => {
@@ -176,7 +211,7 @@ export default function ShowViewNew() {
   
   // Fetch single show from API
   const currentUserId = (user as any)?._id || user?.id;
-  const { data: show, isLoading } = useQuery<any>({
+  const { data: show, isLoading, refetch: refetchShow } = useQuery<any>({
     queryKey: ['/api/rooms', id, currentUserId],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -650,6 +685,7 @@ export default function ShowViewNew() {
     currentUserId,
     joinRoom,
     leaveRoom,
+    disconnect,
     setViewers,
     setPinnedProduct,
     setActiveAuction,
@@ -1764,9 +1800,11 @@ export default function ShowViewNew() {
           isEndingShow={isEndingShow}
           setIsEndingShow={setIsEndingShow}
           socket={socket}
+          socketIsConnected={isConnected}
           setLivekitEnabled={setLivekitEnabled}
           leaveRoom={leaveRoom}
           queryClient={queryClient}
+          refetchShow={refetchShow}
           winnerData={winnerData}
           giveawayWinnerData={giveawayWinnerData}
           winningUser={winningUser}
@@ -1919,6 +1957,114 @@ export default function ShowViewNew() {
             />
           </Suspense>
         )}
+
+        {/* Host Conflict Dialog */}
+        <Dialog open={showHostConflictDialog} onOpenChange={setShowHostConflictDialog}>
+          <DialogContent className="bg-white text-black max-w-[95vw] sm:max-w-md mx-4">
+            <DialogHeader>
+              <DialogTitle className="text-black text-base sm:text-lg">Active Show Detected</DialogTitle>
+              <DialogDescription className="text-gray-600 text-sm">
+                You have an active live show running. Joining this show will end your current show.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {conflictingShow && (
+                <div className="bg-gray-100 p-3 sm:p-4 rounded-lg">
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1">Your Current Show:</p>
+                  <p className="font-semibold text-black text-sm sm:text-base">{conflictingShow.title}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Started {format(new Date(conflictingShow.activeTime || conflictingShow.date), "h:mm a")}
+                  </p>
+                </div>
+              )}
+              <p className="text-xs sm:text-sm text-gray-700">
+                Do you want to leave your current show and join this one?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end pt-2">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto order-2 sm:order-1"
+                  onClick={() => {
+                    setShowHostConflictDialog(false);
+                    
+                    // Navigate back to the active show
+                    if (conflictingShow) {
+                      navigate(`/show/${conflictingShow._id}`);
+                    }
+                    
+                    setConflictingShow(null);
+                  }}
+                  data-testid="button-cancel-join"
+                >
+                  Stay in Current Show
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full sm:w-auto order-1 sm:order-2"
+                  onClick={async () => {
+                    if (socket && conflictingShow && currentUserId) {
+                      console.log('🚪 Leaving previous show:', conflictingShow._id);
+                      
+                      try {
+                        // 1. First, end the previous show by setting ended: true
+                        const endResponse = await fetch(`/api/rooms/${conflictingShow._id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ ended: true })
+                        });
+                        
+                        if (!endResponse.ok) {
+                          console.error('Failed to end previous show');
+                        } else {
+                          console.log('✅ Previous show ended');
+                        }
+                        
+                        // 2. Then delete the previous show
+                        const deleteResponse = await fetch(`/api/rooms/${conflictingShow._id}`, {
+                          method: 'DELETE',
+                          credentials: 'include',
+                        });
+                        
+                        if (!deleteResponse.ok) {
+                          console.error('Failed to delete previous show');
+                        } else {
+                          console.log('✅ Previous show deleted');
+                        }
+                        
+                        // 3. Emit leave-room socket event for the previous show
+                        socket.emit('leave-room', {
+                          roomId: conflictingShow._id,
+                          userId: currentUserId
+                        });
+                        
+                        // 4. Close dialog and proceed with joining new show
+                        setShowHostConflictDialog(false);
+                        setConflictingShow(null);
+                        setProceedWithJoin(true);
+                        
+                        toast({
+                          title: "Left Previous Show",
+                          description: "Your previous show has been ended.",
+                        });
+                      } catch (error) {
+                        console.error('Error leaving previous show:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to leave previous show. Please try again.",
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                  data-testid="button-confirm-join"
+                >
+                  Leave and Join New Show
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
     </div>

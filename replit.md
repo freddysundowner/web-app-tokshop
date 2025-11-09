@@ -1,109 +1,114 @@
 # TokShop - Live Streaming Marketplace Platform
 
 ## Overview
-TokShop is a live streaming marketplace platform, similar to TikTok Shop, designed to allow sellers to host live shows, display products, and process transactions in real-time. Viewers can browse, purchase, and interact during these live streams. The project is a monorepo containing two React web applications: an Admin Panel for platform management and a Marketplace App for buyers and sellers. It is built as a pure API client, connecting to an external backend API for all data operations, and is designed for easy deployment on DigitalOcean. The vision is to create a dynamic e-commerce ecosystem leveraging live video.
+TokShop is a live streaming marketplace platform, similar to TikTok Shop, enabling sellers to host live shows, display products, and process real-time transactions. Viewers can interact, browse, and purchase during these streams. The project is a monorepo comprising two React web applications: an Admin Panel for platform management and a Marketplace App for buyers and sellers. It functions purely as an API client, relying on an external backend API for all data operations, and is designed for easy deployment on DigitalOcean. The overarching vision is to cultivate a dynamic e-commerce ecosystem powered by live video.
 
 ## User Preferences
 **Communication Style**: Simple, everyday language - avoid technical jargon
 
 ## System Architecture
-TokShop's architecture is centered around being a pure API client. Neither the Admin nor the Marketplace applications have their own backend or database; they function as frontend applications that make API calls to an external API server. All routes within the `shared-backend/server/` directory act as proxy routes, forwarding requests to this external API.
+TokShop's architecture is built as a pure API client, with both the Admin and Marketplace applications acting as frontends that communicate with an external API server. All routes within the `shared-backend/server/` directory serve as proxy routes to this external API.
 
 **Monorepo Structure:**
-- `admin-app/`: Admin panel application (port 5000), including client-side React frontend and an Express server for proxying.
-- `marketplace-app/`: Buyer/seller marketplace application (port 5001), also with a React frontend and an Express proxy server.
-- `shared-backend/`: Contains shared Express routes used by both applications for API proxying.
-- `packages/`: Generated deployment packages (`web-full-platform` and `admin-for-flutter`).
+- `admin-app/`: Admin panel application (port 5000) with React frontend and Express proxy server.
+- `marketplace-app/`: Buyer/seller marketplace application (port 5001) with React frontend and Express proxy server.
+- `shared-backend/`: Contains shared Express routes for API proxying.
+- `packages/`: Generated deployment packages.
 
 **UI/UX Decisions:**
 - **Technology Stack**: React with TypeScript, Vite, Wouter for routing, TanStack Query for state management.
-- **UI Components**: `shadcn/ui` with Tailwind CSS for a consistent and modern design.
-- **Dynamic Branding**: App name, primary, and secondary theme colors are loaded dynamically from the external API's settings endpoint via `SettingsContext`. Colors are converted to HSL and applied via CSS variables.
+- **UI Components**: `shadcn/ui` with Tailwind CSS for consistent design.
+- **Dynamic Branding**: App name and theme colors are dynamically loaded from the external API's settings and applied via CSS variables.
 
 **Technical Implementations:**
-- **Authentication**: Firebase Auth (Google, Facebook, email/password) is used. Firebase configuration is loaded dynamically from the external API's settings endpoint via individual fields (firebase_api_key, firebase_auth_domain, firebase_project_id, firebase_storage_bucket, firebase_app_id). The SettingsContext builds the firebase_config object from these fields and initializes Firebase. The AuthProvider waits for `isFirebaseReady` before setting up auth listeners. Firebase initialization is protected against placeholder config to prevent invalid Firestore operations.
-- **API Requests**: All API calls are managed using `@tanstack/react-query`, with a custom `apiRequest` wrapper for authentication.
-- **Forms**: `react-hook-form` is used with Zod validation for robust and consistent form handling.
-- **Build System**: Vite is used for development with HMR. For production, Vite builds the frontend, and ESBuild bundles the backend.
-- **Deployment Configuration**: Each package includes a pre-configured `ecosystem.config.cjs` file with PM2 settings. Customers edit this file to set their API URL before installation, simplifying the deployment process.
+- **Authentication**: Firebase Auth (Google, Facebook, email/password) is used, with configuration loaded dynamically from the external API's settings.
+- **API Requests**: Managed using `@tanstack/react-query` with a custom `apiRequest` wrapper for authentication.
+- **Forms**: `react-hook-form` with Zod validation.
+- **Build System**: Vite for development, ESBuild for production backend bundling.
+- **Deployment Configuration**: `ecosystem.config.cjs` files with PM2 settings are provided for easy deployment via environment variables.
+- **LiveKit Video Quality**: Configured with explicit video encoding presets (3 Mbps bitrate for 1080p) and simulcast layers for adaptive streaming quality optimization.
 
 **Feature Specifications:**
 - **Admin App Routes**: Dashboard, User Management, Product Management, Order Management, App Settings.
 - **Marketplace App Routes**: Live Show Browsing, Category Browsing, Live Show Viewer, Product Details, Auction Detail Page, Seller Dashboard, User Profile, Authentication flows.
+- **Scheduled Featured Auctions**: Implemented with absolute start/end times, distinct display states, and validation.
+- **Age Verification**: Mandatory age verification for all users (18+) implemented via a non-dismissible dialog and profile field.
+- **Deals Page**: Dedicated page for featured auctions and trending products with responsive display and navigation.
 
 **Recent Updates (November 2025):**
-- **iOS Safari Fixes:**
-  - Resolved "Maximum call stack size exceeded" crash by implementing lazy loading with Suspense wrappers for PaymentShippingSheet and LiveKitVideoPlayer components
-  - Fixed iOS header display using safe-area-inset-top padding and proper z-index hierarchy (header z-40, overlays z-30)
-  - Corrected mobile chat pointer-events hierarchy: only chat avatar links to profile, adjusted positioning (right-20) to prevent overlap with video action icons
-  - Fixed chat input typing issue by eliminating state shadowing: removed local `message` and `currentMentions` state from VideoCenter component in favor of parent-managed state, ensuring proper data flow through props
-
-- **Auction Detail Page (November 7, 2025):**
-  - Created dedicated eBay-style auction detail page at `/auction/:id` for improved auction UX
-  - Features live countdown timer with visual urgency indicators (pulse animation for final 5 minutes)
-  - Displays current bid and quick bidding functionality
-  - Includes product image carousel, seller information, and real-time shipping cost calculation
-  - Fetches actual shipping cost via `/api/shipping/estimate` endpoint (matches product detail page behavior)
-  - Displays shipping cost with service level, shows loading state during calculation
-  - Uses lazy loading with Suspense for CustomBidDialog to optimize bundle size
-  - Polls auction data every 5 seconds to keep bid information fresh
-  - Updated auction cards to navigate to dedicated auction page instead of generic product page
-  - Fixed query client to properly construct product detail URLs (`/api/products/:id` instead of `/api/products?userId=:id`)
-  - Simplified data fetching: single product endpoint returns full auction data with nested bids array
-  - "Place Bid" button displays and sends `newbaseprice` from auction data
-  - Removed bid history section for cleaner UI focused on current bid and placing bids
-
-- **Scheduled Featured Auctions (November 7, 2025):**
-  - Implemented scheduled auction system for featured auctions with absolute start/end times
-  - Added `startTime` and `endTime` datetime fields to product form schema for featured auctions
-  - Form now shows datetime pickers when user selects "Featured = Yes" and "Listing Type = Auction"
-  - Backend sends `scheduledStartTime` and `scheduledEndTime` fields to external API
-  - Auction cards display different states:
-    - "Starts in X time" for auctions that haven't started yet
-    - Live countdown for active auctions
-    - "Ended" overlay for completed auctions
-  - Auction detail page supports both scheduled (featured) and duration-based (live show) auctions
-  - Featured auctions use absolute timestamps while live show auctions use duration + start time
-  - Times are displayed in user's local timezone via browser's date handling
-
-- **Responsive Design Improvements (November 7, 2025):**
-  - **Inventory Page**: Made fully responsive while maintaining table layout
-    - Header stacks vertically on mobile with responsive button text (abbreviated on small screens)
-    - Search bar and filters use grid layout (2 columns on mobile, 4 on desktop)
-    - Table enforces horizontal scrolling on mobile with `min-w-[800px]` constraint
-    - Reduced padding and font sizes on mobile for better space utilization
-    - Hidden less critical content (product descriptions, SKU) on narrow screens
-    - Loading skeleton matches responsive behavior of actual table
-  - **Pagination Component**: Implemented smart mobile pagination logic
-    - Main container stacks vertically on mobile, horizontal on larger screens
-    - Mobile view shows 3-page window centered on current page with boundary handling
-    - First/last page buttons hidden on mobile to save space
-    - Prev/next buttons and page numbers always accessible
-    - Text and icon sizes reduced on mobile for better fit
-    - Always shows current page regardless of position in pagination
-    - For datasets with ≤5 pages, all pages shown on mobile
-
-- **Deals Page (November 7, 2025):**
-  - Created new `/deals` page showcasing featured auctions and trending products
-  - Main deals page displays preview of 10 auctions and 6 trending products in responsive grid
-  - Each section has "View All" button for expanded views
-  - Created `/deals/auctions` page showing all available auctions (up to 100)
-  - Created `/deals/trending` page showing all trending products (up to 100)
-  - All pages feature proper loading states, empty states, and back navigation
-  - Routes positioned next to `/browse` in App.tsx for logical navigation grouping
-  - Uses responsive grid layout: 2 columns on mobile, scaling to 6 columns on extra-large screens
-  - Increased grid spacing to prevent card overlap: `gap-4 md:gap-6` (16px mobile, 24px desktop)
-  - Added "Deals" navigation link to header (appears between Browse and search bar)
-  - Fetches auctions using same API as homepage: `featured=true`, `sortBy=views`, `status=active`
-  - Auction detail page shipping estimate now includes `customer` parameter with current user ID
+- **Socket.IO Connection Fix (November 9, 2025):**
+  - Fixed socket stuck in "connecting" state on show view page
+  - Socket now connects immediately when user navigates to show view page (via `connect()` in mount effect)
+  - Room joining occurs immediately when `isConnected === true` (no longer waits for show to start)
+  - Fixed duplicate join-room events by removing duplicate call from `useShowSocketEvents` hook
+  - Room joining now only happens in show-view.tsx mount effect (single source of truth)
+  - Automatic reconnections after network disruptions still properly rejoin rooms
+  - **Auction Detail Page Socket Integration**: Added complete socket integration to auction detail page
+    - Connects socket on mount, disconnects on unmount
+    - Emits `join-schedule-auction` event with auction ID (from `auction._id`), user ID, and user name when socket connects
+    - Emits `leave-schedule-auction` event when leaving the page
+    - Fixed duplicate join events by using `auctionIdRef` to store auction ID on first load only
+    - Emits `place-bid` socket event with `type: 'scheduled'` for scheduled auctions
+    - Listens to `bid-updated` and `auction-ended` socket events (no `auction-time-extended` for scheduled auctions with fixed times)
+    - Fallback query invalidation ensures UI updates even if socket events are delayed
+    - Enables real-time bid updates and auction status changes for scheduled/featured auctions
+  - **Scheduled Auction Data Structure**: Moved `start_time_date` and `end_time_date` fields to be read exclusively from `auction` object
+    - Frontend now reads scheduling times only from `auction.start_time_date` and `auction.end_time_date`
+    - Removed all fallbacks to product-level fields for cleaner data structure
+  - **Timezone Fix for Scheduled Auctions**: Fixed timezone handling for scheduled auction start/end times
+    - Frontend converts datetime-local inputs to timestamps in user's local timezone before sending to server
+    - Prevents server from misinterpreting times as UTC when user is in different timezone
+    - Server receives pre-converted timestamps instead of datetime strings
+    - Ensures countdown timers and auction start/end times are accurate for users in all timezones
+  - **Auction Start State Display Fix**: Fixed UI to properly indicate when scheduled auctions haven't started yet
+    - Shows "Starts in: XX hours" instead of "Time Remaining" for auctions that haven't started
+    - Displays "Auction Not Started" message and disables bid button until actual start time
+    - Automatically enables bidding when auction reaches its scheduled start time
+    - Added socket listener for `scheduled-auction-created` event to auto-refresh when cron creates new daily auction
+  - **Profile Picture Cache Fix (November 9, 2025)**: Fixed header avatar not updating after profile picture upload
+    - Replaced full page reload with React Query cache invalidation
+    - Invalidates all profile-related queries (`/api/profile/${userId}`)
+    - Calls `refreshUserData()` to update auth context
+    - Both sidebar and header avatars now update immediately without page reload
+  - **Inventory Form Improvements (November 9, 2025)**:
+    - **Show Dropdown Hidden for Featured Auctions**: Show dropdown is now hidden when listing type is auction AND featured is true
+      - Prevents sellers from assigning featured/scheduled auctions to specific shows
+      - Featured auctions are standalone scheduled auctions that don't belong to any live show
+    - **Featured Section Hidden for Giveaways**: Featured section is now hidden when listing type is giveaway in inventory form
+      - Giveaways cannot be marked as featured products - enforced at multiple layers
+      - Only buy_now and auction types can be featured
+      - **UI Conditional Logic**: Featured field hidden when `listingType !== 'giveaway' && selectedShow === 'general'`
+      - **React Hook Form Subscription Fix**: Changed from `form.watch()` to `useWatch()` to ensure component re-renders when watched values change (fixes issue where featured field would appear for giveaways assigned to specific shows)
+      - **Frontend enforcement**: useEffect automatically sets `featured: false` when listing type changes to giveaway (both inventory-product-form.tsx and product-form.tsx)
+      - **Submit-time enforcement**: Submit handlers explicitly force `featured: false` for giveaways before sending data
+      - **Backend hardening**: Both POST and PUT endpoints in giveaways.ts force `featured: false` to prevent future client regressions
+    - **Giveaway Endpoint Routing Fix**: Fixed inventory pages to use correct endpoints for giveaways
+      - **add-product.tsx**: Routes giveaway creation to POST `/api/giveaways` instead of POST `/api/products/${userId}`
+      - **edit-product.tsx**: Routes giveaway updates to PUT `/api/giveaways/${productId}` instead of PATCH `/api/products/${productId}`
+      - Regular products (buy_now, auction) still use `/api/products` endpoints as expected
+    - **Shipping Profile Fix for Giveaways**: Fixed shipping profile handling to ensure valid ObjectIds are sent to external API
+      - **Frontend (inventory-product-form.tsx)**: Validates giveaways must have shipping profile selected, only sends `shipping_profile` field if a valid profile is selected
+      - **Frontend (product-form.tsx)**: Validates giveaways must have shipping profile selected before submission
+      - **Backend (giveaways.ts)**: Renames `shippingProfile` to `shipping_profile` in POST/PUT endpoints, only includes field if valid profile provided (no "skip" fallback)
+      - External API expects `shipping_profile` to be a valid ObjectId (MongoDB ID), not a string like "skip"
+      - Frontend validation ensures users select a shipping profile before submission
+    - **Giveaway Duration Simplified (November 9, 2025)**: Removed duration field from giveaway UI and set default to 5 minutes
+      - Duration field removed from both inventory-product-form.tsx and product-form.tsx
+      - All giveaways automatically set to 300 seconds (5 minutes) duration
+      - Users can no longer customize giveaway duration - standardized to 5 minutes for all giveaways
+    - **Giveaway Show Assignment Required (November 9, 2025)**: All giveaways must be assigned to a specific show
+      - Giveaways cannot be assigned to "General Inventory" - they must belong to a show
+      - **Frontend (inventory-product-form.tsx)**: Show dropdown marked as required (*) for giveaways, validation prevents submission without show selection
+      - **Frontend (product-form.tsx)**: Validation ensures giveaways have a show assigned (automatically set from roomId in live show context)
+      - Show assignment label and description updated to indicate giveaways require a show
+      - Validation displays error toast if user attempts to create giveaway without selecting a show
+      - **Show Endpoint Fix**: Inventory page show selection now uses `status=active` instead of `status=true` when fetching user's shows
 
 ## External Dependencies
-The project relies on several key external services and APIs:
-
--   **External API Server**: The primary external backend for all data storage and operations (configurable via BASE_URL environment variable).
--   **Firebase Auth**: Used for user authentication (supporting Google, Facebook, and email/password).
--   **Stripe**: Integrated for handling payment processing.
--   **LiveKit Cloud**: Provides the infrastructure for live video streaming capabilities.
--   **Socket.IO**: Used for real-time chat and interactions within the platform.
--   **SendGrid**: Utilized for email delivery services.
--   **PostgreSQL**: The external backend API uses PostgreSQL as its database.
+-   **External API Server**: Primary backend for all data storage and operations.
+-   **Firebase Auth**: User authentication (Google, Facebook, email/password).
+-   **Stripe**: Payment processing.
+-   **LiveKit Cloud**: Live video streaming infrastructure.
+-   **Socket.IO**: Real-time chat and interactions.
+-   **SendGrid**: Email delivery services.
+-   **PostgreSQL**: Database used by the external backend API.

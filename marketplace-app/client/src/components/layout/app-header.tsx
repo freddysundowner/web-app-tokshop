@@ -23,10 +23,11 @@ interface AppHeaderProps {
   onMobileMenuClose?: () => void;
   hideLogo?: boolean;
   hideNavigation?: boolean;
+  hideSearch?: boolean;
   isDashboard?: boolean;
 }
 
-export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobileMenuClose, hideLogo = false, hideNavigation = false, isDashboard = false }: AppHeaderProps) {
+export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobileMenuClose, hideLogo = false, hideNavigation = false, hideSearch = false, isDashboard = false }: AppHeaderProps) {
   const { settings } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
   const [, setLocation] = useLocation();
@@ -34,6 +35,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
   const [searchQuery, setSearchQuery] = useState('');
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sellerDropdownOpen, setSellerDropdownOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -55,15 +57,12 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
 
   // Handle mobile drawer state
   const handleMobileMenuToggle = () => {
-    setProfileDrawerOpen(!mobileMenuOpen);
+    // Only toggle the sidebar, not the profile drawer
     onMobileMenuToggle?.();
   };
 
   const handleDrawerChange = (open: boolean) => {
     setProfileDrawerOpen(open);
-    if (!open && mobileMenuOpen) {
-      onMobileMenuClose?.();
-    }
   };
 
   // Get user initials for avatar fallback
@@ -245,7 +244,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
             )}
             
             {/* Search - Hidden on mobile, smaller on tablet, only show when authenticated */}
-            {!hideNavigation && isAuthenticated && (
+            {!hideNavigation && !hideSearch && isAuthenticated && (
               <div ref={searchRef} className="relative hidden sm:block w-48 md:w-64 lg:w-96 ml-2">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isShowPage ? 'text-zinc-400' : 'text-muted-foreground'} pointer-events-none z-10`} />
               <Input
@@ -378,7 +377,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
               <>
                 {/* Seller Actions - Plus button with dropdown menu */}
                 {currentUser?.seller && (
-                  <DropdownMenu>
+                  <DropdownMenu open={sellerDropdownOpen} onOpenChange={setSellerDropdownOpen}>
                     <DropdownMenuTrigger asChild>
                       <Button 
                         size="icon" 
@@ -390,17 +389,31 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem asChild>
-                        <Link href="/add-product" className="flex items-center gap-2 cursor-pointer">
+                      <DropdownMenuItem 
+                        asChild
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setSellerDropdownOpen(false);
+                          setLocation('/add-product');
+                        }}
+                      >
+                        <div className="flex items-center gap-2 cursor-pointer" data-testid="menu-add-listing">
                           <PackagePlus className="h-4 w-4" />
                           <span>Add Listing</span>
-                        </Link>
+                        </div>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/schedule-show" className="flex items-center gap-2 cursor-pointer">
+                      <DropdownMenuItem 
+                        asChild
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setSellerDropdownOpen(false);
+                          setLocation('/schedule-show');
+                        }}
+                      >
+                        <div className="flex items-center gap-2 cursor-pointer" data-testid="menu-schedule-show">
                           <Calendar className="h-4 w-4" />
                           <span>Schedule a Show</span>
-                        </Link>
+                        </div>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -484,7 +497,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     data-testid="avatar-user-profile"
                     onClick={() => setProfileDrawerOpen(true)}
                   >
-                    <AvatarImage src={user.profilePhoto} alt={`${user.firstName || user.email}`} />
+                    <AvatarImage src={currentUser?.profilePhoto} alt={`${currentUser?.firstName || currentUser?.email}`} />
                     <AvatarFallback className="bg-teal-500 text-white text-sm font-bold">
                       {getUserInitials()}
                     </AvatarFallback>
@@ -511,7 +524,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
         </div>
         
         {/* Mobile Search Bar - Show below header on mobile, only when authenticated */}
-        {isAuthenticated && (
+        {!hideSearch && isAuthenticated && (
           <div className="flex justify-center w-full">
             <div className="sm:hidden px-3 pb-2 w-full lg:w-[90%]">
               <div ref={searchRef} className="relative">
@@ -621,7 +634,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
 
       {/* Profile Drawer - Only show when authenticated */}
       {isAuthenticated && (
-        <ProfileDrawer open={profileDrawerOpen || mobileMenuOpen} onOpenChange={handleDrawerChange} />
+        <ProfileDrawer open={profileDrawerOpen} onOpenChange={handleDrawerChange} />
       )}
     </>
   );

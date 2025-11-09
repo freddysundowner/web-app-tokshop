@@ -253,22 +253,22 @@ export default function ShippingProfiles() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Shipping Profiles</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Shipping Profiles</h1>
+          <p className="text-sm text-muted-foreground">
             Manage your shipping profiles and settings
           </p>
         </div>
-        <Button onClick={handleCreate} data-testid="button-create-profile">
+        <Button onClick={handleCreate} data-testid="button-create-profile" className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Create Profile
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(3)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>

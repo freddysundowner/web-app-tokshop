@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { Link } from 'wouter';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { ProductCard } from '@/components/product-card';
@@ -7,6 +9,11 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function DealsTrending() {
   usePageTitle('Trending Products');
+
+  // Invalidate cache on mount to fetch fresh data
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['/api/products', 'all', 'trending'] });
+  }, []);
 
   // Fetch all trending products
   const { data: trendingData, isLoading } = useQuery({
@@ -60,7 +67,7 @@ export default function DealsTrending() {
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
                 {products.map((product: any) => (
                   <ProductCard key={product._id || product.id} product={product} />
                 ))}

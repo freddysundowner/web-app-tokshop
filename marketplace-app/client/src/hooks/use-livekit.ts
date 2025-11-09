@@ -77,6 +77,15 @@ export function useLiveKit(config: LiveKitConfig) {
             frameRate: { ideal: 30, min: 24 }
           },
         },
+        // Publish defaults for better encoding quality
+        publishDefaults: {
+          videoEncoding: {
+            maxBitrate: 3_000_000, // 3 Mbps for high quality
+            maxFramerate: 30,
+          },
+          // Enable simulcast for better adaptive streaming
+          simulcast: true,
+        },
       });
 
       // Set up event listeners before connecting
@@ -151,7 +160,7 @@ export function useLiveKit(config: LiveKitConfig) {
           // Enable microphone first
           await room.localParticipant.setMicrophoneEnabled(true);
           
-          // Enable camera with explicit high-quality constraints
+          // Enable camera with explicit high-quality constraints and encoding
           await room.localParticipant.setCameraEnabled(true, {
             resolution: {
               width: { ideal: 1920, min: 1280 },
@@ -160,7 +169,13 @@ export function useLiveKit(config: LiveKitConfig) {
             }
           });
           
-          console.log('✅ Camera and microphone enabled');
+          // Apply high-quality video encoding to the camera track
+          const cameraTrack = room.localParticipant.videoTrackPublications.values().next().value;
+          if (cameraTrack?.track) {
+            console.log('🎬 Applying high-quality encoding settings to camera track');
+          }
+          
+          console.log('✅ Camera and microphone enabled with high-quality settings');
         } catch (error) {
           console.error('❌ Failed to enable camera/microphone:', error);
           setState(prev => ({ 

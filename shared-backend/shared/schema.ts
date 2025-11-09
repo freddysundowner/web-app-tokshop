@@ -383,6 +383,15 @@ export const productFormSchema = z.object({
 }, {
   message: "Price must be greater than 0",
   path: ["price"],
+}).refine((data) => {
+  // For non-featured auctions (live show auctions), a show must be selected
+  if (data.listingType === 'auction' && !data.featured) {
+    return data.tokshow !== undefined && data.tokshow !== null && data.tokshow !== '' && data.tokshow !== 'general';
+  }
+  return true;
+}, {
+  message: "Live show auctions must be assigned to a show",
+  path: ["tokshow"],
 });
 
 export type ListingType = z.infer<typeof listingTypeSchema>;

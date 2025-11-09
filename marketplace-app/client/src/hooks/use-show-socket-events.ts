@@ -13,6 +13,7 @@ interface UseShowSocketEventsProps {
   currentUserId: string;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
+  disconnect: () => void;
   setViewers: React.Dispatch<React.SetStateAction<any[]>>;
   setPinnedProduct: React.Dispatch<React.SetStateAction<any>>;
   setActiveAuction: React.Dispatch<React.SetStateAction<any>>;
@@ -41,6 +42,7 @@ export function useShowSocketEvents({
   currentUserId,
   joinRoom,
   leaveRoom,
+  disconnect,
   setViewers,
   setPinnedProduct,
   setActiveAuction,
@@ -370,8 +372,8 @@ export function useShowSocketEvents({
   useEffect(() => {
     if (!socket || !roomId || !isConnected || !proceedWithJoin) return;
 
-    // Join room
-    joinRoom(roomId);
+    // NOTE: Room joining is now handled in show-view.tsx when socket connects
+    // This effect only registers event listeners
     
     console.log('✅ Socket event listeners registered for room:', roomId);
 
@@ -424,8 +426,10 @@ export function useShowSocketEvents({
       socket.off('ended-giveaway', handleGiveawayEnded);
       socket.off('createMessage');
       
-      // Leave room on unmount
+      // Leave room and disconnect socket on unmount
       leaveRoom(roomId);
+      disconnect();
+      console.log('🔌 Show view unmounted - disconnected socket');
     };
   }, [
     socket,
@@ -437,6 +441,7 @@ export function useShowSocketEvents({
     currentUserId,
     joinRoom,
     leaveRoom,
+    disconnect,
     handleUserConnected,
     handleUserDisconnected,
     handleRoomStarted,

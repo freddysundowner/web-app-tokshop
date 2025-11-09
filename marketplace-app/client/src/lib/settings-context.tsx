@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { initializeFirebase } from './firebase';
 
 interface FirebaseConfig {
@@ -18,6 +18,7 @@ interface AppSettings {
   stripe_publishable_key: string;
   commission_rate: number;
   firebase_config?: FirebaseConfig;
+  agerestricted?: boolean;
 }
 
 interface SettingsContextType {
@@ -215,8 +216,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const appName = settings.app_name || 'TokShop';
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
+    settings,
+    isLoading,
+    isFirebaseReady,
+    appName
+  }), [settings, isLoading, isFirebaseReady, appName]);
+
   return (
-    <SettingsContext.Provider value={{ settings, isLoading, isFirebaseReady, appName }}>
+    <SettingsContext.Provider value={value}>
       {children}
     </SettingsContext.Provider>
   );
