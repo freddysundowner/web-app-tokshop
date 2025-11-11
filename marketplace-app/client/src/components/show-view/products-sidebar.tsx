@@ -12,6 +12,9 @@ export function ProductsSidebar(props: any) {
     soldOrders, setSelectedOrder, setShowOrderDetailDialog
   } = props;
 
+  // Check if auction is actually running based on time
+  const isAuctionRunning = activeAuction && activeAuction.endTime && Date.now() < activeAuction.endTime;
+
   return (
         <div className={`
           ${showMobileProducts ? 'fixed inset-0 z-50 bg-black' : 'hidden'}
@@ -116,7 +119,7 @@ export function ProductsSidebar(props: any) {
                               <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                             )}
                           </div>
-                          {isShowOwner && (
+                          {isShowOwner && !isAuctionRunning && (
                             <Button 
                               size="icon"
                               className="absolute top-1 right-1 h-7 w-7 bg-black/70 hover:bg-black/90 text-white rounded-full" 

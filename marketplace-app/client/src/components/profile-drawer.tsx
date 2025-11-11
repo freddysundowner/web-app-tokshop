@@ -20,7 +20,8 @@ import {
   MapPin,
   Home,
   Grid,
-  LogOut
+  LogOut,
+  Tag
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
@@ -254,6 +255,18 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
               <div className="flex items-center gap-3">
                 <Grid className="h-5 w-5 text-foreground" />
                 <span className="text-base text-foreground">Browse</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
+            
+            <button
+              onClick={() => handleNavigation('/deals')}
+              className="flex items-center justify-between w-full py-3 px-4 hover-elevate active-elevate-2 transition-all"
+              data-testid="menu-deals-mobile"
+            >
+              <div className="flex items-center gap-3">
+                <Tag className="h-5 w-5 text-foreground" />
+                <span className="text-base text-foreground">Deals</span>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>

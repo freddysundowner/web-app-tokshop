@@ -39,6 +39,7 @@ import { ProductForm } from '@/components/product-form';
 import { ShareDialog } from '@/components/share-dialog';
 import { BuyNowDialog } from '@/components/buy-now-dialog';
 import { TipSellerDialog } from '@/components/tip-seller-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 // Import show-view components
 import { ProductsSidebar } from '@/components/show-view/products-sidebar';
@@ -112,6 +113,14 @@ export default function ShowViewNew() {
   const [showGiveawayWinnerDialog, setShowGiveawayWinnerDialog] = useState<boolean>(false);
   const [giveawayWinnerData, setGiveawayWinnerData] = useState<any>(null);
   
+  // Track current user's bid for reliable state
+  const [currentUserBid, setCurrentUserBid] = useState<any>(null);
+  
+  // Track autobid max exceeded state
+  const previousHighestBidRef = useRef<number>(0);
+  const lastAlertedMaxBidRef = useRef<number>(0);
+  
+  
   // Payment & Shipping Alert
   const [showPaymentShippingAlert, setShowPaymentShippingAlert] = useState<boolean>(false);
   const [showPaymentShippingIntermediateAlert, setShowPaymentShippingIntermediateAlert] = useState<boolean>(false);
@@ -123,6 +132,9 @@ export default function ShowViewNew() {
   // Buy Now Dialog
   const [showBuyNowDialog, setShowBuyNowDialog] = useState<boolean>(false);
   const [buyNowProduct, setBuyNowProduct] = useState<any>(null);
+  
+  // Custom Bid Dialog
+  const [showCustomBidDialog, setShowCustomBidDialog] = useState<boolean>(false);
   
   // Tip Seller Dialog
   const [showTipDialog, setShowTipDialog] = useState<boolean>(false);
@@ -174,7 +186,8 @@ export default function ShowViewNew() {
       joinRoom(id);
       hasJoinedRoomRef.current = true;
     }
-  }, [id, isConnected, joinRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isConnected]);
   
   // Reset join flag when room ID changes
   useEffect(() => {
@@ -211,6 +224,33 @@ export default function ShowViewNew() {
   
   // Fetch single show from API
   const currentUserId = (user as any)?._id || user?.id;
+  
+  // Initialize currentUserBid when activeAuction loads or changes
+  useEffect(() => {
+    if (!activeAuction || !currentUserId) {
+      setCurrentUserBid(null);
+      return;
+    }
+    
+    // Find user's existing bid in the loaded auction
+    // Handle both bid.user and bid.bidder formats
+    const userBid = activeAuction.bids?.find((bid: any) => 
+      bid.user?._id === currentUserId || 
+      bid.user?.id === currentUserId ||
+      bid.user === currentUserId ||
+      bid.bidder?._id === currentUserId ||
+      bid.bidder?.id === currentUserId ||
+      bid.bidder === currentUserId
+    );
+    
+    if (userBid) {
+      setCurrentUserBid(userBid);
+      console.log('💰 Initial currentUserBid set from activeAuction:', userBid);
+    } else {
+      setCurrentUserBid(null);
+    }
+  }, [activeAuction?._id, activeAuction?.id, currentUserId]); // Watch both _id and id
+  
   const { data: show, isLoading, refetch: refetchShow } = useQuery<any>({
     queryKey: ['/api/rooms', id, currentUserId],
     queryFn: async () => {
@@ -301,6 +341,22 @@ export default function ShowViewNew() {
   // Extract stable owner ID from show data to prevent infinite loops
   const ownerId = useMemo(() => show?.owner?._id || show?.owner?.id, [show?.owner?._id, show?.owner?.id]);
 
+  // Persist owner ID in ref once available (for race condition protection)
+  const ownerIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (ownerId !== ownerIdRef.current) {
+      ownerIdRef.current = ownerId;
+      console.log('📌 Updated ownerId in ref:', ownerId);
+    }
+  }, [ownerId]);
+  
+  // Reset ownerIdRef when room/show changes
+  useEffect(() => {
+    return () => {
+      ownerIdRef.current = undefined;
+    };
+  }, [id]);
+
   // Initialize viewers from show data
   useEffect(() => {
     if (show?.viewers && Array.isArray(show.viewers)) {
@@ -358,6 +414,13 @@ export default function ShowViewNew() {
 
   // Helper: Get shipping estimate
   const getShippingEstimate = useCallback(async (auction: any) => {
+    // Skip if user is the show owner (check persisted ownerIdRef for early events)
+    const stableOwnerId = ownerId || ownerIdRef.current;
+    if (stableOwnerId && isAuthenticated && currentUserId === stableOwnerId) {
+      console.log('🚫 Skipping shipping estimate: user is show owner');
+      return;
+    }
+    
     if (!auction?.product?.shipping_profile || !currentUserId) {
       console.log('🚫 Skipping shipping estimate:', {
         hasShippingProfile: !!auction?.product?.shipping_profile,
@@ -404,7 +467,7 @@ export default function ShowViewNew() {
     } catch (error) {
       console.error('Error getting shipping estimate:', error);
     }
-  }, [currentUserId, ownerId, id]);
+  }, [currentUserId, ownerId, id, isAuthenticated]);
 
   // Helper: Start timer with endTime and server offset
   const startTimerWithEndTime = useCallback((auction: any) => {
@@ -463,7 +526,7 @@ export default function ShowViewNew() {
               setWinnerData({
                 name: winnerName,
                 amount: winAmount,
-                profileImage: winner.user?.profileUrl || winner.user?.profilePicture || winner.user?.photoURL,
+                profileImage: winner.user?.profilePhoto,
                 user: winner.user
               });
             }
@@ -510,7 +573,17 @@ export default function ShowViewNew() {
         showActiveAuction.product &&
         Array.isArray(showActiveAuction.bids);
       
-      if (isValidAuction) {
+      // Check if the auction has ended
+      // Calculate endTime from startedTime + duration if not present
+      let calculatedEndTime = showActiveAuction?.endTime;
+      if (!calculatedEndTime && showActiveAuction?.startedTime && showActiveAuction?.duration) {
+        calculatedEndTime = showActiveAuction.startedTime + (showActiveAuction.duration * 1000);
+      }
+      
+      const isAuctionEnded = showActiveAuction?.ended === true || 
+        (calculatedEndTime && Date.now() >= (typeof calculatedEndTime === 'string' ? new Date(calculatedEndTime).getTime() : calculatedEndTime));
+      
+      if (isValidAuction && !isAuctionEnded) {
         console.log('📦 Initializing active auction from show data:', showActiveAuction);
         console.log('🔍 Show activeauction bids:', showActiveAuction.bids);
         console.log('🔍 Show activeauction ended:', showActiveAuction.ended);
@@ -524,8 +597,12 @@ export default function ShowViewNew() {
         console.log('🔍 CALLING setActiveAuction with:', showActiveAuction);
         setActiveAuction(showActiveAuction);
         console.log('🔍 AFTER setActiveAuction called');
+      } else if (isAuctionEnded) {
+        console.log('⏰ Auction in show data has ended - setting it to show on overlay');
+        // Set the ended auction so it shows on the overlay
+        setActiveAuction(showActiveAuction);
         
-        // Find winner and get shipping estimate for existing auction
+        // Find winner and get shipping estimate for ended auction
         findWinner(showActiveAuction.bids || []);
         getShippingEstimate(showActiveAuction);
       } else {
@@ -543,8 +620,11 @@ export default function ShowViewNew() {
         console.log('📌 Initializing pinned product from show data:', show.pinned);
         setPinnedProduct(show.pinned);
         
-        // Get shipping estimate for pinned product
-        if (show.pinned.shipping_profile) {
+        // Get shipping estimate for pinned product (skip if user is show owner)
+        const hostId = show?.owner?._id || show?.owner?.id;
+        const isOwner = isAuthenticated && currentUserId === hostId;
+        
+        if (show.pinned.shipping_profile && !isOwner) {
           const pinnedPayload = {
             weight: show.pinned.shipping_profile.weight,
             unit: show.pinned.shipping_profile.scale,
@@ -574,6 +654,8 @@ export default function ShowViewNew() {
               });
             })
             .catch(err => console.error('❌ Error fetching pinned product shipping:', err));
+        } else if (isOwner) {
+          console.log('🚫 Skipping shipping estimate for pinned product: user is show owner');
         }
       } else {
         setPinnedProduct(null);
@@ -696,6 +778,9 @@ export default function ShowViewNew() {
     setGiveawayWinnerData,
     setShowGiveawayWinnerDialog,
     setTimeAddedBlink,
+    setCurrentUserBid,
+    previousHighestBidRef,
+    lastAlertedMaxBidRef,
     findWinner,
     startTimerWithEndTime,
     getShippingEstimate,
@@ -1030,16 +1115,29 @@ export default function ShowViewNew() {
         throw new Error('Please add payment and shipping information before bidding');
       }
       
-      socket.emit('place-bid', {
+      // Use reliable currentUserBid state instead of scanning activeAuction.bids
+      const inheritCustomBidFlag = currentUserBid?.custom_bid || false;
+      const existingMaxBid = currentUserBid?.autobidamount;
+      
+      const bidPayload = {
         user: currentUserId,
         amount: amount,
         increaseBidBy: activeAuction.increaseBidBy || 5,
         auction: activeAuction._id || activeAuction.id,
         prebid: false,
         autobid: false,
-        autobidamount: amount,
+        autobidamount: existingMaxBid || amount, // Keep existing max or use current
+        custom_bid: inheritCustomBidFlag, // Inherit from previous bid
         roomId: id
-      });
+      };
+      
+      console.log('💰 Placing bid:', bidPayload);
+      console.log('📡 Socket connected:', socket.connected);
+      console.log('  Using currentUserBid:', currentUserBid);
+      
+      socket.emit('place-bid', bidPayload);
+      
+      console.log('✅ place-bid event emitted');
     },
     onSuccess: () => {
       setBidAmount('');
@@ -1827,6 +1925,8 @@ export default function ShowViewNew() {
           showBuyNowDialog={showBuyNowDialog}
           setShowBuyNowDialog={setShowBuyNowDialog}
           setShowPaymentShippingAlert={setShowPaymentShippingAlert}
+          showCustomBidDialog={showCustomBidDialog}
+          setShowCustomBidDialog={setShowCustomBidDialog}
         />
         
         <ChatSidebar

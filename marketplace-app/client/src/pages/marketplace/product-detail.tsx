@@ -335,7 +335,7 @@ export default function ProductDetail() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setLocation('/')}
+            onClick={() => window.history.back()}
             data-testid="button-back"
           >
             <ArrowLeft className="h-5 w-5" />

@@ -26,7 +26,8 @@ export default function Deals() {
         status: 'active',
         limit: '10',
         sortBy: 'views',
-        featured: 'true'
+        featured: 'true',
+        type: 'scheduled'
       });
       const response = await fetch(`/api/products?${params.toString()}`);
       return response.json();

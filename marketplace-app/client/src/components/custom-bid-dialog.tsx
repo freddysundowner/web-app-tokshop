@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -28,6 +28,11 @@ export function CustomBidDialog({
 }: CustomBidDialogProps) {
   const [bidAmount, setBidAmount] = useState(minimumBid);
   const [isMaxBid, setIsMaxBid] = useState(false);
+
+  // Reset bid amount when minimumBid changes (new auction)
+  useEffect(() => {
+    setBidAmount(minimumBid);
+  }, [minimumBid]);
 
   // Reset bid amount when dialog opens
   const handleOpenChange = (newOpen: boolean) => {

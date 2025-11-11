@@ -44,6 +44,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           reconnectionAttempts: 5
         });
 
+        // Debug: Log ALL incoming socket events to discover what the server actually emits
+        socketInstance.onAny((eventName, ...args) => {
+          console.log('📨 [Socket Event Received]:', eventName, args);
+        });
+
         socketInstance.on('connect', () => {
           console.log('✅ Socket.IO connected to external API:', EXTERNAL_API_URL);
           console.log('Socket ID:', socketInstance.id);

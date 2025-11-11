@@ -18,7 +18,6 @@ export function VideoCenter(props: any) {
   const [showGiveawayWinnerDialog, setShowGiveawayWinnerDialog] = useState(false);
   const [isNotificationSaved, setIsNotificationSaved] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [showCustomBidDialog, setShowCustomBidDialog] = useState(false);
   
   const {
     id, livekitRoom, muted, setMuted, isShowOwner, hasVideo, hasAudio,
@@ -39,7 +38,8 @@ export function VideoCenter(props: any) {
     handleMessageChange, timeAddedBlink, buyNowProduct,
     host, setShowShareDialog, livekit,
     showBuyNowDialog, setShowBuyNowDialog, message, handleSendMessage,
-    currentMentions, setCurrentMentions, setShowPaymentShippingAlert
+    currentMentions, setCurrentMentions, setShowPaymentShippingAlert,
+    showCustomBidDialog, setShowCustomBidDialog
   } = props;
 
   // Check if current user has already saved this show for notifications
@@ -391,7 +391,7 @@ export function VideoCenter(props: any) {
                       </div>
                     )}
                     <span className="text-black font-bold text-sm whitespace-nowrap" data-testid="text-winner-name">
-                      {winnerData?.name || 'Someone'} won the auction!
+                      {winnerData?.name || 'Someone'} won!
                     </span>
                   </div>
                 </div>
@@ -559,8 +559,15 @@ export function VideoCenter(props: any) {
                       
                       {/* Rerun Auction Button - Show when auction ended with no bids and user is owner */}
                       {(() => {
-                        const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
-                        const isEnded = activeAuction.startedTime && (Date.now() > calculatedEndTime);
+                        // Calculate end time in milliseconds
+                        let calculatedEndTime = activeAuction.endTime;
+                        if (typeof calculatedEndTime === 'string') {
+                          calculatedEndTime = new Date(calculatedEndTime).getTime();
+                        } else if (!calculatedEndTime && activeAuction.startedTime && activeAuction.duration) {
+                          calculatedEndTime = activeAuction.startedTime + (activeAuction.duration * 1000);
+                        }
+                        
+                        const isEnded = calculatedEndTime && Date.now() > calculatedEndTime;
                         return isEnded && isShowOwner && (!activeAuction.bids || activeAuction.bids.length === 0);
                       })() && (
                         <Button
@@ -584,6 +591,16 @@ export function VideoCenter(props: any) {
                         if (!shouldShow) return null;
                         
                         const nextBid = activeAuction.newbaseprice || activeAuction.baseprice || 1;
+                        
+                        // Check if user has already placed a custom bid in this auction
+                        // Each user has only one bid object that gets updated by backend
+                        const userBid = activeAuction.bids?.find((bid: any) => 
+                          bid.user?._id === currentUserId
+                        );
+                        // Only enforce max limit if this bid has custom_bid flag set
+                        const userMaxBidLimit = userBid?.custom_bid ? userBid.autobidamount : null;
+                        const hasReachedMax = userMaxBidLimit && nextBid > userMaxBidLimit;
+                        
                         return (
                           <div className="flex gap-2 mt-4 w-full">
                             <button
@@ -594,9 +611,7 @@ export function VideoCenter(props: any) {
                               Custom
                             </button>
                             <button
-                              onClick={() => {
-                                placeBidMutation.mutate(nextBid);
-                              }}
+                              onClick={() => placeBidMutation.mutate(nextBid)}
                               disabled={placeBidMutation.isPending}
                               className="h-9 flex-[0.65] rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm transition-colors disabled:opacity-50"
                               data-testid="button-place-bid-desktop"
@@ -836,10 +851,15 @@ export function VideoCenter(props: any) {
                         
                         {/* Rerun Auction Button - Show when auction ended with no bids and user is owner */}
                         {(() => {
-                          // Use endTime if available (accounts for time extensions), otherwise calculate from duration
-                          const calculatedEndTime = activeAuction.endTime || 
-                            (activeAuction.startedTime + (activeAuction.duration * 1000));
-                          const isEnded = activeAuction.startedTime && (Date.now() > calculatedEndTime);
+                          // Calculate end time in milliseconds
+                          let calculatedEndTime = activeAuction.endTime;
+                          if (typeof calculatedEndTime === 'string') {
+                            calculatedEndTime = new Date(calculatedEndTime).getTime();
+                          } else if (!calculatedEndTime && activeAuction.startedTime && activeAuction.duration) {
+                            calculatedEndTime = activeAuction.startedTime + (activeAuction.duration * 1000);
+                          }
+                          
+                          const isEnded = calculatedEndTime && Date.now() > calculatedEndTime;
                           return isEnded && isShowOwner && (!activeAuction.bids || activeAuction.bids.length === 0);
                         })() && (
                           <Button
@@ -913,18 +933,27 @@ export function VideoCenter(props: any) {
                     if (!shouldShow) return null;
                     
                     const nextBid = activeAuction.newbaseprice || activeAuction.baseprice || 1;
+                    
+                    // Check if user has already placed a custom bid in this auction
+                    // Each user has only one bid object that gets updated by backend
+                    const userBid = activeAuction.bids?.find((bid: any) => 
+                      bid.user?._id === currentUserId
+                    );
+                    // Only enforce max limit if this bid has custom_bid flag set
+                    const userMaxBidLimit = userBid?.custom_bid ? userBid.autobidamount : null;
+                    const hasReachedMax = userMaxBidLimit && nextBid > userMaxBidLimit;
+                    
                     return (
                       <div className="flex gap-2 border-t border-white/10 pt-3 w-full">
                         <button
+                          onClick={() => setShowCustomBidDialog(true)}
                           className="h-11 w-[140px] rounded-full border-2 border-white/90 text-white font-semibold text-lg bg-transparent hover:bg-white/10 transition-colors flex-shrink-0"
                           data-testid="button-custom-bid"
                         >
                           Custom
                         </button>
                         <button
-                          onClick={() => {
-                            placeBidMutation.mutate(nextBid);
-                          }}
+                          onClick={() => placeBidMutation.mutate(nextBid)}
                           disabled={placeBidMutation.isPending}
                           className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg transition-colors disabled:opacity-50"
                           data-testid="button-place-bid"
@@ -1219,17 +1248,19 @@ export function VideoCenter(props: any) {
             currentBid={currentBid}
             minimumBid={activeAuction?.newbaseprice || activeAuction?.baseprice || 1}
             onPlaceBid={(amount, isMaxBid) => {
-              // Send custom bid with autobid flag
               if (!socket || !activeAuction) return;
+              
+              const minimumBid = activeAuction.newbaseprice || activeAuction.baseprice || 1;
               
               socket.emit('place-bid', {
                 user: currentUserId,
-                amount: amount,
+                amount: minimumBid,           // Backend requires bidding at minimum
                 increaseBidBy: activeAuction.increaseBidBy || 5,
                 auction: activeAuction._id || activeAuction.id,
                 prebid: false,
-                autobid: isMaxBid,
-                autobidamount: amount,
+                autobid: isMaxBid,            // Auto-bid enabled or not
+                autobidamount: amount,        // Max bid limit
+                custom_bid: true,             // Flag that this is from custom bid
                 roomId: id
               });
             }}

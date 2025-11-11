@@ -24,6 +24,9 @@ interface UseShowSocketEventsProps {
   setGiveawayWinnerData: React.Dispatch<React.SetStateAction<any>>;
   setShowGiveawayWinnerDialog: React.Dispatch<React.SetStateAction<boolean>>;
   setTimeAddedBlink: React.Dispatch<React.SetStateAction<boolean>>;
+  setCurrentUserBid: React.Dispatch<React.SetStateAction<any>>;
+  previousHighestBidRef: React.MutableRefObject<number>;
+  lastAlertedMaxBidRef: React.MutableRefObject<number>;
   findWinner: (bids: any[]) => any;
   startTimerWithEndTime: (auction: any) => void;
   getShippingEstimate: (auction: any) => void;
@@ -53,6 +56,9 @@ export function useShowSocketEvents({
   setGiveawayWinnerData,
   setShowGiveawayWinnerDialog,
   setTimeAddedBlink,
+  setCurrentUserBid,
+  previousHighestBidRef,
+  lastAlertedMaxBidRef,
   findWinner,
   startTimerWithEndTime,
   getShippingEstimate,
@@ -61,7 +67,6 @@ export function useShowSocketEvents({
   shownWinnerAlertsRef,
 }: UseShowSocketEventsProps) {
   const { toast } = useToast();
-  const hasJoinedRef = useRef(false);
   const lastAuctionRefetchRef = useRef<number>(0);
   const lastGiveawayRefetchRef = useRef<number>(0);
 
@@ -136,7 +141,11 @@ export function useShowSocketEvents({
       const pinnedProd = roomData.pinned || roomData.pinnedProduct;
       setPinnedProduct(pinnedProd);
       
-      if (pinnedProd.shipping_profile) {
+      // Skip shipping estimate if user is the show owner
+      const hostId = roomData?.owner?._id || roomData?.owner?.id;
+      const isOwner = isAuthenticated && currentUserId === hostId;
+      
+      if (pinnedProd.shipping_profile && !isOwner) {
         const pinnedPayload = {
           weight: pinnedProd.shipping_profile.weight,
           unit: pinnedProd.shipping_profile.scale,
@@ -166,11 +175,13 @@ export function useShowSocketEvents({
             });
           })
           .catch(err => console.error('❌ Error fetching pinned product shipping:', err));
+      } else if (isOwner) {
+        console.log('🚫 Skipping shipping estimate for pinned product: user is show owner');
       }
     } else {
       setPinnedProduct(null);
     }
-  }, [roomId, currentUserId, setPinnedProduct, setShippingEstimate]);
+  }, [roomId, currentUserId, setPinnedProduct, setShippingEstimate, isAuthenticated]);
 
   // Memoized handler: Pinned product updated
   const handlePinnedProductUpdated = useCallback((data: any) => {
@@ -190,6 +201,9 @@ export function useShowSocketEvents({
   const handleAuctionStarted = useCallback((auctionData: any) => {
     console.log('🎉 AUCTION-STARTED EVENT RECEIVED:', auctionData);
     
+    // Reset alert tracking for new auction
+    lastAlertedMaxBidRef.current = 0;
+    
     if (auctionData.serverTime) {
       auctionData.serverOffset = auctionData.serverTime - Date.now();
       console.log('🔄 Calculated serverOffset:', auctionData.serverOffset, 'from serverTime:', auctionData.serverTime);
@@ -205,11 +219,48 @@ export function useShowSocketEvents({
     
     setActiveAuction(auctionData);
     setPinnedProduct(null);
+    setCurrentUserBid(null); // Reset bid state for new auction
+    
+    // Update cached auction products list with new auction data
+    const productId = auctionData.product?._id || auctionData.product?.id || auctionData.product;
+    if (roomId && productId) {
+      let cacheUpdated = false;
+      
+      queryClient.setQueryData(['/api/products', roomId, 'auction'], (old: any) => {
+        if (!old?.products) {
+          console.log('⚠️ No cached products, skipping cache update');
+          return old;
+        }
+        
+        const updatedProducts = old.products.map((product: any) => {
+          if (product._id === productId || product.id === productId) {
+            cacheUpdated = true;
+            console.log('✅ Updated product auction in cache:', productId);
+            return {
+              ...product,
+              auction: auctionData
+            };
+          }
+          return product;
+        });
+        
+        return {
+          ...old,
+          products: updatedProducts
+        };
+      });
+      
+      // Fallback: If cache update failed (product not found), invalidate to refetch
+      if (!cacheUpdated) {
+        console.log('⚠️ Product not found in cache for new auction, invalidating query');
+        queryClient.invalidateQueries({ queryKey: ['/api/products', roomId, 'auction'] });
+      }
+    }
     
     findWinner(auctionData.bids || []);
     startTimerWithEndTime(auctionData);
     getShippingEstimate(auctionData);
-  }, [setActiveAuction, setPinnedProduct, findWinner, startTimerWithEndTime, getShippingEstimate]);
+  }, [setActiveAuction, setPinnedProduct, setCurrentUserBid, findWinner, startTimerWithEndTime, getShippingEstimate, lastAlertedMaxBidRef, roomId]);
 
   // Memoized handler: Auction pinned
   const handleAuctionPinned = useCallback((auction: any) => {
@@ -248,8 +299,117 @@ export function useShowSocketEvents({
       return updated;
     });
     
+    // Update cached auction products list with new bid data
+    const productId = auction.product?._id || auction.product?.id || auction.product;
+    const auctionId = auction._id || auction.id;
+    if (roomId && productId && auctionId) {
+      let cacheUpdated = false;
+      
+      queryClient.setQueryData(['/api/products', roomId, 'auction'], (old: any) => {
+        if (!old?.products) {
+          console.log('⚠️ No cached products for bid update');
+          return old;
+        }
+        
+        const updatedProducts = old.products.map((product: any) => {
+          if (product._id === productId || product.id === productId) {
+            // Verify this is the right auction
+            if (product.auction?._id === auctionId || product.auction?.id === auctionId) {
+              cacheUpdated = true;
+              console.log('✅ Updated product auction bids in cache:', productId, 'Bids:', auction.bids?.length);
+              return {
+                ...product,
+                auction: {
+                  ...product.auction,
+                  bids: auction.bids ?? product.auction?.bids ?? [],
+                  higestbid: auction.higestbid !== undefined ? auction.higestbid : product.auction.higestbid,
+                  newbaseprice: auction.newbaseprice !== undefined ? auction.newbaseprice : product.auction.newbaseprice,
+                }
+              };
+            }
+          }
+          return product;
+        });
+        
+        return {
+          ...old,
+          products: updatedProducts
+        };
+      });
+      
+      // Fallback: If cache update failed (product not found), invalidate to refetch
+      if (!cacheUpdated) {
+        console.log('⚠️ Product not found in cache, invalidating query');
+        queryClient.invalidateQueries({ queryKey: ['/api/products', roomId, 'auction'] });
+      }
+    }
+    
+    // Update current user's bid state for reliable tracking
+    // Handle both bid.user and bid.bidder formats with multiple ID variations
+    const userBid = auction.bids?.find((bid: any) => 
+      bid.user?._id === currentUserId || 
+      bid.user?.id === currentUserId ||
+      bid.user === currentUserId ||
+      bid.bidder?._id === currentUserId ||
+      bid.bidder?.id === currentUserId ||
+      bid.bidder === currentUserId
+    );
+    if (userBid) {
+      setCurrentUserBid((prevBid: any) => {
+        // Reset alert tracking if user updated their max bid
+        if (prevBid && userBid.autobidamount !== prevBid.autobidamount) {
+          lastAlertedMaxBidRef.current = 0;
+          console.log('  🔄 User updated max bid, reset alert tracking');
+        }
+        return userBid;
+      });
+      console.log('  💰 Current user bid updated:', userBid);
+    }
+    
+    // Check if autobid max was exceeded
+    const currentHighestBid = auction.newbaseprice || auction.higestbid || 0;
+    const previousHighest = previousHighestBidRef.current;
+    
+    if (userBid && userBid.custom_bid && userBid.autobidamount) {
+      // User has a max bid set (custom_bid with autobidamount)
+      const userMaxBid = userBid.autobidamount || 0;
+      
+      // Check if highest bid exceeds user's max AND user is not the highest bidder
+      const highestBidder = auction.bids?.[auction.bids.length - 1];
+      const userIsHighest = highestBidder?.user?._id === currentUserId || 
+                           highestBidder?.user?.id === currentUserId ||
+                           highestBidder?.bidder?._id === currentUserId ||
+                           highestBidder?.bidder?.id === currentUserId;
+      
+      // Only show toast if:
+      // 1. Current bid exceeds user's max
+      // 2. User is not winning
+      // 3. Bid increased from previous
+      // 4. We haven't already alerted for this max bid level
+      if (currentHighestBid > userMaxBid && 
+          !userIsHighest && 
+          currentHighestBid > previousHighest &&
+          userMaxBid !== lastAlertedMaxBidRef.current) {
+        console.log('🚨 Autobid max exceeded!', {
+          currentHighestBid,
+          userMaxBid,
+          userIsHighest,
+          lastAlerted: lastAlertedMaxBidRef.current
+        });
+        toast({
+          title: "You've been outbid!",
+          description: `Someone bid $${currentHighestBid}. Your max was $${userMaxBid}.`,
+          variant: "destructive",
+          duration: 5000,
+        });
+        lastAlertedMaxBidRef.current = userMaxBid;
+      }
+    }
+    
+    previousHighestBidRef.current = currentHighestBid;
+    
     findWinner(auction.bids || []);
-  }, [setActiveAuction, findWinner]);
+  }, [setActiveAuction, setCurrentUserBid, toast, previousHighestBidRef, lastAlertedMaxBidRef, currentUserId, findWinner, roomId]);
 
   // Memoized handler: Auction time extended
   const handleAuctionTimeExtended = useCallback((data: any) => {
@@ -295,6 +455,8 @@ export function useShowSocketEvents({
     };
     
     setActiveAuction(endedAuction);
+    setCurrentUserBid(null); // Reset bid state when auction ends
+    lastAlertedMaxBidRef.current = 0; // Reset alert tracking when auction ends
     
     const winner = findWinner(auction.bids || []);
     
@@ -309,7 +471,7 @@ export function useShowSocketEvents({
       setWinnerData({
         name: winnerName,
         amount: winAmount,
-        profileImage: winner.user?.profileUrl || winner.user?.profilePicture || winner.user?.photoURL,
+        profileImage: winner.user?.profilePhoto,
         user: winner.user
       });
       setShowWinnerDialog(true);
@@ -319,10 +481,30 @@ export function useShowSocketEvents({
       }, 5000);
     }
     
+    // Invalidate show query to update sales metrics (salesTotal, salesCount)
+    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+    
+    // Invalidate sold orders query to refresh the orders list
+    queryClient.invalidateQueries({ queryKey: ['/api/orders', roomId, 'sold'] });
+    
     // Refetch the auction products list to update the tab
     // This won't affect activeAuction state because we have validation in the initialization effect
     debouncedRefetchAuction();
-  }, [setActiveAuction, findWinner, setWinnerData, setShowWinnerDialog, debouncedRefetchAuction, shownWinnerAlertsRef]);
+  }, [setActiveAuction, setCurrentUserBid, findWinner, setWinnerData, setShowWinnerDialog, debouncedRefetchAuction, shownWinnerAlertsRef, roomId, currentUserId]);
+
+  // Memoized handler: Auction updated
+  const handleAuctionUpdate = useCallback(() => {
+    console.log('Auction updated - refetching auctions list and metrics');
+    
+    // Invalidate show query to update sales metrics (salesTotal, salesCount)
+    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+    
+    // Invalidate sold orders query to refresh the orders list
+    queryClient.invalidateQueries({ queryKey: ['/api/orders', roomId, 'sold'] });
+    
+    // Refetch the auction products list to update the tab
+    debouncedRefetchAuction();
+  }, [debouncedRefetchAuction, roomId, currentUserId]);
 
   // Memoized handler: Giveaway started
   const handleGiveawayStarted = useCallback((giveaway: any) => {
@@ -377,21 +559,6 @@ export function useShowSocketEvents({
     
     console.log('✅ Socket event listeners registered for room:', roomId);
 
-    // Send join message (only for authenticated users and only once)
-    if (isAuthenticated && user && !hasJoinedRef.current && currentUserId) {
-      hasJoinedRef.current = true;
-      const userName = (user as any).userName || user.firstName || 'Guest';
-      const userPhoto = (user as any).profilePhoto || '';
-      
-      sendRoomMessage(
-        roomId,
-        'joined 👋',
-        currentUserId,
-        userName,
-        userPhoto
-      );
-    }
-
     // Register all event listeners
     socket.on('user-connected', handleUserConnected);
     socket.on('left-room', handleUserDisconnected);
@@ -404,6 +571,7 @@ export function useShowSocketEvents({
     socket.on('bid-updated', handleBidUpdated);
     socket.on('auction-time-extended', handleAuctionTimeExtended);
     socket.on('auction-ended', handleAuctionEnded);
+    socket.on('auction-update', handleAuctionUpdate);
     socket.on('started-giveaway', handleGiveawayStarted);
     socket.on('joined-giveaway', handleGiveawayJoined);
     socket.on('ended-giveaway', handleGiveawayEnded);
@@ -421,6 +589,7 @@ export function useShowSocketEvents({
       socket.off('bid-updated', handleBidUpdated);
       socket.off('auction-time-extended', handleAuctionTimeExtended);
       socket.off('auction-ended', handleAuctionEnded);
+      socket.off('auction-update', handleAuctionUpdate);
       socket.off('started-giveaway', handleGiveawayStarted);
       socket.off('joined-giveaway', handleGiveawayJoined);
       socket.off('ended-giveaway', handleGiveawayEnded);
@@ -431,30 +600,11 @@ export function useShowSocketEvents({
       disconnect();
       console.log('🔌 Show view unmounted - disconnected socket');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     socket,
     roomId,
     isConnected,
     proceedWithJoin,
-    isAuthenticated,
-    user,
-    currentUserId,
-    joinRoom,
-    leaveRoom,
-    disconnect,
-    handleUserConnected,
-    handleUserDisconnected,
-    handleRoomStarted,
-    handleRoomEnded,
-    handleProductPinned,
-    handlePinnedProductUpdated,
-    handleAuctionStarted,
-    handleAuctionPinned,
-    handleBidUpdated,
-    handleAuctionTimeExtended,
-    handleAuctionEnded,
-    handleGiveawayStarted,
-    handleGiveawayJoined,
-    handleGiveawayEnded,
   ]);
 }

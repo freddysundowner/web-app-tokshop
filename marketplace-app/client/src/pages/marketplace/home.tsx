@@ -72,7 +72,8 @@ export default function MarketplaceHome() {
         status: 'active',
         limit: '10',
         sortBy: 'views', // Sort by views for trending
-        featured: 'true'
+        featured: 'true',
+        type: 'scheduled'
       });
       const response = await fetch(`/api/products?${params.toString()}`);
       return response.json();
@@ -236,13 +237,9 @@ export default function MarketplaceHome() {
               ) : (
                 <>
                   {/* First Section: Live Shows (4 rows ≈ 12 shows) */}
-                  <div>
-                    <h2 className="text-lg font-bold mb-3">Live Shows</h2>
-                    {rooms.length === 0 ? (
-                      <div className="flex items-center justify-center h-32">
-                        <p className="text-muted-foreground">No live shows at the moment</p>
-                      </div>
-                    ) : (
+                  {rooms.length > 0 && (
+                    <div>
+                      <h2 className="text-lg font-bold mb-3">Live Shows</h2>
                       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4" data-testid="grid-giveaways">
                         {rooms.slice(0, 12).map((room) => (
                           <ShowCard
@@ -253,8 +250,8 @@ export default function MarketplaceHome() {
                           />
                         ))}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Trending Products Section */}
                   {trendingProducts.length > 0 && (
@@ -294,7 +291,7 @@ export default function MarketplaceHome() {
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <h2 className="text-lg font-bold">Trending Auctions</h2>
-                        <Link href="/trending/auctions">
+                        <Link href="/deals">
                           <Button variant="ghost" size="sm" className="text-primary">
                             See all <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
@@ -305,6 +302,13 @@ export default function MarketplaceHome() {
                           <AuctionCard key={auction._id || auction.id} auction={auction} layout="carousel" />
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {rooms.length === 0 && trendingProducts.length === 0 && (
+                    <div className="flex items-center justify-center h-64">
+                      <p className="text-muted-foreground">No content available at the moment</p>
                     </div>
                   )}
 

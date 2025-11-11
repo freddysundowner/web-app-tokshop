@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { apiRequest } from "@/lib/queryClient";
@@ -98,8 +98,8 @@ export default function Addresses() {
     userId: "",
   });
 
-  // Dynamic location state
-  const [availableStates, setAvailableStates] = useState<any[]>([]);
+  // Dynamic location state - initialize with US states
+  const [availableStates, setAvailableStates] = useState<any[]>(() => State.getStatesOfCountry("US"));
   const [availableCities, setAvailableCities] = useState<any[]>([]);
   const [selectedStateCode, setSelectedStateCode] = useState<string>("");
 
@@ -107,38 +107,33 @@ export default function Addresses() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Initialize location data when country changes
+  // Update available states when country changes
   useEffect(() => {
     const states = State.getStatesOfCountry(formData.countryCode);
     setAvailableStates(states);
-    setAvailableCities([]);
-    setSelectedStateCode("");
-    
-    // Reset state and city when country changes
-    if (formData.countryCode) {
-      setFormData(prev => ({
-        ...prev,
-        state: "",
-        city: ""
-      }));
-    }
   }, [formData.countryCode]);
 
-  // Update cities when state changes
+  // Update available cities when state changes
   useEffect(() => {
     if (selectedStateCode && formData.countryCode) {
       const cities = City.getCitiesOfState(formData.countryCode, selectedStateCode);
       setAvailableCities(cities);
-      
-      // Reset city when state changes
-      setFormData(prev => ({
-        ...prev,
-        city: ""
-      }));
     } else {
       setAvailableCities([]);
     }
   }, [selectedStateCode, formData.countryCode]);
+
+  // Prefill city from editingAddress when available cities are loaded
+  // Only run when editing an address and cities become available
+  useEffect(() => {
+    if (editingAddress && editingAddress.city && availableCities.length > 0) {
+      const cityExists = availableCities.some(c => c.name === editingAddress.city);
+      if (cityExists && formData.city !== editingAddress.city) {
+        setFormData(prev => ({ ...prev, city: editingAddress.city || "" }));
+      }
+    }
+    // Do NOT include formData.city in dependencies to avoid loop
+  }, [editingAddress, availableCities]);
 
   // Fetch addresses
   const {
@@ -290,38 +285,18 @@ export default function Addresses() {
   };
 
   const handleEdit = (address: Address) => {
-    setEditingAddress(address);
-    
     const countryCode = address.countryCode || "US";
-    const states = State.getStatesOfCountry(countryCode);
-    setAvailableStates(states);
     
-    // Find state code from state name or use existing
-    let stateCode = "";
-    if (address.state) {
-      const foundState = states.find(s => s.name === address.state || s.isoCode === address.state);
-      stateCode = foundState?.isoCode || "";
-    }
-    setSelectedStateCode(stateCode);
-    
-    // Set available cities if state is found
-    if (stateCode) {
-      const cities = City.getCitiesOfState(countryCode, stateCode);
-      setAvailableCities(cities);
-    } else {
-      setAvailableCities([]);
-    }
-    
-    // Set form data with proper city value and state code
+    // Set form data and open dialog IMMEDIATELY (no blocking)
     const formDataToSet = {
       name: address.name || "",
       addrress1: address.addrress1 || "",
       addrress2: address.addrress2 || "",
       city: address.city || "",
       state: address.state || "",
-      stateCode: stateCode, // Use the found state code
-      cityCode: "", // City codes are not easily available from the API response
-      zipcode: address.zipcode || (address as any).zip || "", // API returns 'zip' not 'zipcode'
+      stateCode: "", // Will be populated by useEffect
+      cityCode: "",
+      zipcode: address.zipcode || (address as any).zip || "",
       countryCode: countryCode,
       country: address.country || "United States",
       phone: address.phone || "",
@@ -330,8 +305,21 @@ export default function Addresses() {
     };
     
     setFormData(formDataToSet);
-    
+    setEditingAddress(address);
     setIsEditDialogOpen(true);
+    
+    // Defer expensive city/state lookups to not block dialog opening
+    setTimeout(() => {
+      const states = State.getStatesOfCountry(countryCode);
+      setAvailableStates(states);
+      
+      // Find state code from state name
+      if (address.state) {
+        const foundState = states.find(s => s.name === address.state || s.isoCode === address.state);
+        const stateCode = foundState?.isoCode || "";
+        setSelectedStateCode(stateCode);
+      }
+    }, 0);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -656,21 +644,7 @@ export default function Addresses() {
                 <Label htmlFor="city">City</Label>
                 {availableCities.length > 0 ? (
                   <Select
-                    value={(() => {
-                      // Use editingAddress city if formData.city is empty (timing issue fix)
-                      const cityToUse = formData.city || (editingAddress?.city) || "";
-                      const cityInList = availableCities.some(c => c.name === cityToUse);
-                      
-                      // If we're using the fallback city, update formData to sync it
-                      if (!formData.city && editingAddress?.city && cityInList) {
-                        // Use setTimeout to avoid state update during render
-                        setTimeout(() => {
-                          setFormData(prev => ({ ...prev, city: editingAddress.city || "" }));
-                        }, 0);
-                      }
-                      
-                      return cityInList ? cityToUse : "";
-                    })()}
+                    value={formData.city}
                     onValueChange={handleCityChange}
                     required
                   >

@@ -141,7 +141,60 @@ function Router() {
     );
   }
 
-  // Show public marketplace pages if not authenticated
+  // Public pages that don't require authentication
+  const publicPages = [
+    '/',
+    '/landing-2',
+    '/landing-3',
+    '/landing-4',
+    '/landing-5',
+    '/landing-6',
+    '/landing-7',
+    '/login',
+    '/signup',
+    '/seller/login',
+    '/privacy-policy',
+    '/terms-of-service',
+    '/contact',
+    '/faq'
+  ];
+
+  const isPublicPage = publicPages.includes(location);
+
+  // Redirect to login if trying to access protected pages without authentication
+  if (!isAuthenticated && !isPublicPage) {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <div className="flex flex-col h-screen bg-background">
+          <AppHeader 
+            hideLogo={false}
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            onMobileMenuClose={closeMobileMenu}
+          />
+          
+          {/* Mobile Sidebar Sheet for unauthenticated users - hide desktop version */}
+          <div className="lg:hidden">
+            <Sidebar 
+              isCollapsed={false}
+              onToggle={toggleSidebar}
+              isMobileOpen={mobileMenuOpen}
+              onMobileClose={closeMobileMenu}
+            />
+          </div>
+          
+          <main className="flex-1 overflow-y-auto">
+            <Switch>
+              <Route path="/login" component={Login} />
+              <Route component={Login} />
+            </Switch>
+          </main>
+        </div>
+      </Suspense>
+    );
+  }
+
+  // Show public pages for unauthenticated users
   if (!isAuthenticated) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
@@ -172,27 +225,12 @@ function Router() {
               <Route path="/landing-5" component={LandingPage5} />
               <Route path="/landing-6" component={LandingPage6} />
               <Route path="/landing-7" component={LandingPage7} />
-              <Route path="/marketplace" component={MarketplaceHome} />
-              <Route path="/browse" component={Browse} />
-              <Route path="/deals" component={Deals} />
-              <Route path="/deals/auctions" component={DealsAuctions} />
-              <Route path="/deals/trending" component={DealsTrending} />
-              <Route path="/category/:id" component={Category} />
-              <Route path="/search" component={SearchResults} />
-              <Route path="/trending/products" component={TrendingProducts} />
-              <Route path="/trending/auctions" component={TrendingAuctions} />
-              <Route path="/show/:id" component={ShowView} />
-              <Route path="/product/:productId" component={ProductDetail} />
-              <Route path="/auction/:auctionId" component={AuctionDetail} />
-              <Route path="/user" component={ProfileView} />
-              <Route path="/profile/:userId" component={ProfileView} />
               <Route path="/seller/login" component={SellerLogin} />
               <Route path="/login" component={Login} />
               <Route path="/signup" component={Signup} />
               <Route path="/privacy-policy" component={PrivacyPolicy} />
               <Route path="/terms-of-service" component={TermsOfService} />
               <Route path="/contact" component={ContactUs} />
-              <Route path="/reports" component={UserReports} />
               <Route path="/faq" component={FAQ} />
               <Route component={LandingPage} />
             </Switch>
@@ -200,6 +238,28 @@ function Router() {
         </div>
       </Suspense>
     );
+  }
+
+  // Seller-only routes that require seller status
+  const sellerOnlyRoutes = [
+    '/inventory',
+    '/add-product',
+    '/edit-product',
+    '/shipping',
+    '/shipping-profiles',
+    '/analytics',
+    '/live-shows',
+    '/schedule-show',
+    '/seller/hub'
+  ];
+
+  const isSellerOnlyRoute = sellerOnlyRoutes.some(route => location.startsWith(route));
+  const isSeller = (user as any)?.seller === true;
+
+  // Redirect non-sellers trying to access seller pages to marketplace
+  if (isSellerOnlyRoute && !isSeller) {
+    setLocation('/marketplace');
+    return <LoadingSpinner />;
   }
 
   const isDashboardRoute = location.startsWith('/orders') || 

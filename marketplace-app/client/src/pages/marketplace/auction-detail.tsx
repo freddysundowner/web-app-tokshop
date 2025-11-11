@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -14,10 +14,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useSocket } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 
+// Lazy load payment/shipping components
+const BidRequirementsAlert = lazy(() => import('@/components/bid-requirements-alert').then(m => ({ default: m.BidRequirementsAlert })));
+const AddPaymentDialog = lazy(() => import('@/components/add-payment-dialog').then(m => ({ default: m.AddPaymentDialog })));
+const AddAddressDialog = lazy(() => import('@/components/add-address-dialog').then(m => ({ default: m.AddAddressDialog })));
+
 export default function AuctionDetail() {
   const [, params] = useRoute("/auction/:auctionId");
   const [, setLocation] = useLocation();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refreshUserData } = useAuth();
   const { settings } = useSettings();
   const { toast } = useToast();
   const { socket, isConnected, connect, disconnect } = useSocket();
@@ -29,11 +34,13 @@ export default function AuctionDetail() {
   const currentUserId = (currentUser as any)?._id || currentUser?.id;
   const userName = (currentUser as any)?.userName || currentUser?.firstName || 'Guest';
   
-  // Track fallback timeout for cleanup
-  const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
   // Track auction ID to avoid re-joining when product data changes
   const auctionIdRef = useRef<string | null>(null);
+
+  // Payment & Shipping dialogs
+  const [showBidRequirementsAlert, setShowBidRequirementsAlert] = useState<boolean>(false);
+  const [showAddPaymentDialog, setShowAddPaymentDialog] = useState<boolean>(false);
+  const [showAddAddressDialog, setShowAddAddressDialog] = useState<boolean>(false);
 
   console.log('🔍 STEP 1: Product ID from URL params:', productId);
 
@@ -117,22 +124,20 @@ export default function AuctionDetail() {
 
   // Connect socket and join scheduled auction room
   useEffect(() => {
-    console.log('📱 Auction detail page mounted - connecting socket...');
+    if (!socket) {
+      console.log('📱 Waiting for socket to initialize...');
+      return;
+    }
+    
+    console.log('📱 Socket ready - connecting...');
     connect();
     
     return () => {
       console.log('📱 Auction detail page unmounting - disconnecting socket...');
-      
-      // Clear any pending fallback timeout
-      if (fallbackTimeoutRef.current) {
-        clearTimeout(fallbackTimeoutRef.current);
-        fallbackTimeoutRef.current = null;
-      }
-      
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount/unmount
+  }, [socket]); // Only re-run when socket instance becomes available
 
   // Extract and store auction ID when product loads
   useEffect(() => {
@@ -157,8 +162,9 @@ export default function AuctionDetail() {
       socketConnected: isConnected
     });
 
-    socket.emit('join-schedule-auction', {
-      auctionId,
+    // Join scheduled auction room
+    socket.emit('join-scheduled-auction', {
+      auction: auctionId,
       userId: currentUserId,
       userName
     });
@@ -211,8 +217,8 @@ export default function AuctionDetail() {
       socket.off('scheduled-auction-created', handleScheduledAuctionCreated);
 
       console.log('📤 Leaving scheduled auction:', auctionId);
-      socket.emit('leave-schedule-auction', {
-        auctionId,
+      socket.emit('leave-scheduled-auction', {
+        auction: auctionId,
         userId: currentUserId
       });
     };
@@ -331,15 +337,35 @@ export default function AuctionDetail() {
   const minimumBid = auctionInfo?.newbaseprice || auctionInfo?.baseprice || 0;
   const bidIncrement = auctionInfo?.increaseBidBy || 5;
 
+  // Find current user's bid
+  const userBid = bids.find((bid: any) => {
+    const bidUserId = bid.user?._id || bid.userId;
+    return bidUserId === currentUser?.id;
+  });
+  const userBidAmount = userBid ? Number(userBid.amount) : null;
+
   // Check if current user is winning
   const isUserWinning = bids.length > 0 && bids[bids.length - 1]?.userId === currentUser?.id;
   const hasEnded = timeLeft === 0 || mergedData?.ended;
+
+  // Helper function to check if user has payment and shipping info
+  const hasPaymentAndShipping = () => {
+    if (!currentUser) return false;
+    const userData = currentUser as any;
+    return !!(userData.address && userData.defaultpaymentmethod);
+  };
 
   // Place bid mutation
   const placeBidMutation = useMutation({
     mutationFn: async (bidAmount: number) => {
       if (!currentUser) {
         throw new Error('Please sign in to place a bid');
+      }
+
+      // Check if user has payment and shipping info before bidding
+      if (!hasPaymentAndShipping()) {
+        setShowBidRequirementsAlert(true);
+        throw new Error('Please add payment and shipping information before bidding');
       }
       
       if (!socket || !isConnected) {
@@ -357,26 +383,37 @@ export default function AuctionDetail() {
         increaseBidBy: auctionInfo.increaseBidBy || bidIncrement
       });
       
-      // Emit socket event (no acknowledgement callback like show-view)
-      socket.emit('place-bid', {
-        user: currentUserId,
-        amount: bidAmount,
-        increaseBidBy: auctionInfo.increaseBidBy || bidIncrement,
-        auction: auctionId,
-        prebid: false,
-        autobid: false,
-        autobidamount: bidAmount,
-        roomId: auctionId, // For scheduled auctions, roomId is the auction ID
-        type: 'scheduled' // Indicate this is a scheduled auction bid
+      // Return a promise that resolves when we get the bid-updated event
+      return new Promise((resolve, reject) => {
+        // Set a timeout in case the server doesn't respond
+        const timeout = setTimeout(() => {
+          reject(new Error('Bid request timed out'));
+        }, 10000); // 10 second timeout
+        
+        // Listen for bid-updated event (one-time listener)
+        const handleBidResponse = () => {
+          clearTimeout(timeout);
+          console.log('✅ Bid confirmed by server');
+          resolve(true);
+        };
+        
+        socket.once('bid-updated', handleBidResponse);
+        
+        // Emit the bid
+        socket.emit('place-bid', {
+          user: currentUserId,
+          amount: bidAmount,
+          increaseBidBy: auctionInfo.increaseBidBy || bidIncrement,
+          auction: auctionId,
+          prebid: false,
+          autobid: false,
+          autobidamount: bidAmount,
+          roomId: auctionId, // For scheduled auctions, roomId is the auction ID
+          type: 'scheduled' // Indicate this is a scheduled auction bid
+        });
+        
+        console.log('✅ Bid socket event emitted, waiting for confirmation...');
       });
-      
-      console.log('✅ Bid socket event emitted');
-      
-      // Fallback refetch after emitting bid
-      fallbackTimeoutRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/products', productId] });
-        fallbackTimeoutRef.current = null;
-      }, 500);
     },
     onSuccess: () => {
       toast({
@@ -468,7 +505,7 @@ export default function AuctionDetail() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setLocation('/')}
+            onClick={() => window.history.back()}
             data-testid="button-back"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -648,9 +685,11 @@ export default function AuctionDetail() {
                         )}
                       </Button>
 
-                      <p className="text-xs text-muted-foreground text-center">
-                        Current bid: ${currentBid.toFixed(2)}
-                      </p>
+                      {userBidAmount !== null && (
+                        <p className="text-xs text-muted-foreground text-center" data-testid="text-user-bid">
+                          Your bid: ${userBidAmount.toFixed(2)}
+                        </p>
+                      )}
                     </div>
                   )
                 ) : (
@@ -712,6 +751,50 @@ export default function AuctionDetail() {
           </div>
         </div>
       </div>
+
+      {/* Bid Requirements Alert - Shows what's missing */}
+      {showBidRequirementsAlert && (
+        <Suspense fallback={<div />}>
+          <BidRequirementsAlert
+            open={showBidRequirementsAlert}
+            onOpenChange={setShowBidRequirementsAlert}
+            onAddPayment={() => setShowAddPaymentDialog(true)}
+            onAddAddress={() => setShowAddAddressDialog(true)}
+            hasPayment={!!(currentUser as any)?.defaultpaymentmethod}
+            hasAddress={!!(currentUser as any)?.address}
+          />
+        </Suspense>
+      )}
+
+      {/* Add Payment Dialog */}
+      {showAddPaymentDialog && (
+        <Suspense fallback={<div />}>
+          <AddPaymentDialog
+            open={showAddPaymentDialog}
+            onOpenChange={(open) => {
+              setShowAddPaymentDialog(open);
+              if (!open) {
+                refreshUserData();
+              }
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* Add Address Dialog */}
+      {showAddAddressDialog && (
+        <Suspense fallback={<div />}>
+          <AddAddressDialog
+            open={showAddAddressDialog}
+            onOpenChange={(open) => {
+              setShowAddAddressDialog(open);
+              if (!open) {
+                refreshUserData();
+              }
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

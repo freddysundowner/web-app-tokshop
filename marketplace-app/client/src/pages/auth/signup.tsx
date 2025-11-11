@@ -183,21 +183,14 @@ export default function Signup() {
       {/* Background gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5 pointer-events-none" />
       
-      <div className="relative z-10 w-full max-w-md px-4 sm:px-6 md:px-8">
-        {/* App Logo and Branding */}
+      <div className="relative z-10 w-full max-w-lg px-4 sm:px-6 md:px-8 pt-8">
+        {/* Branding */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-6">
-            <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center mr-3">
-              <span className="text-black text-xl font-bold">{settings.app_name.charAt(0).toUpperCase()}</span>
-            </div>
-            <span className="text-2xl font-bold text-white">{settings.app_name}</span>
-          </div>
-          
           <div className="space-y-2">
             <h1 className="text-3xl sm:text-4xl font-bold">
-              <span className="text-primary">Join the {settings.app_name}</span>
+              <span className="text-primary">Shop Live.</span>
               <br />
-              <span className="text-accent">Community Today</span>
+              <span className="text-accent">Stream. Sell. Connect.</span>
             </h1>
           </div>
         </div>

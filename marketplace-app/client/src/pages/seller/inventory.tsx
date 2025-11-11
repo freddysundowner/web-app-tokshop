@@ -684,6 +684,31 @@ export default function Inventory() {
     );
   };
 
+  // For auction products, determine status based on the 'ended' key
+  const getAuctionStatusBadge = (product: TokshopProduct) => {
+    const auction = (product as any).auction;
+    
+    if (!auction) {
+      return getStatusBadge(product.status || "draft");
+    }
+    
+    const isEnded = auction.ended === true;
+    
+    if (isEnded) {
+      return (
+        <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+          ENDED
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+          ACTIVE
+        </Badge>
+      );
+    }
+  };
+
 
   if (isError) {
     return (
@@ -1100,7 +1125,10 @@ export default function Inventory() {
                         </td>
 
                         <td className="p-2 md:p-4">
-                          {getStatusBadge(product.status || "draft")}
+                          {(product as any).listing_type === 'auction' 
+                            ? getAuctionStatusBadge(product)
+                            : getStatusBadge(product.status || "draft")
+                          }
                         </td>
 
                         <td className="p-2 md:p-4">
