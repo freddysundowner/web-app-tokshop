@@ -20,7 +20,8 @@ import {
   Clock
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Country, State, City } from "country-state-city";
+import { CountrySelect, StateSelect, CitySelect } from "react-country-state-city";
+import "react-country-state-city/dist/react-country-state-city.css";
 
 interface Step {
   id: 'address' | 'bank' | 'complete';
@@ -44,22 +45,11 @@ export default function SellerSetup() {
   // Address form state
   const [streetAddress, setStreetAddress] = useState("");
   const [streetAddress2, setStreetAddress2] = useState("");
-  const [country, setCountry] = useState("");
-  const [countryCode, setCountryCode] = useState("");
-  const [state, setState] = useState("");
-  const [stateCode, setStateCode] = useState("");
-  const [city, setCity] = useState("");
+  const [country, setCountry] = useState<any>(null);
+  const [state, setState] = useState<any>(null);
+  const [city, setCity] = useState<any>(null);
   const [zipCode, setZipCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  
-  // Memoize location data to prevent infinite loops
-  const countries = useMemo(() => Country.getAllCountries(), []);
-  const states = useMemo(() => {
-    return countryCode ? State.getStatesOfCountry(countryCode) : [];
-  }, [countryCode]);
-  const cities = useMemo(() => {
-    return (countryCode && stateCode) ? City.getCitiesOfState(countryCode, stateCode) : [];
-  }, [countryCode, stateCode]);
 
   // Bank account form state
   const [accountNumber, setAccountNumber] = useState("");
@@ -84,12 +74,10 @@ export default function SellerSetup() {
 
   // Set US as default on mount
   useEffect(() => {
-    const us = countries.find(c => c.isoCode === 'US');
-    if (us && !country) {
-      setCountry(us.name);
-      setCountryCode(us.isoCode);
+    if (!country) {
+      setCountry({ id: 233, name: "United States", iso2: "US" });
     }
-  }, [countries]);
+  }, []);
 
   // Skip address step if user already has one
   useEffect(() => {
@@ -98,25 +86,6 @@ export default function SellerSetup() {
     }
   }, [existingAddress]);
 
-  const handleCountryChange = (isoCode: string) => {
-    const selectedCountry = countries.find(c => c.isoCode === isoCode);
-    if (selectedCountry) {
-      setCountry(selectedCountry.name);
-      setCountryCode(selectedCountry.isoCode);
-      setState("");
-      setStateCode("");
-      setCity("");
-    }
-  };
-
-  const handleStateChange = (isoCode: string) => {
-    const selectedState = states.find(s => s.isoCode === isoCode);
-    if (selectedState) {
-      setState(selectedState.name);
-      setStateCode(selectedState.isoCode);
-      setCity("");
-    }
-  };
 
   // Create address mutation
   const createAddressMutation = useMutation({
@@ -167,12 +136,12 @@ export default function SellerSetup() {
       name: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Default',
       addrress1: streetAddress,
       addrress2: streetAddress2,
-      country: country,
-      city: city,
-      countryCode: countryCode,
+      country: country.name,
+      city: city.name,
+      countryCode: country.iso2,
       zipcode: zipCode,
-      state: state,
-      stateCode: stateCode,
+      state: state.name,
+      stateCode: state.state_code || state.iso2,
       userId: userId,
       phone: phoneNumber.trim().replace(/\s/g, ''),
       email: user?.email || '',
@@ -272,7 +241,7 @@ export default function SellerSetup() {
       line1: userAddress?.addrress1 || userAddress?.address1 || streetAddress,
       line2: userAddress?.addrress2 || userAddress?.address2 || streetAddress2 || "",
       postal_code: userAddress?.zipcode || zipCode,
-      countryCode: userAddress?.countryCode || countryCode,
+      countryCode: userAddress?.countryCode || country?.iso2,
       phone: bankPhoneNumber,
       routing_number: routingNumber,
       email: user?.email || '',
@@ -487,59 +456,43 @@ export default function SellerSetup() {
 
                 <div>
                   <Label htmlFor="country">Country *</Label>
-                  <Select value={countryCode} onValueChange={handleCountryChange} required>
-                    <SelectTrigger id="country" data-testid="select-country">
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[200px]">
-                      {countries.map((country) => (
-                        <SelectItem key={country.isoCode} value={country.isoCode}>
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CountrySelect
+                    onChange={(e: any) => {
+                      setCountry(e);
+                      setState(null);
+                      setCity(null);
+                    }}
+                    placeHolder="Select Country"
+                    containerClassName="w-full"
+                    inputClassName="w-full"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="state">State/Province *</Label>
-                    <Select value={stateCode} onValueChange={handleStateChange} required disabled={!countryCode}>
-                      <SelectTrigger id="state" data-testid="select-state">
-                        <SelectValue placeholder="Select state/province" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[200px]">
-                        {states.length > 0 ? (
-                          states.map((state) => (
-                            <SelectItem key={state.isoCode} value={state.isoCode}>
-                              {state.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>No states available</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <StateSelect
+                      countryid={country?.id}
+                      onChange={(e: any) => {
+                        setState(e);
+                        setCity(null);
+                      }}
+                      placeHolder="Select State"
+                      containerClassName="w-full"
+                      inputClassName="w-full"
+                    />
                   </div>
 
                   <div>
                     <Label htmlFor="city">City *</Label>
-                    <Select value={city} onValueChange={(value) => setCity(value)} required disabled={!stateCode}>
-                      <SelectTrigger id="city" data-testid="select-city">
-                        <SelectValue placeholder="Select city" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[200px]">
-                        {cities.length > 0 ? (
-                          cities.map((cityItem) => (
-                            <SelectItem key={cityItem.name} value={cityItem.name}>
-                              {cityItem.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>No cities available</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <CitySelect
+                      countryid={country?.id}
+                      stateid={state?.id}
+                      onChange={(e: any) => setCity(e)}
+                      placeHolder="Select City"
+                      containerClassName="w-full"
+                      inputClassName="w-full"
+                    />
                   </div>
                 </div>
 

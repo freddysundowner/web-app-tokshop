@@ -1,5 +1,9 @@
+// server.ts
+import dotenv2 from "dotenv";
+
 // ../shared-backend/server/index.ts
-import express2 from "express";
+import dotenv from "dotenv";
+import express3 from "express";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 
@@ -10,29 +14,27 @@ import { createServer } from "http";
 import fetch2 from "node-fetch";
 
 // ../shared-backend/server/utils.ts
-var apiBase = process.env.ICONA_API_BASE || "https://api.iconaapp.com";
-var ICONA_API_BASE = apiBase.replace(/\/$/, "");
-console.log(`[API Config] ICONA_API_BASE: ${ICONA_API_BASE}`);
+var BASE_URL = (process.env.BASE_URL || "").replace(/\/$/, "");
 
 // ../shared-backend/server/routes/dashboard.ts
 function registerDashboardRoutes(app2) {
   app2.get("/api/dashboard/metrics", async (req, res) => {
     try {
-      console.log("Proxying dashboard metrics request to Icona API");
-      const response = await fetch2(`${ICONA_API_BASE}/orders/dashboard/orders`, {
+      console.log("Proxying dashboard metrics request to Tokshop API");
+      const response = await fetch2(`${BASE_URL}/orders/dashboard/orders`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json"
         }
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Dashboard metrics proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch dashboard metrics from Icona API" });
+      res.status(500).json({ error: "Failed to fetch dashboard metrics from Tokshop API" });
     }
   });
 }
@@ -45,7 +47,7 @@ function registerOrderRoutes(app2) {
     try {
       const { orderId } = req.params;
       console.log("Fetching single order:", orderId);
-      const url = `${ICONA_API_BASE}/orders/?_id=${orderId}`;
+      const url = `${BASE_URL}/orders/?_id=${orderId}`;
       console.log("Final API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -64,7 +66,7 @@ function registerOrderRoutes(app2) {
             error: "Order not found"
           });
         }
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       console.log("Order data structure:", Object.keys(data));
@@ -88,13 +90,13 @@ function registerOrderRoutes(app2) {
       console.error("Single order fetch error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch order from Icona API"
+        error: "Failed to fetch order from Tokshop API"
       });
     }
   });
   app2.get("/api/orders", async (req, res) => {
     try {
-      console.log("Proxying orders request to Icona API");
+      console.log("Proxying orders request to Tokshop API");
       console.log("Query params received:", req.query);
       const queryParams = new URLSearchParams();
       if (req.query.userId) {
@@ -125,26 +127,32 @@ function registerOrderRoutes(app2) {
         queryParams.set("tokshow", req.query.tokshow);
       }
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/orders${queryString ? "?" + queryString : ""}`;
+      const url = `${BASE_URL}/orders${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
+      console.log("[Orders] Session accessToken:", req.session?.accessToken ? "present" : "missing");
+      console.log("[Orders] Headers x-access-token:", req.headers["x-access-token"] ? "present" : "missing");
+      console.log("[Orders] Headers x-user-data:", req.headers["x-user-data"] ? "present" : "missing");
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+        console.log("[Orders] Adding Authorization header to external API request");
+      } else {
+        console.warn("[Orders] No session accessToken found - request will fail!");
       }
       const response = await fetch3(url, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Orders proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch orders from Icona API" });
+      res.status(500).json({ error: "Failed to fetch orders from Tokshop API" });
     }
   });
   app2.post("/api/orders/:id", async (req, res) => {
@@ -177,14 +185,14 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/${req.params.id}`, {
+      const response = await fetch3(`${BASE_URL}/orders/${req.params.id}`, {
         method: "POST",
         headers,
         body: JSON.stringify(orderData)
       });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to create order in Icona API:", response.status, errorText);
+        console.error("Failed to create order in Tokshop API:", response.status, errorText);
         return res.status(response.status).json({
           success: false,
           error: `Failed to create order: ${response.status}`,
@@ -223,14 +231,14 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/${orderId}`, {
+      const response = await fetch3(`${BASE_URL}/orders/${orderId}`, {
         method: "PATCH",
         headers,
         body: JSON.stringify(updateData)
       });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to update order in Icona API:", response.status, errorText);
+        console.error("Failed to update order in Tokshop API:", response.status, errorText);
         return res.status(response.status).json({
           error: `Failed to update order: ${response.status}`,
           details: errorText
@@ -255,14 +263,14 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/${orderId}`, {
+      const response = await fetch3(`${BASE_URL}/orders/${orderId}`, {
         method: "PUT",
         headers,
         body: JSON.stringify(updateData)
       });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to PUT update order in Icona API:", response.status, errorText);
+        console.error("Failed to PUT update order in Tokshop API:", response.status, errorText);
         return res.status(response.status).json({
           error: `Failed to update order: ${response.status}`,
           details: errorText
@@ -293,7 +301,7 @@ function registerOrderRoutes(app2) {
           error: "User ID is required"
         });
       }
-      const ordersResponse = await fetch3(`${ICONA_API_BASE}/orders?userId=${userId}`, {
+      const ordersResponse = await fetch3(`${BASE_URL}/orders?userId=${userId}`, {
         method: "GET",
         headers
       });
@@ -314,7 +322,7 @@ function registerOrderRoutes(app2) {
       }
       console.log(`Found ${bundleOrders.length} orders to ship for bundle ${bundleId}`);
       const shipPromises = bundleOrders.map(
-        (order) => fetch3(`${ICONA_API_BASE}/orders/${order._id}`, {
+        (order) => fetch3(`${BASE_URL}/orders/${order._id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify({
@@ -357,7 +365,7 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         fetchHeaders["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const ordersResponse = await fetch3(`${ICONA_API_BASE}/orders?userId=${req.query.userId || req.body.userId}`, {
+      const ordersResponse = await fetch3(`${BASE_URL}/orders?userId=${req.query.userId || req.body.userId}`, {
         method: "GET",
         headers: fetchHeaders
       });
@@ -369,9 +377,9 @@ function registerOrderRoutes(app2) {
         });
       }
       const ordersData = await ordersResponse.json();
-      const orders2 = ordersData.orders || [];
+      const orders = ordersData.orders || [];
       const invalidOrders = orderIds.filter((orderId) => {
-        const order = orders2.find((o) => o._id === orderId);
+        const order = orders.find((o) => o._id === orderId);
         return !order || order.status !== "processing";
       });
       if (invalidOrders.length > 0) {
@@ -381,7 +389,7 @@ function registerOrderRoutes(app2) {
           error: `Invalid orders: ${invalidOrders.join(", ")}`
         });
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/bundle/orders`, {
+      const response = await fetch3(`${BASE_URL}/orders/bundle/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -430,7 +438,7 @@ function registerOrderRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch3(`${ICONA_API_BASE}/orders/unbundle/orders`, {
+      const response = await fetch3(`${BASE_URL}/orders/unbundle/orders`, {
         method: "POST",
         headers,
         body: JSON.stringify({ orderId, itemIds })
@@ -463,274 +471,276 @@ function registerOrderRoutes(app2) {
   });
 }
 
-// ../shared-backend/server/storage.ts
-import { randomUUID } from "crypto";
-var MemStorage = class {
-  users = /* @__PURE__ */ new Map();
-  orders = /* @__PURE__ */ new Map();
-  liveShows = /* @__PURE__ */ new Map();
-  analytics = /* @__PURE__ */ new Map();
-  shippingProfiles = /* @__PURE__ */ new Map();
-  bundles = /* @__PURE__ */ new Map();
-  constructor() {
-  }
-  // User methods
-  async getUser(id) {
-    return this.users.get(id);
-  }
-  async getUserByUsername(username) {
-    return Array.from(this.users.values()).find((user) => user.username === username);
-  }
-  async createUser(insertUser) {
-    const id = randomUUID();
-    const user = {
-      ...insertUser,
-      id,
-      avatar: null,
-      seller: insertUser.seller ?? null,
-      admin: insertUser.admin ?? null
-    };
-    this.users.set(id, user);
-    return user;
-  }
-  // Order methods
-  async getOrders() {
-    return Array.from(this.orders.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-  async getOrder(id) {
-    return this.orders.get(id);
-  }
-  async createOrder(insertOrder) {
-    const id = randomUUID();
-    const order = {
-      ...insertOrder,
-      id,
-      itemCount: insertOrder.itemCount || 1,
-      weight: insertOrder.weight || null,
-      dimensions: insertOrder.dimensions || null,
-      shippingCost: insertOrder.shippingCost || "0",
-      couponDiscount: insertOrder.couponDiscount || "0",
-      bundleId: insertOrder.bundleId || null,
-      createdAt: /* @__PURE__ */ new Date(),
-      shippedAt: null,
-      deliveredAt: null,
-      trackingNumber: null
-    };
-    this.orders.set(id, order);
-    return order;
-  }
-  async updateOrder(id, updates) {
-    const order = this.orders.get(id);
-    if (!order) return void 0;
-    const updatedOrder = { ...order, ...updates };
-    this.orders.set(id, updatedOrder);
-    return updatedOrder;
-  }
-  async updateOrderStatus(id, status, trackingNumber) {
-    const order = this.orders.get(id);
-    if (!order) return void 0;
-    const updatedOrder = {
-      ...order,
-      status,
-      trackingNumber: trackingNumber || order.trackingNumber,
-      shippedAt: status === "shipped" ? /* @__PURE__ */ new Date() : order.shippedAt,
-      deliveredAt: status === "delivered" ? /* @__PURE__ */ new Date() : order.deliveredAt
-    };
-    this.orders.set(id, updatedOrder);
-    return updatedOrder;
-  }
-  async getOrdersByStatus(status) {
-    return Array.from(this.orders.values()).filter((order) => order.status === status);
-  }
-  async getOrdersByDateRange(startDate, endDate) {
-    return Array.from(this.orders.values()).filter(
-      (order) => new Date(order.createdAt) >= startDate && new Date(order.createdAt) <= endDate
-    );
-  }
-  // Live Show methods
-  async getLiveShows() {
-    return Array.from(this.liveShows.values()).sort(
-      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-    );
-  }
-  async getLiveShow(id) {
-    return this.liveShows.get(id);
-  }
-  async createLiveShow(insertShow) {
-    const id = randomUUID();
-    const show = {
-      ...insertShow,
-      id,
-      description: insertShow.description || null,
-      viewerCount: 0,
-      totalSales: "0",
-      thumbnail: null
-    };
-    this.liveShows.set(id, show);
-    return show;
-  }
-  async updateLiveShow(id, updates) {
-    const show = this.liveShows.get(id);
-    if (!show) return void 0;
-    const updatedShow = { ...show, ...updates };
-    this.liveShows.set(id, updatedShow);
-    return updatedShow;
-  }
-  async getRooms(params) {
-    let rooms = Array.from(this.liveShows.values());
-    if (params.category) {
-      rooms = rooms.filter((room) => room.category === params.category);
-    }
-    if (params.userid) {
-      rooms = rooms.filter((room) => room.hostId === params.userid);
-    }
-    if (params.title) {
-      rooms = rooms.filter(
-        (room) => room.title.toLowerCase().includes(params.title.toLowerCase())
-      );
-    }
-    if (params.status) {
-      rooms = rooms.filter((room) => room.status === params.status);
-    }
-    rooms = rooms.sort(
-      (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
-    );
-    const total = rooms.length;
-    const offset = (params.page - 1) * params.limit;
-    const paginatedRooms = rooms.slice(offset, offset + params.limit);
-    return {
-      rooms: paginatedRooms,
-      total,
-      page: params.page,
-      limit: params.limit
-    };
-  }
-  // Analytics methods
-  async getAnalytics(startDate, endDate) {
-    let analyticsData = Array.from(this.analytics.values());
-    if (startDate && endDate) {
-      analyticsData = analyticsData.filter(
-        (data) => new Date(data.date) >= startDate && new Date(data.date) <= endDate
-      );
-    }
-    return analyticsData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }
-  async createAnalytics(insertAnalytics) {
-    const id = randomUUID();
-    const analytics2 = {
-      ...insertAnalytics,
-      id,
-      avgShippingTime: insertAnalytics.avgShippingTime || null,
-      cancellationRate: insertAnalytics.cancellationRate || null,
-      satisfactionRating: insertAnalytics.satisfactionRating || null
-    };
-    this.analytics.set(id, analytics2);
-    return analytics2;
-  }
-  async getDashboardMetrics() {
-    const orders2 = await this.getOrders();
-    const shows = await this.getLiveShows();
-    const totalSales = orders2.reduce((sum, order) => sum + parseFloat(order.amount), 0);
-    const thisMonth = /* @__PURE__ */ new Date();
-    thisMonth.setDate(1);
-    const thisMonthOrders = orders2.filter((order) => new Date(order.createdAt) >= thisMonth);
-    return {
-      totalSales: totalSales.toFixed(2),
-      totalOrders: orders2.length,
-      activeBuyers: new Set(orders2.map((order) => order.customerId)).size,
-      liveShows: shows.length,
-      avgShippingTime: "1.2",
-      cancellationRate: "2.1",
-      satisfactionRating: "4.8",
-      followers: 3247
-    };
-  }
-  // Shipping methods
-  async getShippingProfiles() {
-    return Array.from(this.shippingProfiles.values());
-  }
-  async createShippingProfile(insertProfile) {
-    const id = randomUUID();
-    const profile = {
-      ...insertProfile,
-      id,
-      description: insertProfile.description || null,
-      freeShippingThreshold: insertProfile.freeShippingThreshold || null,
-      bundleEnabled: insertProfile.bundleEnabled ?? null,
-      maxBundleSize: insertProfile.maxBundleSize ?? null
-    };
-    this.shippingProfiles.set(id, profile);
-    return profile;
-  }
-  async getShipmentMetrics(userId) {
-    return {
-      totalSold: "0.00",
-      totalEarned: "0.00",
-      totalShippingSpend: "0.00",
-      totalCouponSpend: "0.00",
-      itemsSold: 0,
-      totalDelivered: 0,
-      pendingDelivery: 0
-    };
-  }
-  // Bundle methods
-  async getBundles() {
-    return Array.from(this.bundles.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-  async createBundle(orderIds, bundleName) {
-    const bundleId = randomUUID();
-    const ordersToBundle = orderIds.map((id) => this.orders.get(id)).filter(Boolean);
-    if (ordersToBundle.length === 0) {
-      throw new Error("No valid orders found to bundle");
-    }
-    let totalWeight = 0;
-    ordersToBundle.forEach((order) => {
-      if (order.weight) {
-        totalWeight += parseFloat(order.weight.replace(" oz", ""));
+// ../shared-backend/server/routes/shows.ts
+function registerShowRoutes(app2) {
+  app2.get("/api/profile/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Fetching public user profile:", id);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-    });
-    const bundle = {
-      id: bundleId,
-      bundleName,
-      totalWeight: totalWeight > 0 ? `${totalWeight} oz` : null,
-      totalDimensions: null,
-      // Don't aggregate dimensions when bundling
-      trackingNumber: null,
-      shippingCost: "0",
-      createdAt: /* @__PURE__ */ new Date(),
-      shippedAt: null
-    };
-    this.bundles.set(bundleId, bundle);
-    ordersToBundle.forEach((order) => {
-      const updatedOrder = { ...order, bundleId };
-      this.orders.set(order.id, updatedOrder);
-    });
-    return bundle;
-  }
-  async unbundleOrders(bundleId) {
-    const bundle = this.bundles.get(bundleId);
-    if (!bundle) {
-      throw new Error("Bundle not found");
+      const response = await fetch(`${BASE_URL}/users/${id}`, {
+        method: "GET",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        return res.status(response.status).json({ error: "User not found" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching user from Tokshop API:", error);
+      res.status(500).json({ error: "Failed to fetch user" });
     }
-    const bundledOrders = Array.from(this.orders.values()).filter((order) => order.bundleId === bundleId);
-    bundledOrders.forEach((order) => {
-      const updatedOrder = { ...order, bundleId: null };
-      this.orders.set(order.id, updatedOrder);
-    });
-    this.bundles.delete(bundleId);
-    return bundledOrders;
-  }
-};
-var storage = new MemStorage();
+  });
+  app2.get("/api/rooms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Fetching single room:", id);
+      const queryParams = new URLSearchParams();
+      if (req.query.currentUserId) {
+        queryParams.set("currentUserId", req.query.currentUserId);
+      }
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const url = `${BASE_URL}/rooms/${id}?${queryParams.toString()}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        return res.status(response.status).json({ error: "Room not found" });
+      }
+      const data = await response.json();
+      const activeAuction = data.activeauction || data.activeAuction || data.active_auction;
+      if (activeAuction) {
+        console.log("\u{1F50D} EXTERNAL API activeauction bids:", activeAuction.bids);
+        console.log("\u{1F50D} EXTERNAL API activeauction ended:", activeAuction.ended);
+        console.log("\u{1F50D} EXTERNAL API activeauction winner:", activeAuction.winner);
+      }
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching room from Tokshop API:", error);
+      res.status(500).json({ error: "Failed to fetch room" });
+    }
+  });
+  app2.put("/api/rooms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Updating room:", id, "with data:", req.body);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const url = `${BASE_URL}/rooms/${id}`;
+      console.log("Calling external API:", url);
+      const response = await fetch(url, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(req.body)
+      });
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("Error details:", errorText);
+        return res.status(response.status).json({ error: "Failed to update room" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error updating room from Tokshop API:", error);
+      res.status(500).json({ error: "Failed to update room" });
+    }
+  });
+  app2.delete("/api/rooms/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Deleting room:", id);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const queryParams = new URLSearchParams();
+      if (req.query.destroy) {
+        queryParams.set("destroy", req.query.destroy);
+      }
+      const queryString = queryParams.toString();
+      const url = `${BASE_URL}/rooms/${id}${queryString ? `?${queryString}` : ""}`;
+      console.log("Calling external API:", url);
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("Error details:", errorText);
+        return res.status(response.status).json({ error: "Failed to delete room" });
+      }
+      const data = await response.json();
+      console.log("Room deleted successfully:", data);
+      res.json(data);
+    } catch (error) {
+      console.error("Error deleting room from Tokshop API:", error);
+      res.status(500).json({ error: "Failed to delete room" });
+    }
+  });
+  app2.post("/api/rooms", async (req, res) => {
+    try {
+      console.log("Creating room/show via Tokshop API");
+      console.log("Request body:", req.body);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const url = `${BASE_URL}/rooms`;
+      console.log("Calling external API:", url);
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body)
+      });
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error("Error details:", errorText);
+        return res.status(response.status).json({ error: "Failed to create room" });
+      }
+      const data = await response.json();
+      console.log("Room created successfully:", data);
+      res.status(201).json(data);
+    } catch (error) {
+      console.error("Error creating room via Tokshop API:", error);
+      res.status(500).json({ error: "Failed to create room" });
+    }
+  });
+  app2.get("/api/rooms", async (req, res) => {
+    try {
+      console.log("Proxying rooms request to Tokshop API");
+      const params = [];
+      if (req.query.page !== void 0) params.push(`page=${req.query.page}`);
+      if (req.query.limit !== void 0) params.push(`limit=${req.query.limit}`);
+      if (req.query.category !== void 0) params.push(`category=${req.query.category}`);
+      if (req.query.userid !== void 0) params.push(`userid=${req.query.userid}`);
+      if (req.query.currentUserId !== void 0) params.push(`currentUserId=${req.query.currentUserId}`);
+      if (req.query.title !== void 0) params.push(`title=${req.query.title}`);
+      if (req.query.status !== void 0) params.push(`status=${req.query.status}`);
+      const queryString = params.join("&");
+      const url = `${BASE_URL}/rooms?${queryString}`;
+      console.log("Calling external API:", url);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      const response = await fetch(url, {
+        method: "GET",
+        headers
+      });
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching rooms from Tokshop API:", error);
+      res.status(500).json({ error: "Failed to fetch rooms" });
+    }
+  });
+  app2.post("/livekit/token", async (req, res) => {
+    try {
+      const { room: roomId, userId: clientUserId, userName } = req.body;
+      console.log("\u{1F511} Request body received:", req.body);
+      if (!req.session?.user) {
+        console.error("\u274C Unauthorized: No session user");
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      if (!req.session?.accessToken) {
+        console.error("\u274C No access token in session");
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      const sessionUser = req.session.user;
+      const userId = sessionUser._id || sessionUser.id;
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${req.session.accessToken}`
+      };
+      const roomResponse = await fetch(`${BASE_URL}/rooms/${roomId}`, {
+        method: "GET",
+        headers
+      });
+      if (!roomResponse.ok) {
+        console.error("\u274C Failed to fetch room details");
+        return res.status(404).json({ error: "Room not found" });
+      }
+      const room = await roomResponse.json();
+      const rawOwnerId = room.owner?._id || room.owner?.id;
+      const showOwnerId = String(rawOwnerId);
+      const normalizedUserId = String(userId);
+      const isHost = normalizedUserId === showOwnerId;
+      const role = isHost ? "host" : "audience";
+      console.log("\u{1F510} Role determination:", {
+        userId: normalizedUserId,
+        showOwnerId,
+        isHost,
+        role
+      });
+      const requestBody = {
+        room: roomId,
+        userId: clientUserId || userId,
+        userName,
+        role
+      };
+      console.log("\u{1F4E4} Sending to external API:", requestBody);
+      const response = await fetch(`${BASE_URL}/livekit/token`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`\u274C Tokshop API returned ${response.status}:`, errorText);
+        return res.status(response.status).json({
+          error: errorText || "Failed to get LiveKit token from external API"
+        });
+      }
+      const data = await response.json();
+      console.log("\u2705 LiveKit token received from Tokshop API");
+      res.json({
+        ...data,
+        role
+      });
+    } catch (error) {
+      console.error("\u274C Error proxying LiveKit token request:", error);
+      res.status(500).json({ error: "Failed to get LiveKit token" });
+    }
+  });
+}
+
+// ../shared-backend/server/routes/shipping.ts
+import fetch4 from "node-fetch";
+import https from "https";
+import { URL } from "url";
 
 // ../shared-backend/shared/schema.ts
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, timestamp, integer, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z as z2 } from "zod";
 var loginSchema = z2.object({
   email: z2.string().email("Please enter a valid email address"),
@@ -799,24 +809,24 @@ var authResponseSchema = z2.object({
   }).optional(),
   message: z2.string().optional()
 });
-var iconaAuthResponseSchema = z2.object({
+var tokshopAuthResponseSchema = z2.object({
   success: z2.boolean(),
   message: z2.string().optional(),
   data: z2.any(),
-  // User data from Icona API
+  // User data from Tokshop API
   accessToken: z2.string().optional(),
   authtoken: z2.string().optional(),
   // Also returned by API
   newuser: z2.boolean().optional()
   // For signup responses
 });
-var iconaApiErrorResponseSchema = z2.object({
+var tokshopApiErrorResponseSchema = z2.object({
   success: z2.boolean().optional(),
   message: z2.string(),
   error: z2.string().optional(),
   details: z2.any().optional()
 });
-var iconaOrderSchema = z2.object({
+var tokshopOrderSchema = z2.object({
   _id: z2.string(),
   customer: z2.object({
     _id: z2.string(),
@@ -923,13 +933,13 @@ var iconaOrderSchema = z2.object({
   length: z2.string().optional(),
   scale: z2.string().optional()
 });
-var iconaOrdersResponseSchema = z2.object({
-  orders: z2.array(iconaOrderSchema),
+var tokshopOrdersResponseSchema = z2.object({
+  orders: z2.array(tokshopOrderSchema),
   limits: z2.number(),
   pages: z2.number(),
   total: z2.number()
 });
-var iconaDashboardResponseSchema = z2.object({
+var tokshopDashboardResponseSchema = z2.object({
   totalOrder: z2.number(),
   totalAmount: z2.string(),
   todayOrder: z2.array(z2.any()),
@@ -942,7 +952,7 @@ var iconaDashboardResponseSchema = z2.object({
   orders: z2.array(z2.any()),
   weeklySaleReport: z2.array(z2.any())
 });
-var iconaProductSchema = z2.object({
+var tokshopProductSchema = z2.object({
   _id: z2.string(),
   name: z2.string(),
   description: z2.string().optional(),
@@ -978,35 +988,35 @@ var iconaProductSchema = z2.object({
   createdAt: z2.string().optional(),
   updatedAt: z2.string().optional()
 });
-var iconaProductsResponseSchema = z2.object({
-  products: z2.array(iconaProductSchema),
+var tokshopProductsResponseSchema = z2.object({
+  products: z2.array(tokshopProductSchema),
   limits: z2.number(),
   pages: z2.number(),
   totalDoc: z2.number()
 });
-var iconaCategorySchema = z2.lazy(() => z2.object({
+var tokshopCategorySchema = z2.lazy(() => z2.object({
   _id: z2.string(),
   name: z2.string(),
   description: z2.string().optional(),
   status: z2.string().optional(),
   icon: z2.string().optional(),
   type: z2.string().optional(),
-  subCategories: z2.array(iconaCategorySchema).optional()
+  subCategories: z2.array(tokshopCategorySchema).optional()
 }));
-var iconaCategoriesResponseSchema = z2.object({
-  categories: z2.array(iconaCategorySchema),
+var tokshopCategoriesResponseSchema = z2.object({
+  categories: z2.array(tokshopCategorySchema),
   limits: z2.number().optional(),
   pages: z2.number().optional(),
   total: z2.number().optional()
 });
-var iconaShippingProfileSchema = z2.object({
+var tokshopShippingProfileSchema = z2.object({
   _id: z2.string(),
   name: z2.string(),
   weight: z2.number(),
   scale: z2.string(),
   description: z2.string().optional()
 });
-var iconaShippingProfilesResponseSchema = z2.array(iconaShippingProfileSchema);
+var tokshopShippingProfilesResponseSchema = z2.array(tokshopShippingProfileSchema);
 var listingTypeSchema = z2.enum(["auction", "buy_now", "giveaway"]);
 var productFormSchema = z2.object({
   name: z2.string().min(1, "Product name is required"),
@@ -1022,6 +1032,11 @@ var productFormSchema = z2.object({
   startingPrice: z2.coerce.number().optional().nullable(),
   duration: z2.coerce.number().int().optional().nullable(),
   sudden: z2.boolean().optional().default(false),
+  // Featured auction scheduling fields
+  startTime: z2.string().optional().nullable(),
+  // ISO datetime string
+  endTime: z2.string().optional().nullable(),
+  // ISO datetime string
   // Buy Now-specific fields
   featured: z2.boolean().optional().default(false),
   // Giveaway-specific fields
@@ -1037,13 +1052,29 @@ var productFormSchema = z2.object({
   message: "Starting price must be greater than 0",
   path: ["startingPrice"]
 }).refine((data) => {
-  if (data.listingType === "auction") {
+  if (data.listingType === "auction" && !data.featured) {
     return data.duration !== void 0 && data.duration !== null && data.duration > 0;
   }
   return true;
 }, {
   message: "Duration must be selected",
   path: ["duration"]
+}).refine((data) => {
+  if (data.listingType === "auction" && data.featured) {
+    return data.startTime !== void 0 && data.startTime !== null && data.startTime !== "";
+  }
+  return true;
+}, {
+  message: "Auction start time is required for featured auctions",
+  path: ["startTime"]
+}).refine((data) => {
+  if (data.listingType === "auction" && data.featured) {
+    return data.endTime !== void 0 && data.endTime !== null && data.endTime !== "";
+  }
+  return true;
+}, {
+  message: "Auction end time is required for featured auctions",
+  path: ["endTime"]
 }).refine((data) => {
   if (data.listingType === "buy_now") {
     return data.price !== void 0 && data.price !== null && data.price > 0;
@@ -1052,6 +1083,14 @@ var productFormSchema = z2.object({
 }, {
   message: "Price must be greater than 0",
   path: ["price"]
+}).refine((data) => {
+  if (data.listingType === "auction" && !data.featured) {
+    return data.tokshow !== void 0 && data.tokshow !== null && data.tokshow !== "" && data.tokshow !== "general";
+  }
+  return true;
+}, {
+  message: "Live show auctions must be assigned to a show",
+  path: ["tokshow"]
 });
 var bundleSchema = z2.object({
   id: z2.string(),
@@ -1069,108 +1108,6 @@ var bundleSchema = z2.object({
   status: z2.enum(["pending", "labeled"]).optional().default("pending"),
   createdAt: z2.string().optional()
 });
-var users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  avatar: text("avatar"),
-  seller: boolean("seller").default(false),
-  admin: boolean("admin").default(false)
-});
-var orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: text("order_number").notNull().unique(),
-  customerId: varchar("customer_id").notNull(),
-  customerName: text("customer_name").notNull(),
-  customerEmail: text("customer_email").notNull(),
-  itemName: text("item_name").notNull(),
-  itemCount: integer("item_count").notNull().default(1),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  weight: text("weight"),
-  dimensions: text("dimensions"),
-  status: text("status").notNull(),
-  // unfulfilled, shipping, delivered, cancelled, pickup
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  shippedAt: timestamp("shipped_at"),
-  deliveredAt: timestamp("delivered_at"),
-  trackingNumber: text("tracking_number"),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0"),
-  couponDiscount: decimal("coupon_discount", { precision: 10, scale: 2 }).default("0"),
-  bundleId: varchar("bundle_id")
-});
-var shipmentBundles = pgTable("shipment_bundles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  bundleName: text("bundle_name").notNull(),
-  totalWeight: text("total_weight"),
-  totalDimensions: text("total_dimensions"),
-  trackingNumber: text("tracking_number"),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  shippedAt: timestamp("shipped_at")
-});
-var liveShows = pgTable("live_shows", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  description: text("description"),
-  scheduledAt: timestamp("scheduled_at").notNull(),
-  status: text("status").notNull(),
-  // draft, scheduled, live, ended, cancelled
-  category: text("category").notNull(),
-  thumbnail: text("thumbnail"),
-  viewerCount: integer("viewer_count").default(0),
-  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).default("0"),
-  hostId: varchar("host_id").notNull()
-});
-var analytics = pgTable("analytics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  date: timestamp("date").notNull(),
-  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).notNull(),
-  orderCount: integer("order_count").notNull(),
-  buyerCount: integer("buyer_count").notNull(),
-  showCount: integer("show_count").notNull(),
-  avgShippingTime: decimal("avg_shipping_time", { precision: 4, scale: 2 }),
-  cancellationRate: decimal("cancellation_rate", { precision: 5, scale: 2 }),
-  satisfactionRating: decimal("satisfaction_rating", { precision: 3, scale: 2 })
-});
-var shippingProfiles = pgTable("shipping_profiles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  baseRate: decimal("base_rate", { precision: 10, scale: 2 }).notNull(),
-  freeShippingThreshold: decimal("free_shipping_threshold", { precision: 10, scale: 2 }),
-  bundleEnabled: boolean("bundle_enabled").default(true),
-  maxBundleSize: integer("max_bundle_size").default(10)
-});
-var addresses = pgTable("addresses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  addrress1: text("addrress1").notNull(),
-  // Note: keeping the typo as in original schema
-  primary: boolean("primary").default(false),
-  addrress2: text("addrress2").default(""),
-  city: text("city").default(""),
-  countryCode: text("country_code").default(""),
-  cityCode: text("city_code").default(""),
-  state: text("state").default(""),
-  stateCode: text("state_code").default(""),
-  country: text("country").default(""),
-  zipcode: text("zipcode").default(""),
-  street: text("street").default(""),
-  phone: text("phone").default(""),
-  email: text("email").default(""),
-  userId: varchar("user_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
-var insertUserSchema = createInsertSchema(users).omit({ id: true });
-var insertOrderSchema = createInsertSchema(orders).omit({ id: true });
-var insertLiveShowSchema = createInsertSchema(liveShows).omit({ id: true });
-var insertAnalyticsSchema = createInsertSchema(analytics).omit({ id: true });
-var insertShippingProfileSchema = createInsertSchema(shippingProfiles).omit({ id: true });
-var insertShipmentBundleSchema = createInsertSchema(shipmentBundles).omit({ id: true });
-var insertAddressSchema = createInsertSchema(addresses).omit({ id: true, createdAt: true, updatedAt: true });
 var createAddressSchema = z2.object({
   name: z2.string().min(1, "Address name is required"),
   addrress1: z2.string().min(1, "Street address is required"),
@@ -1212,7 +1149,8 @@ var shippingEstimateRequestSchema = z2.object({
   customer: z2.string(),
   length: z2.union([z2.string(), z2.number()]).transform(Number),
   width: z2.union([z2.string(), z2.number()]).transform(Number),
-  height: z2.union([z2.string(), z2.number()]).transform(Number)
+  height: z2.union([z2.string(), z2.number()]).transform(Number),
+  buying_label: z2.boolean().optional().default(true)
 });
 var shippingEstimateResponseSchema = z2.object({
   carrier: z2.string(),
@@ -1297,319 +1235,125 @@ var bundleLabelPurchaseResponseSchema = z2.object({
   }).optional(),
   error: z2.string().optional()
 });
-
-// ../shared-backend/server/routes/shows.ts
-function registerShowRoutes(app2) {
-  app2.get("/api/profile/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Fetching public user profile:", id);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const response = await fetch(`${ICONA_API_BASE}/users/${id}`, {
-        method: "GET",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        return res.status(response.status).json({ error: "User not found" });
-      }
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error("Error fetching user from Icona API:", error);
-      res.status(500).json({ error: "Failed to fetch user" });
-    }
-  });
-  app2.get("/api/rooms/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Fetching single room:", id);
-      const queryParams = new URLSearchParams();
-      if (req.query.currentUserId) {
-        queryParams.set("currentUserId", req.query.currentUserId);
-      }
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const url = `${ICONA_API_BASE}/rooms/${id}?${queryParams.toString()}`;
-      const response = await fetch(url, {
-        method: "GET",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        return res.status(response.status).json({ error: "Room not found" });
-      }
-      const data = await response.json();
-      const activeAuction = data.activeauction || data.activeAuction || data.active_auction;
-      if (activeAuction) {
-        console.log("\u{1F50D} EXTERNAL API activeauction bids:", activeAuction.bids);
-        console.log("\u{1F50D} EXTERNAL API activeauction ended:", activeAuction.ended);
-        console.log("\u{1F50D} EXTERNAL API activeauction winner:", activeAuction.winner);
-      }
-      res.json(data);
-    } catch (error) {
-      console.error("Error fetching room from Icona API:", error);
-      res.status(500).json({ error: "Failed to fetch room" });
-    }
-  });
-  app2.put("/api/rooms/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Updating room:", id, "with data:", req.body);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const url = `${ICONA_API_BASE}/rooms/${id}`;
-      console.log("Calling external API:", url);
-      const response = await fetch(url, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(req.body)
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        console.error("Error details:", errorText);
-        return res.status(response.status).json({ error: "Failed to update room" });
-      }
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error("Error updating room from Icona API:", error);
-      res.status(500).json({ error: "Failed to update room" });
-    }
-  });
-  app2.delete("/api/rooms/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Deleting room:", id);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const queryParams = new URLSearchParams();
-      if (req.query.destroy) {
-        queryParams.set("destroy", req.query.destroy);
-      }
-      const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/rooms/${id}${queryString ? `?${queryString}` : ""}`;
-      console.log("Calling external API:", url);
-      const response = await fetch(url, {
-        method: "DELETE",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        console.error("Error details:", errorText);
-        return res.status(response.status).json({ error: "Failed to delete room" });
-      }
-      const data = await response.json();
-      console.log("Room deleted successfully:", data);
-      res.json(data);
-    } catch (error) {
-      console.error("Error deleting room from Icona API:", error);
-      res.status(500).json({ error: "Failed to delete room" });
-    }
-  });
-  app2.post("/api/rooms", async (req, res) => {
-    try {
-      console.log("Creating room/show via Icona API");
-      console.log("Request body:", req.body);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const url = `${ICONA_API_BASE}/rooms`;
-      console.log("Calling external API:", url);
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(req.body)
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        const errorText = await response.text();
-        console.error("Error details:", errorText);
-        return res.status(response.status).json({ error: "Failed to create room" });
-      }
-      const data = await response.json();
-      console.log("Room created successfully:", data);
-      res.status(201).json(data);
-    } catch (error) {
-      console.error("Error creating room via Icona API:", error);
-      res.status(500).json({ error: "Failed to create room" });
-    }
-  });
-  app2.get("/api/rooms", async (req, res) => {
-    try {
-      console.log("Proxying rooms request to Icona API");
-      const params = [];
-      if (req.query.page !== void 0) params.push(`page=${req.query.page}`);
-      if (req.query.limit !== void 0) params.push(`limit=${req.query.limit}`);
-      if (req.query.category !== void 0) params.push(`category=${req.query.category}`);
-      if (req.query.userid !== void 0) params.push(`userid=${req.query.userid}`);
-      if (req.query.currentUserId !== void 0) params.push(`currentUserId=${req.query.currentUserId}`);
-      if (req.query.title !== void 0) params.push(`title=${req.query.title}`);
-      if (req.query.status !== void 0) params.push(`status=${req.query.status}`);
-      const queryString = params.join("&");
-      const url = `${ICONA_API_BASE}/rooms?${queryString}`;
-      console.log("Calling external API:", url);
-      const headers = {
-        "Content-Type": "application/json"
-      };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
-      }
-      const response = await fetch(url, {
-        method: "GET",
-        headers
-      });
-      if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        throw new Error(`Icona API returned ${response.status}`);
-      }
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error("Error fetching rooms from Icona API:", error);
-      res.status(500).json({ error: "Failed to fetch rooms" });
-    }
-  });
-  app2.get("/api/shows", async (_req, res) => {
-    try {
-      const shows = await storage.getLiveShows();
-      res.json(shows);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch live shows" });
-    }
-  });
-  app2.post("/api/shows", async (req, res) => {
-    try {
-      const showData = insertLiveShowSchema.parse(req.body);
-      const show = await storage.createLiveShow(showData);
-      res.status(201).json(show);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid show data" });
-    }
-  });
-  app2.patch("/api/shows/:id", async (req, res) => {
-    try {
-      const show = await storage.updateLiveShow(req.params.id, req.body);
-      if (!show) {
-        return res.status(404).json({ error: "Show not found" });
-      }
-      res.json(show);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update show" });
-    }
-  });
-  app2.post("/livekit/token", async (req, res) => {
-    try {
-      const { room: roomId, userId: clientUserId, userName } = req.body;
-      console.log("\u{1F511} Request body received:", req.body);
-      if (!req.session?.user) {
-        console.error("\u274C Unauthorized: No session user");
-        return res.status(401).json({ error: "Authentication required" });
-      }
-      if (!req.session?.accessToken) {
-        console.error("\u274C No access token in session");
-        return res.status(401).json({ error: "Authentication required" });
-      }
-      const sessionUser = req.session.user;
-      const userId = sessionUser._id || sessionUser.id;
-      const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${req.session.accessToken}`
-      };
-      const roomResponse = await fetch(`${ICONA_API_BASE}/rooms/${roomId}`, {
-        method: "GET",
-        headers
-      });
-      if (!roomResponse.ok) {
-        console.error("\u274C Failed to fetch room details");
-        return res.status(404).json({ error: "Room not found" });
-      }
-      const room = await roomResponse.json();
-      const rawOwnerId = room.owner?._id || room.owner?.id;
-      const showOwnerId = String(rawOwnerId);
-      const normalizedUserId = String(userId);
-      const isHost = normalizedUserId === showOwnerId;
-      const role = isHost ? "host" : "audience";
-      console.log("\u{1F510} Role determination:", {
-        userId: normalizedUserId,
-        showOwnerId,
-        isHost,
-        role
-      });
-      const requestBody = {
-        room: roomId,
-        userId: clientUserId || userId,
-        userName,
-        role
-      };
-      console.log("\u{1F4E4} Sending to external API:", requestBody);
-      const response = await fetch(`${ICONA_API_BASE}/livekit/token`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody)
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`\u274C Icona API returned ${response.status}:`, errorText);
-        return res.status(response.status).json({
-          error: errorText || "Failed to get LiveKit token from external API"
-        });
-      }
-      const data = await response.json();
-      console.log("\u2705 LiveKit token received from Icona API");
-      res.json({
-        ...data,
-        role
-      });
-    } catch (error) {
-      console.error("\u274C Error proxying LiveKit token request:", error);
-      res.status(500).json({ error: "Failed to get LiveKit token" });
-    }
-  });
-}
-
-// ../shared-backend/server/routes/analytics.ts
-function registerAnalyticsRoutes(app2) {
-  app2.get("/api/analytics", async (req, res) => {
-    try {
-      const { startDate, endDate } = req.query;
-      const analytics2 = await storage.getAnalytics(
-        startDate ? new Date(startDate) : void 0,
-        endDate ? new Date(endDate) : void 0
-      );
-      res.json(analytics2);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch analytics" });
-    }
-  });
-}
+var heroSectionSchema = z2.object({
+  title: z2.string().min(1, "Title is required"),
+  subtitle: z2.string().min(1, "Subtitle is required"),
+  primaryButtonText: z2.string().min(1, "Primary button text is required"),
+  primaryButtonLink: z2.string().min(1, "Primary button link is required"),
+  secondaryButtonText: z2.string().min(1, "Secondary button text is required"),
+  heroImage: z2.string().url("Must be a valid URL"),
+  heroImageAlt: z2.string().optional().default("Live shopping experience"),
+  liveViewers: z2.string().optional().default("12.5K watching")
+});
+var howItWorksStepSchema = z2.object({
+  icon: z2.enum(["Play", "Zap", "Shield", "Star", "TrendingUp"]),
+  title: z2.string().min(1, "Step title is required"),
+  description: z2.string().min(1, "Step description is required")
+});
+var featureItemSchema = z2.object({
+  icon: z2.enum(["Play", "Zap", "Shield", "Star", "TrendingUp"]),
+  title: z2.string().min(1, "Feature title is required"),
+  description: z2.string().min(1, "Feature description is required")
+});
+var categoryItemSchema = z2.object({
+  name: z2.string().min(1, "Category name is required"),
+  image: z2.string().url("Must be a valid URL")
+});
+var brandItemSchema = z2.object({
+  name: z2.string().min(1, "Brand name is required"),
+  logo: z2.string().optional()
+});
+var landingContentSchema = z2.object({
+  // Hero Section
+  hero: heroSectionSchema,
+  // How It Works Section
+  howItWorks: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    steps: z2.array(howItWorksStepSchema).length(3, "Must have exactly 3 steps")
+  }),
+  // Join In the Fun Section
+  joinFun: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    image: z2.string().url("Must be a valid URL"),
+    imageAlt: z2.string().optional().default("Auction excitement"),
+    features: z2.array(featureItemSchema).min(1, "Must have at least 1 feature"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Categories Section
+  categories: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    items: z2.array(categoryItemSchema).min(1, "Must have at least 1 category"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Brands Section
+  brands: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    items: z2.array(brandItemSchema).min(1, "Must have at least 1 brand"),
+    image: z2.string().url("Must be a valid URL"),
+    imageAlt: z2.string().optional().default("Brand products"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Final CTA Section
+  finalCTA: z2.object({
+    title: z2.string().min(1, "CTA title is required"),
+    subtitle: z2.string().min(1, "CTA subtitle is required"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Footer
+  footer: z2.object({
+    copyrightText: z2.string().optional()
+  })
+});
+var pageTypeEnum = z2.enum([
+  "landing",
+  "faq",
+  "about",
+  "privacy",
+  "terms",
+  "contact"
+]);
+var faqItemSchema = z2.object({
+  question: z2.string().min(1, "Question is required"),
+  answer: z2.string().min(1, "Answer is required")
+});
+var faqContentSchema = z2.object({
+  title: z2.string().min(1, "Page title is required"),
+  subtitle: z2.string().optional(),
+  faqs: z2.array(faqItemSchema).min(1, "Must have at least 1 FAQ item")
+});
+var contentSectionSchema = z2.object({
+  title: z2.string().min(1, "Section title is required"),
+  content: z2.string().min(1, "Section content is required"),
+  order: z2.number().optional()
+});
+var sectionBasedPageSchema = z2.object({
+  title: z2.string().min(1, "Page title is required"),
+  subtitle: z2.string().optional(),
+  sections: z2.array(contentSectionSchema).min(1, "Must have at least 1 section")
+});
+var contactInfoSchema = z2.object({
+  email: z2.string().email("Must be a valid email").optional(),
+  phone: z2.string().optional(),
+  address: z2.string().optional()
+});
+var contactContentSchema = z2.object({
+  title: z2.string().min(1, "Page title is required"),
+  subtitle: z2.string().optional(),
+  description: z2.string().optional(),
+  contactInfo: contactInfoSchema,
+  showContactForm: z2.boolean().optional().default(true),
+  sections: z2.array(contentSectionSchema).optional()
+});
 
 // ../shared-backend/server/routes/shipping.ts
-import fetch4 from "node-fetch";
-import https from "https";
-import { URL } from "url";
 function makeGetWithBody(url, payload, headers = {}) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
@@ -1659,8 +1403,8 @@ function registerShippingRoutes(app2) {
   app2.get("/api/shipping/profiles/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Proxying shipping profiles request to Icona API for user:", userId);
-      const url = `${ICONA_API_BASE}/shipping/profiles/${userId}`;
+      console.log("Proxying shipping profiles request to Tokshop API for user:", userId);
+      const url = `${BASE_URL}/shipping/profiles/${userId}`;
       console.log("Final API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -1673,13 +1417,13 @@ function registerShippingRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Shipping profiles proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch shipping profiles from Icona API" });
+      res.status(500).json({ error: "Failed to fetch shipping profiles from Tokshop API" });
     }
   });
   app2.post("/api/shipping/profiles/:id", async (req, res) => {
@@ -1688,20 +1432,20 @@ function registerShippingRoutes(app2) {
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });
       }
-      console.log("Creating shipping profile via Icona API for user:", userId);
+      console.log("Creating shipping profile via Tokshop API for user:", userId);
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/${userId}`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/${userId}`, {
         method: "POST",
         headers,
         body: JSON.stringify(req.body)
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -1713,20 +1457,20 @@ function registerShippingRoutes(app2) {
   app2.put("/api/shipping/profiles/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      console.log("Updating shipping profile via Icona API:", id);
+      console.log("Updating shipping profile via Tokshop API:", id);
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/${id}`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/${id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify(req.body)
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -1738,19 +1482,19 @@ function registerShippingRoutes(app2) {
   app2.delete("/api/shipping/profiles/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      console.log("Deleting shipping profile via Icona API:", id);
+      console.log("Deleting shipping profile via Tokshop API:", id);
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/${id}`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/${id}`, {
         method: "DELETE",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -1777,7 +1521,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/orders?${queryParams.toString()}`, {
+      const response = await fetch4(`${BASE_URL}/orders?${queryParams.toString()}`, {
         method: "GET",
         headers
       });
@@ -1785,8 +1529,8 @@ function registerShippingRoutes(app2) {
         throw new Error(`External API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      const orders2 = data.orders || [];
-      const totalSoldFromItems = orders2.reduce((sum, order) => {
+      const orders = data.orders || [];
+      const totalSoldFromItems = orders.reduce((sum, order) => {
         const itemsSubtotal = order.items ? order.items.reduce((itemSum, item) => {
           const quantity = item.quantity || 0;
           const price = item.price || 0;
@@ -1796,17 +1540,17 @@ function registerShippingRoutes(app2) {
         const itemsTotal = itemsSubtotal + tax;
         return sum + itemsTotal;
       }, 0);
-      const totalShippingCosts = orders2.reduce((sum, order) => sum + (order.shipping_fee || 0), 0);
-      const totalServiceFees = orders2.reduce((sum, order) => sum + (order.servicefee || 0), 0);
-      const totalShippingSpend = orders2.filter((order) => order.status === "processing").reduce((sum, order) => sum + (order.seller_shipping_fee_pay || 0), 0);
+      const totalShippingCosts = orders.reduce((sum, order) => sum + (order.shipping_fee || 0), 0);
+      const totalServiceFees = orders.reduce((sum, order) => sum + (order.servicefee || 0), 0);
+      const totalShippingSpend = orders.filter((order) => order.status === "processing").reduce((sum, order) => sum + (order.seller_shipping_fee_pay || 0), 0);
       const totalCouponSpend = 0;
       const totalEarned = totalSoldFromItems - totalShippingSpend - totalServiceFees - totalCouponSpend;
-      const itemsSold = orders2.reduce((sum, order) => {
+      const itemsSold = orders.reduce((sum, order) => {
         const itemCount = order.items ? order.items.reduce((total, item) => total + (item.quantity || 1), 0) : 1;
         return sum + itemCount;
       }, 0);
-      const totalDelivered = orders2.filter((order) => order.status === "delivered" || order.status === "ended").length;
-      const pendingDelivery = orders2.filter((order) => order.status === "shipping" || order.status === "shipped").length;
+      const totalDelivered = orders.filter((order) => order.status === "delivered" || order.status === "ended").length;
+      const pendingDelivery = orders.filter((order) => order.status === "shipping" || order.status === "shipped").length;
       const metrics = {
         totalSold: totalSoldFromItems.toFixed(2),
         totalEarned: totalEarned.toFixed(2),
@@ -1833,9 +1577,9 @@ function registerShippingRoutes(app2) {
         owner: req.body.owner,
         customer: req.body.customer,
         tokshow: req.body.tokshow,
-        buying_label: true
+        buying_label: req.body.buying_label ?? true
       };
-      const estimate = await makeGetWithBody(`${ICONA_API_BASE}/shipping/profiles/estimate/rates`, requestBody);
+      const estimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
       console.log("Shipping estimate response:", estimate);
       res.json(estimate);
     } catch (error) {
@@ -1846,7 +1590,7 @@ function registerShippingRoutes(app2) {
   app2.post("/api/shipping/profiles/estimate/rates", async (req, res) => {
     try {
       const validatedData = shippingEstimateRequestSchema.parse(req.body);
-      console.log("Fetching shipping estimates from external API:", `${ICONA_API_BASE}/shipping/profiles/estimate/rates`);
+      console.log("Fetching shipping estimates from external API:", `${BASE_URL}/shipping/profiles/estimate/rates`);
       const requestBody = {
         weight: validatedData.weight,
         unit: validatedData.unit,
@@ -1857,9 +1601,9 @@ function registerShippingRoutes(app2) {
         length: validatedData.length,
         width: validatedData.width,
         height: validatedData.height,
-        buying_label: true
+        buying_label: validatedData.buying_label ?? true
       };
-      const rawEstimate = await makeGetWithBody(`${ICONA_API_BASE}/shipping/profiles/estimate/rates`, requestBody);
+      const rawEstimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
       console.log("External API shipping estimates:", rawEstimate);
       const estimates = Array.isArray(rawEstimate) ? rawEstimate : [rawEstimate];
       const transformedEstimates = estimates.map((estimate) => {
@@ -1923,7 +1667,7 @@ function registerShippingRoutes(app2) {
       }
       let orderIdToSend = validatedData.order;
       try {
-        const orderResponse = await fetch4(`${ICONA_API_BASE}/orders/${validatedData.order}`, {
+        const orderResponse = await fetch4(`${BASE_URL}/orders/${validatedData.order}`, {
           method: "GET",
           headers: fetchHeaders
         });
@@ -1944,7 +1688,7 @@ function registerShippingRoutes(app2) {
         label_file_type: req.body.label_file_type || "PDF_4x6",
         order: orderIdToSend
       }];
-      console.log("Calling external shipping API:", `${ICONA_API_BASE}/shipping/profiles/buy/label`);
+      console.log("Calling external shipping API:", `${BASE_URL}/shipping/profiles/buy/label`);
       console.log("Request body being sent to external API:", { rates });
       const headers = {
         "Content-Type": "application/json"
@@ -1952,7 +1696,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch4(`${ICONA_API_BASE}/shipping/profiles/buy/label`, {
+      const response = await fetch4(`${BASE_URL}/shipping/profiles/buy/label`, {
         method: "POST",
         headers,
         body: JSON.stringify({ rates })
@@ -2034,7 +1778,7 @@ function registerShippingRoutes(app2) {
         fetchHeaders["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
       const orderFetchPromises = orderIds.map(async (orderId) => {
-        const response2 = await fetch4(`${ICONA_API_BASE}/orders/${orderId}`, {
+        const response2 = await fetch4(`${BASE_URL}/orders/${orderId}`, {
           method: "GET",
           headers: fetchHeaders
         });
@@ -2043,9 +1787,9 @@ function registerShippingRoutes(app2) {
         }
         return response2.json();
       });
-      const orders2 = await Promise.all(orderFetchPromises);
-      console.log(`Fetched ${orders2.length} orders for bundling`);
-      const firstOrder = orders2[0];
+      const orders = await Promise.all(orderFetchPromises);
+      console.log(`Fetched ${orders.length} orders for bundling`);
+      const firstOrder = orders[0];
       const customerId = firstOrder.customer._id;
       const customerAddress = firstOrder.customer.address;
       if (!customerAddress) {
@@ -2055,7 +1799,7 @@ function registerShippingRoutes(app2) {
           error: "Cannot bundle orders without shipping address"
         });
       }
-      for (const order of orders2) {
+      for (const order of orders) {
         if (order.customer._id !== customerId) {
           return res.status(400).json({
             success: false,
@@ -2084,7 +1828,7 @@ function registerShippingRoutes(app2) {
       let maxLength = 0;
       let maxWidth = 0;
       let totalHeight = 0;
-      for (const order of orders2) {
+      for (const order of orders) {
         let orderWeight = 0;
         if (order.giveaway?.shipping_profile?.weight) {
           const weight = order.giveaway.shipping_profile.weight;
@@ -2141,7 +1885,7 @@ function registerShippingRoutes(app2) {
         // Default format for bundles
         order: bundleId
       }];
-      console.log("Creating bundle label with Icona API");
+      console.log("Creating bundle label with Tokshop API");
       console.log("Bundle request:", { rates });
       const labelHeaders = {
         "Content-Type": "application/json"
@@ -2149,7 +1893,7 @@ function registerShippingRoutes(app2) {
       if (req.session?.accessToken) {
         labelHeaders["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const labelResponse = await fetch4(`${ICONA_API_BASE}/shipping/profiles/buy/label`, {
+      const labelResponse = await fetch4(`${BASE_URL}/shipping/profiles/buy/label`, {
         method: "POST",
         headers: labelHeaders,
         body: JSON.stringify({ rates })
@@ -2184,7 +1928,7 @@ function registerShippingRoutes(app2) {
       }
       const updatePromises = orderIds.map(async (orderId) => {
         try {
-          const updateResponse = await fetch4(`${ICONA_API_BASE}/orders/${orderId}`, {
+          const updateResponse = await fetch4(`${BASE_URL}/orders/${orderId}`, {
             method: "PATCH",
             headers: updateHeaders,
             body: JSON.stringify({
@@ -2289,7 +2033,7 @@ function registerShippingRoutes(app2) {
       const fetchErrors = [];
       for (const orderId of orderIds) {
         try {
-          const orderResponse = await fetch4(`${ICONA_API_BASE}/orders/?_id=${orderId}`, {
+          const orderResponse = await fetch4(`${BASE_URL}/orders/?_id=${orderId}`, {
             method: "GET",
             headers
           });
@@ -2327,8 +2071,8 @@ function registerShippingRoutes(app2) {
       }
       console.log(`Sending bulk label request with ${rates.length} rates`);
       console.log("Rates being sent:", JSON.stringify(rates, null, 2));
-      console.log("API URL:", `${ICONA_API_BASE}/shipping/profiles/buy/label`);
-      const labelResponse = await fetch4(`${ICONA_API_BASE}/shipping/profiles/buy/label`, {
+      console.log("API URL:", `${BASE_URL}/shipping/profiles/buy/label`);
+      const labelResponse = await fetch4(`${BASE_URL}/shipping/profiles/buy/label`, {
         method: "POST",
         headers,
         body: JSON.stringify({ rates })
@@ -2384,8 +2128,8 @@ function registerBundleRoutes(app2) {
         return res.status(400).json({ error: "userId or customer parameter is required" });
       }
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/orders${queryString ? "?" + queryString : ""}`;
-      console.log("Fetching orders from Icona API:", url);
+      const url = `${BASE_URL}/orders${queryString ? "?" + queryString : ""}`;
+      console.log("Fetching orders from Tokshop API:", url);
       const headers = {
         "Content-Type": "application/json"
       };
@@ -2397,12 +2141,12 @@ function registerBundleRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      const orders2 = data.orders || [];
-      console.log(`Found ${orders2.length} orders, filtering by bundle IDs...`);
-      const bundledOrders = orders2.filter((order) => {
+      const orders = data.orders || [];
+      console.log(`Found ${orders.length} orders, filtering by bundle IDs...`);
+      const bundledOrders = orders.filter((order) => {
         return order && order.bundleId && order.bundleId.trim() !== "";
       });
       console.log(`Found ${bundledOrders.length} orders with bundle IDs`);
@@ -2414,9 +2158,9 @@ function registerBundleRoutes(app2) {
         }
         bundleGroups.get(bundleId).push(order);
       });
-      const bundles = Array.from(bundleGroups.entries()).map(([bundleId, orders3]) => {
-        const totalValue = orders3.reduce((sum, order) => sum + (order.total || 0), 0);
-        const weights = orders3.map((order) => {
+      const bundles = Array.from(bundleGroups.entries()).map(([bundleId, orders2]) => {
+        const totalValue = orders2.reduce((sum, order) => sum + (order.total || 0), 0);
+        const weights = orders2.map((order) => {
           if (order.giveaway?.shipping_profile?.weight) {
             return order.giveaway.shipping_profile.weight;
           }
@@ -2429,7 +2173,7 @@ function registerBundleRoutes(app2) {
           return 0;
         }).filter((w) => w > 0);
         const totalWeight = weights.length > 0 ? weights.reduce((sum, w) => sum + w, 0) : 0;
-        const firstOrder = orders3[0];
+        const firstOrder = orders2[0];
         let customerId;
         let customerName;
         if (typeof firstOrder.customer === "string") {
@@ -2446,8 +2190,8 @@ function registerBundleRoutes(app2) {
           id: bundleId,
           customerId,
           customerName,
-          orderIds: orders3.map((order) => order._id),
-          count: orders3.length,
+          orderIds: orders2.map((order) => order._id),
+          count: orders2.length,
           weight: totalWeight > 0 ? `${totalWeight} oz` : void 0,
           dimensions: void 0,
           // Could aggregate dimensions if needed
@@ -2472,7 +2216,7 @@ function registerBundleRoutes(app2) {
       if (!userId) {
         return res.status(400).json({ error: "userId parameter is required" });
       }
-      const ordersUrl = `${ICONA_API_BASE}/orders?userId=${userId}`;
+      const ordersUrl = `${BASE_URL}/orders?userId=${userId}`;
       const ordersResponse = await fetch5(ordersUrl, {
         method: "GET",
         headers: {
@@ -2507,7 +2251,7 @@ function registerBundleRoutes(app2) {
       for (const order of bundledOrders) {
         try {
           console.log(`Removing bundle ID from order ${order._id}`);
-          const response = await fetch5(`${ICONA_API_BASE}/orders/${order._id}`, {
+          const response = await fetch5(`${BASE_URL}/orders/${order._id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json"
@@ -2592,27 +2336,82 @@ import fetch6 from "node-fetch";
 // ../shared-backend/server/firebase-admin.ts
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-var adminApp;
-try {
+import { getStorage } from "firebase-admin/storage";
+import { getFirestore } from "firebase-admin/firestore";
+var adminApp = null;
+var isInitializing = false;
+async function initializeFirebaseAdmin() {
   const existingApps = getApps();
-  if (existingApps.length === 0) {
-    const firebaseConfig = {
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID
-    };
-    adminApp = initializeApp(firebaseConfig);
-  } else {
-    adminApp = existingApps[0];
+  if (existingApps.length > 0) {
+    return existingApps[0];
   }
-} catch (error) {
-  console.error("Firebase Admin initialization error:", error);
-  adminApp = initializeApp({
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID
-  });
+  if (isInitializing) {
+    while (isInitializing) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const apps = getApps();
+    if (apps.length > 0) return apps[0];
+  }
+  isInitializing = true;
+  try {
+    console.log("\u{1F525} Fetching Firebase config from settings API...");
+    const fetchWithTimeout = async (url, timeout = 5e3) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      try {
+        const response2 = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return response2;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+      }
+    };
+    const response = await fetchWithTimeout(`${BASE_URL}/admin/app/settings`, 5e3);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Firebase config from settings API");
+    }
+    const settings = await response.json();
+    const firebaseConfig = {
+      projectId: settings.firebase_project_id || "tokshop-33509",
+      storageBucket: settings.firebase_storage_bucket || "tokshop-33509.appspot.com"
+    };
+    console.log("\u{1F525} Initializing Firebase Admin with config:", {
+      projectId: firebaseConfig.projectId,
+      storageBucket: firebaseConfig.storageBucket
+    });
+    adminApp = initializeApp(firebaseConfig);
+    console.log("\u2705 Firebase Admin initialized successfully");
+    return adminApp;
+  } catch (error) {
+    console.error("\u274C Firebase Admin initialization error:", error);
+    const fallbackConfig = {
+      projectId: "tokshop-33509",
+      storageBucket: "tokshop-33509.appspot.com"
+    };
+    console.log("\u26A0\uFE0F Using fallback Firebase config");
+    adminApp = initializeApp(fallbackConfig);
+    return adminApp;
+  } finally {
+    isInitializing = false;
+  }
 }
-var adminAuth = getAuth(adminApp);
+async function getAdminAuth() {
+  const app2 = await initializeFirebaseAdmin();
+  return getAuth(app2);
+}
+async function getAdminStorage() {
+  const app2 = await initializeFirebaseAdmin();
+  return getStorage(app2);
+}
+async function getAdminFirestore() {
+  const app2 = await initializeFirebaseAdmin();
+  return getFirestore(app2);
+}
 async function verifyFirebaseToken(idToken) {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const auth = await getAdminAuth();
+    const decodedToken = await auth.verifyIdToken(idToken);
     return {
       success: true,
       uid: decodedToken.uid,
@@ -2629,6 +2428,30 @@ async function verifyFirebaseToken(idToken) {
       error: "Invalid or expired Firebase token"
     };
   }
+}
+async function deleteImagesFromStorage(imageUrls) {
+  if (!imageUrls || imageUrls.length === 0) {
+    return;
+  }
+  const storage = await getAdminStorage();
+  const bucket = storage.bucket();
+  const deletePromises = imageUrls.map(async (url) => {
+    try {
+      const urlParts = url.split("/o/");
+      if (urlParts.length < 2) {
+        console.warn("Invalid Firebase Storage URL format:", url);
+        return;
+      }
+      const encodedPath = urlParts[1].split("?")[0];
+      const filePath = decodeURIComponent(encodedPath);
+      console.log(`\u{1F5D1}\uFE0F Deleting image from Firebase Storage: ${filePath}`);
+      await bucket.file(filePath).delete();
+      console.log(`\u2705 Successfully deleted: ${filePath}`);
+    } catch (error) {
+      console.error(`\u274C Error deleting image ${url}:`, error.message);
+    }
+  });
+  await Promise.all(deletePromises);
 }
 
 // ../shared-backend/server/routes/auth.ts
@@ -2678,7 +2501,7 @@ async function resilientFetch(url, options) {
 function registerAuthRoutes(app2) {
   app2.post("/api/auth/signup", async (req, res) => {
     try {
-      console.log("Proxying signup request to Icona API");
+      console.log("Proxying signup request to Tokshop API");
       console.log("Signup payload received:", {
         ...req.body,
         password: "[REDACTED]"
@@ -2693,7 +2516,7 @@ function registerAuthRoutes(app2) {
       }
       const { email, country, firstName, lastName, userName, phone, password } = validationResult.data;
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/auth/signup`,
+        `${BASE_URL}/auth/signup`,
         {
           method: "POST",
           headers: {
@@ -2712,7 +2535,7 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API signup error:", errorData);
+        console.error("Tokshop API signup error:", errorData);
         return res.status(response.status).json({
           success: false,
           message: errorData.message,
@@ -2722,7 +2545,7 @@ function registerAuthRoutes(app2) {
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid signup response structure:", parseResult.error);
         return res.status(500).json({
@@ -2752,7 +2575,7 @@ function registerAuthRoutes(app2) {
   });
   app2.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("Proxying login request to Icona API");
+      console.log("Proxying login request to Tokshop API");
       console.log("Login payload received:", {
         ...req.body,
         password: "[REDACTED]"
@@ -2767,7 +2590,7 @@ function registerAuthRoutes(app2) {
       }
       const { email, password } = validationResult.data;
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/auth/login`,
+        `${BASE_URL}/auth/login`,
         {
           method: "POST",
           headers: {
@@ -2781,7 +2604,7 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API login error:", errorData);
+        console.error("Tokshop API login error:", errorData);
         return res.status(response.status).json({
           success: false,
           message: errorData.message,
@@ -2791,7 +2614,7 @@ function registerAuthRoutes(app2) {
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid login response structure:", parseResult.error);
         return res.status(500).json({
@@ -2801,12 +2624,13 @@ function registerAuthRoutes(app2) {
       }
       const data = parseResult.data;
       console.log("Login successful");
+      const token = data.accessToken || data.authtoken;
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
+      req.session.accessToken = token;
       res.json({
         success: true,
         data: data.data,
-        accessToken: data.accessToken,
+        accessToken: token,
         // Return token for localStorage storage
         message: data.message
       });
@@ -2850,7 +2674,7 @@ function registerAuthRoutes(app2) {
         gender: socialAuthData.gender
       };
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/auth/social`,
+        `${BASE_URL}/auth/social`,
         {
           method: "POST",
           headers: {
@@ -2861,14 +2685,14 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API social auth error:", errorData);
+        console.error("Tokshop API social auth error:", errorData);
         return res.status(response.status).json({
           success: false,
           error: errorData.message || "Social authentication failed",
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid social auth response structure:", parseResult.error);
         return res.status(500).json({
@@ -2878,15 +2702,27 @@ function registerAuthRoutes(app2) {
       }
       const data = parseResult.data;
       console.log("Social auth successful");
+      console.log("Social auth response data keys:", Object.keys(data));
+      console.log("Social auth response:", JSON.stringify(responseData, null, 2));
+      const token = data.accessToken || data.authtoken;
+      console.log("Extracted token:", token ? "EXISTS" : "NOT FOUND");
+      console.log("Token fields - accessToken:", data.accessToken ? "EXISTS" : "NOT FOUND", "authtoken:", data.authtoken ? "EXISTS" : "NOT FOUND");
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
-      res.json({
-        success: true,
-        data: data.data,
-        accessToken: data.accessToken,
-        // Return token for localStorage storage
-        message: data.message,
-        newuser: data.newuser || false
+      req.session.accessToken = token;
+      req.session.save((err) => {
+        if (err) {
+          console.error("Failed to save session:", err);
+        } else {
+          console.log("Session saved successfully with token");
+        }
+        res.json({
+          success: true,
+          data: data.data,
+          accessToken: token,
+          // Return token for localStorage storage
+          message: data.message,
+          newuser: data.newuser || false
+        });
       });
     } catch (error) {
       console.error("Social auth proxy error:", error);
@@ -2899,7 +2735,7 @@ function registerAuthRoutes(app2) {
   });
   app2.post("/api/auth/social/complete", async (req, res) => {
     try {
-      console.log("Proxying social auth completion request to Icona API");
+      console.log("Proxying social auth completion request to Tokshop API");
       console.log("Social auth completion payload received:", req.body);
       const validationResult = socialAuthCompleteSchema.safeParse({
         firstName: req.body.firstName,
@@ -2922,7 +2758,7 @@ function registerAuthRoutes(app2) {
         type: req.body.type,
         profilePhoto: req.body.profilePhoto
       };
-      const apiEndpoint = `${ICONA_API_BASE}/auth`;
+      const apiEndpoint = `${BASE_URL}/auth`;
       const { response, data: responseData } = await resilientFetch(apiEndpoint, {
         method: "POST",
         headers: {
@@ -2942,14 +2778,14 @@ function registerAuthRoutes(app2) {
       });
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API social auth completion error:", errorData);
+        console.error("Tokshop API social auth completion error:", errorData);
         return res.status(response.status).json({
           success: false,
           error: errorData.message || "Social authentication completion failed",
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid social auth completion response structure:", parseResult.error);
         return res.status(500).json({
@@ -2959,12 +2795,13 @@ function registerAuthRoutes(app2) {
       }
       const data = parseResult.data;
       console.log("Social auth completion successful");
+      const token = data.accessToken || data.authtoken;
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
+      req.session.accessToken = token;
       res.json({
         success: true,
         data: data.data,
-        accessToken: data.accessToken,
+        accessToken: token,
         // Return token for localStorage storage
         message: data.message || "Profile completed successfully"
       });
@@ -2987,7 +2824,7 @@ function registerAuthRoutes(app2) {
         });
       }
       const userId = req.session.user._id || req.session.user.id;
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`Updating user profile at: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3064,7 +2901,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Sending mention notifications to ${ids.length} users`);
-      const url = `${ICONA_API_BASE}/notifications`;
+      const url = `${BASE_URL}/notifications`;
       console.log(`Notification API URL: ${url}`);
       const response = await fetch6(url, {
         method: "POST",
@@ -3133,7 +2970,7 @@ function registerAuthRoutes(app2) {
         title,
         currentUserId
       });
-      const url = `${ICONA_API_BASE}/users?${params.toString()}`;
+      const url = `${BASE_URL}/users?${params.toString()}`;
       console.log(`User search API URL: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -3220,7 +3057,7 @@ function registerAuthRoutes(app2) {
       console.log(`Fetching default payment method for user: ${requestedUserId}`);
       try {
         const { response, data: responseData } = await resilientFetch(
-          `${ICONA_API_BASE}/stripe/default/paymentmethod/default/${requestedUserId}`,
+          `${BASE_URL}/stripe/default/paymentmethod/default/${requestedUserId}`,
           {
             method: "GET",
             headers: {
@@ -3270,7 +3107,7 @@ function registerAuthRoutes(app2) {
       }
       console.log(`Fetching all payment methods for user: ${requestedUserId}`);
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/users/paymentmethod/${requestedUserId}`,
+        `${BASE_URL}/users/paymentmethod/${requestedUserId}`,
         {
           method: "GET",
           headers: {
@@ -3280,7 +3117,7 @@ function registerAuthRoutes(app2) {
         }
       );
       if (!response.ok) {
-        console.error(`Icona API error fetching payment methods ${requestedUserId}:`, responseData);
+        console.error(`Tokshop API error fetching payment methods ${requestedUserId}:`, responseData);
         return res.status(response.status).json({
           success: false,
           error: responseData?.message || "Failed to fetch payment methods"
@@ -3316,7 +3153,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Following user: ${myId} -> ${tofollowId}`);
-      const url = `${ICONA_API_BASE}/users/follow/${myId}/${tofollowId}`;
+      const url = `${BASE_URL}/users/follow/${myId}/${tofollowId}`;
       console.log(`Follow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3374,7 +3211,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Unfollowing user: ${myId} -> ${tofollowId}`);
-      const url = `${ICONA_API_BASE}/users/unfollow/${myId}/${tofollowId}`;
+      const url = `${BASE_URL}/users/unfollow/${myId}/${tofollowId}`;
       console.log(`Unfollow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3432,7 +3269,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Blocking user: ${myId} -> ${toBlock}`);
-      const url = `${ICONA_API_BASE}/users/block/${myId}/${toBlock}`;
+      const url = `${BASE_URL}/users/block/${myId}/${toBlock}`;
       console.log(`Block API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3490,7 +3327,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Unblocking user: ${myId} -> ${toBlock}`);
-      const url = `${ICONA_API_BASE}/users/unblock/${myId}/${toBlock}`;
+      const url = `${BASE_URL}/users/unblock/${myId}/${toBlock}`;
       console.log(`Unblock API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3554,7 +3391,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Reporting user: ${reported_by} reporting ${reported} for: ${reason}`);
-      const url = `${ICONA_API_BASE}/users/report`;
+      const url = `${BASE_URL}/users/report`;
       console.log(`Report API URL: ${url}`);
       const response = await fetch6(url, {
         method: "POST",
@@ -3624,7 +3461,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Following category: User ${userid} following category ${categoryId}`);
-      const url = `${ICONA_API_BASE}/category/follow/${categoryId}`;
+      const url = `${BASE_URL}/category/follow/${categoryId}`;
       console.log(`Category follow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3692,7 +3529,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Unfollowing category: User ${userid} unfollowing category ${categoryId}`);
-      const url = `${ICONA_API_BASE}/category/unfollow/${categoryId}`;
+      const url = `${BASE_URL}/category/unfollow/${categoryId}`;
       console.log(`Category unfollow API URL: ${url}`);
       const response = await fetch6(url, {
         method: "PUT",
@@ -3745,7 +3582,7 @@ function registerAuthRoutes(app2) {
         });
       }
       console.log(`Fetching reviews for user: ${userId}`);
-      const url = `${ICONA_API_BASE}/users/review/${userId}`;
+      const url = `${BASE_URL}/users/review/${userId}`;
       console.log(`Reviews API URL: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -3807,6 +3644,51 @@ function registerAuthRoutes(app2) {
       });
     }
   });
+  app2.post("/users/tip", async (req, res) => {
+    try {
+      console.log("Proxying tip request to Tokshop API");
+      console.log("Tip payload received:", req.body);
+      const { amount, from, to, note } = req.body;
+      if (!amount || !from || !to) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: amount, from, to"
+        });
+      }
+      const { response, data: responseData } = await resilientFetch(
+        `${BASE_URL}/users/tip`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            amount,
+            from,
+            to,
+            note: note || "tip"
+          })
+        }
+      );
+      if (!response.ok) {
+        console.error("Tokshop API tip error:", responseData);
+        return res.status(response.status).json({
+          success: false,
+          error: responseData?.message || "Failed to send tip",
+          details: responseData
+        });
+      }
+      console.log("Tip sent successfully:", responseData);
+      res.json(responseData);
+    } catch (error) {
+      console.error("Tip request error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to send tip",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   app2.get("/api/users/userexists/email", async (req, res) => {
     try {
       const { email } = req.query;
@@ -3821,7 +3703,7 @@ function registerAuthRoutes(app2) {
         email,
         password: "dummy-password-for-existence-check-12345"
       };
-      const { response, data } = await resilientFetch(`${ICONA_API_BASE}/auth/login`, {
+      const { response, data } = await resilientFetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(checkPayload)
@@ -3884,7 +3766,7 @@ function registerAuthRoutes(app2) {
   });
   app2.post("/api/admin/auth/login", async (req, res) => {
     try {
-      console.log("Proxying admin login request to Icona API");
+      console.log("Proxying admin login request to Tokshop API");
       console.log("Admin login payload received:", {
         ...req.body,
         password: "[REDACTED]"
@@ -3899,7 +3781,7 @@ function registerAuthRoutes(app2) {
       }
       const { email, password } = validationResult.data;
       const { response, data: responseData } = await resilientFetch(
-        `${ICONA_API_BASE}/admin/login`,
+        `${BASE_URL}/admin/login`,
         {
           method: "POST",
           headers: {
@@ -3913,7 +3795,7 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API admin login error:", errorData);
+        console.error("Tokshop API admin login error:", errorData);
         return res.status(response.status).json({
           success: false,
           message: errorData.message,
@@ -3929,7 +3811,7 @@ function registerAuthRoutes(app2) {
         accessToken: adminResponse.accesstoken || adminResponse.accessToken,
         message: adminResponse.message || "Admin login successful"
       };
-      const parseResult = iconaAuthResponseSchema.safeParse(normalizedResponse);
+      const parseResult = tokshopAuthResponseSchema.safeParse(normalizedResponse);
       if (!parseResult.success) {
         console.error("Invalid admin login response structure:", parseResult.error);
         console.error("Raw response data:", JSON.stringify(responseData).substring(0, 500));
@@ -3991,7 +3873,7 @@ function registerAuthRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.status) queryParams.append("status", req.query.status);
-      const url = `${ICONA_API_BASE}/transactions?${queryParams.toString()}`;
+      const url = `${BASE_URL}/transactions?${queryParams.toString()}`;
       console.log(`Fetching user transactions from: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -4047,7 +3929,7 @@ function registerAuthRoutes(app2) {
           error: "Authentication required"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Fetching public settings from: ${url}`);
       const response = await fetch6(url, {
         method: "GET",
@@ -4070,7 +3952,7 @@ function registerAuthRoutes(app2) {
         data: {
           stripe_fee: settings?.stripe_fee || "0",
           extra_charges: settings?.extra_charges || "0",
-          support_email: settings?.support_email || "support@icona.com"
+          support_email: settings?.support_email || ""
         }
       });
     } catch (error) {
@@ -4134,22 +4016,35 @@ var createProductSchema = z3.object({
   startingPrice: z3.coerce.number().optional(),
   duration: z3.coerce.number().optional(),
   sudden: z3.boolean().optional(),
+  startTime: z3.string().optional().nullable(),
+  endTime: z3.string().optional().nullable(),
   colors: z3.array(z3.string()).optional(),
   sizes: z3.array(z3.string()).optional(),
   reserved: z3.boolean().optional(),
   tokshow: z3.union([z3.boolean(), z3.string(), z3.null()]).optional(),
   featured: z3.boolean().optional().default(false),
+  started: z3.boolean().optional().default(false),
   userId: z3.string().optional()
 });
 function registerProductRoutes(app2) {
   app2.get("/api/products/search", async (req, res) => {
     try {
-      const { q } = req.query;
-      console.log("Proxying product search request to Icona API with query:", q);
-      if (!q || typeof q !== "string") {
-        return res.json({ products: [] });
+      const queryParams = req.query;
+      console.log("Proxying product search request to Tokshop API with params:", queryParams);
+      if (!queryParams.q || typeof queryParams.q !== "string") {
+        return res.json({
+          query: queryParams.q || "",
+          results: { products: [], rooms: [], users: [] },
+          pagination: { page: 1, limit: 20, total: 0, pages: 0 }
+        });
       }
-      const url = `${ICONA_API_BASE}/products/search?q=${encodeURIComponent(q)}`;
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(queryParams)) {
+        if (value && typeof value === "string") {
+          params.set(key, value);
+        }
+      }
+      const url = `${BASE_URL}/products/search?${params.toString()}`;
       console.log("Final search API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -4163,27 +4058,30 @@ function registerProductRoutes(app2) {
       });
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`
+          `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
       if (data?.results?.users && data.results.users.length > 0) {
         console.log("Sample user from search results:", JSON.stringify(data.results.users[0], null, 2));
       }
+      if (data?.results?.products && data.results.products.length > 0) {
+        console.log("Sample product from search results:", JSON.stringify(data.results.products[0], null, 2));
+      }
       res.json(data);
     } catch (error) {
       console.error("Product search proxy error:", error);
-      res.status(500).json({ error: "Failed to search products from Icona API", products: [] });
+      res.status(500).json({ error: "Failed to search products from Tokshop API", products: [] });
     }
   });
   app2.get("/api/products/:id", async (req, res) => {
     try {
       const { id } = req.params;
       console.log(
-        "Proxying individual product request to Icona API for product:",
+        "Proxying individual product request to Tokshop API for product:",
         id
       );
-      const url = `${ICONA_API_BASE}/products/products/${id}`;
+      const url = `${BASE_URL}/products/products/${id}`;
       console.log("Final API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -4197,56 +4095,53 @@ function registerProductRoutes(app2) {
       });
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`
+          `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Individual product proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch product from Icona API" });
+      res.status(500).json({ error: "Failed to fetch product from Tokshop API" });
     }
   });
   app2.get("/api/products", async (req, res) => {
     try {
-      console.log("Proxying products request to Icona API");
+      console.log("Proxying products request to Tokshop API");
       console.log("Query params received:", req.query);
-      const queryParams = new URLSearchParams();
-      if (req.query.userId || req.query.userid) {
-        queryParams.set("userid", req.query.userId || req.query.userid);
+      const queryParts = [];
+      if (req.query.userId !== void 0 || req.query.userid !== void 0) {
+        queryParts.push(`userid=${encodeURIComponent(req.query.userId || req.query.userid)}`);
       }
-      if (req.query.roomId) {
-        console.log("Adding roomId to query:", req.query.roomId);
-        queryParams.set("roomid", req.query.roomId);
-      } else {
-        console.log("No roomId in query");
+      if (req.query.roomId !== void 0 || req.query.roomid !== void 0) {
+        queryParts.push(`roomid=${encodeURIComponent(req.query.roomId || req.query.roomid || "")}`);
       }
-      if (req.query.saletype) {
-        console.log("Adding saletype to query:", req.query.saletype);
-        queryParams.set("saletype", req.query.saletype);
-      } else {
-        console.log("No saletype in query");
+      if (req.query.type !== void 0) {
+        queryParts.push(`type=${encodeURIComponent(req.query.type)}`);
       }
-      if (req.query.status && req.query.status !== "all") {
-        queryParams.set("status", req.query.status);
+      if (req.query.saletype !== void 0) {
+        queryParts.push(`saletype=${encodeURIComponent(req.query.saletype)}`);
       }
-      if (req.query.type) {
-        queryParams.set("type", req.query.type);
+      if (req.query.categoryId !== void 0 || req.query.category !== void 0) {
+        queryParts.push(`category=${encodeURIComponent(req.query.categoryId || req.query.category || "")}`);
       }
-      if (req.query.page) {
-        queryParams.set("page", req.query.page);
+      if (req.query.page !== void 0) {
+        queryParts.push(`page=${encodeURIComponent(req.query.page)}`);
       }
-      if (req.query.limit) {
-        queryParams.set("limit", req.query.limit);
-      }
-      if (req.query.categoryId) {
-        queryParams.set("category", req.query.categoryId);
+      if (req.query.limit !== void 0) {
+        queryParts.push(`limit=${encodeURIComponent(req.query.limit)}`);
       }
       if (req.query.featured !== void 0) {
-        queryParams.set("featured", req.query.featured);
+        queryParts.push(`featured=${encodeURIComponent(req.query.featured)}`);
       }
-      const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/products${queryString ? "?" + queryString : ""}`;
+      if (req.query.status !== void 0) {
+        queryParts.push(`status=${encodeURIComponent(req.query.status)}`);
+      }
+      if (req.query.title !== void 0) {
+        queryParts.push(`title=${encodeURIComponent(req.query.title)}`);
+      }
+      const queryString = queryParts.join("&");
+      const url = `${BASE_URL}/products/${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
       const response = await fetch7(url, {
         method: "GET",
@@ -4256,7 +4151,7 @@ function registerProductRoutes(app2) {
       });
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`
+          `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4275,13 +4170,13 @@ function registerProductRoutes(app2) {
       res.json(data);
     } catch (error) {
       console.error("Products proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch products from Icona API" });
+      res.status(500).json({ error: "Failed to fetch products from Tokshop API" });
     }
   });
   app2.post("/api/products/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Creating product via Icona API for user:", userId);
+      console.log("Creating product via Tokshop API for user:", userId);
       console.log("Product data received:", req.body);
       if (!userId) {
         return res.status(400).json({ error: "User ID is required" });
@@ -4295,7 +4190,7 @@ function registerProductRoutes(app2) {
         });
       }
       const productData = validationResult.data;
-      const iconaProductData = {
+      const tokshopProductData = {
         name: productData.name,
         ...productData.price && { price: productData.price },
         quantity: productData.quantity,
@@ -4305,6 +4200,7 @@ function registerProductRoutes(app2) {
         listing_type: productData.listingType,
         status: productData.status || "draft",
         featured: productData.featured || false,
+        started: productData.featured && productData.listingType === "auction" || false,
         // Only include optional fields if they have values (filter out empty strings)
         ...req.body.images && { images: req.body.images },
         ...req.body.discountedPrice && {
@@ -4315,6 +4211,12 @@ function registerProductRoutes(app2) {
         },
         ...req.body.duration && { duration: req.body.duration },
         ...req.body.sudden !== void 0 && { sudden: req.body.sudden },
+        ...req.body.startTimeTimestamp && {
+          start_time_date: req.body.startTimeTimestamp
+        },
+        ...req.body.endTimeTimestamp && {
+          end_time_date: req.body.endTimeTimestamp
+        },
         ...req.body.colors && { colors: req.body.colors },
         ...req.body.sizes && { sizes: req.body.sizes },
         ...req.body.reserved !== void 0 && { reserved: req.body.reserved },
@@ -4343,22 +4245,24 @@ function registerProductRoutes(app2) {
         console.log("WARNING: No access token found in session");
       }
       console.log(
-        "Sending to Icona API:",
-        JSON.stringify(iconaProductData, null, 2)
+        "Sending to Tokshop API:",
+        JSON.stringify(tokshopProductData, null, 2)
       );
-      const response = await fetch7(`${ICONA_API_BASE}/products/${userId}`, {
+      const response = await fetch7(`${BASE_URL}/products/${userId}`, {
         method: "POST",
         headers,
-        body: JSON.stringify(iconaProductData)
+        body: JSON.stringify(tokshopProductData)
       });
+      console.log("External API response status:", response.status);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.log("External API error response:", JSON.stringify(errorData, null, 2));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
-      console.log("Product created successfully:", data);
+      console.log("External API success response:", JSON.stringify(data, null, 2));
       res.json(data);
     } catch (error) {
       console.error("Product creation error:", error);
@@ -4371,7 +4275,7 @@ function registerProductRoutes(app2) {
   app2.post("/api/products/bulkadd/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Bulk adding products via Icona API for user:", userId);
+      console.log("Bulk adding products via Tokshop API for user:", userId);
       console.log(
         "Number of products received:",
         req.body.products?.length || 0
@@ -4403,7 +4307,7 @@ function registerProductRoutes(app2) {
           validationErrors
         });
       }
-      const iconaProducts = validatedProducts.map((productData) => ({
+      const tokshopProducts = validatedProducts.map((productData) => ({
         name: productData.name,
         price: productData.price,
         quantity: productData.quantity,
@@ -4426,23 +4330,23 @@ function registerProductRoutes(app2) {
           "WARNING: No access token found in session for bulk upload"
         );
       }
-      console.log("Sending bulk products to Icona API:", {
-        endpoint: `${ICONA_API_BASE}/products/products/bulkadd`,
-        productCount: iconaProducts.length
+      console.log("Sending bulk products to Tokshop API:", {
+        endpoint: `${BASE_URL}/products/products/bulkadd`,
+        productCount: tokshopProducts.length
       });
-      console.log("Actual payload being sent:", JSON.stringify({ products: iconaProducts }, null, 2));
+      console.log("Actual payload being sent:", JSON.stringify({ products: tokshopProducts }, null, 2));
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/products/bulkadd`,
+        `${BASE_URL}/products/products/bulkadd`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ products: iconaProducts })
+          body: JSON.stringify({ products: tokshopProducts })
         }
       );
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4462,7 +4366,7 @@ function registerProductRoutes(app2) {
   app2.post("/api/products/images/:productId", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Updating product images via Icona API:", productId);
+      console.log("Updating product images via Tokshop API:", productId);
       const { images } = req.body;
       if (!images || !Array.isArray(images)) {
         return res.status(400).json({ error: "Images array is required" });
@@ -4474,7 +4378,7 @@ function registerProductRoutes(app2) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/images/${productId}`,
+        `${BASE_URL}/products/images/${productId}`,
         {
           method: "POST",
           headers,
@@ -4484,7 +4388,7 @@ function registerProductRoutes(app2) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4501,7 +4405,7 @@ function registerProductRoutes(app2) {
   app2.patch("/api/products/:productId", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Updating product via Icona API:", productId);
+      console.log("Updating product via Tokshop API:", productId);
       console.log("Raw request body featured field:", req.body.featured);
       const validationResult = createProductSchema.safeParse(req.body);
       if (!validationResult.success) {
@@ -4513,7 +4417,7 @@ function registerProductRoutes(app2) {
       }
       const productData = validationResult.data;
       console.log("Validated featured field:", productData.featured);
-      const iconaUpdateData = {
+      const tokshopUpdateData = {
         name: productData.name,
         price: productData.price,
         quantity: productData.quantity,
@@ -4531,14 +4435,27 @@ function registerProductRoutes(app2) {
         listing_type: productData.listingType,
         tokshow: productData.tokshow,
         featured: productData.featured || false,
-        shipping_profile: productData.shippingProfile?.trim() ? productData.shippingProfile : null
+        started: productData.featured && productData.listingType === "auction" || false
       };
+      if (req.body.startTimeTimestamp) {
+        tokshopUpdateData.start_time_date = req.body.startTimeTimestamp;
+      }
+      if (req.body.endTimeTimestamp) {
+        tokshopUpdateData.end_time_date = req.body.endTimeTimestamp;
+      }
+      if (productData.shippingProfile && productData.shippingProfile.trim()) {
+        tokshopUpdateData.shipping_profile = productData.shippingProfile;
+      }
+      if (req.body.auction) {
+        tokshopUpdateData.auction = req.body.auction;
+        console.log("Sending to external API - auction ID:", tokshopUpdateData.auction);
+      }
       console.log(
         "Sending to external API - featured field:",
-        iconaUpdateData.featured
+        tokshopUpdateData.featured
       );
-      console.log("Sending to external API - sudden:", iconaUpdateData.sudden);
-      console.log("Sending to external API - duration:", iconaUpdateData.duration);
+      console.log("Sending to external API - sudden:", tokshopUpdateData.sudden);
+      console.log("Sending to external API - duration:", tokshopUpdateData.duration);
       const headers = {
         "Content-Type": "application/json"
       };
@@ -4546,17 +4463,17 @@ function registerProductRoutes(app2) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/products/${productId}`,
+        `${BASE_URL}/products/products/${productId}`,
         {
           method: "PUT",
           headers,
-          body: JSON.stringify(iconaUpdateData)
+          body: JSON.stringify(tokshopUpdateData)
         }
       );
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4572,15 +4489,40 @@ function registerProductRoutes(app2) {
   app2.put("/api/products/:productId/delete", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Soft deleting product via Icona API:", productId);
+      console.log("Soft deleting product via Tokshop API:", productId);
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
+      console.log("Fetching product details to get images:", productId);
+      const productResponse = await fetch7(
+        `${BASE_URL}/products/products/${productId}`,
+        {
+          method: "GET",
+          headers
+        }
+      );
+      if (productResponse.ok) {
+        const productData = await productResponse.json();
+        const images = productData?.images || [];
+        if (images.length > 0) {
+          console.log(`Found ${images.length} images to delete from Firebase Storage`);
+          try {
+            await deleteImagesFromStorage(images);
+            console.log("\u2705 Successfully deleted product images from Firebase Storage");
+          } catch (storageError) {
+            console.error("\u26A0\uFE0F Error deleting images from Firebase Storage:", storageError);
+          }
+        } else {
+          console.log("No images to delete from Firebase Storage");
+        }
+      } else {
+        console.warn("Could not fetch product details for image cleanup");
+      }
       const response = await fetch7(
-        `${ICONA_API_BASE}/products/products/${productId}`,
+        `${BASE_URL}/products/products/${productId}`,
         {
           method: "PUT",
           headers,
@@ -4590,7 +4532,7 @@ function registerProductRoutes(app2) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4613,7 +4555,7 @@ function registerProductRoutes(app2) {
         return res.status(400).json({ error: "updates object is required" });
       }
       console.log(`Bulk editing ${productIds.length} products:`, { productIds, updates });
-      const iconaUpdates = {
+      const tokshopUpdates = {
         ...updates,
         // Map shippingProfile to shipping_profile if present
         ...updates.shippingProfile && {
@@ -4621,16 +4563,16 @@ function registerProductRoutes(app2) {
           shippingProfile: void 0
         }
       };
-      Object.keys(iconaUpdates).forEach((key) => {
-        if (iconaUpdates[key] === void 0) {
-          delete iconaUpdates[key];
+      Object.keys(tokshopUpdates).forEach((key) => {
+        if (tokshopUpdates[key] === void 0) {
+          delete tokshopUpdates[key];
         }
       });
       const payload = {
         productIds,
-        updates: iconaUpdates
+        updates: tokshopUpdates
       };
-      console.log("Sending to Icona API:", JSON.stringify(payload, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(payload, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
@@ -4640,17 +4582,17 @@ function registerProductRoutes(app2) {
       } else {
         console.log("WARNING: No access token found in session for bulk edit");
       }
-      const response = await fetch7(`${ICONA_API_BASE}/products/products/bulkedit/all`, {
+      const response = await fetch7(`${BASE_URL}/products/products/bulkedit/all`, {
         method: "PUT",
         headers,
         body: JSON.stringify(payload)
       });
-      console.log(`Icona API response status: ${response.status}`);
+      console.log(`Tokshop API response status: ${response.status}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("Icona API error:", errorData);
+        console.error("Tokshop API error:", errorData);
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4671,7 +4613,7 @@ import fetch8 from "node-fetch";
 function registerCategoryRoutes(app2) {
   app2.get("/api/categories", async (req, res) => {
     try {
-      console.log("Proxying categories request to Icona API");
+      console.log("Proxying categories request to Tokshop API");
       console.log("Query params received:", req.query);
       const queryParams = new URLSearchParams();
       if (req.query.userId) {
@@ -4687,7 +4629,7 @@ function registerCategoryRoutes(app2) {
         queryParams.set("limit", req.query.limit);
       }
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/category${queryString ? "?" + queryString : ""}`;
+      const url = `${BASE_URL}/category${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
       const response = await fetch8(url, {
         method: "GET",
@@ -4696,13 +4638,13 @@ function registerCategoryRoutes(app2) {
         }
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Categories proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch categories from Icona API" });
+      res.status(500).json({ error: "Failed to fetch categories from Tokshop API" });
     }
   });
 }
@@ -4717,18 +4659,29 @@ function registerAddressRoutes(app2) {
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/all/${userId}`, {
+      const response = await fetch9(`${BASE_URL}/address/all/${userId}`, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      console.log("Address API response (first address):", JSON.stringify(data[0], null, 2));
+      if (data && data.length > 0) {
+        console.log("======= ADDRESS API RESPONSE =======");
+        console.log("Full address object:", JSON.stringify(data[0], null, 2));
+        console.log("Country:", data[0].country);
+        console.log("CountryCode:", data[0].countryCode);
+        console.log("State:", data[0].state);
+        console.log("StateCode:", data[0].stateCode);
+        console.log("City:", data[0].city);
+        console.log("CityCode:", data[0].cityCode);
+        console.log("=====================================");
+      }
       const transformedData = data.map((address) => ({
         ...address,
         zipcode: address.zip || address.zipcode || ""
@@ -4747,19 +4700,20 @@ function registerAddressRoutes(app2) {
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/all/${userId}`, {
+      const response = await fetch9(`${BASE_URL}/address/all/${userId}`, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
-      const addresses2 = await response.json();
-      console.log(`Fetched ${addresses2?.length || 0} addresses for user ${userId}`);
-      const defaultAddress = addresses2?.find((addr) => addr.primary === true);
+      const addresses = await response.json();
+      console.log(`Fetched ${addresses?.length || 0} addresses for user ${userId}`);
+      const defaultAddress = addresses?.find((addr) => addr.primary === true);
       console.log("Default address found:", defaultAddress ? "YES" : "NO");
       if (!defaultAddress) {
         return res.json({ address: null });
@@ -4787,7 +4741,7 @@ function registerAddressRoutes(app2) {
         });
       }
       const validatedData = validationResult.data;
-      console.log("Creating address via Icona API for user:", validatedData.userId);
+      console.log("Creating address via Tokshop API for user:", validatedData.userId);
       const transformedBody = {
         userId: validatedData.userId,
         name: validatedData.name,
@@ -4811,21 +4765,22 @@ function registerAddressRoutes(app2) {
         email: validatedData.email,
         validate: true
       };
-      console.log("Sending to Icona API:", JSON.stringify(transformedBody, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(transformedBody, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address`, {
+      const response = await fetch9(`${BASE_URL}/address`, {
         method: "POST",
         headers,
         body: JSON.stringify(transformedBody)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       let isActualError = !response.ok;
       try {
         const jsonCheck = JSON.parse(responseText);
@@ -4835,7 +4790,7 @@ function registerAddressRoutes(app2) {
       } catch (e) {
       }
       if (isActualError) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4875,7 +4830,7 @@ function registerAddressRoutes(app2) {
         });
       }
       const validatedData = validationResult.data;
-      console.log("Updating address via Icona API:", addressId);
+      console.log("Updating address via Tokshop API:", addressId);
       const transformedBody = {
         userId: validatedData.userId,
         name: validatedData.name,
@@ -4899,21 +4854,22 @@ function registerAddressRoutes(app2) {
         email: validatedData.email,
         validate: true
       };
-      console.log("Sending to Icona API:", JSON.stringify(transformedBody, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(transformedBody, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/${addressId}`, {
+      const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "PUT",
         headers,
         body: JSON.stringify(transformedBody)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       let isActualError = !response.ok;
       try {
         const jsonCheck = JSON.parse(responseText);
@@ -4923,7 +4879,7 @@ function registerAddressRoutes(app2) {
       } catch (e) {
       }
       if (isActualError) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4968,25 +4924,26 @@ function registerAddressRoutes(app2) {
         });
       }
       const validatedData = validationResult.data;
-      console.log("Setting address as primary via Icona API:", addressId);
+      console.log("Setting address as primary via Tokshop API:", addressId);
       const requestBody = { primary: validatedData.primary, userId: validatedData.userId };
-      console.log("Sending to Icona API:", JSON.stringify(requestBody, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(requestBody, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/${addressId}`, {
+      const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "PATCH",
         headers,
         body: JSON.stringify(requestBody)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -5019,19 +4976,20 @@ function registerAddressRoutes(app2) {
   app2.delete("/api/address/:addressId", async (req, res) => {
     try {
       const { addressId } = req.params;
-      console.log("Deleting address via Icona API:", addressId);
+      console.log("Deleting address via Tokshop API:", addressId);
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
-      const response = await fetch9(`${ICONA_API_BASE}/address/${addressId}`, {
+      const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "DELETE",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -5060,14 +5018,14 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/users/paymentmethod/${userId}`, {
+      const response = await fetch10(`${BASE_URL}/users/paymentmethod/${userId}`, {
         method: "GET",
         headers
       });
       const responseText = await response.text();
       console.log("Get payment methods response status:", response.status);
       if (!response.ok) {
-        console.error(`Icona API get payment methods error ${response.status}`);
+        console.error(`Tokshop API get payment methods error ${response.status}`);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -5107,7 +5065,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/remove`, {
+      const response = await fetch10(`${BASE_URL}/stripe/remove`, {
         method: "DELETE",
         headers,
         body: JSON.stringify({ paymentMethodId, userid })
@@ -5115,7 +5073,7 @@ function registerPaymentMethodRoutes(app2) {
       const responseText = await response.text();
       console.log("Delete payment method response status:", response.status);
       if (!response.ok) {
-        console.error(`Icona API delete error ${response.status}`);
+        console.error(`Tokshop API delete error ${response.status}`);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -5155,7 +5113,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/default`, {
+      const response = await fetch10(`${BASE_URL}/stripe/default`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ userid, paymentMethodId })
@@ -5163,7 +5121,7 @@ function registerPaymentMethodRoutes(app2) {
       const responseText = await response.text();
       console.log("Set default payment method response status:", response.status);
       if (!response.ok) {
-        console.error(`Icona API set default error ${response.status}`);
+        console.error(`Tokshop API set default error ${response.status}`);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -5196,14 +5154,14 @@ function registerPaymentMethodRoutes(app2) {
           error: "Payment method ID and user ID are required"
         });
       }
-      console.log("Adding payment method via Icona API:", { paymentMethodId, userId });
+      console.log("Adding payment method via Tokshop API:", { paymentMethodId, userId });
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/users/paymentmethod`, {
+      const response = await fetch10(`${BASE_URL}/users/paymentmethod`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -5212,10 +5170,10 @@ function registerPaymentMethodRoutes(app2) {
         })
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -5255,7 +5213,7 @@ function registerPaymentMethodRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/setupitent`, {
+      const response = await fetch10(`${BASE_URL}/stripe/setupitent`, {
         method: "POST",
         headers,
         body: JSON.stringify({ email: email.trim() })
@@ -5317,7 +5275,7 @@ function registerPaymentMethodRoutes(app2) {
       if (trimmedMethodId) {
         payload.methodid = trimmedMethodId;
       }
-      const response = await fetch10(`${ICONA_API_BASE}/stripe/savepaymentmethod`, {
+      const response = await fetch10(`${BASE_URL}/stripe/savepaymentmethod`, {
         method: "POST",
         headers,
         body: JSON.stringify(payload)
@@ -5557,7 +5515,7 @@ async function checkDemoMode(req, res, next) {
     if (!accessToken) {
       return next();
     }
-    const url = `${ICONA_API_BASE}/admin/app/settings`;
+    const url = `${BASE_URL}/admin/app/settings`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -5589,7 +5547,7 @@ function registerAdminRoutes(app2) {
       res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
       res.set("Pragma", "no-cache");
       res.set("Expires", "0");
-      const url = `${ICONA_API_BASE}/admin/exists`;
+      const url = `${BASE_URL}/admin/exists`;
       console.log(`Checking if admin exists at external API: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -5621,7 +5579,7 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/api/admin/check-setup", async (req, res) => {
     try {
-      const url = `${ICONA_API_BASE}/admin`;
+      const url = `${BASE_URL}/admin`;
       console.log(`Checking if admins exist: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -5663,9 +5621,9 @@ function registerAdminRoutes(app2) {
         });
       }
       const possibleEndpoints = [
-        `${ICONA_API_BASE}/admin/register`,
-        `${ICONA_API_BASE}/admin/signup`,
-        `${ICONA_API_BASE}/admin`
+        `${BASE_URL}/admin/register`,
+        `${BASE_URL}/admin/signup`,
+        `${BASE_URL}/admin`
       ];
       let response;
       let lastError = null;
@@ -5743,7 +5701,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.title) queryParams.append("title", req.query.title);
-      const url = `${ICONA_API_BASE}/users${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/users${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching users from: ${url}`);
       console.log(`Using accessToken (first 50 chars): ${accessToken ? accessToken.substring(0, 50) : "NO TOKEN"}...`);
       const response = await fetch(url, {
@@ -5809,7 +5767,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/addresses`,
+        `${BASE_URL}/admin/users/${userId}/addresses`,
         {
           method: "GET",
           headers: {
@@ -5850,7 +5808,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/shipping-profiles`,
+        `${BASE_URL}/admin/users/${userId}/shipping-profiles`,
         {
           method: "GET",
           headers: {
@@ -5890,7 +5848,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/products/?_id=${productId}&populate=shipping`;
+      const url = `${BASE_URL}/products/?_id=${productId}&populate=shipping`;
       console.log(`Fetching product details from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -5963,7 +5921,7 @@ function registerAdminRoutes(app2) {
       if (req.query.title) queryParams.append("title", req.query.title);
       if (req.query.price) queryParams.append("price", req.query.price);
       if (req.query.userid) queryParams.append("userid", req.query.userid);
-      const url = `${ICONA_API_BASE}/products/${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/products/${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching products from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6027,7 +5985,7 @@ function registerAdminRoutes(app2) {
       }
       console.log(`Admin updating product: ${productId}`);
       console.log(`Update payload:`, req.body);
-      const url = `${ICONA_API_BASE}/products/products/${productId}`;
+      const url = `${BASE_URL}/products/products/${productId}`;
       const response = await fetch(url, {
         method: "PUT",
         headers: {
@@ -6081,7 +6039,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/inventory`,
+        `${BASE_URL}/admin/users/${userId}/inventory`,
         {
           method: "GET",
           headers: {
@@ -6122,7 +6080,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const response = await fetch(
-        `${ICONA_API_BASE}/admin/users/${userId}/orders`,
+        `${BASE_URL}/admin/users/${userId}/orders`,
         {
           method: "GET",
           headers: {
@@ -6162,7 +6120,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`Fetching user details from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6216,7 +6174,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/users/approveseller/${userId}`;
+      const url = `${BASE_URL}/users/approveseller/${userId}`;
       console.log(`Approving seller at: ${url}`);
       console.log(`Seller approval payload:`, { email });
       const response = await fetch(url, {
@@ -6271,7 +6229,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`Updating user at: ${url}`);
       console.log(`Update payload:`, req.body);
       const response = await fetch(url, {
@@ -6329,7 +6287,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.userId) queryParams.append("userId", req.query.userId);
-      const url = `${ICONA_API_BASE}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching transactions from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6386,7 +6344,7 @@ function registerAdminRoutes(app2) {
       if (req.query.title) queryParams.append("title", req.query.title);
       if (req.query.type) queryParams.append("type", req.query.type);
       queryParams.append("sort", "-1");
-      const url = `${ICONA_API_BASE}/rooms${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/rooms${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching shows from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6427,7 +6385,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/rooms/${showId}`;
+      const url = `${BASE_URL}/rooms/${showId}`;
       console.log(`Fetching show details from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6471,7 +6429,7 @@ function registerAdminRoutes(app2) {
       queryParams.append("saletype", "auction");
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
-      const url = `${ICONA_API_BASE}/products/?${queryParams.toString()}`;
+      const url = `${BASE_URL}/products/?${queryParams.toString()}`;
       console.log(`Fetching show auctions from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6518,7 +6476,7 @@ function registerAdminRoutes(app2) {
       queryParams.append("room", showId);
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
-      const url = `${ICONA_API_BASE}/giveaways/?${queryParams.toString()}`;
+      const url = `${BASE_URL}/giveaways/?${queryParams.toString()}`;
       console.log(`Fetching show giveaways from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6565,7 +6523,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       queryParams.append("featured", "false");
-      const url = `${ICONA_API_BASE}/products/?${queryParams.toString()}`;
+      const url = `${BASE_URL}/products/?${queryParams.toString()}`;
       console.log(`Fetching show buy now items from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6610,7 +6568,7 @@ function registerAdminRoutes(app2) {
       queryParams.append("tokshow", showId);
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
-      const url = `${ICONA_API_BASE}/orders?${queryParams.toString()}`;
+      const url = `${BASE_URL}/orders?${queryParams.toString()}`;
       console.log(`Fetching show sold orders from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6650,7 +6608,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -6686,7 +6644,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Fetching app settings from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6724,7 +6682,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Updating app settings at: ${url}`);
       const response = await fetch(url, {
         method: "POST",
@@ -6777,7 +6735,7 @@ function registerAdminRoutes(app2) {
         filename: req.file.originalname,
         contentType: req.file.mimetype
       });
-      const url = `${ICONA_API_BASE}/settings/upload-logo`;
+      const url = `${BASE_URL}/settings/upload-logo`;
       console.log(`Uploading logo to: ${url}`);
       const response = await axios.post(url, formData, {
         headers: {
@@ -6811,7 +6769,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/admin/profile/${userId}`;
+      const url = `${BASE_URL}/admin/profile/${userId}`;
       console.log(`Fetching admin profile from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6850,7 +6808,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const userId = req.session.user.id || req.session.user._id;
-      const url = `${ICONA_API_BASE}/admin/${userId}`;
+      const url = `${BASE_URL}/admin/${userId}`;
       console.log(`Updating admin profile at: ${url}`);
       const response = await fetch(url, {
         method: "PATCH",
@@ -6904,7 +6862,7 @@ function registerAdminRoutes(app2) {
       if (req.query.charge) queryParams.append("charge", req.query.charge);
       if (req.query.account) queryParams.append("account", req.query.account);
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/stripe/application/fees${queryString ? `?${queryString}` : ""}`;
+      const url = `${BASE_URL}/stripe/application/fees${queryString ? `?${queryString}` : ""}`;
       console.log(`Fetching application fees from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -6952,7 +6910,7 @@ function registerAdminRoutes(app2) {
       if (limit) queryParams.append("limit", limit);
       if (starting_after) queryParams.append("starting_after", starting_after);
       if (ending_before) queryParams.append("ending_before", ending_before);
-      const stripeUrl = `${ICONA_API_BASE}/stripe/transactions/all/payouts${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
+      const stripeUrl = `${BASE_URL}/stripe/transactions/all/payouts${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
       console.log(`Fetching all Stripe payouts from: ${stripeUrl}`);
       const stripeResponse = await fetch(stripeUrl, {
         method: "GET",
@@ -6994,7 +6952,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/category/${categoryId}`;
+      const url = `${BASE_URL}/category/${categoryId}`;
       console.log(`Fetching category from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7038,7 +6996,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.title) queryParams.append("title", req.query.title);
       const queryString = queryParams.toString();
-      const url = `${ICONA_API_BASE}/category${queryString ? `?${queryString}` : ""}`;
+      const url = `${BASE_URL}/category${queryString ? `?${queryString}` : ""}`;
       console.log(`Fetching categories from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7097,7 +7055,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category`;
+      const url = `${BASE_URL}/category`;
       console.log(`Adding category to: ${url}`);
       const response = await axios.post(url, formData, {
         headers: {
@@ -7148,7 +7106,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Updating category at: ${url}`);
       const response = await axios.put(url, formData, {
         headers: {
@@ -7187,7 +7145,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const formattedNames = names.map((name) => ({ name }));
-      const url = `${ICONA_API_BASE}/category/bulk/add`;
+      const url = `${BASE_URL}/category/bulk/add`;
       console.log(`Bulk importing categories to: ${url}`);
       const response = await fetch(url, {
         method: "POST",
@@ -7257,7 +7215,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category`;
+      const url = `${BASE_URL}/category`;
       console.log(`Adding subcategory to: ${url}`);
       const response = await axios.post(url, formData, {
         headers: {
@@ -7312,7 +7270,7 @@ function registerAdminRoutes(app2) {
           });
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Updating subcategory at: ${url}`);
       const response = await axios.put(url, formData, {
         headers: {
@@ -7352,7 +7310,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const formattedNames = names.map((name) => ({ name, type: "child" }));
-      const url = `${ICONA_API_BASE}/category/subcategory/bulk/${categoryId}`;
+      const url = `${BASE_URL}/category/subcategory/bulk/${categoryId}`;
       console.log(`Bulk importing subcategories to: ${url}`);
       const response = await fetch(url, {
         method: "POST",
@@ -7407,7 +7365,7 @@ function registerAdminRoutes(app2) {
         });
       }
       const formData = new FormData();
-      const getCategoryUrl = `${ICONA_API_BASE}/category/${id}`;
+      const getCategoryUrl = `${BASE_URL}/category/${id}`;
       const getCategoryResponse = await fetch(getCategoryUrl, {
         method: "GET",
         headers: {
@@ -7427,7 +7385,7 @@ function registerAdminRoutes(app2) {
       } else {
         formData.append("type", "parent");
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Converting category type at: ${url} to ${targetType}`);
       const response = await axios.put(url, formData, {
         headers: {
@@ -7460,7 +7418,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Deleting subcategory from: ${url}`);
       const response = await fetch(url, {
         method: "DELETE",
@@ -7500,7 +7458,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/category/${id}`;
+      const url = `${BASE_URL}/category/${id}`;
       console.log(`Deleting category from: ${url}`);
       const response = await fetch(url, {
         method: "DELETE",
@@ -7543,7 +7501,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.status) queryParams.append("status", req.query.status);
-      const url = `${ICONA_API_BASE}/orders/all/disputes${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/orders/all/disputes${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching disputes from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7584,7 +7542,7 @@ function registerAdminRoutes(app2) {
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/orders/dispute/${disputeId}`;
+      const url = `${BASE_URL}/orders/dispute/${disputeId}`;
       console.log(`Fetching dispute from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7642,7 +7600,7 @@ function registerAdminRoutes(app2) {
           error: "Favored user ID is required"
         });
       }
-      const url = `${ICONA_API_BASE}/orders/close/dispute/${disputeId}`;
+      const url = `${BASE_URL}/orders/close/dispute/${disputeId}`;
       console.log(`[Resolve Dispute] Calling ICONA API: ${url}`);
       console.log(`[Resolve Dispute] Payload:`, { favored, final_comments });
       const response = await fetch(url, {
@@ -7690,7 +7648,7 @@ function registerAdminRoutes(app2) {
       if (req.query.page) queryParams.append("page", req.query.page);
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       queryParams.append("populate", "reported reported_by");
-      const url = `${ICONA_API_BASE}/users/reports/cases${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/users/reports/cases${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching reported cases from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7741,7 +7699,7 @@ function registerAdminRoutes(app2) {
           error: "Blocked status is required and must be a boolean"
         });
       }
-      const url = `${ICONA_API_BASE}/users/${userId}`;
+      const url = `${BASE_URL}/users/${userId}`;
       console.log(`[Block User] Calling ICONA API: ${url}`);
       console.log(`[Block User] Payload:`, { system_blocked: blocked });
       const response = await fetch(url, {
@@ -7794,7 +7752,7 @@ function registerAdminRoutes(app2) {
           error: "Type is required and must be 'order' or 'transaction'"
         });
       }
-      const url = `${ICONA_API_BASE}/orders/refund/order/transaction/${id}`;
+      const url = `${BASE_URL}/orders/refund/order/transaction/${id}`;
       console.log(`[Refund] Calling ICONA API: ${url} with type: ${type}`);
       const response = await fetch(url, {
         method: "PUT",
@@ -7840,7 +7798,7 @@ function registerAdminRoutes(app2) {
       const queryParams = new URLSearchParams();
       if (req.query.limit) queryParams.append("limit", req.query.limit);
       if (req.query.page) queryParams.append("page", req.query.page);
-      const url = `${ICONA_API_BASE}/stripe/refunds/list/all${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+      const url = `${BASE_URL}/stripe/refunds/list/all${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       console.log(`Fetching refunds from: ${url}`);
       const response = await fetch(url, {
         method: "GET",
@@ -7894,7 +7852,7 @@ function registerAdminRoutes(app2) {
           error: "Recipient email is required for individual emails"
         });
       }
-      const settingsUrl = `${ICONA_API_BASE}/admin/app/settings`;
+      const settingsUrl = `${BASE_URL}/admin/app/settings`;
       const settingsResponse = await fetch(settingsUrl, {
         method: "GET",
         headers: {
@@ -7959,7 +7917,7 @@ function registerAdminRoutes(app2) {
       }
       let recipients = [];
       if (recipientType === "all") {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -7976,7 +7934,7 @@ function registerAdminRoutes(app2) {
         const usersData = await usersResponse.json();
         recipients = usersData.users || [];
       } else {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -8086,7 +8044,7 @@ function registerAdminRoutes(app2) {
           error: "Recipient email is required for individual notifications"
         });
       }
-      const settingsUrl = `${ICONA_API_BASE}/admin/app/settings`;
+      const settingsUrl = `${BASE_URL}/admin/app/settings`;
       const settingsResponse = await fetch(settingsUrl, {
         method: "GET",
         headers: {
@@ -8110,7 +8068,7 @@ function registerAdminRoutes(app2) {
       }
       let recipients = [];
       if (recipientType === "all") {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -8127,7 +8085,7 @@ function registerAdminRoutes(app2) {
         const usersData = await usersResponse.json();
         recipients = usersData.users || [];
       } else {
-        const usersUrl = `${ICONA_API_BASE}/users?limit=10000`;
+        const usersUrl = `${BASE_URL}/users?limit=10000`;
         const usersResponse = await fetch(usersUrl, {
           method: "GET",
           headers: {
@@ -8145,6 +8103,7 @@ function registerAdminRoutes(app2) {
         }
       }
       const appName = settings.app_name || "Our App";
+      const frontendUrl = BASE_URL.replace(/\/\/api\./, "//");
       const BATCH_SIZE = 10;
       const BATCH_DELAY = 4e5;
       const results = [];
@@ -8416,10 +8375,10 @@ function registerAdminRoutes(app2) {
                           \u{1F34E} Update on iOS
                         </a>
                       ` : ""}
-                      <a href="https://admin.iconaapp.com/" class="button">
+                      <a href="${frontendUrl}/" class="button">
                         \u{1F3EA} Seller Hub Portal
                       </a>
-                      <a href="https://admin.iconaapp.com/admin/login" class="button">
+                      <a href="${frontendUrl}/admin/login" class="button">
                         \u{1F510} Admin Portal
                       </a>
                     </div>
@@ -8498,8 +8457,8 @@ ${androidVersion && androidLink ? `Android: ${androidLink}` : ""}
 ${iosVersion && iosLink ? `iOS: ${iosLink}` : ""}
 
 Quick Access:
-- Seller Hub Portal: https://admin.iconaapp.com/
-- Admin Portal: https://admin.iconaapp.com/admin/login
+- Seller Hub Portal: ${frontendUrl}/
+- Admin Portal: ${frontendUrl}/admin/login
 
 \u{1F4AC} Contact Us on WhatsApp: https://wa.me/254791334234
 
@@ -8564,7 +8523,7 @@ Thank you for using ${appName}!
   });
   app2.get("/api/theme-colors", async (req, res) => {
     try {
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -8605,7 +8564,7 @@ Thank you for using ${appName}!
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -8656,7 +8615,7 @@ Thank you for using ${appName}!
           error: "Translations data is required"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const payload = { ...translations };
       if (default_language) {
         const fullPayload = {};
@@ -8727,7 +8686,7 @@ Thank you for using ${appName}!
           error: "No access token found"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -8813,7 +8772,7 @@ Thank you for using ${appName}!
           error: "Invalid XML format or no translations found"
         });
       }
-      const url = `${ICONA_API_BASE}/settings/translations`;
+      const url = `${BASE_URL}/settings/translations`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -8867,7 +8826,7 @@ Thank you for using ${appName}!
         });
       }
       const userId = req.session.user.id || req.session.user._id;
-      const url = `${ICONA_API_BASE}/admin/${userId}`;
+      const url = `${BASE_URL}/admin/${userId}`;
       console.log(`Changing admin password at: ${url}`);
       console.log(`Password change payload:`, { password: "[REDACTED]" });
       const response = await fetch(url, {
@@ -8909,7 +8868,7 @@ Thank you for using ${appName}!
 function registerSettingsRoutes(app2) {
   app2.get("/api/settings", async (req, res) => {
     try {
-      const url = `${ICONA_API_BASE}/admin/app/settings`;
+      const url = `${BASE_URL}/admin/app/settings`;
       console.log(`Fetching public app settings from: ${url}`);
       const accessToken = req.session?.accessToken;
       const headers = {
@@ -8939,7 +8898,6 @@ function registerSettingsRoutes(app2) {
       }
       const data = await response.json();
       const settings = Array.isArray(data) ? data[0] : data;
-      console.log("Raw settings from external API:", JSON.stringify(settings, null, 2));
       const publicSettings = {
         app_name: settings?.app_name || "App",
         seo_title: settings?.seo_title || "",
@@ -8948,8 +8906,16 @@ function registerSettingsRoutes(app2) {
         secondary_color: settings?.secondary_color || "#1A1A1A",
         // API returns 'stripepublickey' not 'stripe_publishable_key'
         stripe_publishable_key: settings?.stripepublickey || settings?.stripe_publishable_key || "",
-        commission_rate: parseFloat(settings?.commission || "0")
+        commission_rate: parseFloat(settings?.commission || "0"),
         // API returns 'commission' as string
+        // Firebase configuration (individual fields)
+        firebase_api_key: settings?.firebase_api_key || settings?.FIREBASE_API_KEY || "",
+        firebase_auth_domain: settings?.firebase_auth_domain || "",
+        firebase_project_id: settings?.firebase_project_id || "",
+        firebase_storage_bucket: settings?.firebase_storage_bucket || "",
+        firebase_app_id: settings?.firebase_app_id || "",
+        // Demo mode flag
+        demoMode: settings?.demoMode || false
       };
       res.json({
         success: true,
@@ -8989,19 +8955,19 @@ function registerGiveawayRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const url = `${ICONA_API_BASE}/giveaways?${queryParams.toString()}`;
+      const url = `${BASE_URL}/giveaways?${queryParams.toString()}`;
       const response = await fetch(url, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: "Failed to fetch giveaways" });
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching giveaways from Icona API:", error);
+      console.error("Error fetching giveaways from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch giveaways" });
     }
   });
@@ -9015,19 +8981,19 @@ function registerGiveawayRoutes(app2) {
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
       }
-      const url = `${ICONA_API_BASE}/giveaways/${id}`;
+      const url = `${BASE_URL}/giveaways/${id}`;
       const response = await fetch(url, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: "Giveaway not found" });
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching giveaway from Icona API:", error);
+      console.error("Error fetching giveaway from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch giveaway" });
     }
   });
@@ -9040,26 +9006,32 @@ function registerGiveawayRoutes(app2) {
       if (!req.session?.user?.id) {
         return res.status(401).json({ error: "Unauthorized - no user ID" });
       }
+      const { shippingProfile, ...restBody } = req.body;
       const giveawayData = {
-        ...req.body,
-        user: req.session.user.id
+        ...restBody,
+        user: req.session.user.id,
+        // Force featured to false for giveaways
+        featured: false
       };
+      if (shippingProfile) {
+        giveawayData.shipping_profile = shippingProfile;
+      }
       const headers = {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
-      const url = `${ICONA_API_BASE}/giveaways`;
-      console.log("Posting to Icona API:", url);
+      const url = `${BASE_URL}/giveaways`;
+      console.log("Posting to Tokshop API:", url);
       const response = await fetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(giveawayData)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         let errorData;
         try {
           errorData = JSON.parse(responseText);
@@ -9082,22 +9054,31 @@ function registerGiveawayRoutes(app2) {
       if (!req.session?.accessToken) {
         return res.status(401).json({ error: "Unauthorized - no access token" });
       }
+      const { shippingProfile, ...restBody } = req.body;
+      const giveawayData = {
+        ...restBody,
+        // Force featured to false for giveaways
+        featured: false
+      };
+      if (shippingProfile) {
+        giveawayData.shipping_profile = shippingProfile;
+      }
       const headers = {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
-      const url = `${ICONA_API_BASE}/giveaways/${id}`;
-      console.log("Putting to Icona API:", url);
+      const url = `${BASE_URL}/giveaways/${id}`;
+      console.log("Putting to Tokshop API:", url);
       const response = await fetch(url, {
         method: "PUT",
         headers,
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(giveawayData)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         let errorData;
         try {
           errorData = JSON.parse(responseText);
@@ -9124,13 +9105,13 @@ function registerGiveawayRoutes(app2) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
-      const url = `${ICONA_API_BASE}/giveaways/${id}`;
+      const url = `${BASE_URL}/giveaways/${id}`;
       const response = await fetch(url, {
         method: "DELETE",
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         let errorData;
         try {
@@ -9150,7 +9131,6 @@ function registerGiveawayRoutes(app2) {
 }
 
 // ../shared-backend/server/routes/stripe.ts
-var ICONA_API_BASE2 = "https://api.iconaapp.com";
 function registerStripeRoutes(app2) {
   app2.post("/api/stripe/connect/:userId", async (req, res) => {
     try {
@@ -9159,7 +9139,7 @@ function registerStripeRoutes(app2) {
       if (!accessToken) {
         return res.status(401).json({ success: false, error: "Not authenticated" });
       }
-      const response = await fetch(`${ICONA_API_BASE2}/stripe/connect/${userId}`, {
+      const response = await fetch(`${BASE_URL}/stripe/connect/${userId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -9182,8 +9162,496 @@ function registerStripeRoutes(app2) {
   });
 }
 
+// ../shared-backend/server/routes/content.ts
+var COLLECTION_NAME = "app_content";
+var defaultLandingContent = {
+  hero: {
+    title: "The Live Shopping Marketplace",
+    subtitle: "Shop, sell, and connect around the things you love. Join thousands of buyers and sellers in real-time.",
+    primaryButtonText: "Get Started",
+    primaryButtonLink: "/login",
+    secondaryButtonText: "Watch Demo",
+    heroImage: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=600&fit=crop",
+    heroImageAlt: "Live shopping experience",
+    liveViewers: "12.5K watching"
+  },
+  howItWorks: {
+    title: "How It Works",
+    subtitle: "Join live shows, bid on items you love, and connect with passionate sellers",
+    steps: [
+      {
+        icon: "Play",
+        title: "Watch Live Shows",
+        description: "Browse live streams across 250+ categories and discover unique items from trusted sellers"
+      },
+      {
+        icon: "Zap",
+        title: "Bid & Buy",
+        description: "Participate in fast-paced auctions, flash sales, and buy-it-now deals in real-time"
+      },
+      {
+        icon: "Shield",
+        title: "Safe & Secure",
+        description: "Protected purchases with buyer protection and secure checkout for peace of mind"
+      }
+    ]
+  },
+  joinFun: {
+    title: "Join In the Fun",
+    subtitle: "Take part in fast-paced auctions, incredible flash sales, live show giveaways, and so much more.",
+    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop",
+    imageAlt: "Auction excitement",
+    features: [
+      {
+        icon: "Star",
+        title: "Live Auctions",
+        description: "Bid in real-time and win amazing deals on items you love"
+      },
+      {
+        icon: "Star",
+        title: "Flash Sales",
+        description: "Lightning-fast deals with limited quantities at unbeatable prices"
+      },
+      {
+        icon: "Star",
+        title: "Giveaways",
+        description: "Win free items during live shows from generous sellers"
+      }
+    ],
+    buttonText: "Get Started",
+    buttonLink: "/login"
+  },
+  categories: {
+    title: "We've Got It All",
+    subtitle: "Explore 250+ categories, including fashion, coins, sports & Pok\xE9mon cards, sneakers, and more.",
+    items: [
+      { name: "Fashion", image: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=500&fit=crop" },
+      { name: "Collectibles", image: "https://images.unsplash.com/photo-1611312449408-fcece27cdbb7?w=400&h=500&fit=crop" },
+      { name: "Sports Cards", image: "https://images.unsplash.com/photo-1611916656173-875e4277bea6?w=400&h=500&fit=crop" },
+      { name: "Sneakers", image: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=400&h=500&fit=crop" },
+      { name: "Electronics", image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=500&fit=crop" },
+      { name: "Jewelry", image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop" }
+    ],
+    buttonText: "Explore All Categories",
+    buttonLink: "/login"
+  },
+  brands: {
+    title: "Find Incredible Deals on Name Brands",
+    subtitle: "From the brands you love, to hard-to-find specialty products. There's a deal on whatever you're looking for.",
+    items: [
+      { name: "Nike" },
+      { name: "Adidas" },
+      { name: "Supreme" },
+      { name: "Pok\xE9mon" }
+    ],
+    image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop",
+    imageAlt: "Brand products",
+    buttonText: "Start Shopping",
+    buttonLink: "/login"
+  },
+  finalCTA: {
+    title: "Ready to Start Shopping?",
+    subtitle: "Join thousands of buyers and sellers discovering amazing deals every day",
+    buttonText: "Get Started Now",
+    buttonLink: "/login"
+  },
+  footer: {
+    copyrightText: "2025"
+  }
+};
+var defaultFAQContent = {
+  title: "Frequently Asked Questions",
+  subtitle: "Find answers to common questions about our platform",
+  faqs: [
+    {
+      question: "How do I create an account?",
+      answer: "Click on the 'Get Started' button and follow the registration process. You can sign up using your email or social media accounts."
+    },
+    {
+      question: "Is it safe to shop here?",
+      answer: "Yes! We provide buyer protection on all purchases and use secure payment processing to ensure your transactions are safe."
+    },
+    {
+      question: "How do live auctions work?",
+      answer: "Join a live show, browse the items being showcased, and place your bids in real-time. The highest bidder wins when the auction closes."
+    },
+    {
+      question: "What payment methods do you accept?",
+      answer: "We accept all major credit cards, debit cards, and digital payment methods through our secure payment processor."
+    }
+  ]
+};
+var defaultAboutContent = {
+  title: "About Us",
+  subtitle: "Learn more about our mission and what makes us different",
+  sections: [
+    {
+      title: "Our Story",
+      content: "We started with a simple mission: to create the most engaging and trustworthy live shopping marketplace. Today, thousands of buyers and sellers connect on our platform every day to discover amazing deals and build lasting relationships."
+    },
+    {
+      title: "Our Mission",
+      content: "We believe shopping should be fun, social, and exciting. That's why we've built a platform that combines the thrill of live auctions with the convenience of online shopping."
+    },
+    {
+      title: "Why Choose Us",
+      content: "With buyer protection, secure payments, and a vibrant community of sellers, we're committed to providing the best live shopping experience possible."
+    }
+  ]
+};
+var defaultPrivacyContent = {
+  title: "Privacy Policy",
+  subtitle: "How we collect, use, and protect your information",
+  sections: [
+    {
+      title: "Information We Collect",
+      content: "We collect information you provide directly to us, such as when you create an account, make a purchase, or contact our support team."
+    },
+    {
+      title: "How We Use Your Information",
+      content: "We use the information we collect to provide, maintain, and improve our services, process transactions, and communicate with you."
+    },
+    {
+      title: "Data Security",
+      content: "We implement appropriate security measures to protect your personal information from unauthorized access, alteration, or disclosure."
+    },
+    {
+      title: "Your Rights",
+      content: "You have the right to access, update, or delete your personal information. Contact us if you'd like to exercise these rights."
+    }
+  ]
+};
+var defaultTermsContent = {
+  title: "Terms of Service",
+  subtitle: "Rules and guidelines for using our platform",
+  sections: [
+    {
+      title: "Acceptance of Terms",
+      content: "By accessing and using this platform, you accept and agree to be bound by the terms and provision of this agreement."
+    },
+    {
+      title: "User Accounts",
+      content: "You are responsible for maintaining the confidentiality of your account and password. You agree to accept responsibility for all activities that occur under your account."
+    },
+    {
+      title: "Prohibited Activities",
+      content: "You may not use our platform for any illegal purposes or to violate any laws. This includes but is not limited to fraud, harassment, or posting harmful content."
+    },
+    {
+      title: "Termination",
+      content: "We reserve the right to terminate or suspend your account at any time for violations of these terms or for any other reason we deem necessary."
+    }
+  ]
+};
+var defaultContactContent = {
+  title: "Contact Us",
+  subtitle: "Get in touch with our team",
+  description: "Have a question or need help? We're here for you. Reach out and we'll respond as soon as possible.",
+  contactInfo: {
+    email: "support@example.com",
+    phone: "+1 (555) 123-4567",
+    address: "123 Main Street, City, State 12345"
+  },
+  showContactForm: true,
+  sections: [
+    {
+      title: "Customer Support",
+      content: "Our support team is available Monday through Friday, 9am to 5pm EST. We aim to respond to all inquiries within 24 hours."
+    }
+  ]
+};
+var pageConfig = {
+  landing: {
+    schema: landingContentSchema,
+    defaultContent: defaultLandingContent,
+    docId: "landing"
+  },
+  faq: {
+    schema: faqContentSchema,
+    defaultContent: defaultFAQContent,
+    docId: "faq"
+  },
+  about: {
+    schema: sectionBasedPageSchema,
+    defaultContent: defaultAboutContent,
+    docId: "about"
+  },
+  privacy: {
+    schema: sectionBasedPageSchema,
+    defaultContent: defaultPrivacyContent,
+    docId: "privacy"
+  },
+  terms: {
+    schema: sectionBasedPageSchema,
+    defaultContent: defaultTermsContent,
+    docId: "terms"
+  },
+  contact: {
+    schema: contactContentSchema,
+    defaultContent: defaultContactContent,
+    docId: "contact"
+  }
+};
+function registerContentRoutes(app2) {
+  app2.get("/api/content/:pageType", async (req, res) => {
+    try {
+      const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
+      if (!pageTypeValidation.success) {
+        return res.status(404).json({
+          success: false,
+          message: "Page not found"
+        });
+      }
+      const pageType = pageTypeValidation.data;
+      const config = pageConfig[pageType];
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 5e3)
+      );
+      const fetchPromise = (async () => {
+        const db = await getAdminFirestore();
+        const docRef = db.collection(COLLECTION_NAME).doc(config.docId);
+        const doc = await docRef.get();
+        if (doc.exists) {
+          const data2 = doc.data();
+          const validation = config.schema.safeParse(data2);
+          if (validation.success) {
+            return validation.data;
+          } else {
+            console.error(`Invalid ${pageType} content in Firestore, using defaults:`, validation.error);
+            return null;
+          }
+        }
+        return null;
+      })();
+      const data = await Promise.race([fetchPromise, timeoutPromise]);
+      if (data) {
+        res.json({
+          success: true,
+          data
+        });
+      } else {
+        res.json({
+          success: true,
+          data: config.defaultContent
+        });
+      }
+    } catch (error) {
+      console.error(`Error fetching ${req.params.pageType} content:`, error.message || error);
+      const pageType = req.params.pageType;
+      const config = pageConfig[pageType];
+      res.json({
+        success: true,
+        data: config?.defaultContent || {}
+      });
+    }
+  });
+  app2.put("/api/admin/content/:pageType", async (req, res) => {
+    try {
+      if (!req.session?.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required"
+        });
+      }
+      if (!req.session.user.admin) {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+      const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
+      if (!pageTypeValidation.success) {
+        return res.status(404).json({
+          success: false,
+          message: "Page not found"
+        });
+      }
+      const pageType = pageTypeValidation.data;
+      const config = pageConfig[pageType];
+      const validationResult = config.schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid ${pageType} content data`,
+          errors: validationResult.error.errors
+        });
+      }
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 5e3)
+      );
+      const updatePromise = (async () => {
+        const db = await getAdminFirestore();
+        const docRef = db.collection(COLLECTION_NAME).doc(config.docId);
+        await docRef.set(validationResult.data);
+      })();
+      await Promise.race([updatePromise, timeoutPromise]);
+      res.json({
+        success: true,
+        message: `${pageType.charAt(0).toUpperCase() + pageType.slice(1)} content updated successfully`,
+        data: validationResult.data
+      });
+    } catch (error) {
+      console.error(`Error updating ${req.params.pageType} content:`, error.message || error);
+      res.status(500).json({
+        success: false,
+        message: `Failed to update ${req.params.pageType} content. Please try again.`,
+        error: error.message
+      });
+    }
+  });
+  app2.post("/api/admin/content/:pageType/reset", async (req, res) => {
+    try {
+      if (!req.session?.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required"
+        });
+      }
+      if (!req.session.user.admin) {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+      const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
+      if (!pageTypeValidation.success) {
+        return res.status(404).json({
+          success: false,
+          message: "Page not found"
+        });
+      }
+      const pageType = pageTypeValidation.data;
+      const config = pageConfig[pageType];
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 5e3)
+      );
+      const resetPromise = (async () => {
+        const db = await getAdminFirestore();
+        const docRef = db.collection(COLLECTION_NAME).doc(config.docId);
+        await docRef.set(config.defaultContent);
+      })();
+      await Promise.race([resetPromise, timeoutPromise]);
+      res.json({
+        success: true,
+        message: `${pageType.charAt(0).toUpperCase() + pageType.slice(1)} content reset to defaults successfully`,
+        data: config.defaultContent
+      });
+    } catch (error) {
+      console.error(`Error resetting ${req.params.pageType} content:`, error.message || error);
+      res.status(500).json({
+        success: false,
+        message: `Failed to reset ${req.params.pageType} content. Please try again.`,
+        error: error.message
+      });
+    }
+  });
+}
+
+// ../shared-backend/server/routes/auctions.ts
+import express from "express";
+import fetch11 from "node-fetch";
+var router = express.Router();
+var BASE_URL2 = process.env.BASE_URL || "https://api.iconaapp.com";
+router.get("/:id", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const auctionId = req.params.id;
+    console.log("Fetching auction details for:", auctionId);
+    const response = await fetch11(`${BASE_URL2}/auction/${auctionId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...token && { "Authorization": `Bearer ${token}` }
+      }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("External API auction fetch error:", data);
+      return res.status(response.status).json(data);
+    }
+    console.log("Auction details fetched successfully");
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching auction:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch auction" });
+  }
+});
+router.post("/bid", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const { auctionId, amount, userId } = req.body;
+    if (!auctionId || !amount || !userId) {
+      return res.status(400).json({
+        error: "Missing required fields: auctionId, amount, and userId are required"
+      });
+    }
+    console.log("Placing bid:", { user: userId, auction: auctionId, amount });
+    const bidData = {
+      user: userId,
+      auction: auctionId,
+      amount
+    };
+    const response = await fetch11(`${BASE_URL2}/auction/bid`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(bidData)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("External API bid error:", data);
+      return res.status(response.status).json(data);
+    }
+    console.log("Bid placed successfully:", data);
+    res.json(data);
+  } catch (error) {
+    console.error("Error placing bid:", error);
+    res.status(500).json({ error: error.message || "Failed to place bid" });
+  }
+});
+router.put("/bid/:id", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const auctionId = req.params.id;
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const response = await fetch11(`${BASE_URL2}/auction/bid/${auctionId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(req.body)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+    res.json(data);
+  } catch (error) {
+    console.error("Error placing bid:", error);
+    res.status(500).json({ error: error.message || "Failed to place bid" });
+  }
+});
+var auctions_default = router;
+
 // ../shared-backend/server/routes.ts
 async function registerRoutes(app2) {
+  app2.get("/api/config", (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        externalApiUrl: BASE_URL
+      }
+    });
+  });
+  registerContentRoutes(app2);
   registerSettingsRoutes(app2);
   registerAuthRoutes(app2);
   registerAdminRoutes(app2);
@@ -9196,16 +9664,16 @@ async function registerRoutes(app2) {
   registerOrderRoutes(app2);
   registerShowRoutes(app2);
   registerGiveawayRoutes(app2);
-  registerAnalyticsRoutes(app2);
   registerShippingRoutes(app2);
   registerBundleRoutes(app2);
   registerReportRoutes(app2);
+  app2.use("/api/auction", auctions_default);
   const httpServer = createServer(app2);
   return httpServer;
 }
 
 // ../shared-backend/server/vite.ts
-import express from "express";
+import express2 from "express";
 import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
@@ -9273,17 +9741,22 @@ function serveStatic(app2) {
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
-  app2.use(express.static(distPath));
+  app2.use(express2.static(distPath));
   app2.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
 
 // ../shared-backend/server/index.ts
-var app = express2();
+dotenv.config();
+if (!process.env.BASE_URL) {
+  throw new Error("BASE_URL environment variable is required");
+}
+console.log(`[API Config] BASE_URL: ${process.env.BASE_URL}`);
+var app = express3();
 app.set("trust proxy", 1);
-app.use(express2.json());
-app.use(express2.urlencoded({ extended: false }));
+app.use(express3.json());
+app.use(express3.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(session({
   secret: process.env.SESSION_SECRET || "fallback-secret-for-development-only",
@@ -9311,13 +9784,12 @@ app.use((req, res, next) => {
     console.log("  - session.user:", req.session.user ? "exists" : "empty");
     console.log("  - session.accessToken:", req.session.accessToken ? "exists" : "empty");
   }
-  if (accessToken && !req.session.accessToken) {
+  if (accessToken) {
     req.session.accessToken = accessToken;
-  }
-  if (adminToken && !req.session.accessToken) {
+  } else if (adminToken) {
     req.session.accessToken = adminToken;
   }
-  if (userData && !req.session.user) {
+  if (userData) {
     try {
       const decoded = Buffer.from(userData, "base64").toString("utf8");
       const parsedUser = JSON.parse(decoded);
@@ -9383,3 +9855,6 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+
+// server.ts
+dotenv2.config();

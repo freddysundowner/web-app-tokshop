@@ -53,7 +53,7 @@ export default function PrivacyPolicy() {
         )}
 
         <div className="space-y-8">
-          {content.sections.map((section, index) => (
+          {content.sections.map((section: { title: string; content: string }, index: number) => (
             <Card key={index}>
               <CardContent className="p-6">
                 <h2 className="text-2xl font-bold mb-4" data-testid={`section-title-${index}`}>
@@ -89,6 +89,3 @@ export default function PrivacyPolicy() {
     </div>
   );
 }
-            <p className="mb-4">We collect and process the following types of information:</p>
-            <ul className="list-disc pl-6 space-y-2 mb-4">
-              <li><strong>Account Information:</strong> Name, email address, username, password, phone number, and profile information.</li>

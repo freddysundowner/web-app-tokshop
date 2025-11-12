@@ -53,7 +53,7 @@ export default function TermsOfService() {
         )}
 
         <div className="space-y-8">
-          {content.sections.map((section, index) => (
+          {content.sections.map((section: { title: string; content: string }, index: number) => (
             <Card key={index}>
               <CardContent className="p-6">
                 <h2 className="text-2xl font-bold mb-4" data-testid={`section-title-${index}`}>
@@ -88,3 +88,4 @@ export default function TermsOfService() {
       </main>
     </div>
   );
+}

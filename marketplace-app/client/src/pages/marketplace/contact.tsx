@@ -248,7 +248,7 @@ export default function ContactUs() {
 
             {content.sections && content.sections.length > 0 && (
               <>
-                {content.sections.map((section, index) => (
+                {content.sections.map((section: { title: string; content: string }, index: number) => (
                   <Card key={index}>
                     <CardHeader>
                       <CardTitle data-testid={`section-title-${index}`}>

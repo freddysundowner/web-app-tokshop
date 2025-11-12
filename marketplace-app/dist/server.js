@@ -1,8 +1,9 @@
 // server.ts
-import dotenv from "dotenv";
+import dotenv2 from "dotenv";
 
 // ../shared-backend/server/index.ts
-import express2 from "express";
+import dotenv from "dotenv";
+import express3 from "express";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 
@@ -13,17 +14,13 @@ import { createServer } from "http";
 import fetch2 from "node-fetch";
 
 // ../shared-backend/server/utils.ts
-if (!process.env.BASE_URL) {
-  throw new Error("BASE_URL environment variable is required");
-}
-var BASE_URL = process.env.BASE_URL.replace(/\/$/, "");
-console.log(`[API Config] BASE_URL: ${BASE_URL}`);
+var BASE_URL = (process.env.BASE_URL || "").replace(/\/$/, "");
 
 // ../shared-backend/server/routes/dashboard.ts
 function registerDashboardRoutes(app2) {
   app2.get("/api/dashboard/metrics", async (req, res) => {
     try {
-      console.log("Proxying dashboard metrics request to Icona API");
+      console.log("Proxying dashboard metrics request to Tokshop API");
       const response = await fetch2(`${BASE_URL}/orders/dashboard/orders`, {
         method: "GET",
         headers: {
@@ -31,13 +28,13 @@ function registerDashboardRoutes(app2) {
         }
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Dashboard metrics proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch dashboard metrics from Icona API" });
+      res.status(500).json({ error: "Failed to fetch dashboard metrics from Tokshop API" });
     }
   });
 }
@@ -69,7 +66,7 @@ function registerOrderRoutes(app2) {
             error: "Order not found"
           });
         }
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       console.log("Order data structure:", Object.keys(data));
@@ -93,13 +90,13 @@ function registerOrderRoutes(app2) {
       console.error("Single order fetch error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch order from Icona API"
+        error: "Failed to fetch order from Tokshop API"
       });
     }
   });
   app2.get("/api/orders", async (req, res) => {
     try {
-      console.log("Proxying orders request to Icona API");
+      console.log("Proxying orders request to Tokshop API");
       console.log("Query params received:", req.query);
       const queryParams = new URLSearchParams();
       if (req.query.userId) {
@@ -132,24 +129,30 @@ function registerOrderRoutes(app2) {
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
+      console.log("[Orders] Session accessToken:", req.session?.accessToken ? "present" : "missing");
+      console.log("[Orders] Headers x-access-token:", req.headers["x-access-token"] ? "present" : "missing");
+      console.log("[Orders] Headers x-user-data:", req.headers["x-user-data"] ? "present" : "missing");
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session?.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+        console.log("[Orders] Adding Authorization header to external API request");
+      } else {
+        console.warn("[Orders] No session accessToken found - request will fail!");
       }
       const response = await fetch3(url, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Orders proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch orders from Icona API" });
+      res.status(500).json({ error: "Failed to fetch orders from Tokshop API" });
     }
   });
   app2.post("/api/orders/:id", async (req, res) => {
@@ -189,7 +192,7 @@ function registerOrderRoutes(app2) {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to create order in Icona API:", response.status, errorText);
+        console.error("Failed to create order in Tokshop API:", response.status, errorText);
         return res.status(response.status).json({
           success: false,
           error: `Failed to create order: ${response.status}`,
@@ -235,7 +238,7 @@ function registerOrderRoutes(app2) {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to update order in Icona API:", response.status, errorText);
+        console.error("Failed to update order in Tokshop API:", response.status, errorText);
         return res.status(response.status).json({
           error: `Failed to update order: ${response.status}`,
           details: errorText
@@ -267,7 +270,7 @@ function registerOrderRoutes(app2) {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to PUT update order in Icona API:", response.status, errorText);
+        console.error("Failed to PUT update order in Tokshop API:", response.status, errorText);
         return res.status(response.status).json({
           error: `Failed to update order: ${response.status}`,
           details: errorText
@@ -485,13 +488,13 @@ function registerShowRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: "User not found" });
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching user from Icona API:", error);
+      console.error("Error fetching user from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch user" });
     }
   });
@@ -515,7 +518,7 @@ function registerShowRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: "Room not found" });
       }
       const data = await response.json();
@@ -527,7 +530,7 @@ function registerShowRoutes(app2) {
       }
       res.json(data);
     } catch (error) {
-      console.error("Error fetching room from Icona API:", error);
+      console.error("Error fetching room from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch room" });
     }
   });
@@ -549,7 +552,7 @@ function registerShowRoutes(app2) {
         body: JSON.stringify(req.body)
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         console.error("Error details:", errorText);
         return res.status(response.status).json({ error: "Failed to update room" });
@@ -557,7 +560,7 @@ function registerShowRoutes(app2) {
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error updating room from Icona API:", error);
+      console.error("Error updating room from Tokshop API:", error);
       res.status(500).json({ error: "Failed to update room" });
     }
   });
@@ -583,7 +586,7 @@ function registerShowRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         console.error("Error details:", errorText);
         return res.status(response.status).json({ error: "Failed to delete room" });
@@ -592,13 +595,13 @@ function registerShowRoutes(app2) {
       console.log("Room deleted successfully:", data);
       res.json(data);
     } catch (error) {
-      console.error("Error deleting room from Icona API:", error);
+      console.error("Error deleting room from Tokshop API:", error);
       res.status(500).json({ error: "Failed to delete room" });
     }
   });
   app2.post("/api/rooms", async (req, res) => {
     try {
-      console.log("Creating room/show via Icona API");
+      console.log("Creating room/show via Tokshop API");
       console.log("Request body:", req.body);
       const headers = {
         "Content-Type": "application/json"
@@ -614,7 +617,7 @@ function registerShowRoutes(app2) {
         body: JSON.stringify(req.body)
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         console.error("Error details:", errorText);
         return res.status(response.status).json({ error: "Failed to create room" });
@@ -623,13 +626,13 @@ function registerShowRoutes(app2) {
       console.log("Room created successfully:", data);
       res.status(201).json(data);
     } catch (error) {
-      console.error("Error creating room via Icona API:", error);
+      console.error("Error creating room via Tokshop API:", error);
       res.status(500).json({ error: "Failed to create room" });
     }
   });
   app2.get("/api/rooms", async (req, res) => {
     try {
-      console.log("Proxying rooms request to Icona API");
+      console.log("Proxying rooms request to Tokshop API");
       const params = [];
       if (req.query.page !== void 0) params.push(`page=${req.query.page}`);
       if (req.query.limit !== void 0) params.push(`limit=${req.query.limit}`);
@@ -652,13 +655,13 @@ function registerShowRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
-        throw new Error(`Icona API returned ${response.status}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching rooms from Icona API:", error);
+      console.error("Error fetching rooms from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch rooms" });
     }
   });
@@ -714,13 +717,13 @@ function registerShowRoutes(app2) {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`\u274C Icona API returned ${response.status}:`, errorText);
+        console.error(`\u274C Tokshop API returned ${response.status}:`, errorText);
         return res.status(response.status).json({
           error: errorText || "Failed to get LiveKit token from external API"
         });
       }
       const data = await response.json();
-      console.log("\u2705 LiveKit token received from Icona API");
+      console.log("\u2705 LiveKit token received from Tokshop API");
       res.json({
         ...data,
         role
@@ -806,24 +809,24 @@ var authResponseSchema = z2.object({
   }).optional(),
   message: z2.string().optional()
 });
-var iconaAuthResponseSchema = z2.object({
+var tokshopAuthResponseSchema = z2.object({
   success: z2.boolean(),
   message: z2.string().optional(),
   data: z2.any(),
-  // User data from Icona API
+  // User data from Tokshop API
   accessToken: z2.string().optional(),
   authtoken: z2.string().optional(),
   // Also returned by API
   newuser: z2.boolean().optional()
   // For signup responses
 });
-var iconaApiErrorResponseSchema = z2.object({
+var tokshopApiErrorResponseSchema = z2.object({
   success: z2.boolean().optional(),
   message: z2.string(),
   error: z2.string().optional(),
   details: z2.any().optional()
 });
-var iconaOrderSchema = z2.object({
+var tokshopOrderSchema = z2.object({
   _id: z2.string(),
   customer: z2.object({
     _id: z2.string(),
@@ -930,13 +933,13 @@ var iconaOrderSchema = z2.object({
   length: z2.string().optional(),
   scale: z2.string().optional()
 });
-var iconaOrdersResponseSchema = z2.object({
-  orders: z2.array(iconaOrderSchema),
+var tokshopOrdersResponseSchema = z2.object({
+  orders: z2.array(tokshopOrderSchema),
   limits: z2.number(),
   pages: z2.number(),
   total: z2.number()
 });
-var iconaDashboardResponseSchema = z2.object({
+var tokshopDashboardResponseSchema = z2.object({
   totalOrder: z2.number(),
   totalAmount: z2.string(),
   todayOrder: z2.array(z2.any()),
@@ -949,7 +952,7 @@ var iconaDashboardResponseSchema = z2.object({
   orders: z2.array(z2.any()),
   weeklySaleReport: z2.array(z2.any())
 });
-var iconaProductSchema = z2.object({
+var tokshopProductSchema = z2.object({
   _id: z2.string(),
   name: z2.string(),
   description: z2.string().optional(),
@@ -985,35 +988,35 @@ var iconaProductSchema = z2.object({
   createdAt: z2.string().optional(),
   updatedAt: z2.string().optional()
 });
-var iconaProductsResponseSchema = z2.object({
-  products: z2.array(iconaProductSchema),
+var tokshopProductsResponseSchema = z2.object({
+  products: z2.array(tokshopProductSchema),
   limits: z2.number(),
   pages: z2.number(),
   totalDoc: z2.number()
 });
-var iconaCategorySchema = z2.lazy(() => z2.object({
+var tokshopCategorySchema = z2.lazy(() => z2.object({
   _id: z2.string(),
   name: z2.string(),
   description: z2.string().optional(),
   status: z2.string().optional(),
   icon: z2.string().optional(),
   type: z2.string().optional(),
-  subCategories: z2.array(iconaCategorySchema).optional()
+  subCategories: z2.array(tokshopCategorySchema).optional()
 }));
-var iconaCategoriesResponseSchema = z2.object({
-  categories: z2.array(iconaCategorySchema),
+var tokshopCategoriesResponseSchema = z2.object({
+  categories: z2.array(tokshopCategorySchema),
   limits: z2.number().optional(),
   pages: z2.number().optional(),
   total: z2.number().optional()
 });
-var iconaShippingProfileSchema = z2.object({
+var tokshopShippingProfileSchema = z2.object({
   _id: z2.string(),
   name: z2.string(),
   weight: z2.number(),
   scale: z2.string(),
   description: z2.string().optional()
 });
-var iconaShippingProfilesResponseSchema = z2.array(iconaShippingProfileSchema);
+var tokshopShippingProfilesResponseSchema = z2.array(tokshopShippingProfileSchema);
 var listingTypeSchema = z2.enum(["auction", "buy_now", "giveaway"]);
 var productFormSchema = z2.object({
   name: z2.string().min(1, "Product name is required"),
@@ -1029,6 +1032,11 @@ var productFormSchema = z2.object({
   startingPrice: z2.coerce.number().optional().nullable(),
   duration: z2.coerce.number().int().optional().nullable(),
   sudden: z2.boolean().optional().default(false),
+  // Featured auction scheduling fields
+  startTime: z2.string().optional().nullable(),
+  // ISO datetime string
+  endTime: z2.string().optional().nullable(),
+  // ISO datetime string
   // Buy Now-specific fields
   featured: z2.boolean().optional().default(false),
   // Giveaway-specific fields
@@ -1044,13 +1052,29 @@ var productFormSchema = z2.object({
   message: "Starting price must be greater than 0",
   path: ["startingPrice"]
 }).refine((data) => {
-  if (data.listingType === "auction") {
+  if (data.listingType === "auction" && !data.featured) {
     return data.duration !== void 0 && data.duration !== null && data.duration > 0;
   }
   return true;
 }, {
   message: "Duration must be selected",
   path: ["duration"]
+}).refine((data) => {
+  if (data.listingType === "auction" && data.featured) {
+    return data.startTime !== void 0 && data.startTime !== null && data.startTime !== "";
+  }
+  return true;
+}, {
+  message: "Auction start time is required for featured auctions",
+  path: ["startTime"]
+}).refine((data) => {
+  if (data.listingType === "auction" && data.featured) {
+    return data.endTime !== void 0 && data.endTime !== null && data.endTime !== "";
+  }
+  return true;
+}, {
+  message: "Auction end time is required for featured auctions",
+  path: ["endTime"]
 }).refine((data) => {
   if (data.listingType === "buy_now") {
     return data.price !== void 0 && data.price !== null && data.price > 0;
@@ -1059,6 +1083,14 @@ var productFormSchema = z2.object({
 }, {
   message: "Price must be greater than 0",
   path: ["price"]
+}).refine((data) => {
+  if (data.listingType === "auction" && !data.featured) {
+    return data.tokshow !== void 0 && data.tokshow !== null && data.tokshow !== "" && data.tokshow !== "general";
+  }
+  return true;
+}, {
+  message: "Live show auctions must be assigned to a show",
+  path: ["tokshow"]
 });
 var bundleSchema = z2.object({
   id: z2.string(),
@@ -1117,7 +1149,8 @@ var shippingEstimateRequestSchema = z2.object({
   customer: z2.string(),
   length: z2.union([z2.string(), z2.number()]).transform(Number),
   width: z2.union([z2.string(), z2.number()]).transform(Number),
-  height: z2.union([z2.string(), z2.number()]).transform(Number)
+  height: z2.union([z2.string(), z2.number()]).transform(Number),
+  buying_label: z2.boolean().optional().default(true)
 });
 var shippingEstimateResponseSchema = z2.object({
   carrier: z2.string(),
@@ -1202,6 +1235,123 @@ var bundleLabelPurchaseResponseSchema = z2.object({
   }).optional(),
   error: z2.string().optional()
 });
+var heroSectionSchema = z2.object({
+  title: z2.string().min(1, "Title is required"),
+  subtitle: z2.string().min(1, "Subtitle is required"),
+  primaryButtonText: z2.string().min(1, "Primary button text is required"),
+  primaryButtonLink: z2.string().min(1, "Primary button link is required"),
+  secondaryButtonText: z2.string().min(1, "Secondary button text is required"),
+  heroImage: z2.string().url("Must be a valid URL"),
+  heroImageAlt: z2.string().optional().default("Live shopping experience"),
+  liveViewers: z2.string().optional().default("12.5K watching")
+});
+var howItWorksStepSchema = z2.object({
+  icon: z2.enum(["Play", "Zap", "Shield", "Star", "TrendingUp"]),
+  title: z2.string().min(1, "Step title is required"),
+  description: z2.string().min(1, "Step description is required")
+});
+var featureItemSchema = z2.object({
+  icon: z2.enum(["Play", "Zap", "Shield", "Star", "TrendingUp"]),
+  title: z2.string().min(1, "Feature title is required"),
+  description: z2.string().min(1, "Feature description is required")
+});
+var categoryItemSchema = z2.object({
+  name: z2.string().min(1, "Category name is required"),
+  image: z2.string().url("Must be a valid URL")
+});
+var brandItemSchema = z2.object({
+  name: z2.string().min(1, "Brand name is required"),
+  logo: z2.string().optional()
+});
+var landingContentSchema = z2.object({
+  // Hero Section
+  hero: heroSectionSchema,
+  // How It Works Section
+  howItWorks: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    steps: z2.array(howItWorksStepSchema).length(3, "Must have exactly 3 steps")
+  }),
+  // Join In the Fun Section
+  joinFun: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    image: z2.string().url("Must be a valid URL"),
+    imageAlt: z2.string().optional().default("Auction excitement"),
+    features: z2.array(featureItemSchema).min(1, "Must have at least 1 feature"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Categories Section
+  categories: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    items: z2.array(categoryItemSchema).min(1, "Must have at least 1 category"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Brands Section
+  brands: z2.object({
+    title: z2.string().min(1, "Section title is required"),
+    subtitle: z2.string().min(1, "Section subtitle is required"),
+    items: z2.array(brandItemSchema).min(1, "Must have at least 1 brand"),
+    image: z2.string().url("Must be a valid URL"),
+    imageAlt: z2.string().optional().default("Brand products"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Final CTA Section
+  finalCTA: z2.object({
+    title: z2.string().min(1, "CTA title is required"),
+    subtitle: z2.string().min(1, "CTA subtitle is required"),
+    buttonText: z2.string().min(1, "Button text is required"),
+    buttonLink: z2.string().min(1, "Button link is required")
+  }),
+  // Footer
+  footer: z2.object({
+    copyrightText: z2.string().optional()
+  })
+});
+var pageTypeEnum = z2.enum([
+  "landing",
+  "faq",
+  "about",
+  "privacy",
+  "terms",
+  "contact"
+]);
+var faqItemSchema = z2.object({
+  question: z2.string().min(1, "Question is required"),
+  answer: z2.string().min(1, "Answer is required")
+});
+var faqContentSchema = z2.object({
+  title: z2.string().min(1, "Page title is required"),
+  subtitle: z2.string().optional(),
+  faqs: z2.array(faqItemSchema).min(1, "Must have at least 1 FAQ item")
+});
+var contentSectionSchema = z2.object({
+  title: z2.string().min(1, "Section title is required"),
+  content: z2.string().min(1, "Section content is required"),
+  order: z2.number().optional()
+});
+var sectionBasedPageSchema = z2.object({
+  title: z2.string().min(1, "Page title is required"),
+  subtitle: z2.string().optional(),
+  sections: z2.array(contentSectionSchema).min(1, "Must have at least 1 section")
+});
+var contactInfoSchema = z2.object({
+  email: z2.string().email("Must be a valid email").optional(),
+  phone: z2.string().optional(),
+  address: z2.string().optional()
+});
+var contactContentSchema = z2.object({
+  title: z2.string().min(1, "Page title is required"),
+  subtitle: z2.string().optional(),
+  description: z2.string().optional(),
+  contactInfo: contactInfoSchema,
+  showContactForm: z2.boolean().optional().default(true),
+  sections: z2.array(contentSectionSchema).optional()
+});
 
 // ../shared-backend/server/routes/shipping.ts
 function makeGetWithBody(url, payload, headers = {}) {
@@ -1253,7 +1403,7 @@ function registerShippingRoutes(app2) {
   app2.get("/api/shipping/profiles/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Proxying shipping profiles request to Icona API for user:", userId);
+      console.log("Proxying shipping profiles request to Tokshop API for user:", userId);
       const url = `${BASE_URL}/shipping/profiles/${userId}`;
       console.log("Final API URL being called:", url);
       const headers = {
@@ -1267,13 +1417,13 @@ function registerShippingRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Shipping profiles proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch shipping profiles from Icona API" });
+      res.status(500).json({ error: "Failed to fetch shipping profiles from Tokshop API" });
     }
   });
   app2.post("/api/shipping/profiles/:id", async (req, res) => {
@@ -1282,7 +1432,7 @@ function registerShippingRoutes(app2) {
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });
       }
-      console.log("Creating shipping profile via Icona API for user:", userId);
+      console.log("Creating shipping profile via Tokshop API for user:", userId);
       const headers = {
         "Content-Type": "application/json"
       };
@@ -1295,7 +1445,7 @@ function registerShippingRoutes(app2) {
         body: JSON.stringify(req.body)
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -1307,7 +1457,7 @@ function registerShippingRoutes(app2) {
   app2.put("/api/shipping/profiles/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      console.log("Updating shipping profile via Icona API:", id);
+      console.log("Updating shipping profile via Tokshop API:", id);
       const headers = {
         "Content-Type": "application/json"
       };
@@ -1320,7 +1470,7 @@ function registerShippingRoutes(app2) {
         body: JSON.stringify(req.body)
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -1332,7 +1482,7 @@ function registerShippingRoutes(app2) {
   app2.delete("/api/shipping/profiles/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      console.log("Deleting shipping profile via Icona API:", id);
+      console.log("Deleting shipping profile via Tokshop API:", id);
       const headers = {
         "Content-Type": "application/json"
       };
@@ -1344,7 +1494,7 @@ function registerShippingRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -1427,7 +1577,7 @@ function registerShippingRoutes(app2) {
         owner: req.body.owner,
         customer: req.body.customer,
         tokshow: req.body.tokshow,
-        buying_label: true
+        buying_label: req.body.buying_label ?? true
       };
       const estimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
       console.log("Shipping estimate response:", estimate);
@@ -1451,7 +1601,7 @@ function registerShippingRoutes(app2) {
         length: validatedData.length,
         width: validatedData.width,
         height: validatedData.height,
-        buying_label: true
+        buying_label: validatedData.buying_label ?? true
       };
       const rawEstimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
       console.log("External API shipping estimates:", rawEstimate);
@@ -1735,7 +1885,7 @@ function registerShippingRoutes(app2) {
         // Default format for bundles
         order: bundleId
       }];
-      console.log("Creating bundle label with Icona API");
+      console.log("Creating bundle label with Tokshop API");
       console.log("Bundle request:", { rates });
       const labelHeaders = {
         "Content-Type": "application/json"
@@ -1979,7 +2129,7 @@ function registerBundleRoutes(app2) {
       }
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? "?" + queryString : ""}`;
-      console.log("Fetching orders from Icona API:", url);
+      console.log("Fetching orders from Tokshop API:", url);
       const headers = {
         "Content-Type": "application/json"
       };
@@ -1991,7 +2141,7 @@ function registerBundleRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       const orders = data.orders || [];
@@ -2186,27 +2336,82 @@ import fetch6 from "node-fetch";
 // ../shared-backend/server/firebase-admin.ts
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-var adminApp;
-try {
+import { getStorage } from "firebase-admin/storage";
+import { getFirestore } from "firebase-admin/firestore";
+var adminApp = null;
+var isInitializing = false;
+async function initializeFirebaseAdmin() {
   const existingApps = getApps();
-  if (existingApps.length === 0) {
-    const firebaseConfig = {
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID
-    };
-    adminApp = initializeApp(firebaseConfig);
-  } else {
-    adminApp = existingApps[0];
+  if (existingApps.length > 0) {
+    return existingApps[0];
   }
-} catch (error) {
-  console.error("Firebase Admin initialization error:", error);
-  adminApp = initializeApp({
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID
-  });
+  if (isInitializing) {
+    while (isInitializing) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const apps = getApps();
+    if (apps.length > 0) return apps[0];
+  }
+  isInitializing = true;
+  try {
+    console.log("\u{1F525} Fetching Firebase config from settings API...");
+    const fetchWithTimeout = async (url, timeout = 5e3) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      try {
+        const response2 = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return response2;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+      }
+    };
+    const response = await fetchWithTimeout(`${BASE_URL}/admin/app/settings`, 5e3);
+    if (!response.ok) {
+      throw new Error("Failed to fetch Firebase config from settings API");
+    }
+    const settings = await response.json();
+    const firebaseConfig = {
+      projectId: settings.firebase_project_id || "tokshop-33509",
+      storageBucket: settings.firebase_storage_bucket || "tokshop-33509.appspot.com"
+    };
+    console.log("\u{1F525} Initializing Firebase Admin with config:", {
+      projectId: firebaseConfig.projectId,
+      storageBucket: firebaseConfig.storageBucket
+    });
+    adminApp = initializeApp(firebaseConfig);
+    console.log("\u2705 Firebase Admin initialized successfully");
+    return adminApp;
+  } catch (error) {
+    console.error("\u274C Firebase Admin initialization error:", error);
+    const fallbackConfig = {
+      projectId: "tokshop-33509",
+      storageBucket: "tokshop-33509.appspot.com"
+    };
+    console.log("\u26A0\uFE0F Using fallback Firebase config");
+    adminApp = initializeApp(fallbackConfig);
+    return adminApp;
+  } finally {
+    isInitializing = false;
+  }
 }
-var adminAuth = getAuth(adminApp);
+async function getAdminAuth() {
+  const app2 = await initializeFirebaseAdmin();
+  return getAuth(app2);
+}
+async function getAdminStorage() {
+  const app2 = await initializeFirebaseAdmin();
+  return getStorage(app2);
+}
+async function getAdminFirestore() {
+  const app2 = await initializeFirebaseAdmin();
+  return getFirestore(app2);
+}
 async function verifyFirebaseToken(idToken) {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const auth = await getAdminAuth();
+    const decodedToken = await auth.verifyIdToken(idToken);
     return {
       success: true,
       uid: decodedToken.uid,
@@ -2223,6 +2428,30 @@ async function verifyFirebaseToken(idToken) {
       error: "Invalid or expired Firebase token"
     };
   }
+}
+async function deleteImagesFromStorage(imageUrls) {
+  if (!imageUrls || imageUrls.length === 0) {
+    return;
+  }
+  const storage = await getAdminStorage();
+  const bucket = storage.bucket();
+  const deletePromises = imageUrls.map(async (url) => {
+    try {
+      const urlParts = url.split("/o/");
+      if (urlParts.length < 2) {
+        console.warn("Invalid Firebase Storage URL format:", url);
+        return;
+      }
+      const encodedPath = urlParts[1].split("?")[0];
+      const filePath = decodeURIComponent(encodedPath);
+      console.log(`\u{1F5D1}\uFE0F Deleting image from Firebase Storage: ${filePath}`);
+      await bucket.file(filePath).delete();
+      console.log(`\u2705 Successfully deleted: ${filePath}`);
+    } catch (error) {
+      console.error(`\u274C Error deleting image ${url}:`, error.message);
+    }
+  });
+  await Promise.all(deletePromises);
 }
 
 // ../shared-backend/server/routes/auth.ts
@@ -2272,7 +2501,7 @@ async function resilientFetch(url, options) {
 function registerAuthRoutes(app2) {
   app2.post("/api/auth/signup", async (req, res) => {
     try {
-      console.log("Proxying signup request to Icona API");
+      console.log("Proxying signup request to Tokshop API");
       console.log("Signup payload received:", {
         ...req.body,
         password: "[REDACTED]"
@@ -2306,7 +2535,7 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API signup error:", errorData);
+        console.error("Tokshop API signup error:", errorData);
         return res.status(response.status).json({
           success: false,
           message: errorData.message,
@@ -2316,7 +2545,7 @@ function registerAuthRoutes(app2) {
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid signup response structure:", parseResult.error);
         return res.status(500).json({
@@ -2346,7 +2575,7 @@ function registerAuthRoutes(app2) {
   });
   app2.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("Proxying login request to Icona API");
+      console.log("Proxying login request to Tokshop API");
       console.log("Login payload received:", {
         ...req.body,
         password: "[REDACTED]"
@@ -2375,7 +2604,7 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API login error:", errorData);
+        console.error("Tokshop API login error:", errorData);
         return res.status(response.status).json({
           success: false,
           message: errorData.message,
@@ -2385,7 +2614,7 @@ function registerAuthRoutes(app2) {
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid login response structure:", parseResult.error);
         return res.status(500).json({
@@ -2395,12 +2624,13 @@ function registerAuthRoutes(app2) {
       }
       const data = parseResult.data;
       console.log("Login successful");
+      const token = data.accessToken || data.authtoken;
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
+      req.session.accessToken = token;
       res.json({
         success: true,
         data: data.data,
-        accessToken: data.accessToken,
+        accessToken: token,
         // Return token for localStorage storage
         message: data.message
       });
@@ -2455,14 +2685,14 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API social auth error:", errorData);
+        console.error("Tokshop API social auth error:", errorData);
         return res.status(response.status).json({
           success: false,
           error: errorData.message || "Social authentication failed",
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid social auth response structure:", parseResult.error);
         return res.status(500).json({
@@ -2472,15 +2702,27 @@ function registerAuthRoutes(app2) {
       }
       const data = parseResult.data;
       console.log("Social auth successful");
+      console.log("Social auth response data keys:", Object.keys(data));
+      console.log("Social auth response:", JSON.stringify(responseData, null, 2));
+      const token = data.accessToken || data.authtoken;
+      console.log("Extracted token:", token ? "EXISTS" : "NOT FOUND");
+      console.log("Token fields - accessToken:", data.accessToken ? "EXISTS" : "NOT FOUND", "authtoken:", data.authtoken ? "EXISTS" : "NOT FOUND");
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
-      res.json({
-        success: true,
-        data: data.data,
-        accessToken: data.accessToken,
-        // Return token for localStorage storage
-        message: data.message,
-        newuser: data.newuser || false
+      req.session.accessToken = token;
+      req.session.save((err) => {
+        if (err) {
+          console.error("Failed to save session:", err);
+        } else {
+          console.log("Session saved successfully with token");
+        }
+        res.json({
+          success: true,
+          data: data.data,
+          accessToken: token,
+          // Return token for localStorage storage
+          message: data.message,
+          newuser: data.newuser || false
+        });
       });
     } catch (error) {
       console.error("Social auth proxy error:", error);
@@ -2493,7 +2735,7 @@ function registerAuthRoutes(app2) {
   });
   app2.post("/api/auth/social/complete", async (req, res) => {
     try {
-      console.log("Proxying social auth completion request to Icona API");
+      console.log("Proxying social auth completion request to Tokshop API");
       console.log("Social auth completion payload received:", req.body);
       const validationResult = socialAuthCompleteSchema.safeParse({
         firstName: req.body.firstName,
@@ -2536,14 +2778,14 @@ function registerAuthRoutes(app2) {
       });
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API social auth completion error:", errorData);
+        console.error("Tokshop API social auth completion error:", errorData);
         return res.status(response.status).json({
           success: false,
           error: errorData.message || "Social authentication completion failed",
           details: errorData
         });
       }
-      const parseResult = iconaAuthResponseSchema.safeParse(responseData);
+      const parseResult = tokshopAuthResponseSchema.safeParse(responseData);
       if (!parseResult.success) {
         console.error("Invalid social auth completion response structure:", parseResult.error);
         return res.status(500).json({
@@ -2553,12 +2795,13 @@ function registerAuthRoutes(app2) {
       }
       const data = parseResult.data;
       console.log("Social auth completion successful");
+      const token = data.accessToken || data.authtoken;
       req.session.user = data.data;
-      req.session.accessToken = data.accessToken;
+      req.session.accessToken = token;
       res.json({
         success: true,
         data: data.data,
-        accessToken: data.accessToken,
+        accessToken: token,
         // Return token for localStorage storage
         message: data.message || "Profile completed successfully"
       });
@@ -2874,7 +3117,7 @@ function registerAuthRoutes(app2) {
         }
       );
       if (!response.ok) {
-        console.error(`Icona API error fetching payment methods ${requestedUserId}:`, responseData);
+        console.error(`Tokshop API error fetching payment methods ${requestedUserId}:`, responseData);
         return res.status(response.status).json({
           success: false,
           error: responseData?.message || "Failed to fetch payment methods"
@@ -3401,6 +3644,51 @@ function registerAuthRoutes(app2) {
       });
     }
   });
+  app2.post("/users/tip", async (req, res) => {
+    try {
+      console.log("Proxying tip request to Tokshop API");
+      console.log("Tip payload received:", req.body);
+      const { amount, from, to, note } = req.body;
+      if (!amount || !from || !to) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: amount, from, to"
+        });
+      }
+      const { response, data: responseData } = await resilientFetch(
+        `${BASE_URL}/users/tip`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            amount,
+            from,
+            to,
+            note: note || "tip"
+          })
+        }
+      );
+      if (!response.ok) {
+        console.error("Tokshop API tip error:", responseData);
+        return res.status(response.status).json({
+          success: false,
+          error: responseData?.message || "Failed to send tip",
+          details: responseData
+        });
+      }
+      console.log("Tip sent successfully:", responseData);
+      res.json(responseData);
+    } catch (error) {
+      console.error("Tip request error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to send tip",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   app2.get("/api/users/userexists/email", async (req, res) => {
     try {
       const { email } = req.query;
@@ -3478,7 +3766,7 @@ function registerAuthRoutes(app2) {
   });
   app2.post("/api/admin/auth/login", async (req, res) => {
     try {
-      console.log("Proxying admin login request to Icona API");
+      console.log("Proxying admin login request to Tokshop API");
       console.log("Admin login payload received:", {
         ...req.body,
         password: "[REDACTED]"
@@ -3507,7 +3795,7 @@ function registerAuthRoutes(app2) {
       );
       if (!response.ok) {
         const errorData = responseData;
-        console.error("Icona API admin login error:", errorData);
+        console.error("Tokshop API admin login error:", errorData);
         return res.status(response.status).json({
           success: false,
           message: errorData.message,
@@ -3523,7 +3811,7 @@ function registerAuthRoutes(app2) {
         accessToken: adminResponse.accesstoken || adminResponse.accessToken,
         message: adminResponse.message || "Admin login successful"
       };
-      const parseResult = iconaAuthResponseSchema.safeParse(normalizedResponse);
+      const parseResult = tokshopAuthResponseSchema.safeParse(normalizedResponse);
       if (!parseResult.success) {
         console.error("Invalid admin login response structure:", parseResult.error);
         console.error("Raw response data:", JSON.stringify(responseData).substring(0, 500));
@@ -3664,7 +3952,7 @@ function registerAuthRoutes(app2) {
         data: {
           stripe_fee: settings?.stripe_fee || "0",
           extra_charges: settings?.extra_charges || "0",
-          support_email: settings?.support_email || "support@icona.com"
+          support_email: settings?.support_email || ""
         }
       });
     } catch (error) {
@@ -3728,22 +4016,35 @@ var createProductSchema = z3.object({
   startingPrice: z3.coerce.number().optional(),
   duration: z3.coerce.number().optional(),
   sudden: z3.boolean().optional(),
+  startTime: z3.string().optional().nullable(),
+  endTime: z3.string().optional().nullable(),
   colors: z3.array(z3.string()).optional(),
   sizes: z3.array(z3.string()).optional(),
   reserved: z3.boolean().optional(),
   tokshow: z3.union([z3.boolean(), z3.string(), z3.null()]).optional(),
   featured: z3.boolean().optional().default(false),
+  started: z3.boolean().optional().default(false),
   userId: z3.string().optional()
 });
 function registerProductRoutes(app2) {
   app2.get("/api/products/search", async (req, res) => {
     try {
-      const { q } = req.query;
-      console.log("Proxying product search request to Icona API with query:", q);
-      if (!q || typeof q !== "string") {
-        return res.json({ products: [] });
+      const queryParams = req.query;
+      console.log("Proxying product search request to Tokshop API with params:", queryParams);
+      if (!queryParams.q || typeof queryParams.q !== "string") {
+        return res.json({
+          query: queryParams.q || "",
+          results: { products: [], rooms: [], users: [] },
+          pagination: { page: 1, limit: 20, total: 0, pages: 0 }
+        });
       }
-      const url = `${BASE_URL}/products/search?q=${encodeURIComponent(q)}`;
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(queryParams)) {
+        if (value && typeof value === "string") {
+          params.set(key, value);
+        }
+      }
+      const url = `${BASE_URL}/products/search?${params.toString()}`;
       console.log("Final search API URL being called:", url);
       const headers = {
         "Content-Type": "application/json"
@@ -3757,24 +4058,27 @@ function registerProductRoutes(app2) {
       });
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`
+          `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
       if (data?.results?.users && data.results.users.length > 0) {
         console.log("Sample user from search results:", JSON.stringify(data.results.users[0], null, 2));
       }
+      if (data?.results?.products && data.results.products.length > 0) {
+        console.log("Sample product from search results:", JSON.stringify(data.results.products[0], null, 2));
+      }
       res.json(data);
     } catch (error) {
       console.error("Product search proxy error:", error);
-      res.status(500).json({ error: "Failed to search products from Icona API", products: [] });
+      res.status(500).json({ error: "Failed to search products from Tokshop API", products: [] });
     }
   });
   app2.get("/api/products/:id", async (req, res) => {
     try {
       const { id } = req.params;
       console.log(
-        "Proxying individual product request to Icona API for product:",
+        "Proxying individual product request to Tokshop API for product:",
         id
       );
       const url = `${BASE_URL}/products/products/${id}`;
@@ -3791,56 +4095,53 @@ function registerProductRoutes(app2) {
       });
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`
+          `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Individual product proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch product from Icona API" });
+      res.status(500).json({ error: "Failed to fetch product from Tokshop API" });
     }
   });
   app2.get("/api/products", async (req, res) => {
     try {
-      console.log("Proxying products request to Icona API");
+      console.log("Proxying products request to Tokshop API");
       console.log("Query params received:", req.query);
-      const queryParams = new URLSearchParams();
-      if (req.query.userId || req.query.userid) {
-        queryParams.set("userid", req.query.userId || req.query.userid);
+      const queryParts = [];
+      if (req.query.userId !== void 0 || req.query.userid !== void 0) {
+        queryParts.push(`userid=${encodeURIComponent(req.query.userId || req.query.userid)}`);
       }
-      if (req.query.roomId) {
-        console.log("Adding roomId to query:", req.query.roomId);
-        queryParams.set("roomid", req.query.roomId);
-      } else {
-        console.log("No roomId in query");
+      if (req.query.roomId !== void 0 || req.query.roomid !== void 0) {
+        queryParts.push(`roomid=${encodeURIComponent(req.query.roomId || req.query.roomid || "")}`);
       }
-      if (req.query.saletype) {
-        console.log("Adding saletype to query:", req.query.saletype);
-        queryParams.set("saletype", req.query.saletype);
-      } else {
-        console.log("No saletype in query");
+      if (req.query.type !== void 0) {
+        queryParts.push(`type=${encodeURIComponent(req.query.type)}`);
       }
-      if (req.query.status && req.query.status !== "all") {
-        queryParams.set("status", req.query.status);
+      if (req.query.saletype !== void 0) {
+        queryParts.push(`saletype=${encodeURIComponent(req.query.saletype)}`);
       }
-      if (req.query.type) {
-        queryParams.set("type", req.query.type);
+      if (req.query.categoryId !== void 0 || req.query.category !== void 0) {
+        queryParts.push(`category=${encodeURIComponent(req.query.categoryId || req.query.category || "")}`);
       }
-      if (req.query.page) {
-        queryParams.set("page", req.query.page);
+      if (req.query.page !== void 0) {
+        queryParts.push(`page=${encodeURIComponent(req.query.page)}`);
       }
-      if (req.query.limit) {
-        queryParams.set("limit", req.query.limit);
-      }
-      if (req.query.categoryId) {
-        queryParams.set("category", req.query.categoryId);
+      if (req.query.limit !== void 0) {
+        queryParts.push(`limit=${encodeURIComponent(req.query.limit)}`);
       }
       if (req.query.featured !== void 0) {
-        queryParams.set("featured", req.query.featured);
+        queryParts.push(`featured=${encodeURIComponent(req.query.featured)}`);
       }
-      const queryString = queryParams.toString();
-      const url = `${BASE_URL}/products${queryString ? "?" + queryString : ""}`;
+      if (req.query.status !== void 0) {
+        queryParts.push(`status=${encodeURIComponent(req.query.status)}`);
+      }
+      if (req.query.title !== void 0) {
+        queryParts.push(`title=${encodeURIComponent(req.query.title)}`);
+      }
+      const queryString = queryParts.join("&");
+      const url = `${BASE_URL}/products/${queryString ? "?" + queryString : ""}`;
       console.log("Final API URL being called:", url);
       const response = await fetch7(url, {
         method: "GET",
@@ -3850,7 +4151,7 @@ function registerProductRoutes(app2) {
       });
       if (!response.ok) {
         throw new Error(
-          `Icona API returned ${response.status}: ${response.statusText}`
+          `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -3869,13 +4170,13 @@ function registerProductRoutes(app2) {
       res.json(data);
     } catch (error) {
       console.error("Products proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch products from Icona API" });
+      res.status(500).json({ error: "Failed to fetch products from Tokshop API" });
     }
   });
   app2.post("/api/products/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Creating product via Icona API for user:", userId);
+      console.log("Creating product via Tokshop API for user:", userId);
       console.log("Product data received:", req.body);
       if (!userId) {
         return res.status(400).json({ error: "User ID is required" });
@@ -3889,7 +4190,7 @@ function registerProductRoutes(app2) {
         });
       }
       const productData = validationResult.data;
-      const iconaProductData = {
+      const tokshopProductData = {
         name: productData.name,
         ...productData.price && { price: productData.price },
         quantity: productData.quantity,
@@ -3899,6 +4200,7 @@ function registerProductRoutes(app2) {
         listing_type: productData.listingType,
         status: productData.status || "draft",
         featured: productData.featured || false,
+        started: productData.featured && productData.listingType === "auction" || false,
         // Only include optional fields if they have values (filter out empty strings)
         ...req.body.images && { images: req.body.images },
         ...req.body.discountedPrice && {
@@ -3909,6 +4211,12 @@ function registerProductRoutes(app2) {
         },
         ...req.body.duration && { duration: req.body.duration },
         ...req.body.sudden !== void 0 && { sudden: req.body.sudden },
+        ...req.body.startTimeTimestamp && {
+          start_time_date: req.body.startTimeTimestamp
+        },
+        ...req.body.endTimeTimestamp && {
+          end_time_date: req.body.endTimeTimestamp
+        },
         ...req.body.colors && { colors: req.body.colors },
         ...req.body.sizes && { sizes: req.body.sizes },
         ...req.body.reserved !== void 0 && { reserved: req.body.reserved },
@@ -3937,22 +4245,24 @@ function registerProductRoutes(app2) {
         console.log("WARNING: No access token found in session");
       }
       console.log(
-        "Sending to Icona API:",
-        JSON.stringify(iconaProductData, null, 2)
+        "Sending to Tokshop API:",
+        JSON.stringify(tokshopProductData, null, 2)
       );
       const response = await fetch7(`${BASE_URL}/products/${userId}`, {
         method: "POST",
         headers,
-        body: JSON.stringify(iconaProductData)
+        body: JSON.stringify(tokshopProductData)
       });
+      console.log("External API response status:", response.status);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.log("External API error response:", JSON.stringify(errorData, null, 2));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
-      console.log("Product created successfully:", data);
+      console.log("External API success response:", JSON.stringify(data, null, 2));
       res.json(data);
     } catch (error) {
       console.error("Product creation error:", error);
@@ -3965,7 +4275,7 @@ function registerProductRoutes(app2) {
   app2.post("/api/products/bulkadd/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log("Bulk adding products via Icona API for user:", userId);
+      console.log("Bulk adding products via Tokshop API for user:", userId);
       console.log(
         "Number of products received:",
         req.body.products?.length || 0
@@ -3997,7 +4307,7 @@ function registerProductRoutes(app2) {
           validationErrors
         });
       }
-      const iconaProducts = validatedProducts.map((productData) => ({
+      const tokshopProducts = validatedProducts.map((productData) => ({
         name: productData.name,
         price: productData.price,
         quantity: productData.quantity,
@@ -4020,23 +4330,23 @@ function registerProductRoutes(app2) {
           "WARNING: No access token found in session for bulk upload"
         );
       }
-      console.log("Sending bulk products to Icona API:", {
+      console.log("Sending bulk products to Tokshop API:", {
         endpoint: `${BASE_URL}/products/products/bulkadd`,
-        productCount: iconaProducts.length
+        productCount: tokshopProducts.length
       });
-      console.log("Actual payload being sent:", JSON.stringify({ products: iconaProducts }, null, 2));
+      console.log("Actual payload being sent:", JSON.stringify({ products: tokshopProducts }, null, 2));
       const response = await fetch7(
         `${BASE_URL}/products/products/bulkadd`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ products: iconaProducts })
+          body: JSON.stringify({ products: tokshopProducts })
         }
       );
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4056,7 +4366,7 @@ function registerProductRoutes(app2) {
   app2.post("/api/products/images/:productId", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Updating product images via Icona API:", productId);
+      console.log("Updating product images via Tokshop API:", productId);
       const { images } = req.body;
       if (!images || !Array.isArray(images)) {
         return res.status(400).json({ error: "Images array is required" });
@@ -4078,7 +4388,7 @@ function registerProductRoutes(app2) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4095,7 +4405,7 @@ function registerProductRoutes(app2) {
   app2.patch("/api/products/:productId", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Updating product via Icona API:", productId);
+      console.log("Updating product via Tokshop API:", productId);
       console.log("Raw request body featured field:", req.body.featured);
       const validationResult = createProductSchema.safeParse(req.body);
       if (!validationResult.success) {
@@ -4107,7 +4417,7 @@ function registerProductRoutes(app2) {
       }
       const productData = validationResult.data;
       console.log("Validated featured field:", productData.featured);
-      const iconaUpdateData = {
+      const tokshopUpdateData = {
         name: productData.name,
         price: productData.price,
         quantity: productData.quantity,
@@ -4125,14 +4435,27 @@ function registerProductRoutes(app2) {
         listing_type: productData.listingType,
         tokshow: productData.tokshow,
         featured: productData.featured || false,
-        shipping_profile: productData.shippingProfile?.trim() ? productData.shippingProfile : null
+        started: productData.featured && productData.listingType === "auction" || false
       };
+      if (req.body.startTimeTimestamp) {
+        tokshopUpdateData.start_time_date = req.body.startTimeTimestamp;
+      }
+      if (req.body.endTimeTimestamp) {
+        tokshopUpdateData.end_time_date = req.body.endTimeTimestamp;
+      }
+      if (productData.shippingProfile && productData.shippingProfile.trim()) {
+        tokshopUpdateData.shipping_profile = productData.shippingProfile;
+      }
+      if (req.body.auction) {
+        tokshopUpdateData.auction = req.body.auction;
+        console.log("Sending to external API - auction ID:", tokshopUpdateData.auction);
+      }
       console.log(
         "Sending to external API - featured field:",
-        iconaUpdateData.featured
+        tokshopUpdateData.featured
       );
-      console.log("Sending to external API - sudden:", iconaUpdateData.sudden);
-      console.log("Sending to external API - duration:", iconaUpdateData.duration);
+      console.log("Sending to external API - sudden:", tokshopUpdateData.sudden);
+      console.log("Sending to external API - duration:", tokshopUpdateData.duration);
       const headers = {
         "Content-Type": "application/json"
       };
@@ -4144,13 +4467,13 @@ function registerProductRoutes(app2) {
         {
           method: "PUT",
           headers,
-          body: JSON.stringify(iconaUpdateData)
+          body: JSON.stringify(tokshopUpdateData)
         }
       );
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4166,12 +4489,37 @@ function registerProductRoutes(app2) {
   app2.put("/api/products/:productId/delete", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Soft deleting product via Icona API:", productId);
+      console.log("Soft deleting product via Tokshop API:", productId);
       const headers = {
         "Content-Type": "application/json"
       };
       if (req.session.accessToken) {
         headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+      console.log("Fetching product details to get images:", productId);
+      const productResponse = await fetch7(
+        `${BASE_URL}/products/products/${productId}`,
+        {
+          method: "GET",
+          headers
+        }
+      );
+      if (productResponse.ok) {
+        const productData = await productResponse.json();
+        const images = productData?.images || [];
+        if (images.length > 0) {
+          console.log(`Found ${images.length} images to delete from Firebase Storage`);
+          try {
+            await deleteImagesFromStorage(images);
+            console.log("\u2705 Successfully deleted product images from Firebase Storage");
+          } catch (storageError) {
+            console.error("\u26A0\uFE0F Error deleting images from Firebase Storage:", storageError);
+          }
+        } else {
+          console.log("No images to delete from Firebase Storage");
+        }
+      } else {
+        console.warn("Could not fetch product details for image cleanup");
       }
       const response = await fetch7(
         `${BASE_URL}/products/products/${productId}`,
@@ -4184,7 +4532,7 @@ function registerProductRoutes(app2) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4207,7 +4555,7 @@ function registerProductRoutes(app2) {
         return res.status(400).json({ error: "updates object is required" });
       }
       console.log(`Bulk editing ${productIds.length} products:`, { productIds, updates });
-      const iconaUpdates = {
+      const tokshopUpdates = {
         ...updates,
         // Map shippingProfile to shipping_profile if present
         ...updates.shippingProfile && {
@@ -4215,16 +4563,16 @@ function registerProductRoutes(app2) {
           shippingProfile: void 0
         }
       };
-      Object.keys(iconaUpdates).forEach((key) => {
-        if (iconaUpdates[key] === void 0) {
-          delete iconaUpdates[key];
+      Object.keys(tokshopUpdates).forEach((key) => {
+        if (tokshopUpdates[key] === void 0) {
+          delete tokshopUpdates[key];
         }
       });
       const payload = {
         productIds,
-        updates: iconaUpdates
+        updates: tokshopUpdates
       };
-      console.log("Sending to Icona API:", JSON.stringify(payload, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(payload, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
@@ -4239,12 +4587,12 @@ function registerProductRoutes(app2) {
         headers,
         body: JSON.stringify(payload)
       });
-      console.log(`Icona API response status: ${response.status}`);
+      console.log(`Tokshop API response status: ${response.status}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("Icona API error:", errorData);
+        console.error("Tokshop API error:", errorData);
         throw new Error(
-          errorData.message || `Icona API returned ${response.status}: ${response.statusText}`
+          errorData.message || `Tokshop API returned ${response.status}: ${response.statusText}`
         );
       }
       const data = await response.json();
@@ -4265,7 +4613,7 @@ import fetch8 from "node-fetch";
 function registerCategoryRoutes(app2) {
   app2.get("/api/categories", async (req, res) => {
     try {
-      console.log("Proxying categories request to Icona API");
+      console.log("Proxying categories request to Tokshop API");
       console.log("Query params received:", req.query);
       const queryParams = new URLSearchParams();
       if (req.query.userId) {
@@ -4290,13 +4638,13 @@ function registerCategoryRoutes(app2) {
         }
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
       console.error("Categories proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch categories from Icona API" });
+      res.status(500).json({ error: "Failed to fetch categories from Tokshop API" });
     }
   });
 }
@@ -4311,18 +4659,29 @@ function registerAddressRoutes(app2) {
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await fetch9(`${BASE_URL}/address/all/${userId}`, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
-      console.log("Address API response (first address):", JSON.stringify(data[0], null, 2));
+      if (data && data.length > 0) {
+        console.log("======= ADDRESS API RESPONSE =======");
+        console.log("Full address object:", JSON.stringify(data[0], null, 2));
+        console.log("Country:", data[0].country);
+        console.log("CountryCode:", data[0].countryCode);
+        console.log("State:", data[0].state);
+        console.log("StateCode:", data[0].stateCode);
+        console.log("City:", data[0].city);
+        console.log("CityCode:", data[0].cityCode);
+        console.log("=====================================");
+      }
       const transformedData = data.map((address) => ({
         ...address,
         zipcode: address.zip || address.zipcode || ""
@@ -4341,15 +4700,16 @@ function registerAddressRoutes(app2) {
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await fetch9(`${BASE_URL}/address/all/${userId}`, {
         method: "GET",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const addresses = await response.json();
       console.log(`Fetched ${addresses?.length || 0} addresses for user ${userId}`);
@@ -4381,7 +4741,7 @@ function registerAddressRoutes(app2) {
         });
       }
       const validatedData = validationResult.data;
-      console.log("Creating address via Icona API for user:", validatedData.userId);
+      console.log("Creating address via Tokshop API for user:", validatedData.userId);
       const transformedBody = {
         userId: validatedData.userId,
         name: validatedData.name,
@@ -4405,12 +4765,13 @@ function registerAddressRoutes(app2) {
         email: validatedData.email,
         validate: true
       };
-      console.log("Sending to Icona API:", JSON.stringify(transformedBody, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(transformedBody, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await fetch9(`${BASE_URL}/address`, {
         method: "POST",
@@ -4418,8 +4779,8 @@ function registerAddressRoutes(app2) {
         body: JSON.stringify(transformedBody)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       let isActualError = !response.ok;
       try {
         const jsonCheck = JSON.parse(responseText);
@@ -4429,7 +4790,7 @@ function registerAddressRoutes(app2) {
       } catch (e) {
       }
       if (isActualError) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4469,7 +4830,7 @@ function registerAddressRoutes(app2) {
         });
       }
       const validatedData = validationResult.data;
-      console.log("Updating address via Icona API:", addressId);
+      console.log("Updating address via Tokshop API:", addressId);
       const transformedBody = {
         userId: validatedData.userId,
         name: validatedData.name,
@@ -4493,12 +4854,13 @@ function registerAddressRoutes(app2) {
         email: validatedData.email,
         validate: true
       };
-      console.log("Sending to Icona API:", JSON.stringify(transformedBody, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(transformedBody, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "PUT",
@@ -4506,8 +4868,8 @@ function registerAddressRoutes(app2) {
         body: JSON.stringify(transformedBody)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       let isActualError = !response.ok;
       try {
         const jsonCheck = JSON.parse(responseText);
@@ -4517,7 +4879,7 @@ function registerAddressRoutes(app2) {
       } catch (e) {
       }
       if (isActualError) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4562,14 +4924,15 @@ function registerAddressRoutes(app2) {
         });
       }
       const validatedData = validationResult.data;
-      console.log("Setting address as primary via Icona API:", addressId);
+      console.log("Setting address as primary via Tokshop API:", addressId);
       const requestBody = { primary: validatedData.primary, userId: validatedData.userId };
-      console.log("Sending to Icona API:", JSON.stringify(requestBody, null, 2));
+      console.log("Sending to Tokshop API:", JSON.stringify(requestBody, null, 2));
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "PATCH",
@@ -4577,10 +4940,10 @@ function registerAddressRoutes(app2) {
         body: JSON.stringify(requestBody)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4613,19 +4976,20 @@ function registerAddressRoutes(app2) {
   app2.delete("/api/address/:addressId", async (req, res) => {
     try {
       const { addressId } = req.params;
-      console.log("Deleting address via Icona API:", addressId);
+      console.log("Deleting address via Tokshop API:", addressId);
       const headers = {
         "Content-Type": "application/json"
       };
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const token = req.session?.accessToken || req.headers["x-access-token"] || (req.headers["authorization"]?.startsWith("Bearer ") ? req.headers["authorization"].substring(7) : null);
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await fetch9(`${BASE_URL}/address/${addressId}`, {
         method: "DELETE",
         headers
       });
       if (!response.ok) {
-        throw new Error(`Icona API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       const data = await response.json();
       res.json(data);
@@ -4661,7 +5025,7 @@ function registerPaymentMethodRoutes(app2) {
       const responseText = await response.text();
       console.log("Get payment methods response status:", response.status);
       if (!response.ok) {
-        console.error(`Icona API get payment methods error ${response.status}`);
+        console.error(`Tokshop API get payment methods error ${response.status}`);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4709,7 +5073,7 @@ function registerPaymentMethodRoutes(app2) {
       const responseText = await response.text();
       console.log("Delete payment method response status:", response.status);
       if (!response.ok) {
-        console.error(`Icona API delete error ${response.status}`);
+        console.error(`Tokshop API delete error ${response.status}`);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4757,7 +5121,7 @@ function registerPaymentMethodRoutes(app2) {
       const responseText = await response.text();
       console.log("Set default payment method response status:", response.status);
       if (!response.ok) {
-        console.error(`Icona API set default error ${response.status}`);
+        console.error(`Tokshop API set default error ${response.status}`);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -4790,7 +5154,7 @@ function registerPaymentMethodRoutes(app2) {
           error: "Payment method ID and user ID are required"
         });
       }
-      console.log("Adding payment method via Icona API:", { paymentMethodId, userId });
+      console.log("Adding payment method via Tokshop API:", { paymentMethodId, userId });
       const headers = {
         "Content-Type": "application/json"
       };
@@ -4806,10 +5170,10 @@ function registerPaymentMethodRoutes(app2) {
         })
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API error ${response.status}:`, responseText);
+        console.error(`Tokshop API error ${response.status}:`, responseText);
         try {
           const errorJson = JSON.parse(responseText);
           const apiMessage = errorJson.message || errorJson.error || errorJson;
@@ -7739,6 +8103,7 @@ function registerAdminRoutes(app2) {
         }
       }
       const appName = settings.app_name || "Our App";
+      const frontendUrl = BASE_URL.replace(/\/\/api\./, "//");
       const BATCH_SIZE = 10;
       const BATCH_DELAY = 4e5;
       const results = [];
@@ -8010,10 +8375,10 @@ function registerAdminRoutes(app2) {
                           \u{1F34E} Update on iOS
                         </a>
                       ` : ""}
-                      <a href="https://admin.iconaapp.com/" class="button">
+                      <a href="${frontendUrl}/" class="button">
                         \u{1F3EA} Seller Hub Portal
                       </a>
-                      <a href="https://admin.iconaapp.com/admin/login" class="button">
+                      <a href="${frontendUrl}/admin/login" class="button">
                         \u{1F510} Admin Portal
                       </a>
                     </div>
@@ -8092,8 +8457,8 @@ ${androidVersion && androidLink ? `Android: ${androidLink}` : ""}
 ${iosVersion && iosLink ? `iOS: ${iosLink}` : ""}
 
 Quick Access:
-- Seller Hub Portal: https://admin.iconaapp.com/
-- Admin Portal: https://admin.iconaapp.com/admin/login
+- Seller Hub Portal: ${frontendUrl}/
+- Admin Portal: ${frontendUrl}/admin/login
 
 \u{1F4AC} Contact Us on WhatsApp: https://wa.me/254791334234
 
@@ -8533,7 +8898,6 @@ function registerSettingsRoutes(app2) {
       }
       const data = await response.json();
       const settings = Array.isArray(data) ? data[0] : data;
-      console.log("Raw settings from external API:", JSON.stringify(settings, null, 2));
       const publicSettings = {
         app_name: settings?.app_name || "App",
         seo_title: settings?.seo_title || "",
@@ -8542,8 +8906,16 @@ function registerSettingsRoutes(app2) {
         secondary_color: settings?.secondary_color || "#1A1A1A",
         // API returns 'stripepublickey' not 'stripe_publishable_key'
         stripe_publishable_key: settings?.stripepublickey || settings?.stripe_publishable_key || "",
-        commission_rate: parseFloat(settings?.commission || "0")
+        commission_rate: parseFloat(settings?.commission || "0"),
         // API returns 'commission' as string
+        // Firebase configuration (individual fields)
+        firebase_api_key: settings?.firebase_api_key || settings?.FIREBASE_API_KEY || "",
+        firebase_auth_domain: settings?.firebase_auth_domain || "",
+        firebase_project_id: settings?.firebase_project_id || "",
+        firebase_storage_bucket: settings?.firebase_storage_bucket || "",
+        firebase_app_id: settings?.firebase_app_id || "",
+        // Demo mode flag
+        demoMode: settings?.demoMode || false
       };
       res.json({
         success: true,
@@ -8589,13 +8961,13 @@ function registerGiveawayRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: "Failed to fetch giveaways" });
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching giveaways from Icona API:", error);
+      console.error("Error fetching giveaways from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch giveaways" });
     }
   });
@@ -8615,13 +8987,13 @@ function registerGiveawayRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         return res.status(response.status).json({ error: "Giveaway not found" });
       }
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching giveaway from Icona API:", error);
+      console.error("Error fetching giveaway from Tokshop API:", error);
       res.status(500).json({ error: "Failed to fetch giveaway" });
     }
   });
@@ -8634,26 +9006,32 @@ function registerGiveawayRoutes(app2) {
       if (!req.session?.user?.id) {
         return res.status(401).json({ error: "Unauthorized - no user ID" });
       }
+      const { shippingProfile, ...restBody } = req.body;
       const giveawayData = {
-        ...req.body,
-        user: req.session.user.id
+        ...restBody,
+        user: req.session.user.id,
+        // Force featured to false for giveaways
+        featured: false
       };
+      if (shippingProfile) {
+        giveawayData.shipping_profile = shippingProfile;
+      }
       const headers = {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
       const url = `${BASE_URL}/giveaways`;
-      console.log("Posting to Icona API:", url);
+      console.log("Posting to Tokshop API:", url);
       const response = await fetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(giveawayData)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         let errorData;
         try {
           errorData = JSON.parse(responseText);
@@ -8676,22 +9054,31 @@ function registerGiveawayRoutes(app2) {
       if (!req.session?.accessToken) {
         return res.status(401).json({ error: "Unauthorized - no access token" });
       }
+      const { shippingProfile, ...restBody } = req.body;
+      const giveawayData = {
+        ...restBody,
+        // Force featured to false for giveaways
+        featured: false
+      };
+      if (shippingProfile) {
+        giveawayData.shipping_profile = shippingProfile;
+      }
       const headers = {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${req.session.accessToken}`
       };
       const url = `${BASE_URL}/giveaways/${id}`;
-      console.log("Putting to Icona API:", url);
+      console.log("Putting to Tokshop API:", url);
       const response = await fetch(url, {
         method: "PUT",
         headers,
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(giveawayData)
       });
       const responseText = await response.text();
-      console.log("Icona API response status:", response.status);
-      console.log("Icona API response body:", responseText);
+      console.log("Tokshop API response status:", response.status);
+      console.log("Tokshop API response body:", responseText);
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         let errorData;
         try {
           errorData = JSON.parse(responseText);
@@ -8724,7 +9111,7 @@ function registerGiveawayRoutes(app2) {
         headers
       });
       if (!response.ok) {
-        console.error(`Icona API returned ${response.status}: ${response.statusText}`);
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
         const errorText = await response.text();
         let errorData;
         try {
@@ -8744,7 +9131,6 @@ function registerGiveawayRoutes(app2) {
 }
 
 // ../shared-backend/server/routes/stripe.ts
-var BASE_URL2 = "https://api.iconaapp.com";
 function registerStripeRoutes(app2) {
   app2.post("/api/stripe/connect/:userId", async (req, res) => {
     try {
@@ -8753,7 +9139,7 @@ function registerStripeRoutes(app2) {
       if (!accessToken) {
         return res.status(401).json({ success: false, error: "Not authenticated" });
       }
-      const response = await fetch(`${BASE_URL2}/stripe/connect/${userId}`, {
+      const response = await fetch(`${BASE_URL}/stripe/connect/${userId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -8776,8 +9162,496 @@ function registerStripeRoutes(app2) {
   });
 }
 
+// ../shared-backend/server/routes/content.ts
+var COLLECTION_NAME = "app_content";
+var defaultLandingContent = {
+  hero: {
+    title: "The Live Shopping Marketplace",
+    subtitle: "Shop, sell, and connect around the things you love. Join thousands of buyers and sellers in real-time.",
+    primaryButtonText: "Get Started",
+    primaryButtonLink: "/login",
+    secondaryButtonText: "Watch Demo",
+    heroImage: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=600&fit=crop",
+    heroImageAlt: "Live shopping experience",
+    liveViewers: "12.5K watching"
+  },
+  howItWorks: {
+    title: "How It Works",
+    subtitle: "Join live shows, bid on items you love, and connect with passionate sellers",
+    steps: [
+      {
+        icon: "Play",
+        title: "Watch Live Shows",
+        description: "Browse live streams across 250+ categories and discover unique items from trusted sellers"
+      },
+      {
+        icon: "Zap",
+        title: "Bid & Buy",
+        description: "Participate in fast-paced auctions, flash sales, and buy-it-now deals in real-time"
+      },
+      {
+        icon: "Shield",
+        title: "Safe & Secure",
+        description: "Protected purchases with buyer protection and secure checkout for peace of mind"
+      }
+    ]
+  },
+  joinFun: {
+    title: "Join In the Fun",
+    subtitle: "Take part in fast-paced auctions, incredible flash sales, live show giveaways, and so much more.",
+    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop",
+    imageAlt: "Auction excitement",
+    features: [
+      {
+        icon: "Star",
+        title: "Live Auctions",
+        description: "Bid in real-time and win amazing deals on items you love"
+      },
+      {
+        icon: "Star",
+        title: "Flash Sales",
+        description: "Lightning-fast deals with limited quantities at unbeatable prices"
+      },
+      {
+        icon: "Star",
+        title: "Giveaways",
+        description: "Win free items during live shows from generous sellers"
+      }
+    ],
+    buttonText: "Get Started",
+    buttonLink: "/login"
+  },
+  categories: {
+    title: "We've Got It All",
+    subtitle: "Explore 250+ categories, including fashion, coins, sports & Pok\xE9mon cards, sneakers, and more.",
+    items: [
+      { name: "Fashion", image: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=500&fit=crop" },
+      { name: "Collectibles", image: "https://images.unsplash.com/photo-1611312449408-fcece27cdbb7?w=400&h=500&fit=crop" },
+      { name: "Sports Cards", image: "https://images.unsplash.com/photo-1611916656173-875e4277bea6?w=400&h=500&fit=crop" },
+      { name: "Sneakers", image: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=400&h=500&fit=crop" },
+      { name: "Electronics", image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=500&fit=crop" },
+      { name: "Jewelry", image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop" }
+    ],
+    buttonText: "Explore All Categories",
+    buttonLink: "/login"
+  },
+  brands: {
+    title: "Find Incredible Deals on Name Brands",
+    subtitle: "From the brands you love, to hard-to-find specialty products. There's a deal on whatever you're looking for.",
+    items: [
+      { name: "Nike" },
+      { name: "Adidas" },
+      { name: "Supreme" },
+      { name: "Pok\xE9mon" }
+    ],
+    image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop",
+    imageAlt: "Brand products",
+    buttonText: "Start Shopping",
+    buttonLink: "/login"
+  },
+  finalCTA: {
+    title: "Ready to Start Shopping?",
+    subtitle: "Join thousands of buyers and sellers discovering amazing deals every day",
+    buttonText: "Get Started Now",
+    buttonLink: "/login"
+  },
+  footer: {
+    copyrightText: "2025"
+  }
+};
+var defaultFAQContent = {
+  title: "Frequently Asked Questions",
+  subtitle: "Find answers to common questions about our platform",
+  faqs: [
+    {
+      question: "How do I create an account?",
+      answer: "Click on the 'Get Started' button and follow the registration process. You can sign up using your email or social media accounts."
+    },
+    {
+      question: "Is it safe to shop here?",
+      answer: "Yes! We provide buyer protection on all purchases and use secure payment processing to ensure your transactions are safe."
+    },
+    {
+      question: "How do live auctions work?",
+      answer: "Join a live show, browse the items being showcased, and place your bids in real-time. The highest bidder wins when the auction closes."
+    },
+    {
+      question: "What payment methods do you accept?",
+      answer: "We accept all major credit cards, debit cards, and digital payment methods through our secure payment processor."
+    }
+  ]
+};
+var defaultAboutContent = {
+  title: "About Us",
+  subtitle: "Learn more about our mission and what makes us different",
+  sections: [
+    {
+      title: "Our Story",
+      content: "We started with a simple mission: to create the most engaging and trustworthy live shopping marketplace. Today, thousands of buyers and sellers connect on our platform every day to discover amazing deals and build lasting relationships."
+    },
+    {
+      title: "Our Mission",
+      content: "We believe shopping should be fun, social, and exciting. That's why we've built a platform that combines the thrill of live auctions with the convenience of online shopping."
+    },
+    {
+      title: "Why Choose Us",
+      content: "With buyer protection, secure payments, and a vibrant community of sellers, we're committed to providing the best live shopping experience possible."
+    }
+  ]
+};
+var defaultPrivacyContent = {
+  title: "Privacy Policy",
+  subtitle: "How we collect, use, and protect your information",
+  sections: [
+    {
+      title: "Information We Collect",
+      content: "We collect information you provide directly to us, such as when you create an account, make a purchase, or contact our support team."
+    },
+    {
+      title: "How We Use Your Information",
+      content: "We use the information we collect to provide, maintain, and improve our services, process transactions, and communicate with you."
+    },
+    {
+      title: "Data Security",
+      content: "We implement appropriate security measures to protect your personal information from unauthorized access, alteration, or disclosure."
+    },
+    {
+      title: "Your Rights",
+      content: "You have the right to access, update, or delete your personal information. Contact us if you'd like to exercise these rights."
+    }
+  ]
+};
+var defaultTermsContent = {
+  title: "Terms of Service",
+  subtitle: "Rules and guidelines for using our platform",
+  sections: [
+    {
+      title: "Acceptance of Terms",
+      content: "By accessing and using this platform, you accept and agree to be bound by the terms and provision of this agreement."
+    },
+    {
+      title: "User Accounts",
+      content: "You are responsible for maintaining the confidentiality of your account and password. You agree to accept responsibility for all activities that occur under your account."
+    },
+    {
+      title: "Prohibited Activities",
+      content: "You may not use our platform for any illegal purposes or to violate any laws. This includes but is not limited to fraud, harassment, or posting harmful content."
+    },
+    {
+      title: "Termination",
+      content: "We reserve the right to terminate or suspend your account at any time for violations of these terms or for any other reason we deem necessary."
+    }
+  ]
+};
+var defaultContactContent = {
+  title: "Contact Us",
+  subtitle: "Get in touch with our team",
+  description: "Have a question or need help? We're here for you. Reach out and we'll respond as soon as possible.",
+  contactInfo: {
+    email: "support@example.com",
+    phone: "+1 (555) 123-4567",
+    address: "123 Main Street, City, State 12345"
+  },
+  showContactForm: true,
+  sections: [
+    {
+      title: "Customer Support",
+      content: "Our support team is available Monday through Friday, 9am to 5pm EST. We aim to respond to all inquiries within 24 hours."
+    }
+  ]
+};
+var pageConfig = {
+  landing: {
+    schema: landingContentSchema,
+    defaultContent: defaultLandingContent,
+    docId: "landing"
+  },
+  faq: {
+    schema: faqContentSchema,
+    defaultContent: defaultFAQContent,
+    docId: "faq"
+  },
+  about: {
+    schema: sectionBasedPageSchema,
+    defaultContent: defaultAboutContent,
+    docId: "about"
+  },
+  privacy: {
+    schema: sectionBasedPageSchema,
+    defaultContent: defaultPrivacyContent,
+    docId: "privacy"
+  },
+  terms: {
+    schema: sectionBasedPageSchema,
+    defaultContent: defaultTermsContent,
+    docId: "terms"
+  },
+  contact: {
+    schema: contactContentSchema,
+    defaultContent: defaultContactContent,
+    docId: "contact"
+  }
+};
+function registerContentRoutes(app2) {
+  app2.get("/api/content/:pageType", async (req, res) => {
+    try {
+      const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
+      if (!pageTypeValidation.success) {
+        return res.status(404).json({
+          success: false,
+          message: "Page not found"
+        });
+      }
+      const pageType = pageTypeValidation.data;
+      const config = pageConfig[pageType];
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 5e3)
+      );
+      const fetchPromise = (async () => {
+        const db = await getAdminFirestore();
+        const docRef = db.collection(COLLECTION_NAME).doc(config.docId);
+        const doc = await docRef.get();
+        if (doc.exists) {
+          const data2 = doc.data();
+          const validation = config.schema.safeParse(data2);
+          if (validation.success) {
+            return validation.data;
+          } else {
+            console.error(`Invalid ${pageType} content in Firestore, using defaults:`, validation.error);
+            return null;
+          }
+        }
+        return null;
+      })();
+      const data = await Promise.race([fetchPromise, timeoutPromise]);
+      if (data) {
+        res.json({
+          success: true,
+          data
+        });
+      } else {
+        res.json({
+          success: true,
+          data: config.defaultContent
+        });
+      }
+    } catch (error) {
+      console.error(`Error fetching ${req.params.pageType} content:`, error.message || error);
+      const pageType = req.params.pageType;
+      const config = pageConfig[pageType];
+      res.json({
+        success: true,
+        data: config?.defaultContent || {}
+      });
+    }
+  });
+  app2.put("/api/admin/content/:pageType", async (req, res) => {
+    try {
+      if (!req.session?.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required"
+        });
+      }
+      if (!req.session.user.admin) {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+      const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
+      if (!pageTypeValidation.success) {
+        return res.status(404).json({
+          success: false,
+          message: "Page not found"
+        });
+      }
+      const pageType = pageTypeValidation.data;
+      const config = pageConfig[pageType];
+      const validationResult = config.schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid ${pageType} content data`,
+          errors: validationResult.error.errors
+        });
+      }
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 5e3)
+      );
+      const updatePromise = (async () => {
+        const db = await getAdminFirestore();
+        const docRef = db.collection(COLLECTION_NAME).doc(config.docId);
+        await docRef.set(validationResult.data);
+      })();
+      await Promise.race([updatePromise, timeoutPromise]);
+      res.json({
+        success: true,
+        message: `${pageType.charAt(0).toUpperCase() + pageType.slice(1)} content updated successfully`,
+        data: validationResult.data
+      });
+    } catch (error) {
+      console.error(`Error updating ${req.params.pageType} content:`, error.message || error);
+      res.status(500).json({
+        success: false,
+        message: `Failed to update ${req.params.pageType} content. Please try again.`,
+        error: error.message
+      });
+    }
+  });
+  app2.post("/api/admin/content/:pageType/reset", async (req, res) => {
+    try {
+      if (!req.session?.user) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required"
+        });
+      }
+      if (!req.session.user.admin) {
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required"
+        });
+      }
+      const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
+      if (!pageTypeValidation.success) {
+        return res.status(404).json({
+          success: false,
+          message: "Page not found"
+        });
+      }
+      const pageType = pageTypeValidation.data;
+      const config = pageConfig[pageType];
+      const timeoutPromise = new Promise(
+        (_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 5e3)
+      );
+      const resetPromise = (async () => {
+        const db = await getAdminFirestore();
+        const docRef = db.collection(COLLECTION_NAME).doc(config.docId);
+        await docRef.set(config.defaultContent);
+      })();
+      await Promise.race([resetPromise, timeoutPromise]);
+      res.json({
+        success: true,
+        message: `${pageType.charAt(0).toUpperCase() + pageType.slice(1)} content reset to defaults successfully`,
+        data: config.defaultContent
+      });
+    } catch (error) {
+      console.error(`Error resetting ${req.params.pageType} content:`, error.message || error);
+      res.status(500).json({
+        success: false,
+        message: `Failed to reset ${req.params.pageType} content. Please try again.`,
+        error: error.message
+      });
+    }
+  });
+}
+
+// ../shared-backend/server/routes/auctions.ts
+import express from "express";
+import fetch11 from "node-fetch";
+var router = express.Router();
+var BASE_URL2 = process.env.BASE_URL || "https://api.iconaapp.com";
+router.get("/:id", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const auctionId = req.params.id;
+    console.log("Fetching auction details for:", auctionId);
+    const response = await fetch11(`${BASE_URL2}/auction/${auctionId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...token && { "Authorization": `Bearer ${token}` }
+      }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("External API auction fetch error:", data);
+      return res.status(response.status).json(data);
+    }
+    console.log("Auction details fetched successfully");
+    res.json(data);
+  } catch (error) {
+    console.error("Error fetching auction:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch auction" });
+  }
+});
+router.post("/bid", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const { auctionId, amount, userId } = req.body;
+    if (!auctionId || !amount || !userId) {
+      return res.status(400).json({
+        error: "Missing required fields: auctionId, amount, and userId are required"
+      });
+    }
+    console.log("Placing bid:", { user: userId, auction: auctionId, amount });
+    const bidData = {
+      user: userId,
+      auction: auctionId,
+      amount
+    };
+    const response = await fetch11(`${BASE_URL2}/auction/bid`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(bidData)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("External API bid error:", data);
+      return res.status(response.status).json(data);
+    }
+    console.log("Bid placed successfully:", data);
+    res.json(data);
+  } catch (error) {
+    console.error("Error placing bid:", error);
+    res.status(500).json({ error: error.message || "Failed to place bid" });
+  }
+});
+router.put("/bid/:id", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const auctionId = req.params.id;
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const response = await fetch11(`${BASE_URL2}/auction/bid/${auctionId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(req.body)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+    res.json(data);
+  } catch (error) {
+    console.error("Error placing bid:", error);
+    res.status(500).json({ error: error.message || "Failed to place bid" });
+  }
+});
+var auctions_default = router;
+
 // ../shared-backend/server/routes.ts
 async function registerRoutes(app2) {
+  app2.get("/api/config", (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        externalApiUrl: BASE_URL
+      }
+    });
+  });
+  registerContentRoutes(app2);
   registerSettingsRoutes(app2);
   registerAuthRoutes(app2);
   registerAdminRoutes(app2);
@@ -8793,12 +9667,13 @@ async function registerRoutes(app2) {
   registerShippingRoutes(app2);
   registerBundleRoutes(app2);
   registerReportRoutes(app2);
+  app2.use("/api/auction", auctions_default);
   const httpServer = createServer(app2);
   return httpServer;
 }
 
 // ../shared-backend/server/vite.ts
-import express from "express";
+import express2 from "express";
 import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
@@ -8866,17 +9741,22 @@ function serveStatic(app2) {
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
-  app2.use(express.static(distPath));
+  app2.use(express2.static(distPath));
   app2.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
 
 // ../shared-backend/server/index.ts
-var app = express2();
+dotenv.config();
+if (!process.env.BASE_URL) {
+  throw new Error("BASE_URL environment variable is required");
+}
+console.log(`[API Config] BASE_URL: ${process.env.BASE_URL}`);
+var app = express3();
 app.set("trust proxy", 1);
-app.use(express2.json());
-app.use(express2.urlencoded({ extended: false }));
+app.use(express3.json());
+app.use(express3.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(session({
   secret: process.env.SESSION_SECRET || "fallback-secret-for-development-only",
@@ -8904,13 +9784,12 @@ app.use((req, res, next) => {
     console.log("  - session.user:", req.session.user ? "exists" : "empty");
     console.log("  - session.accessToken:", req.session.accessToken ? "exists" : "empty");
   }
-  if (accessToken && !req.session.accessToken) {
+  if (accessToken) {
     req.session.accessToken = accessToken;
-  }
-  if (adminToken && !req.session.accessToken) {
+  } else if (adminToken) {
     req.session.accessToken = adminToken;
   }
-  if (userData && !req.session.user) {
+  if (userData) {
     try {
       const decoded = Buffer.from(userData, "base64").toString("utf8");
       const parsedUser = JSON.parse(decoded);
@@ -8978,4 +9857,4 @@ app.use((req, res, next) => {
 })();
 
 // server.ts
-dotenv.config();
+dotenv2.config();
