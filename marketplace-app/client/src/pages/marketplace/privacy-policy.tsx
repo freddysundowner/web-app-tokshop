@@ -22,13 +22,16 @@ export default function PrivacyPolicy() {
     );
   }
 
-  if (error || !data?.success) {
+  // Validate content - check for empty data object
+  const hasValidContent = data?.success && data.data && data.data.title && data.data.sections && data.data.sections.length > 0;
+
+  if (error || !data?.success || !hasValidContent) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-center" data-testid="error-state">
-          <h2 className="text-2xl font-bold mb-4">Error Loading Privacy Policy</h2>
+        <div className="text-center max-w-md px-4" data-testid="error-state">
+          <h2 className="text-2xl font-bold mb-4">Content Not Available</h2>
           <p className="text-muted-foreground mb-6">
-            We couldn't load the privacy policy content. Please try again later.
+            The privacy policy content hasn't been configured yet. Please contact the administrator to set up the page content.
           </p>
           <Link href="/">
             <Button data-testid="button-go-home">Go to Home</Button>

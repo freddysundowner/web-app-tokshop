@@ -15,6 +15,17 @@ import { Save, Plus, Trash2, FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { sectionBasedPageSchema, type SectionBasedPage } from "@shared/schema";
 
+const DEFAULT_TERMS_CONTENT: SectionBasedPage = {
+  title: 'Terms of Service',
+  subtitle: 'Rules and guidelines for using our platform',
+  sections: [
+    { title: 'Acceptance of Terms', content: 'By accessing and using this platform, you accept and agree to be bound by the terms and provision of this agreement.' },
+    { title: 'User Accounts', content: 'You are responsible for maintaining the confidentiality of your account and password. You agree to accept responsibility for all activities that occur under your account.' },
+    { title: 'Prohibited Activities', content: 'You may not use our platform for any illegal purposes or to violate any laws. This includes but is not limited to fraud, harassment, or posting harmful content.' },
+    { title: 'Termination', content: 'We reserve the right to terminate or suspend your account at any time for violations of these terms or for any other reason we deem necessary.' }
+  ],
+};
+
 export default function AdminTermsPage() {
   const { toast } = useToast();
   const { canManageSettings, isDemoMode } = usePermissions();
@@ -25,11 +36,7 @@ export default function AdminTermsPage() {
 
   const form = useForm<SectionBasedPage>({
     resolver: zodResolver(sectionBasedPageSchema),
-    defaultValues: {
-      title: '',
-      subtitle: '',
-      sections: [{ title: '', content: '' }],
-    },
+    defaultValues: DEFAULT_TERMS_CONTENT,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -38,7 +45,7 @@ export default function AdminTermsPage() {
   });
 
   useEffect(() => {
-    if (pageData?.data) {
+    if (pageData?.data && pageData.data.title) {
       form.reset(pageData.data);
     }
   }, [pageData, form]);
@@ -94,11 +101,10 @@ export default function AdminTermsPage() {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Reset to hardcoded defaults
+      form.reset(DEFAULT_TERMS_CONTENT);
       queryClient.invalidateQueries({ queryKey: ['/api/content/terms'] });
-      if (data?.data) {
-        form.reset(data.data);
-      }
       toast({
         title: "Success",
         description: "Terms of Service reset to default content",

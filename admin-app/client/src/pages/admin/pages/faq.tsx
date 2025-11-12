@@ -15,6 +15,17 @@ import { Save, Plus, Trash2, HelpCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { faqContentSchema, type FAQContent } from "@shared/schema";
 
+const DEFAULT_FAQ_CONTENT: FAQContent = {
+  title: 'Frequently Asked Questions',
+  subtitle: 'Find answers to common questions about our platform',
+  faqs: [
+    { question: 'How do I create an account?', answer: 'Click on the "Get Started" button and follow the registration process. You can sign up using your email or social media accounts.' },
+    { question: 'Is it safe to shop here?', answer: 'Yes! We provide buyer protection on all purchases and use secure payment processing to ensure your transactions are safe.' },
+    { question: 'How do live auctions work?', answer: 'Join a live show, browse the items being showcased, and place your bids in real-time. The highest bidder wins when the auction closes.' },
+    { question: 'What payment methods do you accept?', answer: 'We accept all major credit cards, debit cards, and digital payment methods through our secure payment processor.' }
+  ],
+};
+
 export default function AdminFAQPage() {
   const { toast } = useToast();
   const { canManageSettings, isDemoMode } = usePermissions();
@@ -25,11 +36,7 @@ export default function AdminFAQPage() {
 
   const form = useForm<FAQContent>({
     resolver: zodResolver(faqContentSchema),
-    defaultValues: {
-      title: '',
-      subtitle: '',
-      faqs: [{ question: '', answer: '' }],
-    },
+    defaultValues: DEFAULT_FAQ_CONTENT,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -38,7 +45,7 @@ export default function AdminFAQPage() {
   });
 
   useEffect(() => {
-    if (faqData?.data) {
+    if (faqData?.data && faqData.data.title) {
       form.reset(faqData.data);
     }
   }, [faqData, form]);
@@ -94,11 +101,10 @@ export default function AdminFAQPage() {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Reset to hardcoded defaults
+      form.reset(DEFAULT_FAQ_CONTENT);
       queryClient.invalidateQueries({ queryKey: ['/api/content/faq'] });
-      if (data?.data) {
-        form.reset(data.data);
-      }
       toast({
         title: "Success",
         description: "FAQ page reset to default content",

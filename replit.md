@@ -29,14 +29,15 @@ TokShop's architecture is built as a pure API client, with both the Admin and Ma
 - **LiveKit Video Quality**: Configured with explicit video encoding presets (3 Mbps bitrate for 1080p) and simulcast layers for adaptive streaming quality optimization.
 
 **Feature Specifications:**
-- **Admin App Routes**: Dashboard, User Management, Product Management, Order Management, App Settings.
-- **Marketplace App Routes**: Live Show Browsing, Category Browsing, Live Show Viewer, Product Details, Auction Detail Page, Seller Dashboard, User Profile, Authentication flows.
+- **Admin App Routes**: Dashboard, User Management, Product Management, Order Management, App Settings, **Content Pages Management**.
+- **Marketplace App Routes**: Live Show Browsing, Category Browsing, Live Show Viewer, Product Details, Auction Detail Page, Seller Dashboard, User Profile, Authentication flows, **Dynamic Content Pages** (FAQ, About, Privacy, Terms, Contact).
 - **Scheduled Featured Auctions**: Implemented with absolute start/end times, distinct display states, and validation.
 - **Age Verification**: Mandatory age verification for all users (18+) implemented via a non-dismissible dialog and profile field.
 - **Deals Page**: Dedicated page for featured auctions and trending products with responsive display and navigation.
 - **Bid Tracking System**: Implements reliable bid tracking with `custom_bid` flag inheritance, state management for `currentUserBid`, and real-time updates via socket events. Includes enhanced UX for max bid limits and alerts when autobid limits are exceeded.
 - **Shipping Estimate Optimization**: Show owners are automatically excluded from shipping estimate API calls across all paths (auction start, pinned products, socket events). Uses ref-based persistence with proper cleanup on room changes to prevent unnecessary API calls while preserving full functionality for viewers.
 - **Unified Payment/Shipping Validation**: All bid flows (regular, custom, mobile, desktop, scheduled auctions) route through `placeBidMutation` which enforces payment/shipping validation before allowing bids. Mutation supports both number format (regular bids) and object format with custom parameters (custom bids with autobid). Shows `PaymentShippingAlertDialog` and `PaymentShippingSheet` for adding missing info.
+- **Content Management System (CMS)**: Comprehensive page content management through Admin Panel with dynamic display on marketplace. Admins can edit Landing Page, FAQ, About Us, Privacy Policy, Terms of Service, and Contact pages. Content stored in Firestore `app_content` collection with 5s timeout and fallback to defaults. API endpoints: GET `/api/content/:pageType` (public), PUT `/api/admin/content/:pageType` (admin-only), POST `/api/admin/content/:pageType/reset` (admin-only). Specialized Zod schemas for each page type with validation (except landing page which needs refactoring for validation). Marketplace pages dynamically load content from API using TanStack Query. TypeScript path `@shared` maps to `shared-backend/shared/` for schema imports. Vite configs use smart zod resolution for production builds.
 
 ## External Dependencies
 - **External API Server**: Primary backend for all data storage and operations.

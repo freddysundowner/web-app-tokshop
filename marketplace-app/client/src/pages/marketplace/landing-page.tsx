@@ -48,12 +48,27 @@ export default function LandingPage() {
     );
   }
 
-  // Use content from API or show error fallback
-  if (!content?.data) {
+  // Validate content structure - check if it has actual content, not just empty object
+  const hasValidContent = content?.data && 
+    content.data.hero && 
+    content.data.hero.title &&
+    content.data.howItWorks &&
+    content.data.joinFun &&
+    content.data.categories &&
+    content.data.brands &&
+    content.data.finalCTA;
+
+  if (!hasValidContent) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">Failed to load page content</p>
+        <div className="text-center max-w-md px-4">
+          <h2 className="text-2xl font-bold mb-4">Content Not Available</h2>
+          <p className="text-muted-foreground mb-6">
+            The landing page content hasn't been configured yet. Please contact the administrator to set up the page content.
+          </p>
+          <Link href="/marketplace">
+            <Button>Go to Marketplace</Button>
+          </Link>
         </div>
       </div>
     );

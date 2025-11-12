@@ -16,6 +16,21 @@ import { Save, Plus, Trash2, Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { contactContentSchema, type ContactContent } from "@shared/schema";
 
+const DEFAULT_CONTACT_CONTENT: ContactContent = {
+  title: 'Contact Us',
+  subtitle: 'Get in touch with our team',
+  description: 'Have a question or need help? We\'re here for you. Reach out and we\'ll respond as soon as possible.',
+  contactInfo: {
+    email: 'support@example.com',
+    phone: '+1 (555) 123-4567',
+    address: '123 Main Street, City, State 12345',
+  },
+  showContactForm: true,
+  sections: [
+    { title: 'Customer Support', content: 'Our support team is available Monday through Friday, 9am to 5pm EST. We aim to respond to all inquiries within 24 hours.' }
+  ],
+};
+
 export default function AdminContactPage() {
   const { toast } = useToast();
   const { canManageSettings, isDemoMode } = usePermissions();
@@ -26,18 +41,7 @@ export default function AdminContactPage() {
 
   const form = useForm<ContactContent>({
     resolver: zodResolver(contactContentSchema),
-    defaultValues: {
-      title: '',
-      subtitle: '',
-      description: '',
-      contactInfo: {
-        email: '',
-        phone: '',
-        address: '',
-      },
-      showContactForm: true,
-      sections: [],
-    },
+    defaultValues: DEFAULT_CONTACT_CONTENT,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -46,7 +50,7 @@ export default function AdminContactPage() {
   });
 
   useEffect(() => {
-    if (pageData?.data) {
+    if (pageData?.data && pageData.data.title) {
       form.reset(pageData.data);
     }
   }, [pageData, form]);
@@ -102,11 +106,10 @@ export default function AdminContactPage() {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Reset to hardcoded defaults
+      form.reset(DEFAULT_CONTACT_CONTENT);
       queryClient.invalidateQueries({ queryKey: ['/api/content/contact'] });
-      if (data?.data) {
-        form.reset(data.data);
-      }
       toast({
         title: "Success",
         description: "Contact page reset to default content",

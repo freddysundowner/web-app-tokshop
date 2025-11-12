@@ -15,6 +15,17 @@ import { Save, Plus, Trash2, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { sectionBasedPageSchema, type SectionBasedPage } from "@shared/schema";
 
+const DEFAULT_PRIVACY_CONTENT: SectionBasedPage = {
+  title: 'Privacy Policy',
+  subtitle: 'How we collect, use, and protect your information',
+  sections: [
+    { title: 'Information We Collect', content: 'We collect information you provide directly to us, such as when you create an account, make a purchase, or contact our support team.' },
+    { title: 'How We Use Your Information', content: 'We use the information we collect to provide, maintain, and improve our services, process transactions, and communicate with you.' },
+    { title: 'Data Security', content: 'We implement appropriate security measures to protect your personal information from unauthorized access, alteration, or disclosure.' },
+    { title: 'Your Rights', content: 'You have the right to access, update, or delete your personal information. Contact us if you\'d like to exercise these rights.' }
+  ],
+};
+
 export default function AdminPrivacyPage() {
   const { toast } = useToast();
   const { canManageSettings, isDemoMode } = usePermissions();
@@ -25,11 +36,7 @@ export default function AdminPrivacyPage() {
 
   const form = useForm<SectionBasedPage>({
     resolver: zodResolver(sectionBasedPageSchema),
-    defaultValues: {
-      title: '',
-      subtitle: '',
-      sections: [{ title: '', content: '' }],
-    },
+    defaultValues: DEFAULT_PRIVACY_CONTENT,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -38,7 +45,7 @@ export default function AdminPrivacyPage() {
   });
 
   useEffect(() => {
-    if (pageData?.data) {
+    if (pageData?.data && pageData.data.title) {
       form.reset(pageData.data);
     }
   }, [pageData, form]);
@@ -94,11 +101,10 @@ export default function AdminPrivacyPage() {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Reset to hardcoded defaults
+      form.reset(DEFAULT_PRIVACY_CONTENT);
       queryClient.invalidateQueries({ queryKey: ['/api/content/privacy'] });
-      if (data?.data) {
-        form.reset(data.data);
-      }
       toast({
         title: "Success",
         description: "Privacy Policy reset to default content",

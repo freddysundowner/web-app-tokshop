@@ -17,6 +17,78 @@ import { Separator } from "@/components/ui/separator";
 
 const ICON_OPTIONS = ['Play', 'Zap', 'Shield', 'Star', 'TrendingUp'];
 
+const DEFAULT_LANDING_CONTENT = {
+  hero: {
+    title: 'The Live Shopping Marketplace',
+    subtitle: 'Shop, sell, and connect around the things you love. Join thousands of buyers and sellers in real-time.',
+    primaryButtonText: 'Get Started',
+    primaryButtonLink: '/login',
+    secondaryButtonText: 'Watch Demo',
+    heroImage: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=600&fit=crop',
+    heroImageAlt: 'Live shopping experience',
+    liveViewers: '12.5K watching'
+  },
+  howItWorks: {
+    title: 'How It Works',
+    subtitle: 'Join live shows, bid on items you love, and connect with passionate sellers',
+    steps: [
+      { icon: 'Play', title: 'Watch Live Shows', description: 'Browse live streams across 250+ categories and discover unique items from trusted sellers' },
+      { icon: 'Zap', title: 'Bid & Buy', description: 'Participate in fast-paced auctions, flash sales, and buy-it-now deals in real-time' },
+      { icon: 'Shield', title: 'Safe & Secure', description: 'Protected purchases with buyer protection and secure checkout for peace of mind' }
+    ]
+  },
+  joinFun: {
+    title: 'Join In the Fun',
+    subtitle: 'Take part in fast-paced auctions, incredible flash sales, live show giveaways, and so much more.',
+    image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop',
+    imageAlt: 'Auction excitement',
+    features: [
+      { icon: 'Star', title: 'Live Auctions', description: 'Bid in real-time and win amazing deals on items you love' },
+      { icon: 'Star', title: 'Flash Sales', description: 'Lightning-fast deals with limited quantities at unbeatable prices' },
+      { icon: 'Star', title: 'Giveaways', description: 'Win free items during live shows from generous sellers' }
+    ],
+    buttonText: 'Get Started',
+    buttonLink: '/login'
+  },
+  categories: {
+    title: 'We\'ve Got It All',
+    subtitle: 'Explore 250+ categories, including fashion, coins, sports & Pokémon cards, sneakers, and more.',
+    items: [
+      { name: 'Fashion', image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=500&fit=crop' },
+      { name: 'Collectibles', image: 'https://images.unsplash.com/photo-1611312449408-fcece27cdbb7?w=400&h=500&fit=crop' },
+      { name: 'Sports Cards', image: 'https://images.unsplash.com/photo-1611916656173-875e4277bea6?w=400&h=500&fit=crop' },
+      { name: 'Sneakers', image: 'https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=400&h=500&fit=crop' },
+      { name: 'Electronics', image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=500&fit=crop' },
+      { name: 'Jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop' }
+    ],
+    buttonText: 'Explore All Categories',
+    buttonLink: '/login'
+  },
+  brands: {
+    title: 'Find Incredible Deals on Name Brands',
+    subtitle: 'From the brands you love, to hard-to-find specialty products. There\'s a deal on whatever you\'re looking for.',
+    items: [
+      { name: 'Nike' },
+      { name: 'Adidas' },
+      { name: 'Supreme' },
+      { name: 'Pokémon' }
+    ],
+    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop',
+    imageAlt: 'Brand products',
+    buttonText: 'Start Shopping',
+    buttonLink: '/login'
+  },
+  finalCTA: {
+    title: 'Ready to Start Shopping?',
+    subtitle: 'Join thousands of buyers and sellers discovering amazing deals every day',
+    buttonText: 'Get Started Now',
+    buttonLink: '/login'
+  },
+  footer: {
+    copyrightText: '2025'
+  }
+};
+
 export default function AdminLandingPage() {
   const { toast } = useToast();
   const { canManageSettings, isDemoMode } = usePermissions();
@@ -29,73 +101,28 @@ export default function AdminLandingPage() {
 
   const landingContent = landingData?.data || null;
 
-  // Initialize with default structure
-  const [content, setContent] = useState({
-    hero: {
-      title: '',
-      subtitle: '',
-      primaryButtonText: '',
-      primaryButtonLink: '',
-      secondaryButtonText: '',
-      heroImage: '',
-      heroImageAlt: '',
-      liveViewers: ''
-    },
-    howItWorks: {
-      title: '',
-      subtitle: '',
-      steps: [
-        { icon: 'Play', title: '', description: '' },
-        { icon: 'Zap', title: '', description: '' },
-        { icon: 'Shield', title: '', description: '' }
-      ]
-    },
-    joinFun: {
-      title: '',
-      subtitle: '',
-      image: '',
-      imageAlt: '',
-      features: [
-        { icon: 'Play', title: '', description: '' }
-      ],
-      buttonText: '',
-      buttonLink: ''
-    },
-    categories: {
-      title: '',
-      subtitle: '',
-      items: [
-        { name: '', image: '' }
-      ],
-      buttonText: '',
-      buttonLink: ''
-    },
-    brands: {
-      title: '',
-      subtitle: '',
-      items: [
-        { name: '', logo: '' }
-      ],
-      image: '',
-      imageAlt: '',
-      buttonText: '',
-      buttonLink: ''
-    },
-    finalCTA: {
-      title: '',
-      subtitle: '',
-      buttonText: '',
-      buttonLink: ''
-    },
-    footer: {
-      copyrightText: ''
-    }
-  });
+  // Initialize with default content
+  const [content, setContent] = useState(DEFAULT_LANDING_CONTENT);
 
-  // Update form when data loads
+  // Update form when data loads (only if it has properly structured content)
   useEffect(() => {
     if (landingContent) {
-      setContent(landingContent);
+      // Verify the API data has the complete structure before loading it
+      const isValidStructure = 
+        landingContent.hero && 
+        landingContent.howItWorks && 
+        landingContent.joinFun && 
+        landingContent.categories && 
+        landingContent.brands && 
+        landingContent.finalCTA && 
+        landingContent.footer;
+      
+      // Only load if structure is valid AND has actual content (not empty strings)
+      const hasRealContent = landingContent.hero?.title && landingContent.hero.title.trim() !== '';
+      
+      if (isValidStructure && hasRealContent) {
+        setContent(landingContent);
+      }
     }
   }, [landingContent]);
 
@@ -166,11 +193,10 @@ export default function AdminLandingPage() {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Reset to hardcoded defaults
+      setContent(DEFAULT_LANDING_CONTENT);
       queryClient.invalidateQueries({ queryKey: ['/api/content/landing'] });
-      if (data?.data) {
-        setContent(data.data);
-      }
       toast({
         title: "Success",
         description: "Landing page reset to default content",

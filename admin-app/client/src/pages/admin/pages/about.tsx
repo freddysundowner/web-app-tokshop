@@ -15,6 +15,16 @@ import { Save, Plus, Trash2, FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { sectionBasedPageSchema, type SectionBasedPage } from "@shared/schema";
 
+const DEFAULT_ABOUT_CONTENT: SectionBasedPage = {
+  title: 'About Us',
+  subtitle: 'Learn more about our mission and what makes us different',
+  sections: [
+    { title: 'Our Story', content: 'We started with a simple mission: to create the most engaging and trustworthy live shopping marketplace. Today, thousands of buyers and sellers connect on our platform every day to discover amazing deals and build lasting relationships.' },
+    { title: 'Our Mission', content: 'We believe shopping should be fun, social, and exciting. That\'s why we\'ve built a platform that combines the thrill of live auctions with the convenience of online shopping.' },
+    { title: 'Why Choose Us', content: 'With buyer protection, secure payments, and a vibrant community of sellers, we\'re committed to providing the best live shopping experience possible.' }
+  ],
+};
+
 export default function AdminAboutPage() {
   const { toast } = useToast();
   const { canManageSettings, isDemoMode } = usePermissions();
@@ -25,11 +35,7 @@ export default function AdminAboutPage() {
 
   const form = useForm<SectionBasedPage>({
     resolver: zodResolver(sectionBasedPageSchema),
-    defaultValues: {
-      title: '',
-      subtitle: '',
-      sections: [{ title: '', content: '' }],
-    },
+    defaultValues: DEFAULT_ABOUT_CONTENT,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -38,7 +44,7 @@ export default function AdminAboutPage() {
   });
 
   useEffect(() => {
-    if (pageData?.data) {
+    if (pageData?.data && pageData.data.title) {
       form.reset(pageData.data);
     }
   }, [pageData, form]);
@@ -94,11 +100,10 @@ export default function AdminAboutPage() {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      // Reset to hardcoded defaults
+      form.reset(DEFAULT_ABOUT_CONTENT);
       queryClient.invalidateQueries({ queryKey: ['/api/content/about'] });
-      if (data?.data) {
-        form.reset(data.data);
-      }
       toast({
         title: "Success",
         description: "About page reset to default content",
