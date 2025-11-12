@@ -1,6 +1,7 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getStorage, Storage } from 'firebase-admin/storage';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { BASE_URL } from './utils';
 
 // Firebase Admin app instance (initialized on-demand)
@@ -28,9 +29,24 @@ async function initializeFirebaseAdmin(): Promise<App> {
   isInitializing = true;
 
   try {
-    // Fetch Firebase config from settings API
+    // Fetch Firebase config from settings API with timeout
     console.log('🔥 Fetching Firebase config from settings API...');
-    const response = await fetch(`${BASE_URL}/admin/app/settings`);
+    
+    const fetchWithTimeout = async (url: string, timeout = 5000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+      }
+    };
+
+    const response = await fetchWithTimeout(`${BASE_URL}/admin/app/settings`, 5000);
     
     if (!response.ok) {
       throw new Error('Failed to fetch Firebase config from settings API');
@@ -77,6 +93,11 @@ export async function getAdminAuth(): Promise<Auth> {
 export async function getAdminStorage(): Promise<Storage> {
   const app = await initializeFirebaseAdmin();
   return getStorage(app);
+}
+
+export async function getAdminFirestore(): Promise<Firestore> {
+  const app = await initializeFirebaseAdmin();
+  return getFirestore(app);
 }
 
 // Verify Firebase ID token

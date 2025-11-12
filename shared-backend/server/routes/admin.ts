@@ -4038,6 +4038,12 @@ Thank you for using ${appName}!
     }
   });
 
+  // Note: Content pages endpoints have been moved to dedicated landing page endpoints
+  // GET /api/content/landing (public)
+  // PUT /api/admin/content/landing (admin)
+  // POST /api/admin/content/landing/reset (admin)
+  // See: shared-backend/server/routes/content.ts
+
   // Change admin password
   app.post("/api/admin/change-password", requireAdmin, checkDemoMode, async (req, res) => {
     try {

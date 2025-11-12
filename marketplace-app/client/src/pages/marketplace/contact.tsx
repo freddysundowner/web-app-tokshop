@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { Mail, MessageSquare, Send } from 'lucide-react';
+import { useQuery } from "@tanstack/react-query";
+import { type ContactContent } from "@shared/schema";
+import { Mail, MessageSquare, Send, Phone, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useSettings } from '@/lib/settings-context';
 import { usePageTitle } from '@/hooks/use-page-title';
 
 export default function ContactUs() {
-  const { settings } = useSettings();
   const { toast } = useToast();
   usePageTitle('Contact Us');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,6 +20,10 @@ export default function ContactUs() {
     email: '',
     subject: '',
     message: '',
+  });
+
+  const { data, isLoading, error } = useQuery<{ success: boolean; data: ContactContent }>({
+    queryKey: ['/api/content/contact'],
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -44,35 +48,70 @@ export default function ContactUs() {
     }, 1000);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center" data-testid="loading-state">
+          <div className="text-lg text-muted-foreground">Loading Contact Page...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data?.success) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center" data-testid="error-state">
+          <h2 className="text-2xl font-bold mb-4">Error Loading Contact Page</h2>
+          <p className="text-muted-foreground mb-6">
+            We couldn't load the contact page content. Please try again later.
+          </p>
+          <Link href="/">
+            <Button data-testid="button-go-home">Go to Home</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const content = data.data;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Content */}
       <main className="flex justify-center w-full">
         <div className="w-full lg:w-[90%] px-4 sm:px-6 py-8 sm:py-12">
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-contact-title">
-            Contact Us
+            {content.title}
           </h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Have a question or need help with {settings.app_name}? We're here to assist you. Send us a message and we'll get back to you as soon as possible.
-          </p>
+          {content.subtitle && (
+            <p className="text-muted-foreground text-sm sm:text-base mb-2" data-testid="text-contact-subtitle">
+              {content.subtitle}
+            </p>
+          )}
+          {content.description && (
+            <p className="text-muted-foreground text-sm sm:text-base" data-testid="text-contact-description">
+              {content.description}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Contact Form */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Send us a message
-                </CardTitle>
-                <CardDescription>
-                  Fill out the form below and we'll respond within 24-48 hours.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
+          {content.showContactForm !== false && (
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Send us a message
+                  </CardTitle>
+                  <CardDescription>
+                    Fill out the form below and we'll get back to you soon.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name *</Label>
@@ -147,66 +186,91 @@ export default function ContactUs() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Contact Information */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Email Support
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  For general inquiries and support:
-                </p>
-                <a
-                  href={`mailto:${settings.support_email}`}
-                  className="text-sm font-medium text-primary hover:underline block break-all"
-                  data-testid="link-support-email"
-                >
-                  {settings.support_email}
-                </a>
-              </CardContent>
-            </Card>
+          <div className={content.showContactForm !== false ? "space-y-6" : "lg:col-span-3 space-y-6"}>
+            {content.contactInfo.email && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Email
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <a
+                    href={`mailto:${content.contactInfo.email}`}
+                    className="text-sm font-medium text-primary hover:underline block break-all"
+                    data-testid="link-email"
+                  >
+                    {content.contactInfo.email}
+                  </a>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Response Time</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div>
-                  <p className="font-medium mb-1">Email Support</p>
-                  <p className="text-muted-foreground">24-48 hours</p>
-                </div>
-                <div>
-                  <p className="font-medium mb-1">Live Chat</p>
-                  <p className="text-muted-foreground">
-                    Monday - Friday, 9 AM - 6 PM EST
+            {content.contactInfo.phone && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="h-5 w-5" />
+                    Phone
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <a
+                    href={`tel:${content.contactInfo.phone}`}
+                    className="text-sm font-medium text-primary hover:underline block"
+                    data-testid="link-phone"
+                  >
+                    {content.contactInfo.phone}
+                  </a>
+                </CardContent>
+              </Card>
+            )}
+
+            {content.contactInfo.address && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Address
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm whitespace-pre-wrap" data-testid="text-address">
+                    {content.contactInfo.address}
                   </p>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Common Topics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>• Account and billing issues</li>
-                  <li>• Order and shipping inquiries</li>
-                  <li>• Technical support</li>
-                  <li>• Partnership opportunities</li>
-                  <li>• Feature requests</li>
-                </ul>
-              </CardContent>
-            </Card>
+            {content.sections && content.sections.length > 0 && (
+              <>
+                {content.sections.map((section, index) => (
+                  <Card key={index}>
+                    <CardHeader>
+                      <CardTitle data-testid={`section-title-${index}`}>
+                        {section.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div 
+                        className="text-sm whitespace-pre-wrap text-muted-foreground"
+                        data-testid={`section-content-${index}`}
+                      >
+                        {section.content}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
 
             <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
               <p className="mb-2">
-                <strong>Before contacting us:</strong>
+                <strong>Need quick answers?</strong>
               </p>
               <p>
                 Check our{' '}
@@ -215,7 +279,7 @@ export default function ContactUs() {
                     FAQ page
                   </span>
                 </Link>
-                {' '}for quick answers to common questions about {settings.app_name}.
+                {' '}for answers to common questions.
               </p>
             </div>
           </div>

@@ -239,7 +239,7 @@ export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
             {notStartedScheduled ? (
               <Badge className="bg-primary text-primary-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {formatTime(timeLeft)}
+                Starts in {formatTime(timeLeft)}
               </Badge>
             ) : notStartedLive ? (
               <Badge className="bg-primary text-primary-foreground flex items-center gap-1">
@@ -254,7 +254,7 @@ export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
                 )}
               >
                 <Clock className="h-3 w-3" />
-                {formatTime(timeLeft)}
+                Ends in {formatTime(timeLeft)}
               </Badge>
             )}
           </div>

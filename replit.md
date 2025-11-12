@@ -36,6 +36,7 @@ TokShop's architecture is built as a pure API client, with both the Admin and Ma
 - **Deals Page**: Dedicated page for featured auctions and trending products with responsive display and navigation.
 - **Bid Tracking System**: Implements reliable bid tracking with `custom_bid` flag inheritance, state management for `currentUserBid`, and real-time updates via socket events. Includes enhanced UX for max bid limits and alerts when autobid limits are exceeded.
 - **Shipping Estimate Optimization**: Show owners are automatically excluded from shipping estimate API calls across all paths (auction start, pinned products, socket events). Uses ref-based persistence with proper cleanup on room changes to prevent unnecessary API calls while preserving full functionality for viewers.
+- **Unified Payment/Shipping Validation**: All bid flows (regular, custom, mobile, desktop, scheduled auctions) route through `placeBidMutation` which enforces payment/shipping validation before allowing bids. Mutation supports both number format (regular bids) and object format with custom parameters (custom bids with autobid). Shows `PaymentShippingAlertDialog` and `PaymentShippingSheet` for adding missing info.
 
 ## External Dependencies
 - **External API Server**: Primary backend for all data storage and operations.

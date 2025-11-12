@@ -16,6 +16,13 @@ import {
   Flag,
   X,
   Mail,
+  FileText,
+  Home,
+  HelpCircle,
+  Info,
+  Shield,
+  FileCheck,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -88,6 +95,41 @@ const navigationItems = [
         name: "Emails",
         href: "/admin/emails",
         icon: Mail,
+      },
+    ],
+  },
+  {
+    section: "Pages",
+    items: [
+      {
+        name: "Landing Page",
+        href: "/admin/pages/landing",
+        icon: Home,
+      },
+      {
+        name: "FAQ",
+        href: "/admin/pages/faq",
+        icon: HelpCircle,
+      },
+      {
+        name: "About Us",
+        href: "/admin/pages/about",
+        icon: Info,
+      },
+      {
+        name: "Privacy Policy",
+        href: "/admin/pages/privacy",
+        icon: Shield,
+      },
+      {
+        name: "Terms of Service",
+        href: "/admin/pages/terms",
+        icon: FileCheck,
+      },
+      {
+        name: "Contact Us",
+        href: "/admin/pages/contact",
+        icon: MessageCircle,
       },
     ],
   },

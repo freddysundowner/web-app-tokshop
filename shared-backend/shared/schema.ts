@@ -581,3 +581,156 @@ export const bundleLabelPurchaseResponseSchema = z.object({
 
 export type BundleLabelPurchaseRequest = z.infer<typeof bundleLabelPurchaseRequestSchema>;
 export type BundleLabelPurchaseResponse = z.infer<typeof bundleLabelPurchaseResponseSchema>;
+
+// Landing Page Content schemas
+export const heroSectionSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  subtitle: z.string().min(1, "Subtitle is required"),
+  primaryButtonText: z.string().min(1, "Primary button text is required"),
+  primaryButtonLink: z.string().min(1, "Primary button link is required"),
+  secondaryButtonText: z.string().min(1, "Secondary button text is required"),
+  heroImage: z.string().url("Must be a valid URL"),
+  heroImageAlt: z.string().optional().default("Live shopping experience"),
+  liveViewers: z.string().optional().default("12.5K watching"),
+});
+
+export const howItWorksStepSchema = z.object({
+  icon: z.enum(['Play', 'Zap', 'Shield', 'Star', 'TrendingUp']),
+  title: z.string().min(1, "Step title is required"),
+  description: z.string().min(1, "Step description is required"),
+});
+
+export const featureItemSchema = z.object({
+  icon: z.enum(['Play', 'Zap', 'Shield', 'Star', 'TrendingUp']),
+  title: z.string().min(1, "Feature title is required"),
+  description: z.string().min(1, "Feature description is required"),
+});
+
+export const categoryItemSchema = z.object({
+  name: z.string().min(1, "Category name is required"),
+  image: z.string().url("Must be a valid URL"),
+});
+
+export const brandItemSchema = z.object({
+  name: z.string().min(1, "Brand name is required"),
+  logo: z.string().optional(),
+});
+
+export const landingContentSchema = z.object({
+  // Hero Section
+  hero: heroSectionSchema,
+  // How It Works Section
+  howItWorks: z.object({
+    title: z.string().min(1, "Section title is required"),
+    subtitle: z.string().min(1, "Section subtitle is required"),
+    steps: z.array(howItWorksStepSchema).length(3, "Must have exactly 3 steps"),
+  }),
+  // Join In the Fun Section
+  joinFun: z.object({
+    title: z.string().min(1, "Section title is required"),
+    subtitle: z.string().min(1, "Section subtitle is required"),
+    image: z.string().url("Must be a valid URL"),
+    imageAlt: z.string().optional().default("Auction excitement"),
+    features: z.array(featureItemSchema).min(1, "Must have at least 1 feature"),
+    buttonText: z.string().min(1, "Button text is required"),
+    buttonLink: z.string().min(1, "Button link is required"),
+  }),
+  // Categories Section
+  categories: z.object({
+    title: z.string().min(1, "Section title is required"),
+    subtitle: z.string().min(1, "Section subtitle is required"),
+    items: z.array(categoryItemSchema).min(1, "Must have at least 1 category"),
+    buttonText: z.string().min(1, "Button text is required"),
+    buttonLink: z.string().min(1, "Button link is required"),
+  }),
+  // Brands Section
+  brands: z.object({
+    title: z.string().min(1, "Section title is required"),
+    subtitle: z.string().min(1, "Section subtitle is required"),
+    items: z.array(brandItemSchema).min(1, "Must have at least 1 brand"),
+    image: z.string().url("Must be a valid URL"),
+    imageAlt: z.string().optional().default("Brand products"),
+    buttonText: z.string().min(1, "Button text is required"),
+    buttonLink: z.string().min(1, "Button link is required"),
+  }),
+  // Final CTA Section
+  finalCTA: z.object({
+    title: z.string().min(1, "CTA title is required"),
+    subtitle: z.string().min(1, "CTA subtitle is required"),
+    buttonText: z.string().min(1, "Button text is required"),
+    buttonLink: z.string().min(1, "Button link is required"),
+  }),
+  // Footer
+  footer: z.object({
+    copyrightText: z.string().optional(),
+  }),
+});
+
+export type HeroSection = z.infer<typeof heroSectionSchema>;
+export type HowItWorksStep = z.infer<typeof howItWorksStepSchema>;
+export type FeatureItem = z.infer<typeof featureItemSchema>;
+export type CategoryItem = z.infer<typeof categoryItemSchema>;
+export type BrandItem = z.infer<typeof brandItemSchema>;
+export type LandingContent = z.infer<typeof landingContentSchema>;
+
+// Page Type Enum - defines all available editable pages
+export const pageTypeEnum = z.enum([
+  "landing",
+  "faq",
+  "about",
+  "privacy",
+  "terms",
+  "contact",
+]);
+
+export type PageType = z.infer<typeof pageTypeEnum>;
+
+// FAQ Page Schema
+export const faqItemSchema = z.object({
+  question: z.string().min(1, "Question is required"),
+  answer: z.string().min(1, "Answer is required"),
+});
+
+export const faqContentSchema = z.object({
+  title: z.string().min(1, "Page title is required"),
+  subtitle: z.string().optional(),
+  faqs: z.array(faqItemSchema).min(1, "Must have at least 1 FAQ item"),
+});
+
+export type FAQItem = z.infer<typeof faqItemSchema>;
+export type FAQContent = z.infer<typeof faqContentSchema>;
+
+// About Us / Privacy / Terms Page Schema (Section-based with rich content)
+export const contentSectionSchema = z.object({
+  title: z.string().min(1, "Section title is required"),
+  content: z.string().min(1, "Section content is required"),
+  order: z.number().optional(),
+});
+
+export const sectionBasedPageSchema = z.object({
+  title: z.string().min(1, "Page title is required"),
+  subtitle: z.string().optional(),
+  sections: z.array(contentSectionSchema).min(1, "Must have at least 1 section"),
+});
+
+export type ContentSection = z.infer<typeof contentSectionSchema>;
+export type SectionBasedPage = z.infer<typeof sectionBasedPageSchema>;
+
+// Contact Page Schema
+export const contactInfoSchema = z.object({
+  email: z.string().email("Must be a valid email").optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+});
+
+export const contactContentSchema = z.object({
+  title: z.string().min(1, "Page title is required"),
+  subtitle: z.string().optional(),
+  description: z.string().optional(),
+  contactInfo: contactInfoSchema,
+  showContactForm: z.boolean().optional().default(true),
+  sections: z.array(contentSectionSchema).optional(),
+});
+
+export type ContactInfo = z.infer<typeof contactInfoSchema>;
+export type ContactContent = z.infer<typeof contactContentSchema>;

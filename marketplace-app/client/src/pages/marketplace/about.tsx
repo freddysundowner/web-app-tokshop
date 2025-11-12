@@ -5,18 +5,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { usePageTitle } from '@/hooks/use-page-title';
 
-export default function PrivacyPolicy() {
-  usePageTitle('Privacy Policy');
+export default function AboutUs() {
+  usePageTitle('About Us');
 
   const { data, isLoading, error } = useQuery<{ success: boolean; data: SectionBasedPage }>({
-    queryKey: ['/api/content/privacy'],
+    queryKey: ['/api/content/about'],
   });
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center" data-testid="loading-state">
-          <div className="text-lg text-muted-foreground">Loading Privacy Policy...</div>
+          <div className="text-lg text-muted-foreground">Loading About Us...</div>
         </div>
       </div>
     );
@@ -26,9 +26,9 @@ export default function PrivacyPolicy() {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center" data-testid="error-state">
-          <h2 className="text-2xl font-bold mb-4">Error Loading Privacy Policy</h2>
+          <h2 className="text-2xl font-bold mb-4">Error Loading About Us</h2>
           <p className="text-muted-foreground mb-6">
-            We couldn't load the privacy policy content. Please try again later.
+            We couldn't load the about us content. Please try again later.
           </p>
           <Link href="/">
             <Button data-testid="button-go-home">Go to Home</Button>
@@ -43,11 +43,11 @@ export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-4xl font-bold mb-4" data-testid="text-privacy-title">
+        <h1 className="text-4xl font-bold mb-4" data-testid="text-about-title">
           {content.title}
         </h1>
         {content.subtitle && (
-          <p className="text-muted-foreground mb-8" data-testid="text-privacy-subtitle">
+          <p className="text-muted-foreground mb-8" data-testid="text-about-subtitle">
             {content.subtitle}
           </p>
         )}
@@ -72,11 +72,11 @@ export default function PrivacyPolicy() {
 
         <Card className="mt-12 border-primary/20 bg-primary/5">
           <CardContent className="p-6 text-center">
-            <h3 className="text-xl font-bold mb-4" data-testid="text-questions-heading">
-              Questions about our Privacy Policy?
+            <h3 className="text-xl font-bold mb-4" data-testid="text-contact-heading">
+              Want to learn more?
             </h3>
             <p className="text-muted-foreground mb-6">
-              If you have any questions or concerns about our privacy practices, please contact us.
+              If you have any questions about our company or services, feel free to reach out.
             </p>
             <Link href="/contact">
               <Button data-testid="button-contact-us">
@@ -89,6 +89,3 @@ export default function PrivacyPolicy() {
     </div>
   );
 }
-            <p className="mb-4">We collect and process the following types of information:</p>
-            <ul className="list-disc pl-6 space-y-2 mb-4">
-              <li><strong>Account Information:</strong> Name, email address, username, password, phone number, and profile information.</li>

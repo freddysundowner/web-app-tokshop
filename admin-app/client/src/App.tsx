@@ -30,6 +30,12 @@ import AdminDisputes from "@/pages/admin/disputes";
 import AdminDisputeDetail from "@/pages/admin/dispute-detail";
 import AdminReportedCases from "@/pages/admin/reported-cases";
 import AdminEmails from "@/pages/admin/emails";
+import AdminLandingPage from "@/pages/admin/pages/landing";
+import AdminFAQPage from "@/pages/admin/pages/faq";
+import AdminAboutPage from "@/pages/admin/pages/about";
+import AdminPrivacyPage from "@/pages/admin/pages/privacy";
+import AdminTermsPage from "@/pages/admin/pages/terms";
+import AdminContactPage from "@/pages/admin/pages/contact";
 import NotFound from "@/pages/not-found";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -196,6 +202,12 @@ function Router() {
             <Route path="/admin/shows/:showId" component={AdminShowDetail} />
             <Route path="/admin/shows" component={AdminShows} />
             <Route path="/admin/emails" component={AdminEmails} />
+            <Route path="/admin/pages/landing" component={AdminLandingPage} />
+            <Route path="/admin/pages/faq" component={AdminFAQPage} />
+            <Route path="/admin/pages/about" component={AdminAboutPage} />
+            <Route path="/admin/pages/privacy" component={AdminPrivacyPage} />
+            <Route path="/admin/pages/terms" component={AdminTermsPage} />
+            <Route path="/admin/pages/contact" component={AdminContactPage} />
             <Route path="/admin/settings" component={AdminSettings} />
             <Route path="/admin/profile" component={AdminProfile} />
             <Route component={NotFound} />

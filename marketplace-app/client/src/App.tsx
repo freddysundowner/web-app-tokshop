@@ -62,6 +62,7 @@ const TermsOfService = lazy(() => import("@/pages/marketplace/terms-of-service")
 const ContactUs = lazy(() => import("@/pages/marketplace/contact"));
 const UserReports = lazy(() => import("@/pages/marketplace/user-reports"));
 const FAQ = lazy(() => import("@/pages/marketplace/faq"));
+const AboutUs = lazy(() => import("@/pages/marketplace/about"));
 const SellerHub = lazy(() => import("@/pages/seller/hub"));
 const Inbox = lazy(() => import("@/pages/social/inbox"));
 const Friends = lazy(() => import("@/pages/social/friends"));
@@ -232,6 +233,7 @@ function Router() {
               <Route path="/terms-of-service" component={TermsOfService} />
               <Route path="/contact" component={ContactUs} />
               <Route path="/faq" component={FAQ} />
+              <Route path="/about" component={AboutUs} />
               <Route component={LandingPage} />
             </Switch>
           </main>
@@ -408,6 +410,7 @@ function Router() {
             <Route path="/contact" component={ContactUs} />
             <Route path="/reports" component={UserReports} />
             <Route path="/faq" component={FAQ} />
+            <Route path="/about" component={AboutUs} />
             <Route path="/help" component={Help} />
             <Route component={NotFound} />
           </Switch>
