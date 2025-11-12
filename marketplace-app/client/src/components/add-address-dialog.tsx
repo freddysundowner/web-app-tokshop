@@ -10,136 +10,75 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
 import { apiRequest } from '@/lib/queryClient';
-import { Country, State, City } from 'country-state-city';
+import {
+  CitySelect,
+  CountrySelect,
+  StateSelect,
+} from "react-country-state-city";
+import "react-country-state-city/dist/react-country-state-city.css";
 
 interface AddAddressDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  address?: any; // Optional address data for editing
+  address?: any;
 }
 
 export function AddAddressDialog({
   open,
   onOpenChange,
   onSuccess,
-  address, // For editing existing address
+  address,
 }: AddAddressDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const userData = user as any;
   const [isLoading, setIsLoading] = useState(false);
-  const isEditing = !!address; // Determine if we're in edit mode
+  const isEditing = !!address;
 
-  // Form state
   const [streetAddress, setStreetAddress] = useState("");
   const [streetAddress2, setStreetAddress2] = useState("");
-  const [country, setCountry] = useState("");
-  const [countryCode, setCountryCode] = useState("");
-  const [state, setState] = useState("");
-  const [stateCode, setStateCode] = useState("");
-  const [city, setCity] = useState("");
+  const [countryid, setCountryid] = useState(0);
+  const [stateid, setStateid] = useState(0);
+  const [cityid, setCityid] = useState(0);
+  
+  const [countryData, setCountryData] = useState<any>(null);
+  const [stateData, setStateData] = useState<any>(null);
+  const [cityData, setCityData] = useState<any>(null);
+  
   const [zipCode, setZipCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
 
-  // Location data
-  const [countries, setCountries] = useState<any[]>([]);
-  const [states, setStates] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
-
-  // Load countries on mount
   useEffect(() => {
-    const allCountries = Country.getAllCountries();
-    setCountries(allCountries);
-    
-    // If editing, populate form with existing address data
+    if (!open) return;
+
     if (address) {
       setName(address.name || "");
       setStreetAddress(address.addrress1 || address.address1 || "");
       setStreetAddress2(address.addrress2 || address.address2 || "");
-      setCity(address.city || "");
-      setState(address.state || "");
       setZipCode(address.zipcode || address.zip || "");
       setPhoneNumber(address.phone || "");
-      
-      // Set country
-      const addressCountry = allCountries.find(c => 
-        c.isoCode === address.countryCode || c.name === address.country
-      );
-      if (addressCountry) {
-        setCountry(addressCountry.name);
-        setCountryCode(addressCountry.isoCode);
-        
-        // Load states for the country
-        const countryStates = State.getStatesOfCountry(addressCountry.isoCode);
-        setStates(countryStates);
-        
-        // Set state
-        const addressState = countryStates.find(s => 
-          s.name === address.state || s.isoCode === address.stateCode
-        );
-        if (addressState) {
-          setStateCode(addressState.isoCode);
-          
-          // Load cities for the state
-          const stateCities = City.getCitiesOfState(addressCountry.isoCode, addressState.isoCode);
-          setCities(stateCities);
-        }
-      }
     } else {
-      // Set US as default for new addresses
-      const us = allCountries.find(c => c.isoCode === 'US');
-      if (us && !country) {
-        setCountry(us.name);
-        setCountryCode(us.isoCode);
-        // Load US states
-        const usStates = State.getStatesOfCountry(us.isoCode);
-        setStates(usStates);
-      }
+      setName("");
+      setStreetAddress("");
+      setStreetAddress2("");
+      setCountryid(0);
+      setStateid(0);
+      setCityid(0);
+      setCountryData(null);
+      setStateData(null);
+      setCityData(null);
+      setZipCode("");
+      setPhoneNumber("");
     }
-  }, [address]);
-
-  // Load states when country changes
-  useEffect(() => {
-    if (countryCode) {
-      const countryStates = State.getStatesOfCountry(countryCode);
-      setStates(countryStates);
-      // Don't reset state and city when country changes if we're in edit mode
-      if (!address) {
-        setState("");
-        setStateCode("");
-        setCity("");
-        setCities([]);
-      }
-    }
-  }, [countryCode]);
-
-  // Load cities when state changes (no longer needed but keeping for future use)
-  useEffect(() => {
-    if (countryCode && stateCode) {
-      const stateCities = City.getCitiesOfState(countryCode, stateCode);
-      setCities(stateCities);
-      // Don't reset city when state changes if we're in edit mode
-      if (!address) {
-        setCity("");
-      }
-    }
-  }, [countryCode, stateCode]);
+  }, [address, open]);
 
   const handleAddAddress = async () => {
-    // Validate required fields
-    if (!streetAddress || !country || !state || !city || !zipCode || !phoneNumber) {
+    if (!streetAddress || !countryData || !stateData || !cityData || !zipCode || !phoneNumber) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -149,19 +88,18 @@ export function AddAddressDialog({
     }
 
     setIsLoading(true);
-    
+
     try {
-      // Prepare address data - matching Flutter's ShippingAddress structure
       const addressData = {
         name: name || userData?.firstName || 'Default',
         addrress1: streetAddress,
         addrress2: streetAddress2,
-        country: country,
-        city: city,
-        countryCode: countryCode,
+        country: countryData.name,
+        city: cityData.name,
+        countryCode: countryData.iso2,
         zipcode: zipCode,
-        state: state,
-        stateCode: stateCode,
+        state: stateData.name,
+        stateCode: stateData.state_code,
         userId: userData?.id,
         phone: phoneNumber.trim().replace(/\s/g, ''),
         email: userData?.email || '',
@@ -169,7 +107,6 @@ export function AddAddressDialog({
         applying: false,
       };
 
-      // Use PUT for editing, POST for creating
       if (isEditing && address._id) {
         await apiRequest('PUT', `/api/address/${address._id}`, addressData);
         toast({
@@ -183,46 +120,36 @@ export function AddAddressDialog({
           description: "Your shipping address has been saved successfully.",
         });
       }
-      
-      // Reset form
+
       setStreetAddress("");
       setStreetAddress2("");
-      // Reset to US default
-      const us = countries.find(c => c.isoCode === 'US');
-      if (us) {
-        setCountry(us.name);
-        setCountryCode(us.isoCode);
-        const usStates = State.getStatesOfCountry(us.isoCode);
-        setStates(usStates);
-      }
-      setState("");
-      setStateCode("");
-      setCity("");
-      setCities([]);
+      setCountryid(0);
+      setStateid(0);
+      setCityid(0);
+      setCountryData(null);
+      setStateData(null);
+      setCityData(null);
       setZipCode("");
       setPhoneNumber("");
       setName("");
-      
-      // Call success callback if provided
+
       if (onSuccess) {
         onSuccess();
       }
-      
+
       onOpenChange(false);
     } catch (error: any) {
       console.error('Failed to add/update address:', error);
-      
-      // Extract error message from API response
-      let errorMessage = isEditing 
-        ? "Failed to update address. Please try again." 
+
+      let errorMessage = isEditing
+        ? "Failed to update address. Please try again."
         : "Failed to add address. Please try again.";
-      
+
       if (error?.text) {
         try {
           const errorData = JSON.parse(error.text);
           errorMessage = errorData.error || errorData.message || errorMessage;
         } catch (e) {
-          // If parsing fails, use the text as-is if it's a string
           if (typeof error.text === 'string') {
             errorMessage = error.text;
           }
@@ -230,7 +157,7 @@ export function AddAddressDialog({
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -240,23 +167,6 @@ export function AddAddressDialog({
       setIsLoading(false);
     }
   };
-
-  const handleCountryChange = (isoCode: string) => {
-    const selectedCountry = countries.find(c => c.isoCode === isoCode);
-    if (selectedCountry) {
-      setCountry(selectedCountry.name);
-      setCountryCode(selectedCountry.isoCode);
-    }
-  };
-
-  const handleStateChange = (isoCode: string) => {
-    const selectedState = states.find(s => s.isoCode === isoCode);
-    if (selectedState) {
-      setState(selectedState.name);
-      setStateCode(selectedState.isoCode);
-    }
-  };
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -289,58 +199,50 @@ export function AddAddressDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="country">Country</Label>
-            <Select value={countryCode} onValueChange={handleCountryChange}>
-              <SelectTrigger id="country" data-testid="select-country">
-                <SelectValue placeholder="Select country" />
-              </SelectTrigger>
-              <SelectContent className="z-[99999] max-h-[200px]">
-                {countries.map((country) => (
-                  <SelectItem key={country.isoCode} value={country.isoCode}>
-                    {country.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Country</Label>
+            <CountrySelect
+              onChange={(e: any) => {
+                setCountryid(e.id);
+                setCountryData(e);
+                setStateid(0);
+                setCityid(0);
+                setStateData(null);
+                setCityData(null);
+              }}
+              placeHolder="Select Country"
+              containerClassName="w-full"
+              inputClassName="w-full"
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="state">State/Province</Label>
-              <Select value={stateCode} onValueChange={handleStateChange} disabled={!countryCode}>
-                <SelectTrigger id="state" data-testid="select-state">
-                  <SelectValue placeholder="Select state/province" />
-                </SelectTrigger>
-                <SelectContent className="z-[99999] max-h-[200px]">
-                  {states.length > 0 ? (
-                    states.map((state) => (
-                      <SelectItem key={state.isoCode} value={state.isoCode}>
-                        {state.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="none" disabled>No states available</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>State/Province</Label>
+              <StateSelect
+                countryid={countryid}
+                onChange={(e: any) => {
+                  setStateid(e.id);
+                  setStateData(e);
+                  setCityid(0);
+                  setCityData(null);
+                }}
+                placeHolder="Select State"
+                containerClassName="w-full"
+                inputClassName="w-full"
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Select value={city} onValueChange={(value) => setCity(value)} disabled={!stateCode}>
-                <SelectTrigger id="city" data-testid="select-city">
-                  <SelectValue placeholder="Select city" />
-                </SelectTrigger>
-                <SelectContent className="z-[99999] max-h-[200px]">
-                  {cities.length > 0 ? (
-                    cities.map((cityItem) => (
-                      <SelectItem key={cityItem.name} value={cityItem.name}>
-                        {cityItem.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="none" disabled>No cities available</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>City</Label>
+              <CitySelect
+                countryid={countryid}
+                stateid={stateid}
+                onChange={(e: any) => {
+                  setCityid(e.id);
+                  setCityData(e);
+                }}
+                placeHolder="Select City"
+                containerClassName="w-full"
+                inputClassName="w-full"
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -365,19 +267,19 @@ export function AddAddressDialog({
           </div>
         </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)} 
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
             disabled={isLoading}
-            data-testid="button-cancel" 
+            data-testid="button-cancel"
             className="w-full sm:w-auto"
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleAddAddress} 
+          <Button
+            onClick={handleAddAddress}
             disabled={isLoading}
-            data-testid="button-add-address" 
+            data-testid="button-add-address"
             className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isLoading ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update Address" : "Add Address")}
@@ -388,5 +290,4 @@ export function AddAddressDialog({
   );
 }
 
-// Add default export for lazy loading compatibility
 export default AddAddressDialog;

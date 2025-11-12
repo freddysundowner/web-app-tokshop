@@ -1104,9 +1104,9 @@ export default function ShowViewNew() {
     }
   }, [productTab, refetchAuction, refetchBuyNow, refetchSold, refetchGiveaways]);
 
-  // Place bid mutation
+  // Place bid mutation - supports both regular and custom bids
   const placeBidMutation = useMutation({
-    mutationFn: async (amount: number) => {
+    mutationFn: async (options: number | { amount: number; custom?: { autobid: boolean; autobidAmount: number } }) => {
       if (!socket || !activeAuction) throw new Error('Cannot place bid');
       
       // Check if user has payment and shipping info before bidding
@@ -1115,19 +1115,24 @@ export default function ShowViewNew() {
         throw new Error('Please add payment and shipping information before bidding');
       }
       
+      // Parse options - support both old number format and new object format
+      const isCustomBid = typeof options === 'object' && options.custom;
+      const amount = typeof options === 'number' ? options : options.amount;
+      const customOptions = typeof options === 'object' ? options.custom : undefined;
+      
       // Use reliable currentUserBid state instead of scanning activeAuction.bids
       const inheritCustomBidFlag = currentUserBid?.custom_bid || false;
       const existingMaxBid = currentUserBid?.autobidamount;
       
       const bidPayload = {
         user: currentUserId,
-        amount: amount,
+        amount: isCustomBid ? (activeAuction.newbaseprice || activeAuction.baseprice || 1) : amount,
         increaseBidBy: activeAuction.increaseBidBy || 5,
         auction: activeAuction._id || activeAuction.id,
         prebid: false,
-        autobid: false,
-        autobidamount: existingMaxBid || amount, // Keep existing max or use current
-        custom_bid: inheritCustomBidFlag, // Inherit from previous bid
+        autobid: isCustomBid ? customOptions!.autobid : false,
+        autobidamount: isCustomBid ? customOptions!.autobidAmount : (existingMaxBid || amount),
+        custom_bid: isCustomBid ? true : inheritCustomBidFlag,
         roomId: id
       };
       
@@ -1924,7 +1929,7 @@ export default function ShowViewNew() {
           livekit={livekit}
           showBuyNowDialog={showBuyNowDialog}
           setShowBuyNowDialog={setShowBuyNowDialog}
-          setShowPaymentShippingAlert={setShowPaymentShippingAlert}
+          setShowPaymentShippingAlert={setShowPaymentShippingIntermediateAlert}
           showCustomBidDialog={showCustomBidDialog}
           setShowCustomBidDialog={setShowCustomBidDialog}
         />

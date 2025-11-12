@@ -42,6 +42,22 @@ export function VideoCenter(props: any) {
     showCustomBidDialog, setShowCustomBidDialog
   } = props;
 
+  // Check if user has payment and shipping info
+  const hasPaymentAndShipping = () => {
+    if (!user) return false;
+    const userData = user as any;
+    return !!(userData.address && userData.defaultpaymentmethod);
+  };
+  
+  // Handler for custom bid button - checks payment/shipping before opening dialog
+  const handleCustomBidClick = () => {
+    if (!hasPaymentAndShipping()) {
+      setShowPaymentShippingAlert(true);
+      return;
+    }
+    setShowCustomBidDialog(true);
+  };
+  
   // Check if current user has already saved this show for notifications
   useEffect(() => {
     if (show && currentUserId) {
@@ -604,7 +620,7 @@ export function VideoCenter(props: any) {
                         return (
                           <div className="flex gap-2 mt-4 w-full">
                             <button
-                              onClick={() => setShowCustomBidDialog(true)}
+                              onClick={() => handleCustomBidClick()}
                               className="h-9 flex-[0.35] rounded-full border-2 border-white/90 text-white font-semibold text-sm bg-transparent hover:bg-white/10 transition-colors"
                               data-testid="button-custom-bid-desktop"
                             >
@@ -704,10 +720,6 @@ export function VideoCenter(props: any) {
               )}>
                 {/* Chat Messages & Input - Top section */}
                 <div className="relative pb-2">
-                  {/* Gradient backdrop using pseudo-element for better iOS support - extended to blend edges */}
-                  <div className="absolute -bottom-8 -left-8 -right-8 -top-8 pointer-events-none" style={{
-                    background: 'radial-gradient(ellipse at center bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 30%, rgba(0,0,0,0.15) 60%, transparent 100%)'
-                  }}></div>
                   <div className="relative z-10 pl-3 pr-3 pb-2 md:pl-4 md:pr-auto md:max-w-80 flex flex-col gap-2 pointer-events-auto">
                     {/* Chat Messages - strictly limited height */}
                     <div ref={chatMessagesRef} className={cn(
@@ -809,7 +821,7 @@ export function VideoCenter(props: any) {
                   </div>
                 
                 {/* Product Info & Auction Buttons - Bottom section */}
-                <div className="px-4 pb-3 pt-3">
+                <div className="px-4 pb-3 pt-3 pointer-events-auto">
                   {/* Product Info */}
                   <div className="mb-3">
                     {/* Active Auction Info */}
@@ -946,7 +958,7 @@ export function VideoCenter(props: any) {
                     return (
                       <div className="flex gap-2 border-t border-white/10 pt-3 w-full">
                         <button
-                          onClick={() => setShowCustomBidDialog(true)}
+                          onClick={() => handleCustomBidClick()}
                           className="h-11 w-[140px] rounded-full border-2 border-white/90 text-white font-semibold text-lg bg-transparent hover:bg-white/10 transition-colors flex-shrink-0"
                           data-testid="button-custom-bid"
                         >
@@ -1248,20 +1260,13 @@ export function VideoCenter(props: any) {
             currentBid={currentBid}
             minimumBid={activeAuction?.newbaseprice || activeAuction?.baseprice || 1}
             onPlaceBid={(amount, isMaxBid) => {
-              if (!socket || !activeAuction) return;
-              
-              const minimumBid = activeAuction.newbaseprice || activeAuction.baseprice || 1;
-              
-              socket.emit('place-bid', {
-                user: currentUserId,
-                amount: minimumBid,           // Backend requires bidding at minimum
-                increaseBidBy: activeAuction.increaseBidBy || 5,
-                auction: activeAuction._id || activeAuction.id,
-                prebid: false,
-                autobid: isMaxBid,            // Auto-bid enabled or not
-                autobidamount: amount,        // Max bid limit
-                custom_bid: true,             // Flag that this is from custom bid
-                roomId: id
+              // Route through placeBidMutation for payment/shipping validation
+              placeBidMutation.mutate({
+                amount: amount,
+                custom: {
+                  autobid: isMaxBid,
+                  autobidAmount: amount
+                }
               });
             }}
             isPending={placeBidMutation.isPending}

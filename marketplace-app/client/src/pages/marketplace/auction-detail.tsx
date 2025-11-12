@@ -14,10 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useSocket } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 
-// Lazy load payment/shipping components
-const BidRequirementsAlert = lazy(() => import('@/components/bid-requirements-alert').then(m => ({ default: m.BidRequirementsAlert })));
-const AddPaymentDialog = lazy(() => import('@/components/add-payment-dialog').then(m => ({ default: m.AddPaymentDialog })));
-const AddAddressDialog = lazy(() => import('@/components/add-address-dialog').then(m => ({ default: m.AddAddressDialog })));
+// Lazy load payment/shipping components (same as live show)
+const PaymentShippingAlertDialog = lazy(() => import('@/components/payment-shipping-alert-dialog').then(m => ({ default: m.PaymentShippingAlertDialog })));
+const PaymentShippingSheet = lazy(() => import('@/components/payment-shipping-sheet').then(m => ({ default: m.PaymentShippingSheet })));
 
 export default function AuctionDetail() {
   const [, params] = useRoute("/auction/:auctionId");
@@ -37,10 +36,9 @@ export default function AuctionDetail() {
   // Track auction ID to avoid re-joining when product data changes
   const auctionIdRef = useRef<string | null>(null);
 
-  // Payment & Shipping dialogs
-  const [showBidRequirementsAlert, setShowBidRequirementsAlert] = useState<boolean>(false);
-  const [showAddPaymentDialog, setShowAddPaymentDialog] = useState<boolean>(false);
-  const [showAddAddressDialog, setShowAddAddressDialog] = useState<boolean>(false);
+  // Payment & Shipping dialogs (same as live show)
+  const [showPaymentShippingAlert, setShowPaymentShippingAlert] = useState<boolean>(false);
+  const [showPaymentShippingSheet, setShowPaymentShippingSheet] = useState<boolean>(false);
 
   console.log('🔍 STEP 1: Product ID from URL params:', productId);
 
@@ -364,7 +362,7 @@ export default function AuctionDetail() {
 
       // Check if user has payment and shipping info before bidding
       if (!hasPaymentAndShipping()) {
-        setShowBidRequirementsAlert(true);
+        setShowPaymentShippingAlert(true);
         throw new Error('Please add payment and shipping information before bidding');
       }
       
@@ -752,42 +750,27 @@ export default function AuctionDetail() {
         </div>
       </div>
 
-      {/* Bid Requirements Alert - Shows what's missing */}
-      {showBidRequirementsAlert && (
+      {/* Payment & Shipping Alert - Same dialog as live show */}
+      {showPaymentShippingAlert && (
         <Suspense fallback={<div />}>
-          <BidRequirementsAlert
-            open={showBidRequirementsAlert}
-            onOpenChange={setShowBidRequirementsAlert}
-            onAddPayment={() => setShowAddPaymentDialog(true)}
-            onAddAddress={() => setShowAddAddressDialog(true)}
-            hasPayment={!!(currentUser as any)?.defaultpaymentmethod}
-            hasAddress={!!(currentUser as any)?.address}
-          />
-        </Suspense>
-      )}
-
-      {/* Add Payment Dialog */}
-      {showAddPaymentDialog && (
-        <Suspense fallback={<div />}>
-          <AddPaymentDialog
-            open={showAddPaymentDialog}
-            onOpenChange={(open) => {
-              setShowAddPaymentDialog(open);
-              if (!open) {
-                refreshUserData();
-              }
+          <PaymentShippingAlertDialog
+            open={showPaymentShippingAlert}
+            onOpenChange={setShowPaymentShippingAlert}
+            onAddInfo={() => {
+              setShowPaymentShippingAlert(false);
+              setShowPaymentShippingSheet(true);
             }}
           />
         </Suspense>
       )}
 
-      {/* Add Address Dialog */}
-      {showAddAddressDialog && (
+      {/* Payment & Shipping Sheet - Full form for adding payment and address */}
+      {showPaymentShippingSheet && (
         <Suspense fallback={<div />}>
-          <AddAddressDialog
-            open={showAddAddressDialog}
+          <PaymentShippingSheet
+            open={showPaymentShippingSheet}
             onOpenChange={(open) => {
-              setShowAddAddressDialog(open);
+              setShowPaymentShippingSheet(open);
               if (!open) {
                 refreshUserData();
               }

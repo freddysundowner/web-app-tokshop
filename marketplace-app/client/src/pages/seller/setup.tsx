@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,10 +52,14 @@ export default function SellerSetup() {
   const [zipCode, setZipCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   
-  // Location data
-  const [countries, setCountries] = useState<any[]>([]);
-  const [states, setStates] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
+  // Memoize location data to prevent infinite loops
+  const countries = useMemo(() => Country.getAllCountries(), []);
+  const states = useMemo(() => {
+    return countryCode ? State.getStatesOfCountry(countryCode) : [];
+  }, [countryCode]);
+  const cities = useMemo(() => {
+    return (countryCode && stateCode) ? City.getCitiesOfState(countryCode, stateCode) : [];
+  }, [countryCode, stateCode]);
 
   // Bank account form state
   const [accountNumber, setAccountNumber] = useState("");
@@ -78,36 +82,14 @@ export default function SellerSetup() {
     enabled: !!userId,
   });
 
-  // Load countries on mount
+  // Set US as default on mount
   useEffect(() => {
-    const allCountries = Country.getAllCountries();
-    setCountries(allCountries);
-    
-    // Set US as default
-    const us = allCountries.find(c => c.isoCode === 'US');
+    const us = countries.find(c => c.isoCode === 'US');
     if (us && !country) {
       setCountry(us.name);
       setCountryCode(us.isoCode);
-      const usStates = State.getStatesOfCountry(us.isoCode);
-      setStates(usStates);
     }
-  }, []);
-
-  // Load states when country changes
-  useEffect(() => {
-    if (countryCode) {
-      const countryStates = State.getStatesOfCountry(countryCode);
-      setStates(countryStates);
-    }
-  }, [countryCode]);
-
-  // Load cities when state changes
-  useEffect(() => {
-    if (countryCode && stateCode) {
-      const stateCities = City.getCitiesOfState(countryCode, stateCode);
-      setCities(stateCities);
-    }
-  }, [countryCode, stateCode]);
+  }, [countries]);
 
   // Skip address step if user already has one
   useEffect(() => {
@@ -124,7 +106,6 @@ export default function SellerSetup() {
       setState("");
       setStateCode("");
       setCity("");
-      setCities([]);
     }
   };
 

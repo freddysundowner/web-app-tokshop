@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -11,11 +11,11 @@ import { AlertTriangle, Package, CreditCard, ChevronRight, Loader2 } from 'lucid
 import { useAuth } from '@/lib/auth-context';
 import { useQuery } from '@tanstack/react-query';
 
-// Direct imports - parent component is already lazy-loaded
-import { AddPaymentDialog } from './add-payment-dialog';
-import { AddAddressDialog } from './add-address-dialog';
-import { AddressListDialog } from './address-list-dialog';
-import { PaymentMethodListDialog } from './payment-method-list-dialog';
+// Lazy load child dialogs to reduce initial bundle size and improve sheet open performance
+const AddPaymentDialog = lazy(() => import('./add-payment-dialog'));
+const AddAddressDialog = lazy(() => import('./add-address-dialog'));
+const AddressListDialog = lazy(() => import('./address-list-dialog'));
+const PaymentMethodListDialog = lazy(() => import('./payment-method-list-dialog'));
 
 interface PaymentShippingSheetProps {
   open: boolean;
@@ -33,46 +33,25 @@ export function PaymentShippingSheet({
   const [showAddressListDialog, setShowAddressListDialog] = useState(false);
   const [hasJustAddedData, setHasJustAddedData] = useState(false);
   
-  const userId = (user as any)?.id || (user as any)?._id;
-  
-  // Fetch default payment method
-  const { data: defaultPaymentData, isLoading: isLoadingPayment, refetch: refetchDefaultPayment } = useQuery({
-    queryKey: [`/api/users/paymentmethod/default/${userId}`],
-    enabled: !!userId && open,
-  });
-  
-  // Fetch default shipping address
-  const { data: defaultAddressData, isLoading: isLoadingAddress, refetch: refetchDefaultAddress } = useQuery({
-    queryKey: [`/api/address/default/address/${userId}`],
-    enabled: !!userId && open,
-  });
-  
-  // Fetch fresh user data when sheet opens
+  // Reset flag when sheet opens
   useEffect(() => {
     if (open) {
-      refreshUserData();
-      refetchDefaultPayment();
-      refetchDefaultAddress();
-      // Reset the flag when opening
       setHasJustAddedData(false);
     }
   }, [open]);
 
-  const defaultAddress = (defaultAddressData as any)?.address;
-  const hasAddress = !!defaultAddress || !!user?.address;
-  
-  // Extract default payment method from response (could be wrapped or direct)
-  const defaultPaymentMethod = (defaultPaymentData as any)?.data 
-    ? (defaultPaymentData as any).data 
-    : (defaultPaymentData || null);
-  const hasPayment = !!defaultPaymentMethod && !isLoadingPayment;
+  // Check user object directly - data is already loaded from /api/users/:id
+  const hasAddress = !!user?.address;
+  const hasPayment = !!user?.defaultpaymentmethod;
+  const defaultPaymentMethod = user?.defaultpaymentmethod;
 
   // Auto-close sheet only after user adds data AND both are complete
   useEffect(() => {
     if (open && hasJustAddedData && hasAddress && hasPayment) {
       onOpenChange(false);
     }
-  }, [hasAddress, hasPayment, open, onOpenChange, hasJustAddedData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAddress, hasPayment, open, hasJustAddedData]);
 
   const handleAddAddress = () => {
     // If user has an address, show list dialog, otherwise show add dialog
@@ -103,10 +82,10 @@ export function PaymentShippingSheet({
   };
 
   const handlePaymentSuccess = async () => {
-    // Refetch user data and default payment method
+    // Refresh user data to get updated payment info
     await refreshUserData();
-    await refetchDefaultPayment();
-    // Don't set hasJustAddedData here - it causes immediate auto-close
+    // Mark that user just added data (for auto-close logic)
+    setHasJustAddedData(true);
     // Keep sheet open, just close the nested dialogs
     setShowPaymentDialog(false);
     setShowPaymentListDialog(false);
@@ -189,23 +168,7 @@ export function PaymentShippingSheet({
             )}
 
             {/* Payment Method Section */}
-            {isLoadingPayment ? (
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="bg-muted p-2 rounded-md">
-                      <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm mb-1">Payment Method</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Loading payment information...
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : hasPayment ? (
+            {hasPayment ? (
               <button
                 onClick={handleAddPayment}
                 className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors text-left w-full"
@@ -279,41 +242,44 @@ export function PaymentShippingSheet({
         </SheetContent>
       </Sheet>
 
-      {/* Address Dialog (for adding new address) */}
-      {showAddressDialog && (
-        <AddAddressDialog
-          open={showAddressDialog}
-          onOpenChange={setShowAddressDialog}
-          onSuccess={handleAddressSuccess}
-        />
-      )}
+      {/* Lazy load dialogs only when needed */}
+      <Suspense fallback={null}>
+        {/* Address Dialog (for adding new address) */}
+        {showAddressDialog && (
+          <AddAddressDialog
+            open={showAddressDialog}
+            onOpenChange={setShowAddressDialog}
+            onSuccess={handleAddressSuccess}
+          />
+        )}
 
-      {/* Address List Dialog (for viewing/editing existing addresses) */}
-      {showAddressListDialog && (
-        <AddressListDialog
-          open={showAddressListDialog}
-          onOpenChange={setShowAddressListDialog}
-          onSuccess={handleAddressSuccess}
-        />
-      )}
+        {/* Address List Dialog (for viewing/editing existing addresses) */}
+        {showAddressListDialog && (
+          <AddressListDialog
+            open={showAddressListDialog}
+            onOpenChange={setShowAddressListDialog}
+            onSuccess={handleAddressSuccess}
+          />
+        )}
 
-      {/* Payment Dialog */}
-      {showPaymentDialog && (
-        <AddPaymentDialog
-          open={showPaymentDialog}
-          onOpenChange={setShowPaymentDialog}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
+        {/* Payment Dialog */}
+        {showPaymentDialog && (
+          <AddPaymentDialog
+            open={showPaymentDialog}
+            onOpenChange={setShowPaymentDialog}
+            onSuccess={handlePaymentSuccess}
+          />
+        )}
 
-      {/* Payment List Dialog (for viewing/editing existing payment methods) */}
-      {showPaymentListDialog && (
-        <PaymentMethodListDialog
-          open={showPaymentListDialog}
-          onOpenChange={setShowPaymentListDialog}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
+        {/* Payment List Dialog (for viewing/editing existing payment methods) */}
+        {showPaymentListDialog && (
+          <PaymentMethodListDialog
+            open={showPaymentListDialog}
+            onOpenChange={setShowPaymentListDialog}
+            onSuccess={handlePaymentSuccess}
+          />
+        )}
+      </Suspense>
     </>
   );
 }

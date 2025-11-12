@@ -18,8 +18,14 @@ export function registerAddressRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      // Check for token in session or headers
+      const token = req.session?.accessToken || 
+                   req.headers['x-access-token'] as string || 
+                   (req.headers['authorization']?.startsWith('Bearer ') ? 
+                     req.headers['authorization'].substring(7) : null);
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${BASE_URL}/address/all/${userId}`, {
@@ -32,7 +38,18 @@ export function registerAddressRoutes(app: Express) {
       }
       
       const data = await response.json() as any[];
-      console.log('Address API response (first address):', JSON.stringify(data[0], null, 2));
+      
+      if (data && data.length > 0) {
+        console.log('======= ADDRESS API RESPONSE =======');
+        console.log('Full address object:', JSON.stringify(data[0], null, 2));
+        console.log('Country:', data[0].country);
+        console.log('CountryCode:', data[0].countryCode);
+        console.log('State:', data[0].state);
+        console.log('StateCode:', data[0].stateCode);
+        console.log('City:', data[0].city);
+        console.log('CityCode:', data[0].cityCode);
+        console.log('=====================================');
+      }
       
       // Transform API response: ICONA stores in 'zip' but frontend expects 'zipcode'
       const transformedData = data.map((address: any) => ({
@@ -57,8 +74,14 @@ export function registerAddressRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      // Check for token in session or headers
+      const token = req.session?.accessToken || 
+                   req.headers['x-access-token'] as string || 
+                   (req.headers['authorization']?.startsWith('Bearer ') ? 
+                     req.headers['authorization'].substring(7) : null);
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       // Fetch all addresses and find the primary one
@@ -139,8 +162,14 @@ export function registerAddressRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      // Check for token in session or headers
+      const token = req.session?.accessToken || 
+                   req.headers['x-access-token'] as string || 
+                   (req.headers['authorization']?.startsWith('Bearer ') ? 
+                     req.headers['authorization'].substring(7) : null);
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${BASE_URL}/address`, {
@@ -242,8 +271,14 @@ export function registerAddressRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      // Check for token in session or headers
+      const token = req.session?.accessToken || 
+                   req.headers['x-access-token'] as string || 
+                   (req.headers['authorization']?.startsWith('Bearer ') ? 
+                     req.headers['authorization'].substring(7) : null);
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${BASE_URL}/address/${addressId}`, {
@@ -337,8 +372,14 @@ export function registerAddressRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      // Check for token in session or headers
+      const token = req.session?.accessToken || 
+                   req.headers['x-access-token'] as string || 
+                   (req.headers['authorization']?.startsWith('Bearer ') ? 
+                     req.headers['authorization'].substring(7) : null);
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${BASE_URL}/address/${addressId}`, {
@@ -400,8 +441,14 @@ export function registerAddressRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      // Check for token in session or headers
+      const token = req.session?.accessToken || 
+                   req.headers['x-access-token'] as string || 
+                   (req.headers['authorization']?.startsWith('Bearer ') ? 
+                     req.headers['authorization'].substring(7) : null);
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${BASE_URL}/address/${addressId}`, {
