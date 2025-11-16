@@ -20,6 +20,24 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const currentRoomIdRef = useRef<string | null>(null);
   const isManualConnectRef = useRef<boolean>(false);
   const { user } = useAuth();
+  const userRef = useRef<any>(null);
+  
+  // Keep userRef fresh - updates whenever user changes
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  
+  // Helper function to get current user identity (always uses fresh data from ref)
+  const getUserIdentity = (socketId: string) => {
+    const currentUser = userRef.current;
+    const userId = currentUser 
+      ? ((currentUser as any)._id || (currentUser as any).id || currentUser.id) 
+      : `guest_${socketId}`;
+    const userName = currentUser 
+      ? ((currentUser as any).userName || currentUser.firstName || currentUser.email) 
+      : `Guest_${socketId.slice(0, 6)}`;
+    return { userId, userName };
+  };
 
   useEffect(() => {
     // Fetch external API URL from backend config, then connect to Socket.IO
@@ -41,7 +59,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           autoConnect: false, // Don't connect automatically - only connect when needed
           reconnection: true,
           reconnectionDelay: 1000,
-          reconnectionAttempts: 5
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: Infinity  // ✅ Never give up - keep trying
         });
 
         // Debug: Log ALL incoming socket events to discover what the server actually emits
@@ -59,9 +78,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           if (currentRoomIdRef.current && !isManualConnectRef.current) {
             console.log('🔄 Reconnected! Auto-rejoining room:', currentRoomIdRef.current);
             const socketId = socketInstance.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
-            const userId = user ? ((user as any)._id || (user as any).id || user.id) : `guest_${socketId}`;
-            const userName = user ? ((user as any).userName || user.firstName || user.email) : `Guest_${socketId.slice(0, 6)}`;
+            const { userId, userName } = getUserIdentity(socketId);
             
+            console.log('🔑 Auto-rejoin with user:', { userId, userName });
             socketInstance.emit('join-room', {
               roomId: currentRoomIdRef.current,
               userId,
@@ -139,10 +158,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     // Store the room ID for auto-rejoin on reconnect
     currentRoomIdRef.current = roomId;
     
-    // Allow guest viewers by generating temporary ID
+    // Get current user identity using fresh data
     const socketId = socket.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
-    const userId = user ? ((user as any)._id || (user as any).id || user.id) : `guest_${socketId}`;
-    const userName = user ? ((user as any).userName || user.firstName || user.email) : `Guest_${socketId.slice(0, 6)}`;
+    const { userId, userName } = getUserIdentity(socketId);
     
     console.log('📤 Emitting join-room event:', { roomId, userId, userName });
     socket.emit('join-room', {
@@ -158,13 +176,13 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    // Clear the current room ID
-    currentRoomIdRef.current = null;
+    // DON'T clear currentRoomIdRef here! 
+    // We need it for auto-rejoin after reconnection
+    // Only clear it when joining a different room
     
-    // Allow guest viewers by generating temporary ID
+    // Get current user identity using fresh data
     const socketId = socket.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
-    const userId = user ? ((user as any)._id || (user as any).id || user.id) : `guest_${socketId}`;
-    const userName = user ? ((user as any).userName || user.firstName || user.email) : `Guest_${socketId.slice(0, 6)}`;
+    const { userId, userName } = getUserIdentity(socketId);
     
     console.log('📤 Emitting leave-room event:', { roomId, userId, userName });
     socket.emit('leave-room', {

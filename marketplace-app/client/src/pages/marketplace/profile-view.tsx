@@ -159,7 +159,6 @@ export default function ProfileView() {
   const [location, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("shows");
   const [isFollowing, setIsFollowing] = useState(false);
-  const [messagingLoading, setMessagingLoading] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -314,23 +313,11 @@ export default function ProfileView() {
   // Follow mutation - MUST be before early returns
   const followMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/follow/${currentUserId}/${userId}`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to follow user');
-      }
-      return response.json();
+      return await apiRequest('PUT', `/api/follow/${currentUserId}/${userId}`, {});
     },
     onSuccess: () => {
       setIsFollowing(true);
       queryClient.invalidateQueries({ queryKey: ['/api/profile', userId] });
-      toast({
-        title: "Success",
-        description: `You are now following @${displayUser?.userName || 'user'}`,
-      });
     },
     onError: (error: Error) => {
       toast({
@@ -344,15 +331,7 @@ export default function ProfileView() {
   // Unfollow mutation - MUST be before early returns
   const unfollowMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/unfollow/${currentUserId}/${userId}`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to unfollow user');
-      }
-      return response.json();
+      return await apiRequest('PUT', `/api/unfollow/${currentUserId}/${userId}`, {});
     },
     onSuccess: () => {
       setIsFollowing(false);
@@ -374,15 +353,7 @@ export default function ProfileView() {
   // Block mutation - MUST be before early returns
   const blockMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/block/${currentUserId}/${userId}`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to block user');
-      }
-      return response.json();
+      return await apiRequest('PUT', `/api/block/${currentUserId}/${userId}`, {});
     },
     onSuccess: () => {
       setIsBlocked(true);
@@ -404,15 +375,7 @@ export default function ProfileView() {
   // Unblock mutation - MUST be before early returns
   const unblockMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/unblock/${currentUserId}/${userId}`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to unblock user');
-      }
-      return response.json();
+      return await apiRequest('PUT', `/api/unblock/${currentUserId}/${userId}`, {});
     },
     onSuccess: () => {
       setIsBlocked(false);
@@ -434,23 +397,11 @@ export default function ProfileView() {
   // Report mutation - MUST be before early returns
   const reportMutation = useMutation({
     mutationFn: async (reason: string) => {
-      const response = await fetch('/api/report', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          reason,
-          reported_by: currentUserId,
-          reported: userId,
-        }),
+      return await apiRequest('POST', '/api/report', {
+        reason,
+        reported_by: currentUserId,
+        reported: userId,
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to report user');
-      }
-      return response.json();
     },
     onSuccess: () => {
       setShowReportDialog(false);
@@ -517,44 +468,17 @@ export default function ProfileView() {
   };
 
   // Handle message button click
-  const handleMessage = async () => {
+  const handleMessage = () => {
     if (!userId || !currentUserId) return;
     
-    try {
-      setMessagingLoading(true);
-      
-      const currentUserData = {
-        firstName: (currentUser as any)?.firstName || '',
-        lastName: (currentUser as any)?.lastName || '',
-        userName: (currentUser as any)?.userName || '',
-        profilePhoto: (currentUser as any)?.profilePhoto || ''
-      };
-      
-      const otherUserData = {
-        firstName: displayUser?.firstName || '',
-        lastName: displayUser?.lastName || '',
-        userName: displayUser?.userName || '',
-        profilePhoto: displayUser?.profilePhoto || ''
-      };
-      
-      const chatId = await getOrCreateChat(
-        currentUserId,
-        userId,
-        currentUserData,
-        otherUserData
-      );
-      
-      setLocation(`/inbox/${chatId}`);
-    } catch (error) {
-      console.error('Error creating chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to open chat. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setMessagingLoading(false);
-    }
+    // Navigate immediately - let inbox page handle chat creation
+    const params = new URLSearchParams({
+      otherUserId: userId,
+      otherUserName: displayUser?.userName || displayUser?.firstName || 'User',
+      otherUserPhoto: displayUser?.profilePhoto || ''
+    });
+    
+    setLocation(`/inbox?${params.toString()}`);
   };
 
   // Handle block/unblock toggle
@@ -747,11 +671,10 @@ export default function ProfileView() {
                     variant="outline" 
                     size="sm" 
                     onClick={handleMessage}
-                    disabled={messagingLoading}
                     data-testid="button-message" 
                   >
                     <MessageCircle className="h-4 w-4 mr-2" />
-                    <span>{messagingLoading ? "Loading..." : "Message"}</span>
+                    <span>Message</span>
                   </Button>
                   <Button 
                     variant={isFollowing ? "outline" : "default"} 
@@ -937,7 +860,7 @@ export default function ProfileView() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {upcomingShows.map((show: any) => (
                       <ShowCard
                         key={show._id || show.id}

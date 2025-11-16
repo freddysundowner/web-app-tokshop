@@ -1,5 +1,6 @@
 import { Link, useParams, useLocation } from 'wouter';
 import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package } from 'lucide-react';
+import { timeSync } from '@/lib/time-sync';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,7 @@ import { ProductForm } from '@/components/product-form';
 import { ShareDialog } from '@/components/share-dialog';
 import { BuyNowDialog } from '@/components/buy-now-dialog';
 import { TipSellerDialog } from '@/components/tip-seller-dialog';
+import { WalletDialog } from '@/components/wallet-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 // Import show-view components
@@ -49,8 +51,30 @@ import { DialogsContainer } from '@/components/show-view/dialogs-container';
 
 // Lazy load heavy components
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
-const PaymentShippingSheet = lazy(() => import('@/components/payment-shipping-sheet').then(m => ({ default: m.PaymentShippingSheet })));
 const PaymentShippingAlertDialog = lazy(() => import('@/components/payment-shipping-alert-dialog').then(m => ({ default: m.PaymentShippingAlertDialog })));
+const PaymentMethodListDialog = lazy(() => import('@/components/payment-method-list-dialog').then(m => ({ default: m.PaymentMethodListDialog })));
+const AddressListDialog = lazy(() => import('@/components/address-list-dialog'));
+
+// Helper: Normalize auction endTime to always be a number (timestamp)
+function normalizeAuctionEndTime(auction: any): any {
+  if (!auction) return auction;
+  
+  const normalized = { ...auction };
+  
+  // Convert endTime to number if it's a string
+  if (normalized.endTime) {
+    if (typeof normalized.endTime === 'string') {
+      normalized.endTime = new Date(normalized.endTime).getTime();
+    }
+  }
+  
+  // If no endTime but has startedTime and duration, calculate it
+  if (!normalized.endTime && normalized.startedTime && normalized.duration) {
+    normalized.endTime = normalized.startedTime + (normalized.duration * 1000);
+  }
+  
+  return normalized;
+}
 
 export default function ShowViewNew() {
   usePageTitle('Live Show');
@@ -112,6 +136,8 @@ export default function ShowViewNew() {
   const [winnerData, setWinnerData] = useState<any>(null);
   const [showGiveawayWinnerDialog, setShowGiveawayWinnerDialog] = useState<boolean>(false);
   const [giveawayWinnerData, setGiveawayWinnerData] = useState<any>(null);
+  const [showOrderNotification, setShowOrderNotification] = useState<boolean>(false);
+  const [orderNotificationData, setOrderNotificationData] = useState<any>(null);
   
   // Track current user's bid for reliable state
   const [currentUserBid, setCurrentUserBid] = useState<any>(null);
@@ -122,9 +148,13 @@ export default function ShowViewNew() {
   
   
   // Payment & Shipping Alert
-  const [showPaymentShippingAlert, setShowPaymentShippingAlert] = useState<boolean>(false);
   const [showPaymentShippingIntermediateAlert, setShowPaymentShippingIntermediateAlert] = useState<boolean>(false);
   const hasShownPaymentAlertRef = useRef<boolean>(false);
+  
+  // Wallet Dialog
+  const [showWalletDialog, setShowWalletDialog] = useState<boolean>(false);
+  const [showPaymentMethodsDialog, setShowPaymentMethodsDialog] = useState<boolean>(false);
+  const [showAddressesDialog, setShowAddressesDialog] = useState<boolean>(false);
   
   // Track which auctions have already shown winner alerts (to prevent duplicates)
   const shownWinnerAlertsRef = useRef<Set<string>>(new Set());
@@ -147,6 +177,7 @@ export default function ShowViewNew() {
   // Track if join message has been sent
   const hasJoinedRef = useRef(false);
   const auctionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const orderNotificationTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Ref for auto-scrolling chat
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -172,6 +203,7 @@ export default function ShowViewNew() {
   
   // Join room immediately when socket is connected
   const hasJoinedRoomRef = useRef(false);
+  const hasSentJoinMessageRef = useRef(false);
   useEffect(() => {
     if (!id) return;
     
@@ -185,13 +217,38 @@ export default function ShowViewNew() {
       console.log('✅ Socket connected - joining room immediately:', id);
       joinRoom(id);
       hasJoinedRoomRef.current = true;
+      
+      // Send join message to Firebase immediately (don't wait for backend socket event)
+      // This ensures join messages work regardless of show status (live or not)
+      if (user && !hasSentJoinMessageRef.current) {
+        const userId = (user as any)?._id || user?.id;
+        const userName = user?.userName || user?.firstName?.trim() || 'User';
+        const userPhoto = user?.profilePhoto?.trim() || '';
+        
+        if (userId) {
+          sendRoomMessage(
+            id,
+            'joined 👋',
+            userId,
+            userName,
+            userPhoto,
+            [] // no mentions
+          ).then(() => {
+            console.log('📨 Join message sent to Firebase');
+            hasSentJoinMessageRef.current = true;
+          }).catch((error) => {
+            console.error('Failed to send join message to Firebase:', error);
+          });
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isConnected]);
+  }, [id, isConnected, user]);
   
-  // Reset join flag when room ID changes
+  // Reset join flags when room ID changes
   useEffect(() => {
     hasJoinedRoomRef.current = false;
+    hasSentJoinMessageRef.current = false;
   }, [id]);
   
   // Set mobile viewport height accounting for browser chrome
@@ -452,15 +509,27 @@ export default function ShowViewNew() {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Shipping estimate received:', data);
-        setShippingEstimate({
-          amount: data.amount,
-          currency: data.currency,
-          rate_id: data.objectId,
-          bundleId: data.bundleId,
-          totalWeightOz: data.totalWeightOz,
-          seller_shipping_fee_pay: data.seller_shipping_fee_pay,
-          servicelevel: data.servicelevel?.name || ''
-        });
+        
+        // Check if API returned an error (unshippable address)
+        if (data.success === false && data.message) {
+          console.warn('⚠️ Shipping estimate error:', data.message);
+          setShippingEstimate({
+            error: true,
+            message: data.message,
+            amount: '0.00'
+          });
+        } else {
+          setShippingEstimate({
+            amount: data.amount,
+            currency: data.currency,
+            rate_id: data.objectId,
+            bundleId: data.bundleId,
+            totalWeightOz: data.totalWeightOz,
+            seller_shipping_fee_pay: data.seller_shipping_fee_pay,
+            carrierAccount: data.carrierAccount,
+            servicelevel: data.servicelevel?.name || ''
+          });
+        }
       } else {
         console.error('❌ Shipping estimate failed:', response.status, response.statusText);
       }
@@ -482,13 +551,29 @@ export default function ShowViewNew() {
       return;
     }
     
-    console.log('⏰ Starting timer with endTime:', auction.endTime, 'Current time:', Date.now());
+    // Normalize endTime to number
+    let endTimeMs = typeof auction.endTime === 'string' 
+      ? new Date(auction.endTime).getTime() 
+      : auction.endTime;
     
-    const serverOffset = auction.serverOffset || 0;
+    // Validate that we have a valid numeric timestamp
+    if (!Number.isFinite(endTimeMs)) {
+      console.error('❌ Invalid endTime:', auction.endTime, 'Cannot start timer');
+      return;
+    }
     
-    // Calculate and set initial time IMMEDIATELY (don't wait for interval)
-    const adjustedNow = Date.now() + serverOffset;
-    const initialRemaining = Math.floor((auction.endTime - adjustedNow) / 1000);
+    console.log('⏰ Starting timer:', {
+      endTimeMs,
+      startedTime: auction.startedTime,
+      adjustedNow: timeSync.adjustedNow(),
+      localNow: Date.now(),
+      offset: timeSync.getOffset(),
+      duration: auction.duration,
+      remaining: Math.floor((endTimeMs - timeSync.adjustedNow()) / 1000)
+    });
+    
+    // Calculate remaining time using time-synced clock
+    const initialRemaining = Math.floor((endTimeMs - timeSync.adjustedNow()) / 1000);
     if (initialRemaining > 0) {
       setAuctionTimeLeft(initialRemaining);
     }
@@ -504,8 +589,23 @@ export default function ShowViewNew() {
           return currentAuction;
         }
         
-        const adjustedNow = Date.now() + (currentAuction.serverOffset || serverOffset);
-        const remaining = Math.floor((currentAuction.endTime - adjustedNow) / 1000);
+        // Normalize endTime to number in case state was updated with string
+        const endTimeMs = typeof currentAuction.endTime === 'string'
+          ? new Date(currentAuction.endTime).getTime()
+          : currentAuction.endTime;
+        
+        // Validate endTime
+        if (!Number.isFinite(endTimeMs)) {
+          console.error('❌ Invalid endTime in timer callback:', currentAuction.endTime);
+          if (auctionTimerRef.current) {
+            clearInterval(auctionTimerRef.current);
+          }
+          setAuctionTimeLeft(0);
+          return currentAuction;
+        }
+        
+        // Use time-synced clock for accurate countdown
+        const remaining = Math.floor((endTimeMs - timeSync.adjustedNow()) / 1000);
         
         if (remaining <= 0) {
           setAuctionTimeLeft(0);
@@ -589,18 +689,27 @@ export default function ShowViewNew() {
         console.log('🔍 Show activeauction ended:', showActiveAuction.ended);
         console.log('🔍 Full show object keys:', Object.keys(show));
         
-        // Calculate endTime if not present
-        if (!showActiveAuction.endTime && showActiveAuction.duration > 0) {
-          showActiveAuction.endTime = Date.now() + (showActiveAuction.duration * 1000);
+        // Normalize endTime to always be a number
+        const normalizedAuction = normalizeAuctionEndTime(showActiveAuction);
+        
+        // Update global time sync if serverTime is present
+        if (normalizedAuction.serverTime) {
+          timeSync.updateFromServerTime(normalizedAuction.serverTime, 'http');
         }
         
-        console.log('🔍 CALLING setActiveAuction with:', showActiveAuction);
-        setActiveAuction(showActiveAuction);
+        console.log('🔍 CALLING setActiveAuction with:', normalizedAuction);
+        setActiveAuction(normalizedAuction);
         console.log('🔍 AFTER setActiveAuction called');
+        
+        // Start timer and find winner for running auction
+        findWinner(normalizedAuction.bids || []);
+        startTimerWithEndTime(normalizedAuction);
+        getShippingEstimate(normalizedAuction);
       } else if (isAuctionEnded) {
         console.log('⏰ Auction in show data has ended - setting it to show on overlay');
         // Set the ended auction so it shows on the overlay
-        setActiveAuction(showActiveAuction);
+        const normalizedEndedAuction = normalizeAuctionEndTime(showActiveAuction);
+        setActiveAuction(normalizedEndedAuction);
         
         // Find winner and get shipping estimate for ended auction
         findWinner(showActiveAuction.bids || []);
@@ -616,15 +725,23 @@ export default function ShowViewNew() {
       }
       
       // Initialize pinned product from show data
+      // But SKIP if it's the same as the active auction product
       if (show.pinned) {
-        console.log('📌 Initializing pinned product from show data:', show.pinned);
-        setPinnedProduct(show.pinned);
+        const auctionProductId = showActiveAuction?.product?._id || showActiveAuction?.product?.id;
+        const pinnedProductId = show.pinned._id || show.pinned.id;
         
-        // Get shipping estimate for pinned product (skip if user is show owner)
-        const hostId = show?.owner?._id || show?.owner?.id;
-        const isOwner = isAuthenticated && currentUserId === hostId;
-        
-        if (show.pinned.shipping_profile && !isOwner) {
+        if (auctionProductId && pinnedProductId === auctionProductId) {
+          console.log('📌 Skipping pinned product - same as active auction product');
+          setPinnedProduct(null);
+        } else {
+          console.log('📌 Initializing pinned product from show data:', show.pinned);
+          setPinnedProduct(show.pinned);
+          
+          // Get shipping estimate for pinned product (skip if user is show owner)
+          const hostId = show?.owner?._id || show?.owner?.id;
+          const isOwner = isAuthenticated && currentUserId === hostId;
+          
+          if (show.pinned.shipping_profile && !isOwner) {
           const pinnedPayload = {
             weight: show.pinned.shipping_profile.weight,
             unit: show.pinned.shipping_profile.scale,
@@ -646,16 +763,32 @@ export default function ShowViewNew() {
             .then(res => res.json())
             .then(data => {
               console.log('✅ Pinned product shipping estimate received:', data);
-              setShippingEstimate({
-                amount: data.amount,
-                currency: data.currency,
-                rate_id: data.objectId,
-                bundleId: data.bundleId,
-              });
+              
+              // Check if API returned an error (unshippable address)
+              if (data.success === false && data.message) {
+                console.warn('⚠️ Pinned product shipping estimate error:', data.message);
+                setShippingEstimate({
+                  error: true,
+                  message: data.message,
+                  amount: '0.00'
+                });
+              } else {
+                setShippingEstimate({
+                  amount: data.amount,
+                  currency: data.currency,
+                  rate_id: data.objectId,
+                  bundleId: data.bundleId,
+                  totalWeightOz: data.totalWeightOz,
+                  seller_shipping_fee_pay: data.seller_shipping_fee_pay,
+                  carrierAccount: data.carrierAccount,
+                  servicelevel: data.servicelevel?.name || ''
+                });
+              }
             })
             .catch(err => console.error('❌ Error fetching pinned product shipping:', err));
-        } else if (isOwner) {
-          console.log('🚫 Skipping shipping estimate for pinned product: user is show owner');
+          } else if (isOwner) {
+            console.log('🚫 Skipping shipping estimate for pinned product: user is show owner');
+          }
         }
       } else {
         setPinnedProduct(null);
@@ -755,6 +888,10 @@ export default function ShowViewNew() {
     checkActiveShows();
   }, [socket, id, isConnected, isAuthenticated, currentUserId]);
 
+  // Determine if current user is the show owner
+  const host = show?.owner;
+  const hostId = host?._id || host?.id;
+  const isShowOwner = isAuthenticated && currentUserId === hostId;
 
   // Socket.IO real-time event listeners (refactored into custom hook)
   useShowSocketEvents({
@@ -765,6 +902,7 @@ export default function ShowViewNew() {
     isAuthenticated,
     user,
     currentUserId,
+    isShowOwner,
     joinRoom,
     leaveRoom,
     disconnect,
@@ -777,6 +915,8 @@ export default function ShowViewNew() {
     setShowWinnerDialog,
     setGiveawayWinnerData,
     setShowGiveawayWinnerDialog,
+    setOrderNotificationData,
+    setShowOrderNotification,
     setTimeAddedBlink,
     setCurrentUserBid,
     previousHighestBidRef,
@@ -785,6 +925,7 @@ export default function ShowViewNew() {
     startTimerWithEndTime,
     getShippingEstimate,
     refetchAuction,
+    refetchBuyNow,
     refetchGiveaways,
     shownWinnerAlertsRef,
   });
@@ -833,6 +974,29 @@ export default function ShowViewNew() {
       });
     }
   }, [chatMessages]);
+
+  // Auto-dismiss order notification banner after 5 seconds
+  // Using useEffect ensures proper cleanup when new orders arrive
+  useEffect(() => {
+    if (showOrderNotification) {
+      // Clear any existing timer to prevent race conditions
+      if (orderNotificationTimerRef.current) {
+        clearTimeout(orderNotificationTimerRef.current);
+      }
+      
+      // Set new timer to auto-dismiss
+      orderNotificationTimerRef.current = setTimeout(() => {
+        setShowOrderNotification(false);
+      }, 5000);
+    }
+    
+    // Cleanup: clear timer when component unmounts or when showOrderNotification changes
+    return () => {
+      if (orderNotificationTimerRef.current) {
+        clearTimeout(orderNotificationTimerRef.current);
+      }
+    };
+  }, [showOrderNotification, orderNotificationData]);
 
   // Search users for mentions
   const searchUsers = async (query: string) => {
@@ -1123,26 +1287,52 @@ export default function ShowViewNew() {
       // Use reliable currentUserBid state instead of scanning activeAuction.bids
       const inheritCustomBidFlag = currentUserBid?.custom_bid || false;
       const existingMaxBid = currentUserBid?.autobidamount;
+      const userHasExistingBid = !!currentUserBid;
       
-      const bidPayload = {
-        user: currentUserId,
-        amount: isCustomBid ? (activeAuction.newbaseprice || activeAuction.baseprice || 1) : amount,
-        increaseBidBy: activeAuction.increaseBidBy || 5,
-        auction: activeAuction._id || activeAuction.id,
-        prebid: false,
-        autobid: isCustomBid ? customOptions!.autobid : false,
-        autobidamount: isCustomBid ? customOptions!.autobidAmount : (existingMaxBid || amount),
-        custom_bid: isCustomBid ? true : inheritCustomBidFlag,
-        roomId: id
-      };
+      // Determine if this is just updating autobid max or placing a new bid
+      // Only update (no immediate bid) if: user has existing bid + autobid ON + user is WINNING
+      const isJustUpdatingAutobid = isCustomBid && customOptions!.autobid && userHasExistingBid && isUserWinning;
       
-      console.log('💰 Placing bid:', bidPayload);
-      console.log('📡 Socket connected:', socket.connected);
-      console.log('  Using currentUserBid:', currentUserBid);
-      
-      socket.emit('place-bid', bidPayload);
-      
-      console.log('✅ place-bid event emitted');
+      if (isJustUpdatingAutobid) {
+        // User is winning - just update max bid (use update-bid action)
+        const updatePayload = {
+          user: currentUserId,
+          auction: activeAuction._id || activeAuction.id,
+          autobidamount: customOptions!.autobidAmount,
+          roomId: id
+        };
+        
+        console.log('🔄 Updating bid max (user winning):', updatePayload);
+        socket.emit('update-bid', updatePayload);
+        console.log('✅ update-bid event emitted');
+      } else {
+        // Placing new bid (with or without autobid)
+        let bidAmount = amount;
+        if (isCustomBid && customOptions!.autobid) {
+          // Autobid enabled - place bid at next minimum (either first time or trying to reclaim lead)
+          bidAmount = activeAuction.newbaseprice || activeAuction.baseprice || 1;
+        }
+        
+        const bidPayload = {
+          user: currentUserId,
+          amount: bidAmount,
+          increaseBidBy: activeAuction.increaseBidBy || 5,
+          auction: activeAuction._id || activeAuction.id,
+          prebid: false,
+          autobid: isCustomBid ? customOptions!.autobid : false,
+          autobidamount: isCustomBid ? customOptions!.autobidAmount : (existingMaxBid || amount),
+          custom_bid: isCustomBid ? true : inheritCustomBidFlag,
+          roomId: id
+        };
+        
+        console.log('💰 Placing bid:', bidPayload);
+        console.log('📡 Socket connected:', socket.connected);
+        console.log('  Using currentUserBid:', currentUserBid);
+        
+        socket.emit('place-bid', bidPayload);
+        
+        console.log('✅ place-bid event emitted');
+      }
     },
     onSuccess: () => {
       setBidAmount('');
@@ -1158,8 +1348,9 @@ export default function ShowViewNew() {
         throw new Error('Please add payment and shipping information before prebidding');
       }
 
-      // Use the NESTED auction ID from listing.auction._id
-      const auctionId = listing.auction?._id || listing.auction?.id;
+      // For auction products, the product._id IS the auction ID
+      // Try nested auction._id first (for activeAuction), then fall back to product._id
+      const auctionId = listing.auction?._id || listing.auction?.id || listing._id || listing.id;
       if (!auctionId) {
         throw new Error('Auction ID not found in listing');
       }
@@ -1168,7 +1359,7 @@ export default function ShowViewNew() {
         user: currentUserId,
         amount: amount,
         increaseBidBy: listing.auction?.increaseBidBy || listing.increaseBidBy || 5,
-        auction: auctionId,  // This is the nested auction ID
+        auction: auctionId,  // Product ID for auction products, or nested auction ID
         prebid: true,
         autobid: true,
         autobidamount: amount,
@@ -1202,7 +1393,7 @@ export default function ShowViewNew() {
     mutationFn: async () => {
       if (!socket || !activeGiveaway) throw new Error('Cannot join giveaway');
       
-      // Check if user has an address (matching Flutter validation)
+      // Check 1: User must have a shipping address
       const addressResponse = await fetch(`/api/address/all/${currentUserId}`);
       if (addressResponse.ok) {
         const addresses = await addressResponse.json();
@@ -1211,7 +1402,12 @@ export default function ShowViewNew() {
         }
       }
       
-      // Check if user is already a participant (matching Flutter validation)
+      // Check 2: User must be following host if giveaway requires it
+      if (activeGiveaway.whocanenter === 'followers' && !isFollowingHost) {
+        throw new Error('You must follow the host to enter this giveaway');
+      }
+      
+      // Check 3: User cannot enter the same giveaway twice
       const participants = activeGiveaway.participants || [];
       const isAlreadyParticipant = participants.some((p: any) => 
         (typeof p === 'string' ? p : p.id || p._id) === currentUserId
@@ -1228,10 +1424,7 @@ export default function ShowViewNew() {
       });
     },
     onSuccess: () => {
-      toast({
-        title: "Joined Giveaway!",
-        description: "Good luck!"
-      });
+      // Silently joined - no toast notification
     },
     onError: (error: any) => {
       toast({
@@ -1252,26 +1445,10 @@ export default function ShowViewNew() {
       
       if (isGiveaway) {
         // Delete giveaway using DELETE /api/giveaways/:id
-        const response = await fetch(`/api/giveaways/${productId}`, {
-          method: 'DELETE',
-          credentials: 'include',
-        });
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to delete giveaway');
-        }
-        return response.json();
+        return await apiRequest('DELETE', `/api/giveaways/${productId}`, {});
       } else {
         // Delete regular product using PUT /api/products/:id/delete
-        const response = await fetch(`/api/products/${productId}/delete`, {
-          method: 'PUT',
-          credentials: 'include',
-        });
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to delete product');
-        }
-        return response.json();
+        return await apiRequest('PUT', `/api/products/${productId}/delete`, {});
       }
     },
     onSuccess: () => {
@@ -1303,15 +1480,7 @@ export default function ShowViewNew() {
       if (!currentUserId || !hostId) {
         throw new Error('Missing user or host ID');
       }
-      const response = await fetch(`/api/follow/${currentUserId}/${hostId}`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to follow user');
-      }
-      return response.json();
+      return await apiRequest('PUT', `/api/follow/${currentUserId}/${hostId}`, {});
     },
     onSuccess: () => {
       setIsFollowingHost(true);
@@ -1333,15 +1502,7 @@ export default function ShowViewNew() {
       if (!currentUserId || !hostId) {
         throw new Error('Missing user or host ID');
       }
-      const response = await fetch(`/api/unfollow/${currentUserId}/${hostId}`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to unfollow user');
-      }
-      return response.json();
+      return await apiRequest('PUT', `/api/unfollow/${currentUserId}/${hostId}`, {});
     },
     onSuccess: () => {
       setIsFollowingHost(false);
@@ -1391,15 +1552,7 @@ export default function ShowViewNew() {
         throw new Error('Missing user or host ID');
       }
       
-      const followResponse = await fetch(`/api/follow/${currentUserId}/${hostId}`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      
-      if (!followResponse.ok) {
-        const error = await followResponse.json();
-        throw new Error(error.error || 'Failed to follow user');
-      }
+      await apiRequest('PUT', `/api/follow/${currentUserId}/${hostId}`, {});
       
       // Update following state
       setIsFollowingHost(true);
@@ -1418,7 +1571,6 @@ export default function ShowViewNew() {
     }
   };
 
-  const host = show?.owner;
   const isLive = show?.started === true;
   const viewerCount = viewers.length || show?.viewers?.length || 0;
   const hostName = host?.userName || host?.firstName?.trim() || 'Host';
@@ -1487,10 +1639,6 @@ export default function ShowViewNew() {
   
   const soldOrders = soldOrdersData?.orders || [];
   const giveaways = giveawaysData?.giveaways || [];
-
-  // Check if current user is the show owner
-  const hostId = host?._id || host?.id;
-  const isShowOwner = isAuthenticated && currentUserId === hostId;
   
   // Initialize LiveKit for video streaming
   // Role is determined server-side based on room ownership
@@ -1561,9 +1709,13 @@ export default function ShowViewNew() {
     if (!selectedProduct) return;
     
     // Pre-fill settings with product data
+    // Ensure duration is at least 2 seconds (minimum for meaningful auction)
+    const productDuration = selectedProduct.duration || selectedProduct.default_duration || 0;
+    const safeDuration = productDuration > 0 ? productDuration : 10;
+    
     setAuctionSettings({
       startingPrice: selectedProduct.startingPrice || selectedProduct.price || 0,
-      duration: selectedProduct.duration || 10,
+      duration: safeDuration,
       sudden: selectedProduct.sudden || false,
       counterBidTime: 5
     });
@@ -1610,6 +1762,7 @@ export default function ShowViewNew() {
     });
     
     setProductActionSheet(false);
+    setShowMobileProducts(false); // Close store dialog on mobile
   };
   
   // Handler to start auction with settings
@@ -1668,6 +1821,7 @@ export default function ShowViewNew() {
     
     setShowAuctionSettingsDialog(false);
     setSelectedProduct(null);
+    setShowMobileProducts(false); // Close store dialog on mobile
   };
 
   // Handler to start giveaway
@@ -1687,10 +1841,7 @@ export default function ShowViewNew() {
     
     setProductActionSheet(false);
     setSelectedProduct(null);
-    toast({
-      title: "Giveaway Started!",
-      description: selectedProduct.name || "Giveaway is now live"
-    });
+    setShowMobileProducts(false); // Close store dialog on mobile
   };
 
   // Handler to manually end giveaway (draw winner)
@@ -1706,11 +1857,6 @@ export default function ShowViewNew() {
     socket.emit('draw-giveaway', {
       giveawayId: activeGiveaway._id,
       showId: id
-    });
-    
-    toast({
-      title: "Drawing Winner...",
-      description: "Ending giveaway and selecting winner"
     });
   };
 
@@ -1731,10 +1877,34 @@ export default function ShowViewNew() {
     unfollowMutation?.mutate();
   };
 
-  const handlePlaceBid = () => {
-    const amount = parseFloat(bidAmount);
-    if (!amount || amount <= 0) return;
-    placeBidMutation?.mutate(amount);
+  // Reusable bidding method for both quick bids and custom bids
+  const handlePlaceBid = (bidParams: number | { amount: number; isMaxBid?: boolean }) => {
+    // Prevent user from bidding against themselves (silently)
+    if (isUserWinning) {
+      return;
+    }
+
+    // Handle both simple number bids and custom bid objects
+    if (typeof bidParams === 'number') {
+      // Quick bid - just pass the amount
+      placeBidMutation?.mutate(bidParams);
+    } else {
+      const { amount, isMaxBid = false } = bidParams;
+      
+      if (isMaxBid) {
+        // Auto-bid enabled - set max autobid amount
+        placeBidMutation?.mutate({
+          amount: amount,
+          custom: {
+            autobid: true,
+            autobidAmount: amount
+          }
+        });
+      } else {
+        // Auto-bid NOT enabled - place immediate bid at this amount
+        placeBidMutation?.mutate(amount);
+      }
+    }
   };
 
   const handleJoinGiveaway = () => {
@@ -1784,33 +1954,6 @@ export default function ShowViewNew() {
         </Alert>
       )}
 
-      {/* Shipping/Explicit Content Warnings */}
-      {(hasFreePickup || hasBuyerCap || hasExplicitContent) && (
-        <Alert className="rounded-none border-x-0 border-t-0 border-b border-zinc-800 bg-zinc-900/50 flex-shrink-0">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="flex items-center gap-4 text-xs">
-            {hasFreePickup && (
-              <span className="flex items-center gap-1">
-                <Truck className="h-3 w-3" />
-                Free Local Pickup Available
-              </span>
-            )}
-            {hasBuyerCap && (
-              <span className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />
-                Shipping capped at ${shippingOptions.reducedShippingCapAmount || shippingOptions.reduced_shipping_cap_amount}
-              </span>
-            )}
-            {hasExplicitContent && (
-              <span className="flex items-center gap-1 text-orange-400">
-                <AlertTriangle className="h-3 w-3" />
-                May contain explicit content
-              </span>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
 
       {/* Main Content - Testing ProductsSidebar ONLY (fixed) */}
       <div className="flex flex-1 overflow-hidden min-h-0">
@@ -1841,6 +1984,7 @@ export default function ShowViewNew() {
           soldOrders={soldOrders}
           setSelectedOrder={setSelectedOrder}
           setShowOrderDetailDialog={setShowOrderDetailDialog}
+          shippingEstimate={shippingEstimate}
         />
 
         <VideoCenter
@@ -1875,6 +2019,7 @@ export default function ShowViewNew() {
           activeGiveaway={activeGiveaway}
           giveawayTimeLeft={giveawayTimeLeft}
           handleJoinGiveaway={handleJoinGiveaway}
+          handleFollowAndJoinGiveaway={handleFollowAndJoinGiveaway}
           isJoiningGiveaway={joinGiveawayMutation?.isPending}
           currentUserId={currentUserId}
           handleEndGiveaway={handleEndGiveaway}
@@ -1910,6 +2055,8 @@ export default function ShowViewNew() {
           refetchShow={refetchShow}
           winnerData={winnerData}
           giveawayWinnerData={giveawayWinnerData}
+          orderNotificationData={orderNotificationData}
+          showOrderNotification={showOrderNotification}
           winningUser={winningUser}
           shippingEstimate={shippingEstimate}
           handleRerunAuction={handleRerunAuction}
@@ -1929,7 +2076,7 @@ export default function ShowViewNew() {
           livekit={livekit}
           showBuyNowDialog={showBuyNowDialog}
           setShowBuyNowDialog={setShowBuyNowDialog}
-          setShowPaymentShippingAlert={setShowPaymentShippingIntermediateAlert}
+          setShowPaymentShippingAlert={setShowWalletDialog}
           showCustomBidDialog={showCustomBidDialog}
           setShowCustomBidDialog={setShowCustomBidDialog}
         />
@@ -2018,6 +2165,7 @@ export default function ShowViewNew() {
             open={showBuyNowDialog}
             onOpenChange={setShowBuyNowDialog}
             product={buyNowProduct}
+            shippingEstimate={shippingEstimate}
             onOpenPaymentMethods={() => {
               setShowBuyNowDialog(false);
               setShowPaymentShippingIntermediateAlert(true);
@@ -2042,23 +2190,47 @@ export default function ShowViewNew() {
           />
         )}
 
+        {/* Wallet Dialog */}
+        {showWalletDialog && (
+          <WalletDialog
+            open={showWalletDialog}
+            onOpenChange={setShowWalletDialog}
+            onOpenPaymentMethods={() => {
+              setShowWalletDialog(false);
+              setShowPaymentMethodsDialog(true);
+            }}
+            onOpenShippingAddresses={() => {
+              setShowWalletDialog(false);
+              setShowAddressesDialog(true);
+            }}
+          />
+        )}
+
+        {/* Payment Methods Dialog - Always rendered to prefetch data */}
+        <Suspense fallback={<div />}>
+          <PaymentMethodListDialog
+            open={showPaymentMethodsDialog}
+            onOpenChange={setShowPaymentMethodsDialog}
+          />
+        </Suspense>
+
+        {/* Addresses Dialog */}
+        {showAddressesDialog && (
+          <Suspense fallback={<div />}>
+            <AddressListDialog
+              open={showAddressesDialog}
+              onOpenChange={setShowAddressesDialog}
+            />
+          </Suspense>
+        )}
+
         {/* Intermediate Payment & Shipping Alert - Shows first when user is missing info */}
         {showPaymentShippingIntermediateAlert && (
           <Suspense fallback={<div />}>
             <PaymentShippingAlertDialog
               open={showPaymentShippingIntermediateAlert}
               onOpenChange={setShowPaymentShippingIntermediateAlert}
-              onAddInfo={() => setShowPaymentShippingAlert(true)}
-            />
-          </Suspense>
-        )}
-
-        {/* Payment & Shipping Sheet - Only render when actually opening */}
-        {showPaymentShippingAlert && (
-          <Suspense fallback={<div />}>
-            <PaymentShippingSheet
-              open={showPaymentShippingAlert}
-              onOpenChange={setShowPaymentShippingAlert}
+              onAddInfo={() => setShowWalletDialog(true)}
             />
           </Suspense>
         )}
@@ -2112,29 +2284,19 @@ export default function ShowViewNew() {
                       
                       try {
                         // 1. First, end the previous show by setting ended: true
-                        const endResponse = await fetch(`/api/rooms/${conflictingShow._id}`, {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          credentials: 'include',
-                          body: JSON.stringify({ ended: true })
-                        });
-                        
-                        if (!endResponse.ok) {
-                          console.error('Failed to end previous show');
-                        } else {
+                        try {
+                          await apiRequest('PUT', `/api/rooms/${conflictingShow._id}`, { ended: true });
                           console.log('✅ Previous show ended');
+                        } catch (error) {
+                          console.error('Failed to end previous show', error);
                         }
                         
                         // 2. Then delete the previous show
-                        const deleteResponse = await fetch(`/api/rooms/${conflictingShow._id}`, {
-                          method: 'DELETE',
-                          credentials: 'include',
-                        });
-                        
-                        if (!deleteResponse.ok) {
-                          console.error('Failed to delete previous show');
-                        } else {
+                        try {
+                          await apiRequest('DELETE', `/api/rooms/${conflictingShow._id}`, {});
                           console.log('✅ Previous show deleted');
+                        } catch (error) {
+                          console.error('Failed to delete previous show', error);
                         }
                         
                         // 3. Emit leave-room socket event for the previous show

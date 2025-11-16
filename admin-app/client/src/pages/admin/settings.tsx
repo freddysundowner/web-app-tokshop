@@ -52,7 +52,6 @@ export default function AdminSettings() {
     privacy_url: '',
     terms_url: '',
     FIREBASE_API_KEY: '',
-    firebase_api_key: '',
     firebase_auth_domain: '',
     firebase_project_id: '',
     firebase_storage_bucket: '',
@@ -75,6 +74,8 @@ export default function AdminSettings() {
     email_smtp_port: '',
     email_smtp_user: '',
     email_smtp_pass: '',
+    seller_approval_email_subject: '',
+    seller_approval_email_body: '',
     primary_color: '',
     secondary_color: '',
     app_logo: '',
@@ -99,7 +100,6 @@ export default function AdminSettings() {
       privacy_url: settings?.privacy_url || '',
       terms_url: settings?.terms_url || '',
       FIREBASE_API_KEY: settings?.FIREBASE_API_KEY || '',
-      firebase_api_key: settings?.firebase_config?.apiKey || settings?.firebase_api_key || '',
       firebase_auth_domain: settings?.firebase_config?.authDomain || settings?.firebase_auth_domain || '',
       firebase_project_id: settings?.firebase_config?.projectId || settings?.firebase_project_id || '',
       firebase_storage_bucket: settings?.firebase_config?.storageBucket || settings?.firebase_storage_bucket || '',
@@ -122,6 +122,8 @@ export default function AdminSettings() {
       email_smtp_port: settings?.email_smtp_port || '',
       email_smtp_user: settings?.email_smtp_user || '',
       email_smtp_pass: settings?.email_smtp_pass || '',
+      seller_approval_email_subject: settings?.seller_approval_email_subject || '🎉 Your {appName} Seller Account is Approved!',
+      seller_approval_email_body: settings?.seller_approval_email_body || 'Congratulations! Your seller account on {appName} has been approved.\n\nYou can now:\n- List products for sale\n- Host live shopping shows\n- Run auctions and giveaways\n- Start earning on the platform\n\nGet started by visiting your Seller Hub.',
       primary_color: settings?.primary_color || 'FFFACC15',
       secondary_color: settings?.secondary_color || 'FF0D9488',
       app_logo: settings?.app_logo || '',
@@ -711,30 +713,9 @@ export default function AdminSettings() {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    These settings configure Firebase for your web applications (admin panel and marketplace). Get these values from your Firebase Console → Project Settings → General → Your apps.
+                    These settings configure Firebase for your applications. Get these values from your Firebase Console → Project Settings → General → Your apps.
                   </AlertDescription>
                 </Alert>
-
-                <div className="space-y-2">
-                  <Label htmlFor="firebase_api_key">Firebase API Key (Web Apps)</Label>
-                  <Input
-                    id="firebase_api_key"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.firebase_api_key) : formData.firebase_api_key}
-                    onChange={(e) => handleInputChange('firebase_api_key', e.target.value)}
-                    placeholder="AIza..."
-                    data-testid="input-firebase-web-api-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    API key for web authentication
-                  </p>
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="firebase_auth_domain">Firebase Auth Domain</Label>
@@ -796,28 +777,25 @@ export default function AdminSettings() {
                   </p>
                 </div>
 
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="text-sm font-medium mb-4">Mobile App (Legacy)</h4>
-                  <div className="space-y-2">
-                    <Label htmlFor="FIREBASE_API_KEY">Firebase API Key (Mobile Apps)</Label>
-                    <Input
-                      id="FIREBASE_API_KEY"
-                      type={formData.demoMode ? 'text' : 'password'}
-                      value={formData.demoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
-                      onChange={(e) => handleInputChange('FIREBASE_API_KEY', e.target.value)}
-                      placeholder="AIza..."
-                      data-testid="input-firebase-api-key"
-                      readOnly={formData.demoMode}
-                      disabled={formData.demoMode}
-                      onCopy={(e) => formData.demoMode && e.preventDefault()}
-                      onCut={(e) => formData.demoMode && e.preventDefault()}
-                      onPaste={(e) => formData.demoMode && e.preventDefault()}
-                      className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      For mobile apps only (Flutter/React Native)
-                    </p>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="FIREBASE_API_KEY">Firebase API Key</Label>
+                  <Input
+                    id="FIREBASE_API_KEY"
+                    type={formData.demoMode ? 'text' : 'password'}
+                    value={formData.demoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
+                    onChange={(e) => handleInputChange('FIREBASE_API_KEY', e.target.value)}
+                    placeholder="AIza..."
+                    data-testid="input-firebase-api-key"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                    onCopy={(e) => formData.demoMode && e.preventDefault()}
+                    onCut={(e) => formData.demoMode && e.preventDefault()}
+                    onPaste={(e) => formData.demoMode && e.preventDefault()}
+                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    API key for Firebase authentication and storage
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -1020,6 +998,50 @@ export default function AdminSettings() {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Seller Approval Email Template */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Seller Approval Email Template</CardTitle>
+                <CardDescription>
+                  Customize the email sent when a seller is approved. Use {`{appName}`} and {`{name}`} as placeholders.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="seller_approval_email_subject">Email Subject</Label>
+                  <Input
+                    id="seller_approval_email_subject"
+                    value={formData.seller_approval_email_subject}
+                    onChange={(e) => handleInputChange('seller_approval_email_subject', e.target.value)}
+                    placeholder="🎉 Your {appName} Seller Account is Approved!"
+                    data-testid="input-seller-approval-subject"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use {`{appName}`} to insert your app name dynamically
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="seller_approval_email_body">Email Body</Label>
+                  <textarea
+                    id="seller_approval_email_body"
+                    value={formData.seller_approval_email_body}
+                    onChange={(e) => handleInputChange('seller_approval_email_body', e.target.value)}
+                    placeholder="Congratulations! Your seller account on {appName} has been approved..."
+                    rows={8}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    data-testid="textarea-seller-approval-body"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Available placeholders: {`{appName}`}, {`{name}`} (seller's first name)
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    The email will automatically include a "Go to Seller Hub" button
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

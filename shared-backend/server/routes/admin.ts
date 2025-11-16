@@ -911,6 +911,123 @@ export function registerAdminRoutes(app: Express) {
         });
       }
 
+      // Send approval email to the seller
+      try {
+        // Fetch app settings for email configuration
+        const settingsUrl = `${BASE_URL}/admin/app/settings`;
+        const settingsResponse = await fetch(settingsUrl, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          const settings = Array.isArray(settingsData) ? settingsData[0] : settingsData;
+
+          // Check if email is configured
+          if (settings?.email_from_address && email) {
+            const appName = settings.app_name || "Our Platform";
+            const frontendUrl = BASE_URL.replace(/\/\/api\./, '//');
+
+            // Get custom template or use default
+            const emailSubject = (settings.seller_approval_email_subject || '🎉 Your {appName} Seller Account is Approved!')
+              .replace(/{appName}/g, appName);
+
+            const emailBody = (settings.seller_approval_email_body || 
+              'Congratulations! Your seller account on {appName} has been approved.\n\nYou can now:\n- List products for sale\n- Host live shopping shows\n- Run auctions and giveaways\n- Start earning on the platform\n\nGet started by visiting your Seller Hub.')
+              .replace(/{appName}/g, appName)
+              .replace(/{name}/g, data.data?.firstName || 'there');
+
+            // Convert plain text body to HTML with line breaks
+            const bodyHtml = emailBody
+              .split('\n')
+              .map(line => line.trim() ? `<p style="margin: 0 0 15px; font-size: 16px; line-height: 1.6; color: #333333;">${line}</p>` : '')
+              .join('');
+
+            const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">Seller Account Approved!</h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              ${bodyHtml}
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${frontendUrl}/seller/hub" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                  Go to Seller Hub
+                </a>
+              </div>
+              
+              <p style="margin: 30px 0 0; font-size: 14px; line-height: 1.6; color: #666666; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                If you have any questions, feel free to reach out to our support team.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="margin: 0; font-size: 12px; color: #999999;">
+                © ${new Date().getFullYear()} ${appName}. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+            `.trim();
+
+            const emailText = `
+${emailBody}
+
+Visit your Seller Hub: ${frontendUrl}/seller/hub
+
+If you have any questions, feel free to reach out to our support team.
+
+© ${new Date().getFullYear()} ${appName}. All rights reserved.
+            `.trim();
+
+            await sendEmail(settings, {
+              to: email,
+              subject: emailSubject,
+              html: emailHtml,
+              text: emailText,
+            });
+
+            console.log(`[Seller Approval] Approval email sent successfully to ${email}`);
+          } else {
+            console.log(`[Seller Approval] Email not configured or email address missing, skipping approval email`);
+          }
+        } else {
+          console.log(`[Seller Approval] Could not fetch settings for email, skipping approval email`);
+        }
+      } catch (emailError: any) {
+        // Don't fail the approval if email fails - just log it
+        console.error(`[Seller Approval] Failed to send approval email:`, emailError.message);
+      }
+
       res.json({
         success: true,
         data: data.data || data,
@@ -1917,7 +2034,7 @@ export function registerAdminRoutes(app: Express) {
         });
       }
 
-      const { name } = req.body;
+      const { name, tax_code } = req.body;
       const files = req.files as Express.Multer.File[];
 
       if (!name) {
@@ -1930,6 +2047,7 @@ export function registerAdminRoutes(app: Express) {
       // Create form data for the API request
       const formData = new FormData();
       formData.append('name', name);
+      formData.append('tax_code', tax_code || 'txcd_99999999');
       
       if (files && files.length > 0) {
         files.forEach(file => {

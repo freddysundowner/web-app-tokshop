@@ -106,7 +106,6 @@ export default function Login() {
       setIsLoading(true);
       setLoginError("");
       await emailLogin(data.email, data.password);
-      toast({ title: "Login successful!" });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       setLoginError(errorMessage);

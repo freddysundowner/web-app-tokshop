@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { BASE_URL } from "../utils";
+import { deleteImagesFromStorage } from "../firebase-admin";
 
 export function registerShowRoutes(app: Express) {
   // Get public user profile by ID - proxy to external API
@@ -138,6 +139,45 @@ export function registerShowRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
+      // Step 1: Fetch the room to get its thumbnail and preview_videos
+      console.log('Fetching room details to clean up media:', id);
+      const roomResponse = await fetch(`${BASE_URL}/rooms/${id}`, {
+        method: 'GET',
+        headers
+      });
+
+      if (roomResponse.ok) {
+        const roomData = await roomResponse.json();
+        const mediaUrls: string[] = [];
+
+        // Collect thumbnail URL if exists
+        if (roomData?.thumbnail && typeof roomData.thumbnail === 'string') {
+          mediaUrls.push(roomData.thumbnail);
+        }
+
+        // Collect preview video URL if exists
+        if (roomData?.preview_videos && typeof roomData.preview_videos === 'string') {
+          mediaUrls.push(roomData.preview_videos);
+        }
+
+        // Step 2: Delete media from Firebase Storage
+        if (mediaUrls.length > 0) {
+          console.log(`Found ${mediaUrls.length} media file(s) to delete from Firebase Storage`);
+          try {
+            await deleteImagesFromStorage(mediaUrls);
+            console.log('✅ Successfully deleted show media from Firebase Storage');
+          } catch (storageError) {
+            // Log error but continue with room deletion
+            console.error('⚠️ Error deleting media from Firebase Storage:', storageError);
+          }
+        } else {
+          console.log('No media files to delete from Firebase Storage');
+        }
+      } else {
+        console.warn('Could not fetch room details for media cleanup');
+      }
+
+      // Step 3: Delete the room
       // Build query params
       const queryParams = new URLSearchParams();
       if (req.query.destroy) {

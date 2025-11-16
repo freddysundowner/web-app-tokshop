@@ -1,0 +1,439 @@
+import { useState, useEffect, lazy, Suspense } from "react";
+import { Switch, Route, useLocation } from "wouter";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { SettingsProvider } from "@/lib/settings-context";
+import { SocketProvider } from "@/lib/socket-context";
+import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/use-page-title";
+
+// Import age verification (not lazy loaded since it needs to run immediately)
+import { AgeVerificationDialog } from "@/components/age-verification-dialog";
+
+// Lazy load all pages to prevent circular dependencies
+const Sidebar = lazy(() => import("@/components/layout/sidebar").then(m => ({ default: m.Sidebar })));
+const AppHeader = lazy(() => import("@/components/layout/app-header").then(m => ({ default: m.AppHeader })));
+const SocialAuthCompleteForm = lazy(() => import("@/components/auth/social-auth-complete-form").then(m => ({ default: m.SocialAuthCompleteForm })));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Orders = lazy(() => import("@/pages/commerce/orders"));
+const Purchases = lazy(() => import("@/pages/commerce/purchases"));
+const ThankYou = lazy(() => import("@/pages/commerce/thank-you"));
+const Inventory = lazy(() => import("@/pages/seller/inventory"));
+const AddProduct = lazy(() => import("@/pages/seller/add-product"));
+const EditProduct = lazy(() => import("@/pages/seller/edit-product"));
+const Shipping = lazy(() => import("@/pages/seller/shipping"));
+const ShippingProfiles = lazy(() => import("@/pages/seller/shipping-profiles"));
+const Addresses = lazy(() => import("@/pages/addresses"));
+const Analytics = lazy(() => import("@/pages/seller/analytics"));
+const LiveShows = lazy(() => import("@/pages/seller/live-shows"));
+const Settings = lazy(() => import("@/pages/settings"));
+const Profile = lazy(() => import("@/pages/profile"));
+const ProfileView = lazy(() => import("@/pages/marketplace/profile-view"));
+const ProductDetail = lazy(() => import("@/pages/marketplace/product-detail"));
+const AuctionDetail = lazy(() => import("@/pages/marketplace/auction-detail"));
+const Account = lazy(() => import("@/pages/account"));
+const Payments = lazy(() => import("@/pages/payments"));
+const Login = lazy(() => import("@/pages/auth/login"));
+const Signup = lazy(() => import("@/pages/auth/signup"));
+const Transactions = lazy(() => import("@/pages/commerce/transactions"));
+const MarketplaceHome = lazy(() => import("@/pages/marketplace/home"));
+const Browse = lazy(() => import("@/pages/marketplace/browse"));
+const Category = lazy(() => import("@/pages/marketplace/category"));
+const SearchResults = lazy(() => import("@/pages/marketplace/search-results"));
+const TrendingProducts = lazy(() => import("@/pages/marketplace/trending-products"));
+const TrendingAuctions = lazy(() => import("@/pages/marketplace/trending-auctions"));
+const Deals = lazy(() => import("@/pages/marketplace/deals"));
+const DealsAuctions = lazy(() => import("@/pages/marketplace/deals-auctions"));
+const DealsTrending = lazy(() => import("@/pages/marketplace/deals-trending"));
+const LandingPage = lazy(() => import("@/pages/marketplace/landing-page"));
+const LandingPage2 = lazy(() => import("@/pages/marketplace/landing-page-2"));
+const LandingPage3 = lazy(() => import("@/pages/marketplace/landing-page-3"));
+const LandingPage4 = lazy(() => import("@/pages/marketplace/landing-page-4"));
+const LandingPage5 = lazy(() => import("@/pages/marketplace/landing-page-5"));
+const LandingPage6 = lazy(() => import("@/pages/marketplace/landing-page-6"));
+const LandingPage7 = lazy(() => import("@/pages/marketplace/landing-page-7"));
+const SellerLogin = lazy(() => import("@/pages/auth/seller-login"));
+const ShowView = lazy(() => import("@/pages/marketplace/show-view").then(module => ({ default: module.default })));
+const PrivacyPolicy = lazy(() => import("@/pages/marketplace/privacy-policy"));
+const TermsOfService = lazy(() => import("@/pages/marketplace/terms-of-service"));
+const ContactUs = lazy(() => import("@/pages/marketplace/contact"));
+const UserReports = lazy(() => import("@/pages/marketplace/user-reports"));
+const FAQ = lazy(() => import("@/pages/marketplace/faq"));
+const AboutUs = lazy(() => import("@/pages/marketplace/about"));
+const SellerHub = lazy(() => import("@/pages/seller/hub"));
+const Inbox = lazy(() => import("@/pages/social/inbox"));
+const Friends = lazy(() => import("@/pages/social/friends"));
+const Help = lazy(() => import("@/pages/help"));
+const SellerSetup = lazy(() => import("@/pages/seller/setup"));
+const ScheduleShow = lazy(() => import("@/pages/seller/schedule-show"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+
+// Loading component
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function Router() {
+  const { isAuthenticated, isLoading, user, pendingSocialAuth, pendingSocialAuthEmail, pendingSocialAuthData, completeSocialAuth } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [location, setLocation] = useLocation();
+  const [justCompletedSocialAuth, setJustCompletedSocialAuth] = useState(false);
+  
+  // Set default page title from settings
+  usePageTitle();
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
+  // Handle social auth completion
+  const handleSocialAuthComplete = async (data: any) => {
+    try {
+      await completeSocialAuth(data);
+      setJustCompletedSocialAuth(true);
+    } catch (error) {
+      console.error('Social auth completion failed:', error);
+    }
+  };
+
+  // Redirect after social auth completion
+  useEffect(() => {
+    if (justCompletedSocialAuth && isAuthenticated && !pendingSocialAuth && user) {
+      setLocation('/marketplace');
+      setJustCompletedSocialAuth(false);
+    }
+  }, [justCompletedSocialAuth, isAuthenticated, pendingSocialAuth, user, setLocation]);
+
+  // Show loading state
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  // Show social auth completion form if pending
+  if (pendingSocialAuth && pendingSocialAuthEmail && pendingSocialAuthData) {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <SocialAuthCompleteForm
+          userEmail={pendingSocialAuthEmail}
+          socialAuthData={pendingSocialAuthData}
+          onComplete={handleSocialAuthComplete}
+          isLoading={isLoading}
+        />
+      </Suspense>
+    );
+  }
+
+  // Public pages that don't require authentication
+  const publicPages = [
+    '/',
+    '/landing-2',
+    '/landing-3',
+    '/landing-4',
+    '/landing-5',
+    '/landing-6',
+    '/landing-7',
+    '/login',
+    '/signup',
+    '/seller/login',
+    '/privacy-policy',
+    '/terms-of-service',
+    '/contact',
+    '/faq'
+  ];
+
+  const isPublicPage = publicPages.includes(location);
+
+  // Redirect to login if trying to access protected pages without authentication
+  if (!isAuthenticated && !isPublicPage) {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <div className="flex flex-col h-screen bg-background">
+          <AppHeader 
+            hideLogo={false}
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            onMobileMenuClose={closeMobileMenu}
+          />
+          
+          {/* Mobile Sidebar Sheet for unauthenticated users - hide desktop version */}
+          <div className="lg:hidden">
+            <Sidebar 
+              isCollapsed={false}
+              onToggle={toggleSidebar}
+              isMobileOpen={mobileMenuOpen}
+              onMobileClose={closeMobileMenu}
+            />
+          </div>
+          
+          <main className="flex-1 overflow-y-auto">
+            <Switch>
+              <Route path="/login" component={Login} />
+              <Route component={Login} />
+            </Switch>
+          </main>
+        </div>
+      </Suspense>
+    );
+  }
+
+  // Show public pages for unauthenticated users
+  if (!isAuthenticated) {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <div className="flex flex-col h-screen bg-background">
+          <AppHeader 
+            hideLogo={false}
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            onMobileMenuClose={closeMobileMenu}
+          />
+          
+          {/* Mobile Sidebar Sheet for unauthenticated users - hide desktop version */}
+          <div className="lg:hidden">
+            <Sidebar 
+              isCollapsed={false}
+              onToggle={toggleSidebar}
+              isMobileOpen={mobileMenuOpen}
+              onMobileClose={closeMobileMenu}
+            />
+          </div>
+          
+          <main className="flex-1 overflow-y-auto">
+            <Switch>
+              <Route path="/" component={LandingPage} />
+              <Route path="/landing-2" component={LandingPage2} />
+              <Route path="/landing-3" component={LandingPage3} />
+              <Route path="/landing-4" component={LandingPage4} />
+              <Route path="/landing-5" component={LandingPage5} />
+              <Route path="/landing-6" component={LandingPage6} />
+              <Route path="/landing-7" component={LandingPage7} />
+              <Route path="/seller/login" component={SellerLogin} />
+              <Route path="/login" component={Login} />
+              <Route path="/signup" component={Signup} />
+              <Route path="/privacy-policy" component={PrivacyPolicy} />
+              <Route path="/terms-of-service" component={TermsOfService} />
+              <Route path="/contact" component={ContactUs} />
+              <Route path="/faq" component={FAQ} />
+              <Route path="/about" component={AboutUs} />
+              <Route component={LandingPage} />
+            </Switch>
+          </main>
+        </div>
+      </Suspense>
+    );
+  }
+
+  // Seller-only routes that require seller status
+  const sellerOnlyRoutes = [
+    '/inventory',
+    '/add-product',
+    '/edit-product',
+    '/shipping',
+    '/shipping-profiles',
+    '/analytics',
+    '/live-shows',
+    '/schedule-show',
+    '/seller/hub'
+  ];
+
+  const isSellerOnlyRoute = sellerOnlyRoutes.some(route => location.startsWith(route));
+  const isSeller = (user as any)?.seller === true;
+
+  // Redirect non-sellers trying to access seller pages to marketplace
+  if (isSellerOnlyRoute && !isSeller) {
+    setLocation('/marketplace');
+    return <LoadingSpinner />;
+  }
+
+  const isDashboardRoute = location.startsWith('/orders') || 
+                          location.startsWith('/purchases') || 
+                          location.startsWith('/thank-you') ||
+                          location.startsWith('/inventory') || 
+                          location.startsWith('/add-product') || 
+                          location.startsWith('/edit-product') || 
+                          location.startsWith('/shipping') || 
+                          location.startsWith('/addresses') || 
+                          location.startsWith('/transactions') || 
+                          location.startsWith('/profile-view') ||
+                          location === '/profile' ||
+                          location.startsWith('/account') ||
+                          location.startsWith('/payments') ||
+                          location.startsWith('/seller/hub') ||
+                          location.startsWith('/friends') ||
+                          location === '/settings' ||
+                          location.startsWith('/analytics') ||
+                          location.startsWith('/dashboard') ||
+                          location.startsWith('/live-shows') ||
+                          location.startsWith('/schedule-show');
+
+  if (isDashboardRoute) {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <div className="flex flex-col min-h-screen bg-background">
+          <AppHeader 
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            hideLogo={false}
+            hideSearch={true}
+            isDashboard={true}
+          />
+          <div className="flex flex-1 min-h-0">
+            <div className="hidden lg:block">
+              <Sidebar 
+                isCollapsed={sidebarCollapsed} 
+                onToggle={toggleSidebar} 
+                isMobileOpen={false}
+                onMobileClose={closeMobileMenu}
+              />
+            </div>
+            {mobileMenuOpen && (
+              <div className="lg:hidden fixed inset-0 z-50 bg-background">
+                <Sidebar 
+                  isCollapsed={false} 
+                  onToggle={toggleSidebar} 
+                  isMobileOpen={true}
+                  onMobileClose={closeMobileMenu}
+                />
+              </div>
+            )}
+            <main className="flex-1 overflow-y-auto p-6">
+              <Switch>
+                <Route path="/dashboard" component={Dashboard} />
+                <Route path="/orders" component={Orders} />
+                <Route path="/purchases" component={Purchases} />
+                <Route path="/thank-you/:orderId" component={ThankYou} />
+                <Route path="/inventory" component={Inventory} />
+                <Route path="/add-product" component={AddProduct} />
+                <Route path="/edit-product/:id" component={EditProduct} />
+                <Route path="/shipping" component={Shipping} />
+                <Route path="/shipping-profiles" component={ShippingProfiles} />
+                <Route path="/addresses" component={Addresses} />
+                <Route path="/transactions" component={Transactions} />
+                <Route path="/profile" component={Profile} />
+                <Route path="/profile-view" component={ProfileView} />
+                <Route path="/account" component={Account} />
+                <Route path="/payments" component={Payments} />
+                <Route path="/settings" component={Settings} />
+                <Route path="/analytics" component={Analytics} />
+                <Route path="/live-shows" component={LiveShows} />
+                <Route path="/schedule-show" component={ScheduleShow} />
+                <Route path="/seller/hub" component={SellerHub} />
+                <Route path="/friends" component={Friends} />
+                <Route component={NotFound} />
+              </Switch>
+            </main>
+          </div>
+        </div>
+      </Suspense>
+    );
+  }
+
+  const isShowViewPage = location.startsWith('/show/');
+  
+  // Hide search on detail/inner pages, keep it on marketplace browsing pages
+  // Extract pathname without query parameters
+  const pathname = location.split('?')[0];
+  const isMarketplaceBrowsingPage = pathname === '/' || 
+                                    pathname === '/marketplace' || 
+                                    pathname === '/browse' || 
+                                    pathname.startsWith('/deals') || 
+                                    pathname.startsWith('/category') || 
+                                    pathname === '/search' ||
+                                    pathname.startsWith('/trending');
+  
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <div className="flex flex-col h-screen bg-background">
+        <div className={cn(isShowViewPage && "hidden lg:block")}>
+          <AppHeader 
+            hideLogo={false}
+            hideSearch={!isMarketplaceBrowsingPage}
+            onMobileMenuToggle={toggleMobileMenu}
+            mobileMenuOpen={mobileMenuOpen}
+            onMobileMenuClose={closeMobileMenu}
+          />
+        </div>
+        
+        {/* Mobile Sidebar Sheet for non-dashboard pages - hide desktop version */}
+        <div className="lg:hidden">
+          <Sidebar 
+            isCollapsed={false}
+            onToggle={toggleSidebar}
+            isMobileOpen={mobileMenuOpen}
+            onMobileClose={closeMobileMenu}
+          />
+        </div>
+        
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <Switch>
+            <Route path="/" component={MarketplaceHome} />
+            <Route path="/marketplace" component={MarketplaceHome} />
+            <Route path="/browse" component={Browse} />
+            <Route path="/deals" component={Deals} />
+            <Route path="/deals/auctions" component={DealsAuctions} />
+            <Route path="/deals/trending" component={DealsTrending} />
+            <Route path="/category/:id" component={Category} />
+            <Route path="/search" component={SearchResults} />
+            <Route path="/trending/products" component={TrendingProducts} />
+            <Route path="/trending/auctions" component={TrendingAuctions} />
+            <Route path="/show/:id" component={ShowView} />
+            <Route path="/product/:productId" component={ProductDetail} />
+            <Route path="/auction/:auctionId" component={AuctionDetail} />
+            <Route path="/user" component={ProfileView} />
+            <Route path="/profile/:userId" component={ProfileView} />
+            <Route path="/inbox/:userId?" component={Inbox} />
+            <Route path="/seller/setup" component={SellerSetup} />
+            <Route path="/login" component={MarketplaceHome} />
+            <Route path="/signup" component={MarketplaceHome} />
+            <Route path="/seller/login" component={MarketplaceHome} />
+            <Route path="/privacy-policy" component={PrivacyPolicy} />
+            <Route path="/terms-of-service" component={TermsOfService} />
+            <Route path="/contact" component={ContactUs} />
+            <Route path="/reports" component={UserReports} />
+            <Route path="/faq" component={FAQ} />
+            <Route path="/about" component={AboutUs} />
+            <Route path="/help" component={Help} />
+            <Route component={NotFound} />
+          </Switch>
+        </main>
+      </div>
+    </Suspense>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SettingsProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <TooltipProvider>
+              <AgeVerificationDialog />
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </SettingsProvider>
+    </QueryClientProvider>
+  );
+}

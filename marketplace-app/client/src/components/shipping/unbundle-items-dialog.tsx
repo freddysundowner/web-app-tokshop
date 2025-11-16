@@ -79,18 +79,17 @@ export function UnbundleItemsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Select Items to Unbundle</DialogTitle>
-          <DialogDescription>
-            Choose which items you want to split into separate orders. Selected
-            items will be removed from this order and created as new individual orders.
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg">Select Items to Unbundle</DialogTitle>
+          <DialogDescription className="text-sm">
+            Choose items to split into separate orders.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground">
+            <Label className="text-xs text-muted-foreground">
               {selectedItemIds.length} of {order.items.length} selected
             </Label>
             <Button
@@ -98,6 +97,7 @@ export function UnbundleItemsDialog({
               size="sm"
               onClick={handleSelectAll}
               data-testid="button-select-all-items"
+              className="h-7 text-xs"
             >
               {selectedItemIds.length === order.items.length
                 ? "Deselect All"
@@ -105,9 +105,7 @@ export function UnbundleItemsDialog({
             </Button>
           </div>
 
-          <Separator />
-
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {order.items.filter(item => item._id).map((item) => {
               const itemId = item._id!;
               const isSelected = selectedItemIds.includes(itemId);
@@ -115,43 +113,38 @@ export function UnbundleItemsDialog({
               return (
                 <Card
                   key={itemId}
-                  className={`p-4 cursor-pointer transition-colors hover-elevate ${
+                  className={`p-2.5 cursor-pointer transition-colors hover-elevate ${
                     isSelected ? "ring-2 ring-primary" : ""
                   }`}
                   onClick={() => handleToggleItem(itemId)}
                   data-testid={`item-card-${itemId}`}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2.5">
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => handleToggleItem(itemId)}
                       onClick={(e) => e.stopPropagation()}
                       data-testid={`checkbox-item-${itemId}`}
                     />
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">
-                              {item.productId?.name || "Item"}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <Package className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <span className="font-medium text-sm truncate">
+                              {item.productId?.name || "Item"}{item.order_reference ? ` ${item.order_reference}` : ''}
                             </span>
                           </div>
-                          <div className="mt-2 text-sm text-muted-foreground space-y-1">
-                            <div>Quantity: {item.quantity || 1}</div>
-                            <div>
-                              Price: ${(item.price || 0).toFixed(2)} each
-                            </div>
+                          <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                            <span>Quantity: {item.quantity || 1}</span>
+                            <span>Price: ${(item.price || 0).toFixed(2)} each</span>
                             {item.weight && (
-                              <div>
-                                Weight: {item.weight}
-                                {item.scale || "oz"}
-                              </div>
+                              <span>Weight: {item.weight}{item.scale || "oz"}</span>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold">
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-semibold text-sm">
                             ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                           </div>
                         </div>
@@ -164,7 +157,7 @@ export function UnbundleItemsDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2 sm:gap-0 pt-2">
           <Button
             variant="outline"
             onClick={handleCancel}

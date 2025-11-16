@@ -9,7 +9,7 @@ export function ProductsSidebar(props: any) {
     handleProductAction, setBuyNowProduct, setShowBuyNowDialog, setPrebidAuction,
     setShowPrebidDialog, handleAddProduct, buyNowProducts, giveawayProducts,
     soldProducts, activeGiveaway, setSelectedProduct, giveaways, giveawayTimeLeft,
-    soldOrders, setSelectedOrder, setShowOrderDetailDialog
+    soldOrders, setSelectedOrder, setShowOrderDetailDialog, shippingEstimate, id
   } = props;
 
   // Check if auction is actually running based on time
@@ -73,6 +73,95 @@ export function ProductsSidebar(props: any) {
             {productTab === 'Auction' && (
               <>
                 <div className="h-full overflow-y-auto pb-20">
+                {/* Show pinned product first if it's an auction */}
+                {pinnedProduct && pinnedProduct.listing_type === 'auction' && (
+                  <div className="px-4 py-4 border-b border-zinc-700 bg-zinc-900/50 relative" data-testid="product-pinned-auction">
+                    <div className="flex justify-between gap-4">
+                      <div className="flex-1">
+                        <Badge className="mb-2 bg-primary text-primary-foreground text-xs">Pinned</Badge>
+                        <h3 className="text-lg font-bold text-white mb-2 leading-tight">{pinnedProduct.name}</h3>
+                        <p className="text-sm text-zinc-400 mb-1">{pinnedProduct.auction?.bids?.length || 0} bids</p>
+                        <p className="text-sm text-zinc-400 mb-2">{pinnedProduct.quantity || 1} Available</p>
+                        {!isShowOwner && (
+                          <Button
+                            size="sm"
+                            className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                            onClick={async () => {
+                              console.log('📦 Fetching prebid shipping for:', pinnedProduct.name);
+                              
+                              // Open dialog immediately with loading state
+                              setPrebidAuction({
+                                ...pinnedProduct,
+                                prebidShippingCost: undefined // undefined means loading
+                              });
+                              setShowPrebidDialog(true);
+                              
+                              const payload = {
+                                weight: pinnedProduct.shipping_profile?.weight,
+                                unit: pinnedProduct.shipping_profile?.scale,
+                                product: pinnedProduct._id || pinnedProduct.id,
+                                update: false,
+                                owner: pinnedProduct.ownerId?._id || pinnedProduct.ownerId || pinnedProduct.owner?._id || pinnedProduct.owner,
+                                customer: currentUserId,
+                                tokshow: id,
+                                buying_label: false
+                              };
+                              
+                              fetch('/api/shipping/estimate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload),
+                                credentials: 'include'
+                              })
+                                .then(res => res.json())
+                                .then(data => {
+                                  console.log('✅ Shipping estimate received:', data);
+                                  if (data.amount) {
+                                    setPrebidAuction({
+                                      ...pinnedProduct,
+                                      prebidShippingCost: parseFloat(data.amount)
+                                    });
+                                  } else {
+                                    setPrebidAuction({
+                                      ...pinnedProduct,
+                                      prebidShippingCost: null // null means no shipping cost available
+                                    });
+                                  }
+                                })
+                                .catch(error => {
+                                  console.error('❌ Shipping estimate error:', error);
+                                  setPrebidAuction({
+                                    ...pinnedProduct,
+                                    prebidShippingCost: null
+                                  });
+                                });
+                            }}
+                            data-testid="button-prebid-pinned"
+                          >
+                            Prebid
+                          </Button>
+                        )}
+                      </div>
+                      <div className="w-20 h-20 flex-shrink-0 relative">
+                        <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
+                          {pinnedProduct.images?.[0] && (
+                            <img src={pinnedProduct.images[0]} alt={pinnedProduct.name} className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        {isShowOwner && (
+                          <Button 
+                            size="icon"
+                            className="absolute top-1 right-1 h-7 w-7 bg-black/70 hover:bg-black/90 text-white rounded-full" 
+                            onClick={() => handleProductAction(pinnedProduct)}
+                            data-testid="button-product-action-pinned-auction"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {auctionProducts
                   .filter((product: any) => product._id !== pinnedProduct?._id)
                   .map((product: any, index: number) => {
@@ -104,8 +193,54 @@ export function ProductsSidebar(props: any) {
                               size="sm"
                               className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                               onClick={() => {
-                                setPrebidAuction(product);
+                                console.log('📦 Fetching prebid shipping for:', product.name);
+                                
+                                // Open dialog immediately with loading state
+                                setPrebidAuction({
+                                  ...product,
+                                  prebidShippingCost: undefined // undefined means loading
+                                });
                                 setShowPrebidDialog(true);
+                                
+                                const payload = {
+                                  weight: product.shipping_profile?.weight,
+                                  unit: product.shipping_profile?.scale,
+                                  product: product._id || product.id,
+                                  update: false,
+                                  owner: product.ownerId?._id || product.ownerId || product.owner?._id || product.owner,
+                                  customer: currentUserId,
+                                  tokshow: id,
+                                  buying_label: false
+                                };
+                                
+                                fetch('/api/shipping/estimate', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify(payload),
+                                  credentials: 'include'
+                                })
+                                  .then(res => res.json())
+                                  .then(data => {
+                                    console.log('✅ Shipping estimate received:', data);
+                                    if (data.amount) {
+                                      setPrebidAuction({
+                                        ...product,
+                                        prebidShippingCost: parseFloat(data.amount)
+                                      });
+                                    } else {
+                                      setPrebidAuction({
+                                        ...product,
+                                        prebidShippingCost: null // null means no shipping cost available
+                                      });
+                                    }
+                                  })
+                                  .catch(error => {
+                                    console.error('❌ Shipping estimate error:', error);
+                                    setPrebidAuction({
+                                      ...product,
+                                      prebidShippingCost: null
+                                    });
+                                  });
                               }}
                               data-testid={`button-prebid-${product._id || index}`}
                             >
@@ -156,7 +291,8 @@ export function ProductsSidebar(props: any) {
             {productTab === 'Buy Now' && (
               <>
                 <div className="h-full overflow-y-auto pb-20">
-                {pinnedProduct && (
+                {/* Only show pinned product if it's NOT an auction */}
+                {pinnedProduct && pinnedProduct.listing_type !== 'auction' && (
                   <div className="px-4 py-4 border-b border-zinc-700 bg-zinc-900/50 relative" data-testid="product-pinned">
                     <div className="flex justify-between gap-4">
                       <div className="flex-1">
@@ -164,7 +300,7 @@ export function ProductsSidebar(props: any) {
                         <h3 className="text-lg font-bold text-white mb-2 leading-tight">{pinnedProduct.name}</h3>
                         <p className="text-sm text-zinc-400 mb-1">{pinnedProduct.quantity || 0} Available</p>
                         <p className="text-sm text-zinc-400 mb-2">Price: ${(pinnedProduct.price || 0).toFixed(2)}</p>
-                        {!isShowOwner && (
+                        {!isShowOwner && !shippingEstimate?.error && (
                           <Button
                             size="sm"
                             className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
@@ -207,7 +343,7 @@ export function ProductsSidebar(props: any) {
                         <h3 className="text-lg font-bold text-white mb-2 leading-tight">{product.name}</h3>
                         <p className="text-sm text-zinc-400 mb-1">{product.quantity || 1} Available</p>
                         <p className="text-base font-semibold text-white mb-2">Price: ${(product.price || 0).toFixed(2)}</p>
-                        {!isShowOwner && (
+                        {!isShowOwner && !shippingEstimate?.error && (
                           <Button
                             size="sm"
                             className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
@@ -351,7 +487,9 @@ export function ProductsSidebar(props: any) {
                     // Regular order with items array
                     const firstItem = order.items?.[0];
                     product = firstItem?.productId || firstItem;
-                    productName = product?.name || product?.title || 'Item';
+                    const baseName = product?.name || product?.title || 'Item';
+                    const orderReference = firstItem?.order_reference || '';
+                    productName = baseName + (orderReference ? ` ${orderReference}` : '');
                     productImage = product?.images?.[0] || product?.image;
                     orderPrice = order.total || order.price || (firstItem?.price * (firstItem?.quantity || 1)) || 0;
                     quantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || 1;

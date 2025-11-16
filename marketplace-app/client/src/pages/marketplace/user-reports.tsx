@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useSettings } from '@/lib/settings-context';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function UserReports() {
   const { user } = useAuth();
@@ -43,18 +44,12 @@ export default function UserReports() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/reports', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reportType: formData.reportType,
-          reportedItem: formData.reportedItem,
-          reason: formData.reason,
-          description: formData.description,
-          reportedBy: user?.id,
-        }),
+      const response = await apiRequest('POST', '/api/reports', {
+        reportType: formData.reportType,
+        reportedItem: formData.reportedItem,
+        reason: formData.reason,
+        description: formData.description,
+        reportedBy: user?.id,
       });
 
       if (response.ok) {

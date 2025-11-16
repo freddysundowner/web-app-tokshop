@@ -255,9 +255,11 @@ export function subscribeToRoomMessages(
 ) {
   try {
     const messagesRef = collection(getFirebaseDb(), 'chats', showId, 'room_messages');
+    // Order by timestamp server-side (ascending = oldest first)
+    const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
     
     const unsubscribe = onSnapshot(
-      messagesRef,
+      messagesQuery,
       (snapshot) => {
         const messages = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -280,6 +282,11 @@ export function subscribeToRoomMessages(
             timestamp = typeof data.date === 'string' ? parseInt(data.date) : data.date;
           }
           
+          // If timestamp is still 0 (serverTimestamp hasn't resolved), use current time
+          if (timestamp === 0) {
+            timestamp = Date.now();
+          }
+          
           return {
             id: doc.id,
             message: data.message || '',
@@ -292,10 +299,10 @@ export function subscribeToRoomMessages(
           };
         }) as ChatMessage[];
         
-        // Sort messages by timestamp (oldest first)
+        // Messages are already sorted by Firebase query, but ensure client-side too
         const sortedMessages = messages.sort((a, b) => {
-          const dateA = parseInt(a.date) || 0;
-          const dateB = parseInt(b.date) || 0;
+          const dateA = parseInt(a.date) || Date.now();
+          const dateB = parseInt(b.date) || Date.now();
           return dateA - dateB;
         });
         

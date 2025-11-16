@@ -157,10 +157,11 @@ export default function Addresses() {
         description: "Address created successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to create address";
       toast({
         title: "Error",
-        description: "Failed to create address",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -182,10 +183,11 @@ export default function Addresses() {
         description: "Address updated successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to update address";
       toast({
         title: "Error",
-        description: "Failed to update address",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -204,10 +206,11 @@ export default function Addresses() {
         description: "Address deleted successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to delete address";
       toast({
         title: "Error",
-        description: "Failed to delete address",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -240,10 +243,11 @@ export default function Addresses() {
         description: "Primary address updated successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to update primary address";
       toast({
         title: "Error",
-        description: "Failed to update primary address",
+        description: errorMessage,
         variant: "destructive",
       });
     },

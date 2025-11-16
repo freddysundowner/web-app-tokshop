@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect } from 'react';
+import { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,10 @@ export function VideoCenter(props: any) {
   const [showGiveawayWinnerDialog, setShowGiveawayWinnerDialog] = useState(false);
   const [isNotificationSaved, setIsNotificationSaved] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [currentBanner, setCurrentBanner] = useState<'explicit' | 'shipping' | null>(null);
+  
+  // Track if banners have been shown (only show once per session)
+  const bannersShownRef = useRef(false);
   
   const {
     id, livekitRoom, muted, setMuted, isShowOwner, hasVideo, hasAudio,
@@ -26,14 +30,15 @@ export function VideoCenter(props: any) {
     handleFollowHost, isFollowLoading, showTitle, activeAuction,
     auctionTimeLeft, currentBid, bidAmount, setBidAmount, handlePlaceBid,
     isPlacingBid, isUserWinning, pinnedProduct, activeGiveaway,
-    giveawayTimeLeft, handleJoinGiveaway, isJoiningGiveaway, currentUserId,
+    giveawayTimeLeft, handleJoinGiveaway, handleFollowAndJoinGiveaway, isJoiningGiveaway, currentUserId,
     handleEndGiveaway, setShowMobileProducts, setShowMobileChat,
     handleUnfollowHost, isLive, viewerCount, showTipDialog, setShowTipDialog, showThumbnail,
     showMobileProducts, showMobileChat, chatMessagesRef, chatMessages,
     imageError, setImageError, toast, user, show, viewers, isAuthenticated, navigate,
     userSuggestions, setUserSuggestions,
     isEndingShow, setIsEndingShow, socket, socketIsConnected, setLivekitEnabled, leaveRoom, queryClient,
-    refetchShow, winnerData, giveawayWinnerData, winningUser, shippingEstimate, handleRerunAuction,
+    refetchShow, winnerData, giveawayWinnerData, orderNotificationData, showOrderNotification,
+    winningUser, shippingEstimate, handleRerunAuction,
     placeBidMutation, setBuyNowProduct, renderMessageWithMentions, selectMention,
     handleMessageChange, timeAddedBlink, buyNowProduct,
     host, setShowShareDialog, livekit,
@@ -89,6 +94,98 @@ export function VideoCenter(props: any) {
     }
   }, [giveawayWinnerData]);
   
+  // Show warning banners sequentially when user views the show (only once)
+  useEffect(() => {
+    if (!show) return;
+    
+    // Only show banners once per session
+    if (bannersShownRef.current) {
+      console.log('⏭️ Banners already shown, skipping');
+      return;
+    }
+
+    // Use correct field names with underscores
+    const shipping = show?.shipping_settings;
+    
+    console.log('🎯 Shipping settings object:', shipping);
+    console.log('🎯 Explicit content:', show?.explicit_content);
+    
+    // Check shipping conditions from shipping_settings
+    const hasFreePickup = shipping?.freePickupEnabled === true;
+    const hasBuyerCap = shipping?.shippingCostMode === "buyer_pays_up_to";
+    const hasFreeShipping = shipping?.shippingCostMode === "seller_pays_all";
+    const hasExplicit = show?.explicit_content === true;
+    
+    // Determine if we should show a shipping banner
+    const hasShippingBanner = hasFreePickup || hasBuyerCap || hasFreeShipping;
+
+    console.log('🎯 Banner check:', { 
+      isLive, 
+      isConnected, 
+      hasFreePickup, 
+      hasBuyerCap, 
+      hasFreeShipping, 
+      hasExplicit, 
+      hasShippingBanner
+    });
+
+    // No banners to show
+    if (!hasExplicit && !hasShippingBanner) {
+      console.log('❌ No banners to show');
+      setCurrentBanner(null);
+      bannersShownRef.current = true; // Mark as shown even if no banners
+      return;
+    }
+
+    // Mark that we're showing banners
+    bannersShownRef.current = true;
+
+    // Only explicit banner
+    if (hasExplicit && !hasShippingBanner) {
+      console.log('✅ Setting banner to: explicit');
+      setCurrentBanner('explicit');
+      const timer = setTimeout(() => {
+        console.log('✅ Clearing banner (after explicit)');
+        setCurrentBanner(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+
+    // Only shipping banner
+    if (hasShippingBanner && !hasExplicit) {
+      console.log('✅ Setting banner to: shipping');
+      setCurrentBanner('shipping');
+      const timer = setTimeout(() => {
+        console.log('✅ Clearing banner (after shipping)');
+        setCurrentBanner(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+
+    // Both banners - show sequentially
+    if (hasExplicit && hasShippingBanner) {
+      console.log('✅ Setting banner to: explicit (both)');
+      // Show explicit first
+      setCurrentBanner('explicit');
+      
+      const timer1 = setTimeout(() => {
+        console.log('✅ Setting banner to: shipping (after explicit)');
+        // After 5 seconds, show shipping
+        setCurrentBanner('shipping');
+        
+        const timer2 = setTimeout(() => {
+          console.log('✅ Clearing banner (after both)');
+          // After another 5 seconds, hide all
+          setCurrentBanner(null);
+        }, 5000);
+        
+        return () => clearTimeout(timer2);
+      }, 5000);
+      
+      return () => clearTimeout(timer1);
+    }
+  }, [show]);
+  
   // Ensure the function exists before calling
   const handleWalletClick = () => {
     if (setShowPaymentShippingAlert) {
@@ -132,12 +229,27 @@ export function VideoCenter(props: any) {
   };
   const scheduledTimeText = scheduledAt ? formatScheduledTime(scheduledAt) : null;
 
+  // Log current banner state on every render
+  console.log('🎬 VideoCenter render - currentBanner:', currentBanner);
+
   return (
     <>
       {/* Center - Video Player */}
       <div className="flex-1 flex flex-col bg-black min-w-0 h-auto" style={{ height: window.innerWidth < 1024 ? 'var(--mobile-vh, 100vh)' : 'auto' }}>
           {/* Video Player Container - Full height */}
           <div className="relative bg-black flex items-center justify-center overflow-hidden h-full">
+            {/* Blurred Background Thumbnail */}
+            {showThumbnail && !imageError && (
+              <div className="absolute inset-0 z-0">
+                <img
+                  src={showThumbnail}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-30 scale-110"
+                  aria-hidden="true"
+                />
+              </div>
+            )}
+            
             {/* Host Info Bar */}
             <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 pt-safe-top pb-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
               <div className="flex items-center gap-3 pointer-events-auto">
@@ -205,6 +317,74 @@ export function VideoCenter(props: any) {
                 </div>
               </div>
             </div>
+
+            {/* Floating Giveaway Widget - Mobile Only (below viewer count, right side) */}
+            {activeGiveaway && !activeGiveaway.ended && (
+              <div className="lg:hidden absolute top-20 right-4 z-40 pointer-events-none w-auto max-w-[200px]">
+                <div className="bg-gradient-to-r from-purple-600/95 to-pink-600/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 animate-in slide-in-from-top-3 duration-500 pointer-events-auto border border-white/20">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="bg-white/20 rounded-full p-1 backdrop-blur-sm flex-shrink-0">
+                        <Gift className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-bold text-xs truncate leading-tight">
+                          {activeGiveaway.name || 'Giveaway'}
+                        </h3>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between gap-2 text-white/90 text-[10px]">
+                      <div className="flex items-center gap-1">
+                        <Users className="h-2.5 w-2.5" />
+                        <span>{activeGiveaway.participants?.length || 0}</span>
+                      </div>
+                      {giveawayTimeLeft > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5" />
+                          <span>{giveawayTimeLeft}s</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Action Button */}
+                    {isShowOwner ? (
+                      <button
+                        onClick={handleEndGiveaway}
+                        className="w-full px-2 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold text-[10px] rounded-lg transition-colors"
+                        data-testid="button-end-giveaway-mobile"
+                      >
+                        End
+                      </button>
+                    ) : (() => {
+                      // Check if user already entered (handle both string IDs and objects)
+                      const participants = activeGiveaway.participants || [];
+                      const isAlreadyParticipant = participants.some((p: any) => 
+                        (typeof p === 'string' ? p : p.id || p._id) === currentUserId
+                      );
+                      return isAlreadyParticipant;
+                    })() ? (
+                      <div className="w-full px-2 py-1.5 bg-green-500/90 text-white font-semibold text-[10px] rounded-lg text-center" data-testid="text-already-entered-mobile">
+                        Entered!
+                      </div>
+                    ) : (
+                      <button
+                        onClick={activeGiveaway.whocanenter === 'followers' && !isFollowingHost ? handleFollowAndJoinGiveaway : handleJoinGiveaway}
+                        disabled={isJoiningGiveaway}
+                        className="w-full px-2 py-1.5 bg-white hover:bg-white/90 text-black font-semibold text-[10px] rounded-lg transition-colors disabled:opacity-50"
+                        data-testid="button-join-giveaway-mobile"
+                      >
+                        {isJoiningGiveaway ? (
+                          <Loader2 className="h-3 w-3 animate-spin mx-auto" />
+                        ) : (
+                          'Enter'
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="relative w-full h-full md:w-auto md:h-full md:aspect-[9/16]">
               
@@ -416,7 +596,7 @@ export function VideoCenter(props: any) {
               {/* Giveaway Winner Announcement - Appealing overlay at top of video */}
               {showGiveawayWinnerDialog && giveawayWinnerData && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-500">
-                  <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-3 border-2 border-white/20">
+                  <div className="bg-gradient-to-r from-primary via-primary/90 to-primary/80 rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-3 border-2 border-white/20">
                     <Gift className="h-6 w-6 text-white animate-bounce" />
                     {giveawayWinnerData?.profileImage ? (
                       <img 
@@ -445,6 +625,21 @@ export function VideoCenter(props: any) {
                 </div>
               )}
 
+              {/* Order Notification - Show owner sees purchase notification */}
+              {showOrderNotification && orderNotificationData && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div className="bg-gradient-to-r from-secondary via-secondary/90 to-secondary/80 rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-3 border-2 border-white/20">
+                    <ShoppingBag className="h-6 w-6 text-white animate-bounce" />
+                    <div className="flex items-center">
+                      <span className="text-white font-bold text-base whitespace-nowrap" data-testid="text-order-message">
+                        {orderNotificationData?.message || 'A purchase was made!'}
+                      </span>
+                    </div>
+                    <DollarSign className="h-6 w-6 text-yellow-300 animate-pulse" />
+                  </div>
+                </div>
+              )}
+
               {/* LiveKit Video Player - shown when connected AND has video */}
               {livekit.isConnected && livekit.room && livekit.hasVideo && (
                 <div className="absolute inset-0 w-full h-full z-20 bg-black" data-testid="livekit-video-player">
@@ -455,6 +650,32 @@ export function VideoCenter(props: any) {
                   }>
                     <LiveKitVideoPlayer room={livekit.room} />
                   </Suspense>
+                </div>
+              )}
+
+              {/* Warning Banners - Sequential Display */}
+              {currentBanner === 'explicit' && (
+                <div className="absolute top-20 left-0 right-0 flex items-center justify-center px-4 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="bg-black/70 backdrop-blur-md px-6 py-3 rounded-lg flex items-center gap-3 shadow-lg border border-primary/30">
+                    <Flag className="h-5 w-5 text-primary flex-shrink-0" />
+                    <span className="text-white font-medium text-base">May contain explicit content.</span>
+                  </div>
+                </div>
+              )}
+
+              {currentBanner === 'shipping' && (
+                <div className="absolute top-20 left-0 right-0 flex items-center justify-center px-4 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="bg-black/70 backdrop-blur-md px-6 py-3 rounded-lg flex items-center gap-3 shadow-lg border border-secondary/30">
+                    <span className="text-white font-medium text-base">
+                      {show?.shipping_settings?.freePickupEnabled 
+                        ? '📦 Free shipping on all orders!' 
+                        : show?.shipping_settings?.shippingCostMode === 'seller_pays_all'
+                        ? '📦 Free shipping on all orders!'
+                        : show?.shipping_settings?.shippingCostMode === 'buyer_pays_up_to'
+                        ? `📦 Pay max $${show?.shipping_settings?.reducedShippingCapAmount?.toFixed(2) || '0.00'} in shipping costs, regardless of how much you order!`
+                        : '📦 Shipping discount available!'}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -520,15 +741,34 @@ export function VideoCenter(props: any) {
                 <span className="sr-only">No video available</span>
               </div>
               
-              {/* Overlay image on top if it exists and loads successfully - hide when video is actually playing */}
-              {showThumbnail && !imageError && !livekit.hasVideo && (
-                <img
-                  src={showThumbnail}
-                  alt={showTitle}
-                  className="absolute inset-0 w-full h-full object-cover z-10"
-                  onError={() => setImageError(true)}
-                  data-testid="show-video-thumbnail"
-                />
+              {/* Overlay preview video or image on top when not live */}
+              {!livekit.hasVideo && (
+                <>
+                  {/* Show preview video if available and show hasn't started */}
+                  {show?.preview_videos && !imageError && !isLive && (
+                    <video
+                      src={show.preview_videos}
+                      className="absolute inset-0 w-full h-full object-cover z-10"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      onError={() => setImageError(true)}
+                      data-testid="show-preview-video"
+                    />
+                  )}
+                  
+                  {/* Show thumbnail as fallback or when live but video not ready */}
+                  {showThumbnail && !imageError && (!show?.preview_videos || isLive) && (
+                    <img
+                      src={showThumbnail}
+                      alt={showTitle}
+                      className="absolute inset-0 w-full h-full object-cover z-10"
+                      onError={() => setImageError(true)}
+                      data-testid="show-video-thumbnail"
+                    />
+                  )}
+                </>
               )}
 
               {/* Desktop Product Info Overlay - Left Side */}
@@ -568,8 +808,11 @@ export function VideoCenter(props: any) {
                       </div>
                       
                       {shippingEstimate && (
-                        <p className="text-white/90 text-sm underline drop-shadow-lg">
-                          Shipping is US${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes
+                        <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
+                          {shippingEstimate.error 
+                            ? 'Unshippable' 
+                            : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                          }
                         </p>
                       )}
                       
@@ -617,19 +860,22 @@ export function VideoCenter(props: any) {
                         const userMaxBidLimit = userBid?.custom_bid ? userBid.autobidamount : null;
                         const hasReachedMax = userMaxBidLimit && nextBid > userMaxBidLimit;
                         
+                        const hasShippingError = shippingEstimate?.error === true;
+                        
                         return (
                           <div className="flex gap-2 mt-4 w-full">
                             <button
                               onClick={() => handleCustomBidClick()}
-                              className="h-9 flex-[0.35] rounded-full border-2 border-white/90 text-white font-semibold text-sm bg-transparent hover:bg-white/10 transition-colors"
+                              disabled={isUserWinning || hasShippingError}
+                              className="h-9 flex-[0.35] rounded-full border-2 border-white/90 text-white font-semibold text-sm bg-transparent hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               data-testid="button-custom-bid-desktop"
                             >
                               Custom
                             </button>
                             <button
-                              onClick={() => placeBidMutation.mutate(nextBid)}
-                              disabled={placeBidMutation.isPending}
-                              className="h-9 flex-[0.65] rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm transition-colors disabled:opacity-50"
+                              onClick={() => handlePlaceBid(nextBid)}
+                              disabled={placeBidMutation.isPending || isUserWinning || hasShippingError}
+                              className="h-9 flex-[0.65] rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               data-testid="button-place-bid-desktop"
                             >
                               {placeBidMutation.isPending ? (
@@ -648,7 +894,7 @@ export function VideoCenter(props: any) {
                   {(!activeAuction || (() => {
                     const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
                     return activeAuction.startedTime && Date.now() > calculatedEndTime;
-                  })()) && pinnedProduct && (
+                  })()) && pinnedProduct && (pinnedProduct._id !== activeAuction?.product?._id && pinnedProduct._id !== activeAuction?.product?.id) && (
                     <div className="flex flex-col gap-1.5 w-full min-w-0">
                       <h2 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
                         {pinnedProduct.name || 'Product'}
@@ -665,12 +911,15 @@ export function VideoCenter(props: any) {
                       </div>
                       
                       {shippingEstimate && (
-                        <p className="text-white/90 text-sm underline drop-shadow-lg">
-                          Shipping is US${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes
+                        <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
+                          {shippingEstimate.error 
+                            ? 'Unshippable' 
+                            : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                          }
                         </p>
                       )}
                       
-                      {!isShowOwner && (
+                      {!isShowOwner && !shippingEstimate?.error && (
                         <Button
                           onClick={() => {
                             setBuyNowProduct(pinnedProduct);
@@ -716,7 +965,8 @@ export function VideoCenter(props: any) {
               {(
               <div className={cn(
                 "absolute bottom-0 left-0 right-20 pointer-events-none lg:hidden z-30 flex flex-col",
-                (showMobileProducts || showMobileChat) && "hidden"
+                (showMobileProducts || showMobileChat) && "hidden",
+                !isLive && isShowOwner && "pb-20"
               )}>
                 {/* Chat Messages & Input - Top section */}
                 <div className="relative pb-2">
@@ -856,8 +1106,11 @@ export function VideoCenter(props: any) {
                         
                         {/* Shipping Info */}
                         {shippingEstimate && (
-                          <p className="text-white/90 text-sm underline drop-shadow-lg">
-                            Shipping is US${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes
+                          <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
+                            {shippingEstimate.error 
+                              ? shippingEstimate.message 
+                              : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                            }
                           </p>
                         )}
                         
@@ -890,7 +1143,7 @@ export function VideoCenter(props: any) {
                     {(!activeAuction || (() => {
                       const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
                       return activeAuction.startedTime && Date.now() > calculatedEndTime;
-                    })()) && pinnedProduct && (
+                    })()) && pinnedProduct && (pinnedProduct._id !== activeAuction?.product?._id && pinnedProduct._id !== activeAuction?.product?.id) && (
                       <div className="space-y-1.5">
                         {/* Product Name */}
                         <h2 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
@@ -910,8 +1163,11 @@ export function VideoCenter(props: any) {
                         
                         {/* Shipping Info */}
                         {shippingEstimate && (
-                          <p className="text-white/90 text-sm underline drop-shadow-lg">
-                            Shipping is US${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes
+                          <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
+                            {shippingEstimate.error 
+                              ? shippingEstimate.message 
+                              : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                            }
                           </p>
                         )}
                       </div>
@@ -955,19 +1211,22 @@ export function VideoCenter(props: any) {
                     const userMaxBidLimit = userBid?.custom_bid ? userBid.autobidamount : null;
                     const hasReachedMax = userMaxBidLimit && nextBid > userMaxBidLimit;
                     
+                    const hasShippingError = shippingEstimate?.error === true;
+                    
                     return (
                       <div className="flex gap-2 border-t border-white/10 pt-3 w-full">
                         <button
                           onClick={() => handleCustomBidClick()}
-                          className="h-11 w-[140px] rounded-full border-2 border-white/90 text-white font-semibold text-lg bg-transparent hover:bg-white/10 transition-colors flex-shrink-0"
+                          disabled={isUserWinning || hasShippingError}
+                          className="h-11 w-[140px] rounded-full border-2 border-white/90 text-white font-semibold text-lg bg-transparent hover:bg-white/10 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                           data-testid="button-custom-bid"
                         >
                           Custom
                         </button>
                         <button
-                          onClick={() => placeBidMutation.mutate(nextBid)}
-                          disabled={placeBidMutation.isPending}
-                          className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg transition-colors disabled:opacity-50"
+                          onClick={() => handlePlaceBid(nextBid)}
+                          disabled={placeBidMutation.isPending || isUserWinning || hasShippingError}
+                          className="flex-1 h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           data-testid="button-place-bid"
                         >
                           {placeBidMutation.isPending ? (
@@ -1068,10 +1327,10 @@ export function VideoCenter(props: any) {
 
               {/* Start Show Button - Bottom (Only shown when show is not live and user is owner) */}
               {!isLive && isShowOwner && (
-                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center z-30 bg-gradient-to-t from-black/95 via-black/60 to-transparent pb-6 pt-12">
+                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center z-40 bg-gradient-to-t from-black/95 via-black/60 to-transparent pb-6 pt-12 pointer-events-none">
                   <Button
                     size="lg"
-                    className="w-[90%] h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-2xl"
+                    className="w-[90%] h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-2xl pointer-events-auto"
                     onClick={() => {
                       if (socket && socketIsConnected) {
                         console.log('🎬 Start Show button clicked - emitting start-room event');
@@ -1261,12 +1520,9 @@ export function VideoCenter(props: any) {
             minimumBid={activeAuction?.newbaseprice || activeAuction?.baseprice || 1}
             onPlaceBid={(amount, isMaxBid) => {
               // Route through placeBidMutation for payment/shipping validation
-              placeBidMutation.mutate({
+              handlePlaceBid({
                 amount: amount,
-                custom: {
-                  autobid: isMaxBid,
-                  autobidAmount: amount
-                }
+                isMaxBid: isMaxBid
               });
             }}
             isPending={placeBidMutation.isPending}

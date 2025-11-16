@@ -303,6 +303,12 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-8">
             {/* Footer Links */}
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+              <Link href="/knowledge-base" className="hover:text-foreground transition-colors" data-testid="link-knowledge-base">
+                Knowledge Base
+              </Link>
+              <Link href="/faq" className="hover:text-foreground transition-colors" data-testid="link-faq">
+                FAQ
+              </Link>
               <Link href="/privacy-policy" className="hover:text-foreground transition-colors" data-testid="link-privacy-policy">
                 Privacy Policy
               </Link>

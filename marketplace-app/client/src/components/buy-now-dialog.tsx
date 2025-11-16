@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   CreditCard, 
   MapPin, 
   Plus, 
   Minus, 
   ChevronRight,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -21,6 +23,7 @@ interface BuyNowDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: any;
+  shippingEstimate?: any;
   onOpenPaymentMethods?: () => void;
   onOpenShippingAddresses?: () => void;
 }
@@ -29,6 +32,7 @@ export function BuyNowDialog({
   open, 
   onOpenChange, 
   product,
+  shippingEstimate: passedShippingEstimate,
   onOpenPaymentMethods,
   onOpenShippingAddresses
 }: BuyNowDialogProps) {
@@ -42,22 +46,33 @@ export function BuyNowDialog({
 
   const userId = (user as any)?._id || (user as any)?.id || user?.id;
 
-  // Fetch default payment method
-  const { data: defaultPaymentData } = useQuery({
-    queryKey: [`/api/users/paymentmethod/default/${userId}`],
-    enabled: open && !!userId,
+  // Always get from user context (localStorage) - never fetch
+  const defaultPayment = user?.defaultpaymentmethod || null;
+  const defaultAddress = user?.address || null;
+
+  // Check if address has required fields for shipping calculation
+  const hasValidAddress = defaultAddress && 
+    defaultAddress.zipcode && 
+    defaultAddress.state && 
+    defaultAddress.city;
+
+  // Debug logging
+  console.log('🚢 BUY NOW DIALOG - Query conditions:', {
+    open,
+    hasShippingProfile: !!product?.shipping_profile,
+    hasWeight: !!product?.shipping_profile?.weight,
+    weight: product?.shipping_profile?.weight,
+    hasDefaultAddress: !!defaultAddress,
+    hasValidAddress,
+    hasUser: !!user,
+    defaultAddress,
+    userAddress: user?.address,
+    willQueryRun: open && !!product?.shipping_profile?.weight && hasValidAddress && !!user
   });
 
-  // Extract payment method - API may return it wrapped in .data or directly
-  const defaultPayment = (defaultPaymentData as any)?.data 
-    ? (defaultPaymentData as any).data 
-    : (defaultPaymentData || null);
-  
-  // Use address directly from user context (already loaded on login)
-  const defaultAddress = user?.address;
-
-  // Fetch shipping estimate with proper parameters
-  const { data: shippingEstimate, isLoading: isLoadingShipping } = useQuery({
+  // Always fetch shipping estimate when dialog opens to get latest data with totalWeightOz
+  const shouldFetchShippingEstimate = Boolean(open && product?.shipping_profile?.weight && hasValidAddress && user);
+  const { data: fetchedShippingEstimate, isLoading: isLoadingShipping, error: shippingError } = useQuery({
     queryKey: ['/api/shipping/estimate', product?._id, quantity, defaultAddress?.id],
     queryFn: async () => {
       if (!product?.shipping_profile || !defaultAddress) {
@@ -81,23 +96,74 @@ export function BuyNowDialog({
           : (product.ownerId._id || product.ownerId.id || '');
       }
       
-      return await apiRequest('POST', '/api/shipping/estimate', {
-        weight: product.shipping_profile.weight,
-        unit: product.shipping_profile.scale || 'oz',
-        product: productId,
-        owner: ownerId,
-        customer: userId,
-        tokshow: product.tokshow,
-        buying_label: false
-      });
+      try {
+        const res = await apiRequest('POST', '/api/shipping/estimate', {
+          weight: product.shipping_profile.weight,
+          unit: product.shipping_profile.scale || 'oz',
+          product: productId,
+          owner: ownerId,
+          customer: userId,
+          tokshow: product.tokshow,
+          buying_label: false
+        });
+        
+        const response = await res.json();
+        
+        // Check if API returned an error (unshippable address)
+        if (response?.success === false && response?.message) {
+          return {
+            error: true,
+            message: response.message,
+            amount: '0.00'
+          };
+        }
+        
+        // Check if response has an error field
+        if (response?.error) {
+          return {
+            error: true,
+            message: response.error,
+            amount: '0.00'
+          };
+        }
+        
+        return response;
+      } catch (error: any) {
+        console.error('Shipping estimate error:', error);
+        // Return error object instead of throwing
+        return {
+          error: true,
+          message: 'Unable to calculate shipping. Please try again.',
+          amount: '0.00'
+        };
+      }
     },
-    enabled: open && !!product?.shipping_profile?.weight && !!defaultAddress && !!user,
+    // Only fetch shipping estimate when we have a valid address with required fields
+    enabled: shouldFetchShippingEstimate,
+    // Force refetch every time dialog opens - no caching for shipping estimates
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    // Don't retry on error - just show error message
+    retry: false,
   });
 
+  // Use fetched estimate if available, otherwise fallback to passed estimate
+  const shippingEstimate = (fetchedShippingEstimate && Object.keys(fetchedShippingEstimate).length > 0) 
+    ? fetchedShippingEstimate 
+    : passedShippingEstimate;
+  
+  // Log shipping estimate source
+  console.log('🚢 BUY NOW DIALOG - passedShippingEstimate:', passedShippingEstimate);
+  console.log('🚢 BUY NOW DIALOG - fetchedShippingEstimate:', fetchedShippingEstimate);
+  console.log('🚢 BUY NOW DIALOG - isLoadingShipping:', isLoadingShipping);
+  console.log('🚢 BUY NOW DIALOG - final shippingEstimate:', shippingEstimate);
+
   // Fetch tax estimate
+  const shouldFetchTax = Boolean(open && product?.id);
   const { data: taxEstimate, isLoading: isLoadingTax } = useQuery({
     queryKey: ['/api/tax/estimate', product?.id, quantity],
-    enabled: open && !!product?.id,
+    enabled: shouldFetchTax,
   });
 
   useEffect(() => {
@@ -120,7 +186,9 @@ export function BuyNowDialog({
   };
 
   const subtotal = (product?.price || 0) * quantity;
-  const shippingCost = parseFloat((shippingEstimate as any)?.amount || '0');
+  const hasShippingError = (shippingEstimate as any)?.error === true;
+  const shippingErrorMessage = (shippingEstimate as any)?.message || '';
+  const shippingCost = hasShippingError ? 0 : parseFloat((shippingEstimate as any)?.amount || '0');
   const taxAmount = parseFloat((taxEstimate as any)?.tax || '0');
   const total = subtotal + shippingCost + taxAmount;
 
@@ -143,15 +211,21 @@ export function BuyNowDialog({
           : (product.ownerId._id || product.ownerId.id || '');
       }
       
+      // Log shipping estimate data
+      console.log('🚢 BUY NOW DIALOG - shippingEstimate:', shippingEstimate);
+      console.log('🚢 BUY NOW DIALOG - shippingEstimate.totalWeightOz:', (shippingEstimate as any)?.totalWeightOz);
+      console.log('🚢 BUY NOW DIALOG - shippingEstimate.carrierAccount:', (shippingEstimate as any)?.carrierAccount);
+      
       const payload = {
         product: productId,
         status: 'processing',
         shippingFee: parseFloat((shippingEstimate as any)?.amount || '0'),
-        servicelevel: (shippingEstimate as any)?.servicelevel || '',
+        servicelevel: (shippingEstimate as any)?.servicelevel?.name || (shippingEstimate as any)?.servicelevel || '',
         rate_id: (shippingEstimate as any)?.rate_id || '',
         bundleId: (shippingEstimate as any)?.bundleId || '',
         totalWeightOz: parseFloat((shippingEstimate as any)?.totalWeightOz || '0'),
         seller_shipping_fee_pay: parseFloat((shippingEstimate as any)?.seller_shipping_fee_pay || '0'),
+        carrierAccount: (shippingEstimate as any)?.carrierAccount || '',
         subtotal: subtotal,
         tax: parseFloat(taxAmount.toString() || '0'),
         seller: sellerId,
@@ -163,6 +237,8 @@ export function BuyNowDialog({
         tokshow: product.tokshow || '',
       };
       
+      console.log('📦 BUY NOW DIALOG - Full payload before sending:', JSON.stringify(payload, null, 2));
+      
       // POST to /api/orders/:id endpoint (matching Flutter)
       return await apiRequest('POST', `/api/orders/${productId}`, payload);
     },
@@ -172,6 +248,8 @@ export function BuyNowDialog({
         description: "Your order has been placed",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -353,22 +431,30 @@ export function BuyNowDialog({
               <span className="text-zinc-400">Subtotal</span>
               <span className="font-medium">${subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Shipping</span>
-              {isLoadingShipping ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <span className="font-medium">${shippingCost.toFixed(2)}</span>
-              )}
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Tax</span>
-              {isLoadingTax ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <span className="font-medium">${taxAmount.toFixed(2)}</span>
-              )}
-            </div>
+            {/* Only show shipping if user has a valid address */}
+            {hasValidAddress && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Shipping</span>
+                {isLoadingShipping ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : hasShippingError ? (
+                  <span className="text-destructive text-xs font-semibold">Error</span>
+                ) : (
+                  <span className="font-medium">${shippingCost.toFixed(2)}</span>
+                )}
+              </div>
+            )}
+            {/* Only show tax if there is a tax amount */}
+            {taxAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Tax</span>
+                {isLoadingTax ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <span className="font-medium">${taxAmount.toFixed(2)}</span>
+                )}
+              </div>
+            )}
             <Separator className="bg-zinc-700 my-2" />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
@@ -376,22 +462,39 @@ export function BuyNowDialog({
             </div>
           </div>
 
-          {/* Buy Now Button */}
-          <Button
-            className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={handleBuyNow}
-            disabled={buyNowMutation.isPending || !defaultPayment || !defaultAddress}
-            data-testid="button-confirm-buy-now"
-          >
-            {buyNowMutation.isPending ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              `Buy Now - $${total.toFixed(2)}`
-            )}
-          </Button>
+          {/* Shipping Error Message */}
+          {hasShippingError && (
+            <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="ml-2">
+                {shippingErrorMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Buy Now Button - Hide when shipping error */}
+          {!hasShippingError && (
+            <Button
+              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={handleBuyNow}
+              disabled={buyNowMutation.isPending || !defaultPayment || !defaultAddress || isLoadingShipping}
+              data-testid="button-confirm-buy-now"
+            >
+              {buyNowMutation.isPending ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : isLoadingShipping ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Calculating shipping...
+                </>
+              ) : (
+                `Buy Now - $${total.toFixed(2)}`
+              )}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

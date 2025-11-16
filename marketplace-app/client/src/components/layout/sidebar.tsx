@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Video,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,6 +85,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
   ];
 
   const helpItems = [
+    { name: "Knowledge Base", href: "/knowledge-base", icon: BookOpen },
     { name: "User Reports", href: "/reports", icon: AlertTriangle },
     { name: "Contact Us", href: "/contact", icon: MessageSquare },
   ];

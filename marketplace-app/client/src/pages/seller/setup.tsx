@@ -86,6 +86,19 @@ export default function SellerSetup() {
     }
   }, [existingAddress]);
 
+  // Use fresh user data instead of cached auth context
+  const currentUser = freshUserData || user;
+  
+  // Check if user has already applied and is waiting for approval
+  const appliedSeller = currentUser?.applied_seller;
+  const isSeller = currentUser?.seller;
+
+  // Redirect sellers to homepage - they don't need setup
+  useEffect(() => {
+    if (isSeller && !userLoading) {
+      setLocation('/marketplace');
+    }
+  }, [isSeller, userLoading, setLocation]);
 
   // Create address mutation
   const createAddressMutation = useMutation({
@@ -97,8 +110,10 @@ export default function SellerSetup() {
         credentials: 'include',
       });
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save address');
+        const errorData = await response.json();
+        // Check multiple possible error field names
+        const errorMessage = errorData.error || errorData.message || 'Failed to save address';
+        throw new Error(errorMessage);
       }
       return response.json();
     },
@@ -181,6 +196,10 @@ export default function SellerSetup() {
         title: "Bank Account Connected",
         description: "Your bank account has been connected successfully.",
       });
+      
+      // Refetch user profile to get updated applied_seller status
+      queryClient.invalidateQueries({ queryKey: [`/api/profile/${userId}`] });
+      
       setCurrentStep('complete');
     },
     onError: (error: Error) => {
@@ -232,8 +251,8 @@ export default function SellerSetup() {
       country: "US",
       currency: "usd",
       account_number: accountNumber,
-      city: userAddress?.city || city,
-      state: userAddress?.state || state,
+      city: userAddress?.city || city?.name || city,
+      state: userAddress?.state || state?.name || state,
       day: dob.getDate().toString(),
       month: (dob.getMonth() + 1).toString(),
       year: dob.getFullYear().toString(),
@@ -274,20 +293,6 @@ export default function SellerSetup() {
       </div>
     );
   }
-
-  // Use fresh user data instead of cached auth context
-  const currentUser = freshUserData || user;
-  
-  // Check if user has already applied and is waiting for approval
-  const appliedSeller = currentUser?.applied_seller;
-  const isSeller = currentUser?.seller;
-
-  // Redirect sellers to homepage - they don't need setup
-  useEffect(() => {
-    if (isSeller) {
-      setLocation('/marketplace');
-    }
-  }, [isSeller, setLocation]);
 
   // If already applied but not approved, show review in progress page
   if (appliedSeller && !isSeller) {

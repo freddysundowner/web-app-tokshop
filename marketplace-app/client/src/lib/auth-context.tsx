@@ -504,6 +504,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const userData = JSON.parse(storedUser);
           console.log('[checkAuth] Setting user from localStorage:', userData.id);
           
+          // Ensure address and defaultpaymentmethod fields always exist (even if null)
+          // This prevents unnecessary API calls when these fields weren't in old localStorage data
+          if (!('address' in userData)) {
+            userData.address = null;
+          }
+          if (!('defaultpaymentmethod' in userData)) {
+            userData.defaultpaymentmethod = null;
+          }
+          
+          // Save updated user data back to localStorage with the new fields
+          localStorage.setItem('user', JSON.stringify(userData));
+          
           // Set user immediately from localStorage
           setUser(userData);
           
@@ -517,6 +529,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
             })
             .catch(error => {
               console.log('Session validation error but keeping localStorage user:', error);
+            });
+          
+          // Fetch fresh address and payment data in background
+          console.log('[checkAuth] Fetching fresh user data for address and payment...');
+          Promise.all([
+            apiRequest('GET', `/api/address/default/address/${userData.id}`)
+              .then(res => res.json())
+              .catch(() => ({ address: null })),
+            apiRequest('GET', `/api/users/paymentmethod/${userData.id}`)
+              .then(res => res.json())
+              .catch(() => [])
+          ])
+            .then(([addressData, paymentMethods]) => {
+              const defaultAddress = addressData?.address || null;
+              const hasPaymentMethod = Array.isArray(paymentMethods) && paymentMethods.length > 0;
+              const defaultPaymentMethod = hasPaymentMethod ? paymentMethods[0] : null;
+              
+              // Update user with fresh data
+              const updatedUser = {
+                ...userData,
+                address: defaultAddress,
+                defaultpaymentmethod: defaultPaymentMethod
+              };
+              
+              setUser(updatedUser);
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              
+              console.log('[checkAuth] Fresh user data updated:', {
+                hasAddress: !!defaultAddress,
+                hasPayment: !!defaultPaymentMethod
+              });
+            })
+            .catch(error => {
+              console.error('[checkAuth] Failed to fetch fresh user data:', error);
             });
         } catch (parseError) {
           // If we can't parse the stored data, clear it
@@ -536,6 +582,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (storedUser) {
         try {
           const userData = JSON.parse(storedUser);
+          // Ensure address and defaultpaymentmethod fields always exist
+          if (!('address' in userData)) {
+            userData.address = null;
+          }
+          if (!('defaultpaymentmethod' in userData)) {
+            userData.defaultpaymentmethod = null;
+          }
+          // Save updated user data back to localStorage with the new fields
+          localStorage.setItem('user', JSON.stringify(userData));
           setUser(userData);
         } catch {
           localStorage.removeItem('userId');

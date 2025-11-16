@@ -94,7 +94,7 @@ export function OrderDetailsDrawer({
             <tbody>
               ${(order.items || []).map(item => `
                 <tr>
-                  <td>${item.productId?.name || "Unknown Product"}</td>
+                  <td>${item.productId?.name || "Unknown Product"}${item.order_reference ? ` ${item.order_reference}` : ''}</td>
                   <td>${item.quantity || 0}</td>
                   <td>${formatCurrency(item.price || 0)}</td>
                   <td>${formatCurrency((item.quantity || 0) * (item.price || 0))}</td>
@@ -310,7 +310,7 @@ export function OrderDetailsDrawer({
                                 )}
                               </div>
                               <span className="font-medium text-sm text-foreground" data-testid={`text-product-name-${idx}`}>
-                                {itemName}
+                                {itemName}{item.order_reference ? ` ${item.order_reference}` : ''}
                               </span>
                             </div>
                           </td>

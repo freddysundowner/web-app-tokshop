@@ -242,13 +242,22 @@ export default function AdminShowDetail() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {show.thumbnail && (
+                    {show.preview_videos ? (
+                      <video
+                        src={show.preview_videos}
+                        className="w-full h-64 rounded object-cover"
+                        controls
+                        autoPlay
+                        loop
+                        muted
+                      />
+                    ) : show.thumbnail ? (
                       <img
                         src={show.thumbnail}
                         alt={show.title || 'Show'}
                         className="w-full h-64 rounded object-cover"
                       />
-                    )}
+                    ) : null}
                     <div>
                       <h3 className="font-medium text-sm text-muted-foreground mb-1">Description</h3>
                       <p className="text-foreground" data-testid="text-show-description">

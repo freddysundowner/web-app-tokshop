@@ -230,16 +230,7 @@ export default function Inventory() {
   // Delete product mutation (placeholder)
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
-      const response = await fetch(`/api/products/${productId}/delete`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete product");
-      }
-
-      return response.json();
+      return await apiRequest('PUT', `/api/products/${productId}/delete`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["external-products"] });
@@ -905,6 +896,7 @@ export default function Inventory() {
                   <tr className="border-b bg-muted/50">
                     <th className="text-left p-2 md:p-4 font-medium w-10 md:w-12 text-xs md:text-sm"></th>
                     <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Details</th>
+                    <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Channel</th>
                     <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Type</th>
                     <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Price</th>
                     <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Stock</th>
@@ -927,6 +919,9 @@ export default function Inventory() {
                             <div className="h-5 bg-muted animate-pulse rounded w-20 md:w-24" />
                           </div>
                         </div>
+                      </td>
+                      <td className="p-2 md:p-4">
+                        <div className="h-5 bg-muted animate-pulse rounded w-16 md:w-20" />
                       </td>
                       <td className="p-2 md:p-4">
                         <div className="h-5 bg-muted animate-pulse rounded w-16 md:w-20" />
@@ -989,6 +984,7 @@ export default function Inventory() {
                         />
                       </th>
                       <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Details</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Channel</th>
                       <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Type</th>
                       <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Price</th>
                       <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Stock</th>
@@ -1061,6 +1057,26 @@ export default function Inventory() {
                               </div>
                             </div>
                           </div>
+                        </td>
+
+                        <td className="p-2 md:p-4">
+                          <Badge
+                            variant={
+                              (product as any).featured === true 
+                                ? 'default' 
+                                : (product as any).tokshow 
+                                  ? 'secondary' 
+                                  : 'outline'
+                            }
+                            className="text-xs whitespace-nowrap"
+                            data-testid={`badge-product-location-${product._id}`}
+                          >
+                            {(product as any).featured === true 
+                              ? 'Marketplace' 
+                              : (product as any).tokshow 
+                                ? 'Show' 
+                                : 'N/A'}
+                          </Badge>
                         </td>
 
                         <td className="p-2 md:p-4">

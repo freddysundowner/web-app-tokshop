@@ -24,6 +24,7 @@ const createProductSchema = z.object({
   startingPrice: z.coerce.number().optional(),
   duration: z.coerce.number().optional(),
   sudden: z.boolean().optional(),
+  list_individually: z.boolean().optional(),
   startTime: z.string().optional().nullable(),
   endTime: z.string().optional().nullable(),
   colors: z.array(z.string()).optional(),
@@ -290,6 +291,7 @@ export function registerProductRoutes(app: Express) {
         }),
         ...(req.body.duration && { duration: req.body.duration }),
         ...(req.body.sudden !== undefined && { sudden: req.body.sudden }),
+        ...(req.body.list_individually !== undefined && { list_individually: req.body.list_individually }),
         ...(req.body.startTimeTimestamp && { 
           start_time_date: req.body.startTimeTimestamp 
         }),
@@ -300,10 +302,23 @@ export function registerProductRoutes(app: Express) {
         ...(req.body.sizes && { sizes: req.body.sizes }),
         ...(req.body.reserved !== undefined && { reserved: req.body.reserved }),
         ...(req.body.tokshow !== undefined && { tokshow: req.body.tokshow }),
-        ...(req.body.shippingProfile &&
-          req.body.shippingProfile.trim() && {
-            shipping_profile: req.body.shippingProfile,
-          }),
+        ...(() => {
+          // Handle shippingProfile - could be string or object, could be camelCase or snake_case
+          const shippingProfile = req.body.shippingProfile || req.body.shipping_profile;
+          if (!shippingProfile) return {};
+          
+          // If it's a string, use it directly
+          if (typeof shippingProfile === 'string') {
+            return shippingProfile.trim() ? { shipping_profile: shippingProfile } : {};
+          }
+          
+          // If it's an object, extract the ID
+          if (typeof shippingProfile === 'object' && shippingProfile.id) {
+            return { shipping_profile: shippingProfile.id };
+          }
+          
+          return {};
+        })(),
         ...(req.body.weight &&
           req.body.weight.trim() && { weight: req.body.weight }),
         ...(req.body.height &&
@@ -537,6 +552,7 @@ export function registerProductRoutes(app: Express) {
       const { productId } = req.params;
       console.log("Updating product via Tokshop API:", productId);
       console.log("Raw request body featured field:", req.body.featured);
+      console.log("Raw request body shippingProfile:", req.body.shippingProfile);
 
       // Validate the request body
       const validationResult = createProductSchema.safeParse(req.body);
@@ -564,6 +580,7 @@ export function registerProductRoutes(app: Express) {
         startingPrice: productData.startingPrice,
         duration: productData.duration,
         sudden: productData.sudden,
+        list_individually: productData.list_individually,
         colors: productData.colors,
         sizes: productData.sizes,
         reserved: productData.reserved,
@@ -581,9 +598,22 @@ export function registerProductRoutes(app: Express) {
         tokshopUpdateData.end_time_date = req.body.endTimeTimestamp;
       }
       
-      // Only include shipping_profile if it has a valid value
-      if (productData.shippingProfile && productData.shippingProfile.trim()) {
-        tokshopUpdateData.shipping_profile = productData.shippingProfile;
+      // Only include shipping_profile if it has a valid value (and is not "skip")
+      // Handle shippingProfile - could be string or object, could be camelCase or snake_case
+      const shippingProfile = productData.shippingProfile || req.body.shippingProfile || req.body.shipping_profile;
+      if (shippingProfile) {
+        // If it's a string, use it directly
+        if (typeof shippingProfile === 'string') {
+          if (shippingProfile.trim() && shippingProfile !== 'skip') {
+            tokshopUpdateData.shipping_profile = shippingProfile;
+          } else if (shippingProfile === 'skip') {
+            console.log('⚠️ Filtering out "skip" value for shipping_profile - this should not happen!');
+          }
+        }
+        // If it's an object, extract the ID
+        else if (typeof shippingProfile === 'object' && shippingProfile.id) {
+          tokshopUpdateData.shipping_profile = shippingProfile.id;
+        }
       }
       
       // Include auction ID if provided (for editing existing auctions)
@@ -598,6 +628,8 @@ export function registerProductRoutes(app: Express) {
       );
       console.log("Sending to external API - sudden:", tokshopUpdateData.sudden);
       console.log("Sending to external API - duration:", tokshopUpdateData.duration);
+      console.log("Sending to external API - shipping_profile:", tokshopUpdateData.shipping_profile);
+      console.log("Full tokshopUpdateData being sent:", JSON.stringify(tokshopUpdateData, null, 2));
 
       // Include authentication token from session
       const headers: Record<string, string> = {

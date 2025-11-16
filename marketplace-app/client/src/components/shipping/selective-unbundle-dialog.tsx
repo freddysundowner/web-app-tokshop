@@ -82,7 +82,7 @@ export function SelectiveUnbundleDialog({
         itemId: item._id || `${order._id}-${idx}`,
         orderId: order._id,
         orderInvoice: order.invoice?.toString() || order._id.slice(-8),
-        productName: item.productId?.name || 'Item',
+        productName: (item.productId?.name || 'Item') + (item.order_reference ? ` ${item.order_reference}` : ''),
         productImage: item.productId?.images?.[0],
         description: item.productId?.category?.name || '-',
         quantity: item.quantity || 1,
@@ -154,24 +154,25 @@ export function SelectiveUnbundleDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Select Items to Unbundle</DialogTitle>
-          <DialogDescription>
-            Choose which items you want to unbundle from this bundle. Selected items will be removed.
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg">Select Items to Unbundle</DialogTitle>
+          <DialogDescription className="text-sm">
+            Choose items to unbundle. Selected items will be removed from this bundle.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground">
-              {selectedItemIds.length} of {allItems.length} items selected
+            <Label className="text-xs text-muted-foreground">
+              {selectedItemIds.length} of {allItems.length} selected
             </Label>
             <Button
               variant="outline"
               size="sm"
               onClick={handleSelectAll}
               data-testid="button-select-all-items"
+              className="h-7 text-xs"
             >
               {selectedItemIds.length === allItems.length
                 ? "Deselect All"
@@ -180,25 +181,25 @@ export function SelectiveUnbundleDialog({
           </div>
 
           <div className="overflow-x-auto border rounded-md">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="bg-muted/50">
                 <tr className="border-b">
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground w-8">
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground w-6">
                     <Checkbox
                       checked={selectedItemIds.length === allItems.length && allItems.length > 0}
                       onCheckedChange={handleSelectAll}
                       data-testid="checkbox-select-all-header"
                     />
                   </th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Listing</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Description</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Qty</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Weight</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Sale Price</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Shipping</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Order Type</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Date</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Listing</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Category</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Qty</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Weight</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Price</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Ship</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Type</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Date</th>
+                  <th className="text-left py-1.5 px-1.5 font-medium text-muted-foreground">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -213,41 +214,41 @@ export function SelectiveUnbundleDialog({
                       onClick={() => handleToggleItem(item.itemId)}
                       data-testid={`row-item-${item.itemId}`}
                     >
-                      <td className="py-2 px-2" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1 px-1.5" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => handleToggleItem(item.itemId)}
                           data-testid={`checkbox-item-${item.itemId}`}
                         />
                       </td>
-                      <td className="py-2 px-2">
-                        <div className="flex items-center gap-2">
+                      <td className="py-1 px-1.5">
+                        <div className="flex items-center gap-1.5">
                           {item.productImage ? (
                             <img 
                               src={item.productImage} 
                               alt={item.productName}
-                              className="w-10 h-10 object-cover rounded"
+                              className="w-7 h-7 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                              <Package2 size={16} className="text-muted-foreground" />
+                            <div className="w-7 h-7 bg-muted rounded flex items-center justify-center">
+                              <Package2 size={12} className="text-muted-foreground" />
                             </div>
                           )}
-                          <div>
-                            <p className="font-medium">{item.productName}</p>
-                            <p className="text-xs text-muted-foreground">#{item.orderInvoice}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{item.productName}</p>
+                            <p className="text-[10px] text-muted-foreground">#{item.orderInvoice}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-2 px-2 text-muted-foreground">{item.description}</td>
-                      <td className="py-2 px-2">{item.quantity}</td>
-                      <td className="py-2 px-2">{item.weight}</td>
-                      <td className="py-2 px-2">${item.price.toFixed(2)}</td>
-                      <td className="py-2 px-2">${item.shipping.toFixed(2)}</td>
-                      <td className="py-2 px-2">{item.orderType}</td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground">{item.date}</td>
-                      <td className="py-2 px-2">
-                        <span className={`px-2 py-1 rounded-md text-xs ${statusColors[item.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}`}>
+                      <td className="py-1 px-1.5 text-muted-foreground truncate max-w-[100px]">{item.description}</td>
+                      <td className="py-1 px-1.5 text-center">{item.quantity}</td>
+                      <td className="py-1 px-1.5">{item.weight}</td>
+                      <td className="py-1 px-1.5">${item.price.toFixed(2)}</td>
+                      <td className="py-1 px-1.5">${item.shipping.toFixed(2)}</td>
+                      <td className="py-1 px-1.5 truncate max-w-[70px]">{item.orderType}</td>
+                      <td className="py-1 px-1.5 text-[10px] text-muted-foreground">{item.date}</td>
+                      <td className="py-1 px-1.5">
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${statusColors[item.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}`}>
                           {item.status}
                         </span>
                       </td>

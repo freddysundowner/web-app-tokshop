@@ -11,13 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Upload, X, ChevronDown, ChevronUp, Video, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { uploadShowThumbnail } from "@/lib/upload-images";
+import { uploadShowThumbnail, uploadShowPreviewVideo } from "@/lib/upload-images";
 
 const scheduleShowSchema = z.object({
   title: z.string().min(1, "Show title is required"),
@@ -25,6 +24,7 @@ const scheduleShowSchema = z.object({
   category: z.string().min(1, "Category is required"),
   description: z.string().optional(),
   thumbnail: z.string().optional(),
+  preview_videos: z.string().optional(),
   
   // Shipping Settings
   freePickup: z.boolean().default(false),
@@ -50,7 +50,9 @@ export default function ScheduleShow() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [domesticShipmentsExpanded, setDomesticShipmentsExpanded] = useState(false);
   const [shippingCostsExpanded, setShippingCostsExpanded] = useState(false);
 
@@ -217,6 +219,12 @@ export default function ScheduleShow() {
           setThumbnailPreview(showData.thumbnail);
         }
         
+        // Preserve existing preview video URL if exists
+        if (showData.preview_videos) {
+          form.setValue("preview_videos", showData.preview_videos);
+          setVideoPreview(showData.preview_videos);
+        }
+        
         console.log('✅ Form values set with category:', categoryId);
       }, 100);
     }
@@ -265,6 +273,51 @@ export default function ScheduleShow() {
   const removeThumbnail = () => {
     setThumbnailPreview(null);
     form.setValue("thumbnail", "");
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingVideo(true);
+      
+      // Show preview immediately
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVideoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to Firebase Storage
+      const showId = editShowId || `show_${Date.now()}`;
+      const videoUrl = await uploadShowPreviewVideo(file, showId);
+      
+      form.setValue("preview_videos", videoUrl);
+      console.log('🎥 Video uploaded to Firebase:', videoUrl);
+      
+      toast({
+        title: "Video Uploaded",
+        description: "Preview video uploaded successfully!",
+      });
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload video. Please try again.",
+        variant: "destructive",
+      });
+      // Clear preview on error
+      setVideoPreview(null);
+      form.setValue("preview_videos", "");
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const removeVideo = () => {
+    setVideoPreview(null);
+    form.setValue("preview_videos", "");
   };
 
   const onSubmit = async (data: ScheduleShowFormData) => {
@@ -317,6 +370,7 @@ export default function ScheduleShow() {
         explicit_content: data.explicitContent,
         description: data.description || "",
         thumbnail: data.thumbnail || "",
+        preview_videos: data.preview_videos || "",
       };
 
       if (isEditMode && editShowId) {
@@ -418,21 +472,16 @@ export default function ScheduleShow() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto px-4 sm:px-6 py-4 sm:py-6">
-        <div className="w-full max-w-7xl mx-auto">
+        <div className="w-full max-w-6xl mx-auto">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
-              {/* Row 1: Basic Information (Left) & Shipping Settings (Right) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <Card>
-                <CardHeader>
-                  <CardTitle>Basic Information</CardTitle>
-                  <CardDescription>
-                    Core details about your show
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+              {/* Two Column Grid - Left: Basic Info, Right: Shipping & Settings */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* LEFT COLUMN: Basic Info & Description */}
+                <div className="space-y-4">
+                  {/* Basic Information */}
+                  <div className="space-y-3">
                   <FormField
                     control={form.control}
                     name="title"
@@ -528,18 +577,153 @@ export default function ScheduleShow() {
                       );
                     }}
                   />
-                </CardContent>
-              </Card>
+                  </div>
 
-                {/* Shipping Settings */}
-                <Card>
-                <CardHeader>
-                  <CardTitle>Shipping Settings</CardTitle>
-                  <CardDescription>
-                    Adjust your defaults for domestic shipments, shipping costs, and local pickup for this show
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                  {/* Description */}
+                  <div className="space-y-3">
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Add more details about what you'll be selling..."
+                              {...field}
+                              className="min-h-[120px]"
+                              data-testid="textarea-description"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Thumbnail */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Thumbnail/Cover Photo</Label>
+                    <FormField
+                      control={form.control}
+                      name="thumbnail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <div className="space-y-4">
+                              {thumbnailPreview ? (
+                                <div className="relative w-full max-w-[160px]">
+                                  <img
+                                    src={thumbnailPreview}
+                                    alt="Thumbnail preview"
+                                    className="w-full aspect-[9/16] object-cover rounded-lg border border-border"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute top-2 right-2 h-7 w-7"
+                                    onClick={removeThumbnail}
+                                    data-testid="button-remove-thumbnail"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                                  <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                                  <Label
+                                    htmlFor="thumbnail-upload"
+                                    className={`cursor-pointer text-sm text-primary hover:underline ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}
+                                  >
+                                    {uploadingImage ? 'Uploading...' : 'Upload'}
+                                  </Label>
+                                  <Input
+                                    id="thumbnail-upload"
+                                    type="file"
+                                    accept="image/*,video/*"
+                                    onChange={handleThumbnailUpload}
+                                    className="hidden"
+                                    data-testid="input-thumbnail"
+                                    disabled={uploadingImage}
+                                  />
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    1080x1920px (9:16)
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Preview Video */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Preview Video</Label>
+                    <FormField
+                      control={form.control}
+                      name="preview_videos"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <div className="space-y-4">
+                              {videoPreview ? (
+                                <div className="relative w-full max-w-[160px]">
+                                  <video
+                                    src={videoPreview}
+                                    className="w-full aspect-[9/16] object-cover rounded-lg border border-border"
+                                    controls
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute top-2 right-2 h-7 w-7"
+                                    onClick={removeVideo}
+                                    data-testid="button-remove-video"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                                  <Video className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                                  <Label
+                                    htmlFor="video-upload"
+                                    className={`cursor-pointer text-sm text-primary hover:underline ${uploadingVideo ? 'opacity-50 pointer-events-none' : ''}`}
+                                  >
+                                    {uploadingVideo ? 'Uploading...' : 'Upload'}
+                                  </Label>
+                                  <Input
+                                    id="video-upload"
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={handleVideoUpload}
+                                    className="hidden"
+                                    data-testid="input-video"
+                                    disabled={uploadingVideo}
+                                  />
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    MP4, MOV, or other video formats
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN: Shipping & Settings */}
+                <div className="space-y-4">
+                  {/* Shipping Settings */}
+                  <div className="space-y-3">
                   {/* Shipping Profile */}
                   <FormField
                     control={form.control}
@@ -778,284 +962,178 @@ export default function ScheduleShow() {
                       </div>
                     )}
                   </div>
-                </CardContent>
-                </Card>
-              </div>
+                  </div>
 
-              {/* Row 2: Thumbnail & Description */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Thumbnail/Cover Photo</CardTitle>
-                    <CardDescription>
-                      Upload an eye-catching image or video
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                  {/* Content Settings */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Content Settings</Label>
                     <FormField
                       control={form.control}
-                      name="thumbnail"
+                      name="roomType"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="space-y-2">
+                          <FormLabel className="text-sm">Room Type *</FormLabel>
                           <FormControl>
-                            <div className="space-y-4">
-                              {thumbnailPreview ? (
-                                <div className="relative w-full max-w-[180px]">
-                                  <img
-                                    src={thumbnailPreview}
-                                    alt="Thumbnail preview"
-                                    className="w-full aspect-[9/16] object-cover rounded-lg border border-border"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-2 right-2"
-                                    onClick={removeThumbnail}
-                                    data-testid="button-remove-thumbnail"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                                  <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                  <Label
-                                    htmlFor="thumbnail-upload"
-                                    className={`cursor-pointer text-primary hover:underline ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}
-                                  >
-                                    {uploadingImage ? 'Uploading to Firebase...' : 'Click to upload thumbnail'}
-                                  </Label>
-                                  <Input
-                                    id="thumbnail-upload"
-                                    type="file"
-                                    accept="image/*,video/*"
-                                    onChange={handleThumbnailUpload}
-                                    className="hidden"
-                                    data-testid="input-thumbnail"
-                                    disabled={uploadingImage}
-                                  />
-                                  <p className="text-xs text-muted-foreground mt-2">
-                                    Recommended: 1080x1920px (9:16 ratio)
-                                  </p>
-                                </div>
-                              )}
-                            </div>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="flex flex-col space-y-2"
+                            >
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="public" data-testid="radio-public" />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer text-sm">
+                                  Public - Visible to everyone
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="private" data-testid="radio-private" />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer text-sm">
+                                  Private - Share link only
+                                </FormLabel>
+                              </FormItem>
+                            </RadioGroup>
                           </FormControl>
-                          <FormDescription>
-                            Video thumbnails enable Instagram sharing
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </CardContent>
-                </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Description</CardTitle>
-                    <CardDescription>
-                      Add more details about your show
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
                     <FormField
                       control={form.control}
-                      name="description"
+                      name="explicitContent"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-sm">Explicit Content</FormLabel>
+                            <FormDescription className="text-xs">
+                              Toggle if strong language will be used
+                            </FormDescription>
+                          </div>
                           <FormControl>
-                            <Textarea
-                              placeholder="Add more details about what you'll be selling..."
-                              {...field}
-                              className="min-h-[200px]"
-                              data-testid="textarea-description"
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-explicit-content"
                             />
                           </FormControl>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
 
-              {/* Row 3: Content Settings & Repeat Settings */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Content Settings */}
-                <Card>
-                <CardHeader>
-                  <CardTitle>Content Settings</CardTitle>
-                  <CardDescription>
-                    Control show visibility and moderation
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="roomType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Room Type *</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            className="flex flex-col space-y-2"
-                          >
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="public" data-testid="radio-public" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                Public - Visible to everyone
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="private" data-testid="radio-private" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                Private - Only accessible via share link (no notifications)
-                              </FormLabel>
-                            </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormDescription>
-                          Use private mode for test shows or practice runs
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="explicitContent"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Explicit Content
-                          </FormLabel>
-                          <FormDescription>
-                            Toggle if strong language will be used
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="switch-explicit-content"
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-                {/* Repeat Settings */}
-                <Card>
-                <CardHeader>
-                  <CardTitle>Repeat Settings</CardTitle>
-                  <CardDescription>
-                    Schedule recurring shows
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="repeatShow"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Repeat Frequency *</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex flex-col space-y-1"
-                          >
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="none" data-testid="radio-none" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                No repeat (one-time show)
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="daily" data-testid="radio-daily" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                Daily
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="weekly" data-testid="radio-weekly" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                Weekly
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="monthly" data-testid="radio-monthly" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                Monthly
-                              </FormLabel>
-                            </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {repeatShow !== "none" && (
+                  {/* Repeat Settings */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Repeat Settings</Label>
                     <FormField
                       control={form.control}
-                      name="repeatCount"
+                      name="repeatShow"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Number of Occurrences</FormLabel>
+                        <FormItem className="space-y-2">
+                          <FormLabel className="text-sm">Repeat Frequency *</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="e.g., 4"
-                              {...field}
-                              data-testid="input-repeat-count"
-                            />
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex flex-col space-y-1"
+                            >
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="none" data-testid="radio-none" />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer text-sm">
+                                  No repeat (one-time show)
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="daily" data-testid="radio-daily" />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer text-sm">
+                                  Daily
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="weekly" data-testid="radio-weekly" />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer text-sm">
+                                  Weekly
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="monthly" data-testid="radio-monthly" />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer text-sm">
+                                  Monthly
+                                </FormLabel>
+                              </FormItem>
+                            </RadioGroup>
                           </FormControl>
-                          <FormDescription>
-                            Leave empty to repeat indefinitely
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  )}
-                </CardContent>
-                </Card>
+
+                    {repeatShow !== "none" && (
+                      <FormField
+                        control={form.control}
+                        name="repeatCount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">Number of Occurrences</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="1"
+                                placeholder="e.g., 5"
+                                {...field}
+                                data-testid="input-repeat-count"
+                                className="max-w-[200px]"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Leave blank for unlimited
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Submit Actions */}
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 pt-4">
+              {/* Form Footer */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 sm:justify-end pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setLocation("/live-shows")}
                   data-testid="button-cancel"
-                  className="w-full sm:w-auto"
+                  disabled={uploadingImage || uploadingVideo}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-schedule" className="w-full sm:w-auto">
-                  {isEditMode ? "Update Show" : "Schedule Show"}
+                <Button
+                  type="submit"
+                  disabled={loadingShowData || uploadingImage || uploadingVideo}
+                  data-testid="button-submit"
+                >
+                  {(uploadingImage || uploadingVideo || loadingShowData) && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
+                  {uploadingImage || uploadingVideo 
+                    ? "Uploading..." 
+                    : isEditMode 
+                      ? "Update Show" 
+                      : loadingShowData 
+                        ? "Scheduling..." 
+                        : "Schedule Show"}
                 </Button>
               </div>
             </form>

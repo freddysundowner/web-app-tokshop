@@ -17,7 +17,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const firstImage = images[0] || '';
   const price = Number(product.price) || 0;
   const name = product.name || 'Untitled Product';
-  const condition = product.condition || 'New';
   const quantity = Number(product.quantity) || 0;
 
   const handleClick = () => {
@@ -59,7 +58,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
           </div>
           <div className="flex items-center justify-between">
             <p className="text-lg font-bold text-primary">${price.toFixed(0)}</p>
-            <Badge variant="secondary" className="text-xs">{condition}</Badge>
           </div>
           {quantity > 0 && (
             <p className="text-xs text-muted-foreground mt-1">

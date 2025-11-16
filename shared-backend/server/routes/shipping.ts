@@ -328,9 +328,56 @@ export function registerShippingRoutes(app: Express) {
       const estimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
       console.log('Shipping estimate response:', estimate);
       
+      // Check if Tokshop API returned an error for identical addresses
+      if (estimate && typeof estimate === 'object') {
+        // Check for various error indicators from Tokshop API
+        const errorMessage = estimate.message || estimate.error || estimate.msg;
+        const hasError = estimate.success === false || estimate.error || estimate.status === 'error';
+        
+        if (hasError && errorMessage) {
+          // Check if it's an identical address error
+          const lowerMsg = String(errorMessage).toLowerCase();
+          if (lowerMsg.includes('identical') || 
+              lowerMsg.includes('same address') || 
+              lowerMsg.includes('same location') ||
+              lowerMsg.includes('shipping to yourself')) {
+            console.log('⚠️ Identical address detected:', errorMessage);
+            return res.json({
+              success: false,
+              message: "You cannot ship to yourself. Please use a different shipping address.",
+              error: true
+            });
+          }
+          
+          // Return other API errors
+          console.log('⚠️ Shipping estimate API error:', errorMessage);
+          return res.json({
+            success: false,
+            message: errorMessage,
+            error: true
+          });
+        }
+      }
+      
       res.json(estimate);
     } catch (error) {
       console.error('Shipping estimate error:', error);
+      
+      // Check if error message contains identical address info
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const lowerMsg = errorMsg.toLowerCase();
+      
+      if (lowerMsg.includes('identical') || 
+          lowerMsg.includes('same address') || 
+          lowerMsg.includes('same location') ||
+          lowerMsg.includes('shipping to yourself')) {
+        return res.json({
+          success: false,
+          message: "You cannot ship to yourself. Please use a different shipping address.",
+          error: true
+        });
+      }
+      
       res.status(500).json({ error: "Failed to get shipping estimate" });
     }
   });
@@ -915,46 +962,68 @@ export function registerShippingRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Fetch all orders first to build rates array
+      // Use userId from req.body (already extracted above)
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "userId is required"
+        });
+      }
+
+      // Fetch all orders for this user in one API call
+      console.log(`Fetching all orders for user ${userId}`);
+      const ordersResponse = await fetch(`${BASE_URL}/orders?userId=${userId}`, {
+        method: 'GET',
+        headers
+      });
+
+      if (!ordersResponse.ok) {
+        return res.status(500).json({
+          success: false,
+          message: `Failed to fetch orders: ${ordersResponse.status}`
+        });
+      }
+
+      const ordersData = await ordersResponse.json() as any;
+      const allOrders = ordersData.orders || [];
+
+      console.log(`Fetched ${allOrders.length} total orders, filtering to ${orderIds.length} selected IDs`);
+
+      // Build rates array from selected order IDs
+      // Each selected row = one label (no deduplication)
       const rates = [];
       const fetchErrors = [];
 
-      for (const orderId of orderIds) {
-        try {
-          const orderResponse = await fetch(`${BASE_URL}/orders/?_id=${orderId}`, {
-            method: 'GET',
-            headers
-          });
+      for (const selectedId of orderIds) {
+        // Find the order in the fetched list
+        const order = allOrders.find((o: any) => o._id === selectedId);
 
-          if (!orderResponse.ok) {
-            fetchErrors.push(`Failed to fetch order ${orderId}`);
-            continue;
-          }
-
-          const orderData = await orderResponse.json() as any;
-          const order = orderData.orders?.[0] || orderData.data?.orders?.[0];
-
-          if (!order) {
-            fetchErrors.push(`Order ${orderId} not found`);
-            continue;
-          }
-
-          if (!order.rate_id) {
-            fetchErrors.push(`Order ${orderId} has no rate_id`);
-            continue;
-          }
-
-          // Build rate object for external API
-          rates.push({
-            rate_id: order.rate_id,
-            label_file_type: labelFileType,
-            order: orderId
-          });
-        } catch (error) {
-          fetchErrors.push(
-            error instanceof Error ? error.message : `Unknown error for order ${orderId}`
-          );
+        if (!order) {
+          fetchErrors.push(`Order ${selectedId} not found`);
+          continue;
         }
+
+        if (!order.rate_id) {
+          fetchErrors.push(`Order ${selectedId} has no rate_id`);
+          continue;
+        }
+
+        // External API expects bundleId
+        // Use order.bundleId if it exists, otherwise use order._id
+        const bundleIdToSend = order.bundleId || order._id;
+        
+        if (order.bundleId) {
+          console.log(`Order ${selectedId} belongs to bundle ${order.bundleId}, using bundle ID for label purchase`);
+        } else {
+          console.log(`Order ${selectedId} is standalone, using order._id as bundle ID for label purchase`);
+        }
+
+        // Add one entry per selected row
+        rates.push({
+          rate_id: order.rate_id,
+          label_file_type: labelFileType,
+          order: bundleIdToSend  // Always use bundleId from order object
+        });
       }
 
       if (rates.length === 0) {
@@ -1011,6 +1080,109 @@ export function registerShippingRoutes(app: Express) {
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : "Failed to process bulk label purchase"
+      });
+    }
+  });
+
+  // Generate scan form (USPS manifest)
+  app.post("/api/shipping/generate/manifest", async (req, res) => {
+    try {
+      const { tokshow, carrierAccount, ownerId } = req.body;
+
+      if (!tokshow) {
+        return res.status(400).json({ 
+          success: false,
+          message: "tokshow parameter is required" 
+        });
+      }
+
+      console.log('Generating scan form for tokshow:', tokshow, 'with carrierAccount:', carrierAccount, 'and ownerId:', ownerId);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/shipping/generate/manifest`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ tokshow, carrierAccount, ownerId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Scan form generation failed:', data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log('Scan form generated successfully:', data);
+      return res.json(data);
+    } catch (error) {
+      console.error('Scan form generation error:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to generate scan form"
+      });
+    }
+  });
+
+  // Fetch scan form by manifest ID
+  app.get("/api/shipping/generate/manifest/:manifestId", async (req, res) => {
+    try {
+      const { manifestId } = req.params;
+      const { tokshow } = req.query;
+
+      if (!manifestId) {
+        return res.status(400).json({ 
+          success: false,
+          message: "manifest_id parameter is required" 
+        });
+      }
+
+      if (!tokshow) {
+        return res.status(400).json({ 
+          success: false,
+          message: "tokshow parameter is required" 
+        });
+      }
+
+      console.log('Fetching scan form for manifest_id:', manifestId, 'tokshow:', tokshow);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      // Pass tokshow as query parameter to external API
+      const params = new URLSearchParams();
+      params.set('tokshow', tokshow as string);
+
+      const response = await fetch(`${BASE_URL}/shipping/generate/manifest/${manifestId}?${params.toString()}`, {
+        method: 'GET',
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Scan form fetch failed:', data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log('Scan form fetched successfully:', data);
+      return res.json(data);
+    } catch (error) {
+      console.error('Scan form fetch error:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to fetch scan form"
       });
     }
   });

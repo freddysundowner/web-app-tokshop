@@ -531,11 +531,13 @@ export default function Orders() {
                     Price
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Order Status
+                    Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Earnings status
-                  </th>
+                  {user?.seller !== false && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Earnings
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actions
                   </th>
@@ -557,6 +559,7 @@ export default function Orders() {
                 ) : (
                   filteredOrders.map((order) => {
                     const productName = order.giveaway?.name || order.items?.[0]?.productId?.name || 'N/A';
+                    const orderReference = order.items?.[0]?.order_reference || '';
                     const orderId = order.invoice || order._id.slice(-8);
                     const customerUsername = order.customer?.userName || 'Unknown';
                     const itemQuantity = order.giveaway ? 1 : (order.items?.length || 0);
@@ -564,7 +567,6 @@ export default function Orders() {
                     const price = calculateOrderSubtotal(order);
                     const earnings = calculateNetEarnings(order);
                     const orderStatus = order.status || 'processing';
-                    const earningsStatus = (orderStatus === 'delivered' || orderStatus === 'ended') ? 'Completed' : 'In Transit';
 
                     return (
                       <tr 
@@ -576,10 +578,10 @@ export default function Orders() {
                           setDrawerOpen(true);
                         }}
                       >
-                        {/* Order column - product name + order ID */}
+                        {/* Order column - product name + order reference + order ID */}
                         <td className="px-4 py-4">
                           <div className="text-sm font-medium text-foreground">
-                            {productName}
+                            {productName}{orderReference ? ` ${orderReference}` : ''}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             Order #{orderId}
@@ -627,20 +629,21 @@ export default function Orders() {
                             className={statusColors[orderStatus as keyof typeof statusColors]}
                             data-testid={`order-status-${orderStatus}`}
                           >
-                            {orderStatus === 'processing' ? 'In Transit' : orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)}
+                            {orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)}
                           </Badge>
                         </td>
 
-                        {/* Earnings status column */}
-                        <td className="px-4 py-4">
-                          <div className="text-sm font-medium text-foreground">
-                            ${earnings.toFixed(2)}
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span>{earningsStatus}</span>
-                            <Info className="w-3 h-3" />
-                          </div>
-                        </td>
+                        {/* Earnings column - seller only */}
+                        {user?.seller !== false && (
+                          <td className="px-4 py-4">
+                            <div className="text-sm font-medium text-foreground">
+                              ${earnings.toFixed(2)}
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <span>{orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)}</span>
+                            </div>
+                          </td>
+                        )}
 
                         {/* Actions column - message icon */}
                         <td className="px-4 py-4 whitespace-nowrap text-right">

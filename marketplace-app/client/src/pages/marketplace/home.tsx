@@ -56,7 +56,8 @@ export default function MarketplaceHome() {
         saletype: 'buy_now',
         status: 'active',
         limit: '10',
-        sortBy: 'views' // Sort by views for trending
+        sortBy: 'views', // Sort by views for trending
+        featured: 'true'
       });
       const response = await fetch(`/api/products?${params.toString()}`);
       return response.json();

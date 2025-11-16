@@ -6,11 +6,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth-context';
-import { CreditCard, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
+import { CreditCard, Trash2, Loader2, MoreVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import AddPaymentDialog from './add-payment-dialog';
 
 interface PaymentMethodListDialogProps {
@@ -32,10 +39,10 @@ export function PaymentMethodListDialog({
   
   const userId = (user as any)?.id || (user as any)?._id;
   
-  // Fetch all payment methods
+  // Fetch all payment methods - always enabled to load immediately
   const { data: paymentMethods, isLoading, refetch } = useQuery({
     queryKey: [`/api/users/paymentmethod/${userId}`],
-    enabled: !!userId && open,
+    enabled: !!userId,
   });
   
   // Refetch payment methods every time the dialog opens
@@ -51,9 +58,12 @@ export function PaymentMethodListDialog({
 
   const handlePaymentSuccess = async () => {
     setShowAddDialog(false);
+    // Invalidate the cache to force a fresh fetch
+    await queryClient.invalidateQueries({ 
+      queryKey: [`/api/users/paymentmethod/${userId}`] 
+    });
     await refetch(); // Refresh payment methods list
     await refreshUserData();
-    // Don't call onSuccess here - it would close the payment methods dialog
   };
 
   const handleSetDefault = async (paymentMethodId: string) => {
@@ -72,19 +82,14 @@ export function PaymentMethodListDialog({
         description: "This payment method is now your default.",
       });
 
-      await refetch(); // Refresh payment methods list
+      await refetch();
       await refreshUserData();
     } catch (error: any) {
       console.error('Failed to set default payment method:', error);
       
-      let errorMessage = "Failed to set default payment method. Please try again.";
-      if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error?.message || "Failed to set default payment method.",
         variant: "destructive",
       });
     } finally {
@@ -108,20 +113,14 @@ export function PaymentMethodListDialog({
         description: "Your payment method has been removed.",
       });
 
-      await refetch(); // Refresh payment methods list
+      await refetch();
       await refreshUserData();
-      // Don't call onSuccess here - keep dialog open after deletion
     } catch (error: any) {
       console.error('Failed to delete payment method:', error);
       
-      let errorMessage = "Failed to delete payment method. Please try again.";
-      if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error?.message || "Failed to delete payment method.",
         variant: "destructive",
       });
     } finally {
@@ -135,131 +134,127 @@ export function PaymentMethodListDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px]" data-testid="dialog-payment-methods">
+        <DialogContent className="sm:max-w-md gap-0 [&>*]:min-w-0" data-testid="dialog-payment-methods">
           <DialogHeader>
-            <DialogTitle>Payment Methods</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Payment methods</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            {/* Loading State */}
-            {isLoading && (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Loading payment methods...</p>
-              </div>
-            )}
-
-            {/* Payment Methods */}
-            {!isLoading && hasPayment && methods.map((pm: any) => (
-              <div key={pm._id} className="flex items-start gap-3 border rounded-lg p-4 bg-muted/30">
-                <CreditCard className="h-5 w-5 mt-0.5 text-muted-foreground" />
-                <div className="flex-1">
-                  {pm.primary && (
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <p className="font-medium text-sm">Default Payment</p>
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    {(() => {
-                      const brand = pm.name || pm.brand || pm.card_type || pm.type || '';
-                      const last4 = pm.last4 || pm.lastFour || pm.last_four || '';
-                      
-                      const displayBrand = brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : '';
-                      
-                      if (displayBrand && last4) {
-                        return `${displayBrand} ****${last4}`;
-                      } else if (last4) {
-                        return `Card ****${last4}`;
-                      } else if (displayBrand) {
-                        return `${displayBrand} card on file`;
-                      } else {
-                        return 'Payment method on file';
-                      }
-                    })()}
-                  </p>
-                  {pm.expiry && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Expires {pm.expiry}
-                    </p>
-                  )}
-                  {!pm.primary && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSetDefault(pm._id)}
-                      disabled={settingDefaultId === pm._id}
-                      className="mt-2 h-7 text-xs"
-                      data-testid={`button-set-default-${pm._id}`}
-                    >
-                      {settingDefaultId === pm._id ? (
-                        <>
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          Setting...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Set as Default
-                        </>
-                      )}
-                    </Button>
-                  )}
+          {/* Scrollable payment methods list */}
+          <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6 mt-4">
+            <div className="space-y-2">
+              {/* Loading State */}
+              {isLoading && (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Loading payment methods...</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(pm._id)}
-                  disabled={deletingId === pm._id}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  data-testid={`button-delete-payment-${pm._id}`}
-                >
-                  {deletingId === pm._id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            ))}
+              )}
 
-            {!isLoading && !hasPayment && (
-              <div className="text-center py-8 text-muted-foreground">
-                <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">No payment methods added yet</p>
-              </div>
-            )}
+              {/* Payment Methods - Compact Design */}
+              {!isLoading && hasPayment && methods.map((pm: any) => {
+                const brand = pm.name || pm.brand || pm.card_type || pm.type || '';
+                const last4 = pm.last4 || pm.lastFour || pm.last_four || '';
+                const displayBrand = brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : '';
+                
+                return (
+                  <div 
+                    key={pm._id} 
+                    className="flex flex-col gap-2 p-3 rounded-lg border border-border hover-elevate min-w-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-12 h-8 bg-muted rounded flex items-center justify-center">
+                        <CreditCard className="h-4 w-4 text-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-semibold text-sm truncate">
+                            {displayBrand || 'Card'} • {last4}
+                          </p>
+                          {pm.primary && (
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+                              Default
+                            </Badge>
+                          )}
+                        </div>
+                        {pm.expiry && (
+                          <p className="text-xs text-muted-foreground">
+                            Expiry: {pm.expiry}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {!pm.primary && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSetDefault(pm._id)}
+                          disabled={settingDefaultId === pm._id || deletingId === pm._id}
+                          className="flex-1 h-8 text-xs"
+                          data-testid={`button-set-default-${pm._id}`}
+                        >
+                          {settingDefaultId === pm._id ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Setting...
+                            </>
+                          ) : (
+                            'Make default'
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(pm._id)}
+                        disabled={deletingId === pm._id || settingDefaultId === pm._id}
+                        className={`${pm.primary ? 'flex-1' : 'flex-1'} h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10`}
+                        data-testid={`button-delete-payment-${pm._id}`}
+                      >
+                        {deletingId === pm._id ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
 
-            {/* Add New Payment Method Link */}
-            <button
-              onClick={handleAddNew}
-              className="text-sm text-primary hover:underline"
-              data-testid="link-add-new-payment"
-            >
-              Add new payment method
-            </button>
+              {!isLoading && !hasPayment && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No payment methods added yet</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Footer Buttons */}
-          <div className="flex gap-3">
+          {/* Footer */}
+          <div className="flex flex-col gap-3 mt-6 pt-4 border-t">
             <Button
-              variant="default"
-              className="flex-1 bg-secondary text-secondary-foreground rounded-full"
-              onClick={() => onOpenChange(false)}
-              data-testid="button-cancel-payment-list"
+              variant="outline"
+              onClick={handleAddNew}
+              className="w-full"
+              data-testid="button-add-payment"
             >
-              Cancel
+              Add payment
             </Button>
             <Button
-              variant="default"
-              className="flex-1 bg-primary text-primary-foreground rounded-full"
-              onClick={() => {
-                onOpenChange(false);
-                if (onSuccess) onSuccess();
-              }}
-              data-testid="button-save-payment-list"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              className="w-full"
+              data-testid="button-back"
             >
-              Save
+              Back
             </Button>
           </div>
         </DialogContent>

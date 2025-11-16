@@ -1,7 +1,7 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ export function ProductForm({
     defaultValues: {
       name: "",
       description: "",
-      price: 0,
+      price: 1,
       quantity: 1,
       category: "",
       listingType: listingType,
@@ -83,6 +83,7 @@ export function ProductForm({
       duration: 5,
       sudden: false,
       featured: false,
+      list_individually: false,
       whocanenter: 'everyone',
       tokshow: roomId || "",
     },
@@ -91,6 +92,7 @@ export function ProductForm({
   // Watch the listing type from the form
   // Use useWatch to ensure proper re-rendering when value changes
   const currentListingType = useWatch({ control: form.control, name: 'listingType' });
+  const isFeatured = useWatch({ control: form.control, name: 'featured' });
 
   // Force featured to false when listing type is giveaway
   useEffect(() => {
@@ -156,7 +158,7 @@ export function ProductForm({
       const shippingProfileData = existingProduct.shippingProfile || existingProduct.shipping_profile;
       const shippingProfileId = typeof shippingProfileData === 'object' && shippingProfileData?._id 
         ? shippingProfileData._id 
-        : (typeof shippingProfileData === 'string' ? shippingProfileData : "");
+        : (typeof shippingProfileData === 'string' && shippingProfileData !== 'skip' ? shippingProfileData : "");
       
       // For auction products, check both top level and auction object
       const productQuantity = existingProduct.quantity || existingProduct.auction?.quantity || 1;
@@ -175,6 +177,9 @@ export function ProductForm({
       });
       
       // Reset form with existing product data
+      // Force empty string for shippingProfile if it's "skip" or invalid
+      const validShippingProfile = shippingProfileId && shippingProfileId !== 'skip' ? shippingProfileId : "";
+      
       form.reset({
         name: existingProduct.name || "",
         description: existingProduct.description || "",
@@ -182,7 +187,7 @@ export function ProductForm({
         quantity: productQuantity,
         category: categoryId,
         listingType: listingType,
-        shippingProfile: shippingProfileId,
+        shippingProfile: validShippingProfile,
         images: existingProduct.images || [],
         startingPrice: productStartingPrice,
         duration: productDuration,
@@ -219,20 +224,20 @@ export function ProductForm({
         method = isEditing ? "PATCH" : "POST";
       }
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(productData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${isEditing ? 'update' : 'create'} ${isGiveaway ? 'giveaway' : 'product'}`);
-      }
+      console.log('🔍 Mutation - URL:', url);
+      console.log('🔍 Mutation - Method:', method);
+      console.log('🔍 Mutation - User ID:', user?.id);
+      console.log('🔍 Mutation - Product Data:', productData);
       
-      return response.json();
+      // Use apiRequest which includes authentication headers
+      const response = await apiRequest(method, url, productData);
+
+      console.log('🔍 Mutation - Response status:', response.status);
+      console.log('🔍 Mutation - Response OK:', response.ok);
+      
+      const responseData = await response.json();
+      console.log('✅ Mutation - Success data:', responseData);
+      return responseData;
     },
     onSuccess: (data, variables) => {
       const isGiveaway = variables.listingType === 'giveaway';
@@ -241,10 +246,6 @@ export function ProductForm({
       if (isGiveaway) {
         queryClient.invalidateQueries({ queryKey: ["/api/giveaways"] });
       }
-      toast({
-        title: existingProduct ? (isGiveaway ? "Giveaway Updated" : "Product Updated") : (isGiveaway ? "Giveaway Created" : "Product Created"),
-        description: `Your ${isGiveaway ? 'giveaway' : 'product'} has been ${existingProduct ? 'updated' : 'created'} successfully.`,
-      });
       if (!existingProduct) {
         form.reset();
       }
@@ -262,15 +263,20 @@ export function ProductForm({
 
   const onSubmit = async (data: ProductFormData) => {
     try {
-      // Check if it's a giveaway without a shipping profile selected
-      if (data.listingType === 'giveaway' && (!data.shippingProfile || data.shippingProfile === '')) {
+      console.log('📦 Form submission - shippingProfile value:', data.shippingProfile);
+      
+      // Check if shipping profile is selected (required for all product types)
+      if (!data.shippingProfile || data.shippingProfile === '' || data.shippingProfile === 'skip') {
+        console.log('❌ Shipping profile validation failed:', data.shippingProfile);
         toast({
           title: "Shipping Profile Required",
-          description: "Giveaways must have a shipping profile. Please select a shipping profile to continue.",
+          description: "All products must have a shipping profile. Please select a shipping profile to continue.",
           variant: "destructive",
         });
         return;
       }
+      
+      console.log('✅ Shipping profile validation passed:', data.shippingProfile);
       
       // Check if it's a giveaway without a show assigned
       if (data.listingType === 'giveaway' && (!data.tokshow || data.tokshow === '')) {
@@ -287,10 +293,6 @@ export function ProductForm({
       
       if (selectedFiles.length > 0) {
         setIsUploadingImages(true);
-        toast({
-          title: "Uploading Images",
-          description: "Please wait while we upload your images...",
-        });
         
         try {
           // Generate a temporary product ID for Firebase storage path
@@ -315,29 +317,32 @@ export function ProductForm({
       };
       
       // Add type-specific fields
+      console.log('🔍 BEFORE adding type-specific fields - data.shippingProfile:', data.shippingProfile);
+      
       if (currentListingType === 'buy_now') {
         submitData.price = data.price;
         submitData.shippingProfile = data.shippingProfile;
         submitData.featured = data.featured;
+        console.log('🛒 Buy Now - setting shippingProfile to:', data.shippingProfile);
       } else if (currentListingType === 'auction') {
         submitData.startingPrice = data.startingPrice;
         submitData.price = data.startingPrice; // Backend expects price
         submitData.duration = data.duration;
         submitData.sudden = data.sudden;
+        submitData.list_individually = data.list_individually;
         submitData.shippingProfile = data.shippingProfile;
+        console.log('🎯 Auction - setting shippingProfile to:', data.shippingProfile);
+        console.log('🎯 Auction - list_individually:', data.list_individually);
       } else if (currentListingType === 'giveaway') {
         submitData.duration = 300; // Giveaway duration: 5 minutes (300 seconds)
         submitData.whocanenter = data.whocanenter;
         submitData.shippingProfile = data.shippingProfile;
         submitData.featured = false; // Giveaways cannot be featured
+        console.log('🎁 Giveaway - setting shippingProfile to:', data.shippingProfile);
       }
       
-      console.log('📦 Submitting product data:', {
-        listingType: currentListingType,
-        quantity: submitData.quantity,
-        duration: submitData.duration,
-        data: submitData
-      });
+      console.log('📦 FINAL submitData being sent to mutation:', JSON.stringify(submitData, null, 2));
+      console.log('📦 submitData.shippingProfile =', submitData.shippingProfile);
       
       createProductMutation.mutate(submitData);
     } catch (error) {
@@ -754,7 +759,10 @@ export function ProductForm({
                       min="1"
                       placeholder="1.00" 
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 1)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === '' ? '' : parseFloat(value));
+                      }}
                       className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
                       data-testid="input-product-starting-price"
                     />
@@ -775,7 +783,10 @@ export function ProductForm({
                       min="1"
                       placeholder="1" 
                       {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === '' ? '' : parseInt(value));
+                      }}
                       className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
                       data-testid="input-product-quantity"
                     />
@@ -800,7 +811,10 @@ export function ProductForm({
                       min="0"
                       placeholder="Price" 
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === '' ? '' : parseFloat(value));
+                      }}
                       className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
                       data-testid="input-product-price"
                     />
@@ -821,7 +835,10 @@ export function ProductForm({
                       min="1"
                       placeholder="1" 
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === '' ? '' : parseFloat(value));
+                      }}
                       className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
                       data-testid="input-product-quantity"
                     />
@@ -844,7 +861,10 @@ export function ProductForm({
                     min="1"
                     placeholder="1" 
                     {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      field.onChange(value === '' ? '' : parseInt(value));
+                    }}
                     className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
                     data-testid="input-giveaway-quantity"
                   />
@@ -893,36 +913,70 @@ export function ProductForm({
           />
         )}
 
+        {/* List Individually toggle for non-featured auctions */}
+        {currentListingType === 'auction' && !isFeatured && (
+          <FormField
+            control={form.control}
+            name="list_individually"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-700 p-3 bg-zinc-800">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-white font-medium">List Individually</FormLabel>
+                  <FormDescription className="text-xs text-zinc-400">
+                    Turn this on if you want to create {form.watch('quantity') || 1} instances of the same listing
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    data-testid="switch-list-individually"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        )}
+
         {/* Shipping Profile */}
         <FormField
           control={form.control}
           name="shippingProfile"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-white font-medium">Shipping Profile</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                value={field.value || ""}
-                disabled={loadingShippingProfiles}
-                data-testid="select-shipping-profile"
-              >
-                <FormControl>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                    <SelectValue placeholder="Select shipping profile" className="text-zinc-400" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent position="popper" className="z-[10000]">
-                  <SelectItem value="skip">No Shipping Profile</SelectItem>
-                  {shippingProfiles.map((profile) => (
-                    <SelectItem key={profile._id} value={profile._id}>
-                      {profile.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            // Force empty value if current value is "skip" or not in the list of profiles
+            const validProfileIds = shippingProfiles.map(p => p._id);
+            const currentValue = field.value && field.value !== 'skip' && validProfileIds.includes(field.value) 
+              ? field.value 
+              : "";
+            
+            return (
+              <FormItem>
+                <FormLabel className="text-white font-medium">
+                  Shipping Profile <span className="text-red-500">*</span>
+                </FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={currentValue}
+                  disabled={loadingShippingProfiles}
+                  data-testid="select-shipping-profile"
+                >
+                  <FormControl>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                      <SelectValue placeholder="Select shipping profile" className="text-zinc-400" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent position="popper" className="z-[10000]">
+                    {shippingProfiles.map((profile) => (
+                      <SelectItem key={profile._id} value={profile._id}>
+                        {profile.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
 
         {/* Auction-specific: Sudden Death */}

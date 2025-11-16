@@ -1223,20 +1223,22 @@ export function registerAuthRoutes(app: Express) {
       const { userid } = req.body;
       const accessToken = req.session?.accessToken;
 
-      if (!accessToken || !req.session.user) {
+      if (!accessToken) {
         return res.status(401).json({
           success: false,
           error: "No active session found",
         });
       }
 
-      // Verify the requesting user matches the session
-      const sessionUserId = req.session.user._id || req.session.user.id;
-      if (userid !== sessionUserId) {
-        return res.status(403).json({
-          success: false,
-          error: "Access denied: Cannot follow category on behalf of another user",
-        });
+      // Verify the requesting user matches the session (if session user is available)
+      if (req.session.user) {
+        const sessionUserId = req.session.user._id || req.session.user.id;
+        if (userid !== sessionUserId) {
+          return res.status(403).json({
+            success: false,
+            error: "Access denied: Cannot follow category on behalf of another user",
+          });
+        }
       }
 
       if (!categoryId || !userid) {
@@ -1305,20 +1307,22 @@ export function registerAuthRoutes(app: Express) {
       const { userid } = req.body;
       const accessToken = req.session?.accessToken;
 
-      if (!accessToken || !req.session.user) {
+      if (!accessToken) {
         return res.status(401).json({
           success: false,
           error: "No active session found",
         });
       }
 
-      // Verify the requesting user matches the session
-      const sessionUserId = req.session.user._id || req.session.user.id;
-      if (userid !== sessionUserId) {
-        return res.status(403).json({
-          success: false,
-          error: "Access denied: Cannot unfollow category on behalf of another user",
-        });
+      // Verify the requesting user matches the session (if session user is available)
+      if (req.session.user) {
+        const sessionUserId = req.session.user._id || req.session.user.id;
+        if (userid !== sessionUserId) {
+          return res.status(403).json({
+            success: false,
+            error: "Access denied: Cannot unfollow category on behalf of another user",
+          });
+        }
       }
 
       if (!categoryId || !userid) {

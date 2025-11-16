@@ -224,7 +224,7 @@ export default function Purchases() {
             <tbody>
               ${(order.items || []).map(item => `
                 <tr>
-                  <td>${item.productId?.name || "Unknown Product"}</td>
+                  <td>${item.productId?.name || "Unknown Product"}${item.order_reference ? ` ${item.order_reference}` : ''}</td>
                   <td>${item.quantity || 0}</td>
                   <td>$${(item.price || 0).toFixed(2)}</td>
                   <td>$${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
@@ -457,6 +457,7 @@ export default function Purchases() {
               ) : (
                 sortedOrders.map((order) => {
                   const productName = order.items?.[0]?.productId?.name || 'N/A';
+                  const orderReference = order.items?.[0]?.order_reference || '';
                   const orderId = order.invoice || order._id.slice(-8);
                   const sellerName = `${order.seller?.firstName || ''} ${order.seller?.lastName || ''}`.trim() || 'Unknown';
                   const itemQuantity = order.items?.length || 0;
@@ -470,10 +471,10 @@ export default function Purchases() {
                       data-testid={`row-purchase-${order._id}`}
                       onClick={() => viewOrderDetails(order)}
                     >
-                      {/* Order column - product name + order ID */}
+                      {/* Order column - product name + order reference + order ID */}
                       <td className="px-4 py-4">
                         <div className="text-sm font-medium text-foreground">
-                          {productName}
+                          {productName}{orderReference ? ` ${orderReference}` : ''}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Order #{orderId}
@@ -640,7 +641,7 @@ export default function Purchases() {
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium">{item.productId?.name || "Unknown Product"}</p>
+                                <p className="font-medium">{item.productId?.name || "Unknown Product"}{item.order_reference ? ` ${item.order_reference}` : ''}</p>
                                 {item.productId?.category?.name && (
                                   <p className="text-sm text-muted-foreground">{item.productId.category.name}</p>
                                 )}

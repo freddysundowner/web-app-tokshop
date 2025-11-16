@@ -175,13 +175,21 @@ export default function AdminShows() {
                           >
                             <TableCell className="font-medium">
                               <div className="flex items-start gap-3">
-                                {show.thumbnail && (
+                                {show.preview_videos ? (
+                                  <video
+                                    src={show.preview_videos}
+                                    className="w-16 h-16 rounded object-cover flex-shrink-0"
+                                    muted
+                                    playsInline
+                                    data-testid={`video-show-preview-${showId}`}
+                                  />
+                                ) : show.thumbnail ? (
                                   <img
                                     src={show.thumbnail}
                                     alt={show.title || 'Show'}
                                     className="w-16 h-16 rounded object-cover flex-shrink-0"
                                   />
-                                )}
+                                ) : null}
                                 <div className="min-w-0">
                                   <div className="font-medium truncate" data-testid={`text-title-${showId}`}>
                                     {String(show.title || show.name || 'Untitled Show')}

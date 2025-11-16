@@ -21,6 +21,7 @@ interface ShowCardData {
   title: string;
   thumbnail?: string;
   coverImage?: string;
+  preview_videos?: string;
   description?: string;
   status?: string;
   category?: string | { name: string };
@@ -167,7 +168,16 @@ export function ShowCard({ show, currentUserId, variant = 'grid', categoryName, 
         <div className="relative">
           <Link href={`/show/${showId}`}>
             <div className="relative aspect-[3/4] bg-gray-800 rounded-lg overflow-hidden mb-2">
-              {show.thumbnail ? (
+              {show.preview_videos ? (
+                <video
+                  src={show.preview_videos}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : show.thumbnail ? (
                 <img
                   src={show.thumbnail}
                   alt={show.title}
@@ -253,7 +263,16 @@ export function ShowCard({ show, currentUserId, variant = 'grid', categoryName, 
         <div className="relative">
           <Link href={`/show/${showId}`} data-testid={`link-giveaway-${showId}`}>
             <div className="relative aspect-[3/4] rounded-sm overflow-hidden bg-gray-800">
-              {show.thumbnail || show.coverImage ? (
+              {show.preview_videos ? (
+                <video
+                  src={show.preview_videos}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : show.thumbnail || show.coverImage ? (
                 <img
                   src={show.thumbnail || show.coverImage}
                   alt={show.title}

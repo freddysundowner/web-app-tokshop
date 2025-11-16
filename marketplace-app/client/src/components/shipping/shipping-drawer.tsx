@@ -140,14 +140,23 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
     return (displayOrder.total || 0) + (displayOrder.servicefee || 0);
   };
   
-  // Extract real dimensions from order data (giveaway or first item)
+  // Extract real dimensions from order data (order level, giveaway, or first item)
   const getRealOrderDimensions = () => {
     // For bundles, use aggregated dimensions
     if (isBundle) {
       return getBundleDimensions();
     }
     
-    // Try giveaway dimensions first
+    // Try order-level dimensions first (most accurate for actual orders)
+    if (displayOrder.length && displayOrder.width && displayOrder.height) {
+      return {
+        length: displayOrder.length.toString(),
+        width: displayOrder.width.toString(),
+        height: displayOrder.height.toString(),
+      };
+    }
+    
+    // Try giveaway dimensions
     if (displayOrder.giveaway?.length && displayOrder.giveaway?.width && displayOrder.giveaway?.height) {
       return {
         length: displayOrder.giveaway.length,
@@ -440,18 +449,21 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
                     <span className="text-muted-foreground">Bundle Subtotal:</span>
                     <span className="font-medium">${calculateBundleTotals().subtotal.toFixed(2)}</span>
                   </div>
-                  {calculateBundleTotals().tax > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Bundle Tax:</span>
-                      <span>${calculateBundleTotals().tax.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {calculateBundleTotals().shipping > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Bundle Shipping:</span>
-                      <span>${calculateBundleTotals().shipping.toFixed(2)}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Bundle Tax:</span>
+                    <span>{calculateBundleTotals().tax > 0 ? `$${calculateBundleTotals().tax.toFixed(2)}` : '—'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Bundle Shipping:</span>
+                    <span>
+                      {(() => {
+                        const bundleShipping = Number(calculateBundleTotals().shipping);
+                        const estimatedShipping = Number(selectedEstimate?.price ?? estimates[0]?.price ?? 0);
+                        const shippingCost = bundleShipping > 0 ? bundleShipping : estimatedShipping;
+                        return shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : '—';
+                      })()}
+                    </span>
+                  </div>
                   <div className="flex justify-between text-sm font-semibold border-t pt-2">
                     <span className="text-muted-foreground">Bundle Total:</span>
                     <span>${calculateBundleTotals().total.toFixed(2)}</span>
@@ -475,7 +487,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Items:</span>
                   <span>
-                    {displayOrder.giveaway?.name || (displayOrder.items && displayOrder.items.length > 0 ? displayOrder.items[0].productId?.name : 'Unknown Item')} 
+                    {displayOrder.giveaway?.name || (displayOrder.items && displayOrder.items.length > 0 ? (displayOrder.items[0].productId?.name || 'Unknown Item') + (displayOrder.items[0].order_reference ? ` ${displayOrder.items[0].order_reference}` : '') : 'Unknown Item')} 
                     ({displayOrder.giveaway ? displayOrder.giveaway.quantity : (displayOrder.items ? displayOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 1)} items)
                   </span>
                 </div>
@@ -489,16 +501,21 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
                   <span className="text-muted-foreground">Tax:</span>
                   <span>{(displayOrder.tax ?? 0) > 0 ? `$${(displayOrder.tax ?? 0).toFixed(2)}` : '—'}</span>
                 </div>
-                {((displayOrder.seller_shipping_fee_pay ?? displayOrder.shipping_fee ?? 0) > 0) && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Shipping:</span>
-                    <span>${(displayOrder.seller_shipping_fee_pay ?? displayOrder.shipping_fee ?? 0).toFixed(2)}</span>
-                  </div>
-                )}
-                {(calculateSubtotal() + (displayOrder.tax || 0) + (displayOrder.seller_shipping_fee_pay || displayOrder.shipping_fee || 0)) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Shipping:</span>
+                  <span>
+                    {(() => {
+                      const orderShipping = Number(displayOrder.seller_shipping_fee_pay ?? displayOrder.shipping_fee ?? 0);
+                      const estimatedShipping = Number(selectedEstimate?.price ?? estimates[0]?.price ?? 0);
+                      const shippingCost = orderShipping > 0 ? orderShipping : estimatedShipping;
+                      return shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : '—';
+                    })()}
+                  </span>
+                </div>
+                {(calculateSubtotal() + (displayOrder.tax || 0) + (displayOrder.seller_shipping_fee_pay || displayOrder.shipping_fee || selectedEstimate?.price || estimates[0]?.price || 0)) > 0 && (
                   <div className="flex justify-between text-sm font-semibold border-t pt-2">
                     <span className="text-muted-foreground">Total:</span>
-                    <span>${(calculateSubtotal() + (displayOrder.tax || 0) + (displayOrder.seller_shipping_fee_pay || displayOrder.shipping_fee || 0)).toFixed(2)}</span>
+                    <span>${(calculateSubtotal() + (displayOrder.tax || 0) + (displayOrder.seller_shipping_fee_pay || displayOrder.shipping_fee || selectedEstimate?.price || estimates[0]?.price || 0)).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">

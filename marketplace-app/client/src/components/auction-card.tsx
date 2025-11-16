@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/lib/auth-context';
 
 interface AuctionCardProps {
@@ -173,14 +173,7 @@ export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
         ? currentFavorited.filter((id: string) => id !== currentUserId)
         : [...currentFavorited, currentUserId];
       
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ favorited })
-      });
+      const response = await apiRequest('PATCH', `/api/products/${productId}`, { favorited });
       
       if (response.ok) {
         toast({

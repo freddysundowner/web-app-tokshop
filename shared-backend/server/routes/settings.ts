@@ -39,6 +39,13 @@ export function registerSettingsRoutes(app: Express) {
             secondary_color: "#1A1A1A",
             stripe_publishable_key: "",
             commission_rate: 0,
+            // Firebase configuration
+            firebase_api_key: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
+            firebase_auth_domain: "icona-e7769.firebaseapp.com",
+            firebase_project_id: "icona-e7769",
+            firebase_storage_bucket: "icona-e7769.firebasestorage.app",
+            firebase_app_id: "1:167886286942:web:f13314bc30af1005e384cf",
+            demoMode: false,
           },
         });
       }
@@ -83,6 +90,13 @@ export function registerSettingsRoutes(app: Express) {
           secondary_color: "#1A1A1A",
           stripe_publishable_key: "",
           commission_rate: 0,
+          // Firebase configuration
+          firebase_api_key: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
+          firebase_auth_domain: "icona-e7769.firebaseapp.com",
+          firebase_project_id: "icona-e7769",
+          firebase_storage_bucket: "icona-e7769.firebasestorage.app",
+          firebase_app_id: "1:167886286942:web:f13314bc30af1005e384cf",
+          demoMode: false,
         },
       });
     }

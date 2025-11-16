@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ChevronRight } from 'lucide-react';
 import { ShowCard } from '@/components/show-card';
 import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
+import { apiRequest } from '@/lib/queryClient';
 
 interface Category {
   _id: string;
@@ -159,21 +160,9 @@ export default function Category() {
         throw new Error('User not logged in');
       }
       
-      const response = await fetch(`/api/category/follow/${categoryId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ userid: currentUserId }),
+      return await apiRequest('PUT', `/api/category/follow/${categoryId}`, {
+        userid: currentUserId
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to follow category');
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
       setFollowing(true);
@@ -196,21 +185,9 @@ export default function Category() {
         throw new Error('User not logged in');
       }
       
-      const response = await fetch(`/api/category/unfollow/${categoryId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ userid: currentUserId }),
+      return await apiRequest('PUT', `/api/category/unfollow/${categoryId}`, {
+        userid: currentUserId
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to unfollow category');
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
       setFollowing(false);

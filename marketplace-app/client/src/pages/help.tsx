@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ChevronRight,
   Search,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,6 +27,13 @@ export default function Help() {
   const [supportMessage, setSupportMessage] = useState("");
 
   const quickLinks = [
+    {
+      icon: BookOpen,
+      title: "Knowledge Base",
+      description: "Comprehensive guide to TokShopLive platform",
+      href: "/knowledge-base",
+      testId: "link-knowledge-base",
+    },
     {
       icon: HelpCircle,
       title: "FAQ",

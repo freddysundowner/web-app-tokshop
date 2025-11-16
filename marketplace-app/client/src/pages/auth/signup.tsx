@@ -162,7 +162,6 @@ export default function Signup() {
       setIsLoading(true);
       setSignupError("");
       await emailSignup(data.email, data.password, data.firstName, data.lastName, data.userName, data.phone || "", data.country);
-      toast({ title: "Account created successfully!" });
       // Redirect to marketplace home after successful signup
       setLocation("/");
     } catch (error) {

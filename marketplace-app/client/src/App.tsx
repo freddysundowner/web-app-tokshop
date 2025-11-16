@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -63,6 +63,7 @@ const ContactUs = lazy(() => import("@/pages/marketplace/contact"));
 const UserReports = lazy(() => import("@/pages/marketplace/user-reports"));
 const FAQ = lazy(() => import("@/pages/marketplace/faq"));
 const AboutUs = lazy(() => import("@/pages/marketplace/about"));
+const KnowledgeBase = lazy(() => import("@/pages/marketplace/knowledge-base"));
 const SellerHub = lazy(() => import("@/pages/seller/hub"));
 const Inbox = lazy(() => import("@/pages/social/inbox"));
 const Friends = lazy(() => import("@/pages/social/friends"));
@@ -92,6 +93,17 @@ function Router() {
   
   // Set default page title from settings
   usePageTitle();
+
+  // Fetch fresh user data for routing checks (same as header)
+  const userId = (user as any)?._id || user?.id;
+  const { data: freshUserData } = useQuery<any>({
+    queryKey: [`/api/profile/${userId}`],
+    enabled: !!userId && !!isAuthenticated,
+    staleTime: 0, // Always fetch fresh data
+  });
+  
+  // Use fresh user data if available, otherwise fall back to cached user
+  const currentUser = freshUserData || user;
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -157,7 +169,8 @@ function Router() {
     '/privacy-policy',
     '/terms-of-service',
     '/contact',
-    '/faq'
+    '/faq',
+    '/knowledge-base'
   ];
 
   const isPublicPage = publicPages.includes(location);
@@ -234,6 +247,7 @@ function Router() {
               <Route path="/contact" component={ContactUs} />
               <Route path="/faq" component={FAQ} />
               <Route path="/about" component={AboutUs} />
+              <Route path="/knowledge-base" component={KnowledgeBase} />
               <Route component={LandingPage} />
             </Switch>
           </main>
@@ -256,7 +270,7 @@ function Router() {
   ];
 
   const isSellerOnlyRoute = sellerOnlyRoutes.some(route => location.startsWith(route));
-  const isSeller = (user as any)?.seller === true;
+  const isSeller = (currentUser as any)?.seller === true;
 
   // Redirect non-sellers trying to access seller pages to marketplace
   if (isSellerOnlyRoute && !isSeller) {
@@ -411,6 +425,7 @@ function Router() {
             <Route path="/reports" component={UserReports} />
             <Route path="/faq" component={FAQ} />
             <Route path="/about" component={AboutUs} />
+            <Route path="/knowledge-base" component={KnowledgeBase} />
             <Route path="/help" component={Help} />
             <Route component={NotFound} />
           </Switch>

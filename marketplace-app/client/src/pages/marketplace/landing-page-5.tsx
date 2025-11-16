@@ -522,6 +522,7 @@ export default function LandingPage5() {
             <div>
               <h4 className="font-semibold text-foreground mb-4">Support</h4>
               <ul className="space-y-3 text-sm text-muted-foreground">
+                <li><Link href="/knowledge-base" className="hover:text-foreground transition-colors">Knowledge Base</Link></li>
                 <li><Link href="/faq" className="hover:text-foreground transition-colors">Help Center</Link></li>
                 <li><Link href="/contact" className="hover:text-foreground transition-colors">Contact Us</Link></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Buyer Protection</a></li>

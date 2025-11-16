@@ -35,6 +35,7 @@ export default function AdminCategories() {
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
   const [categoryName, setCategoryName] = useState("");
   const [categoryIcon, setCategoryIcon] = useState<File | null>(null);
+  const [categoryTaxCode, setCategoryTaxCode] = useState("txcd_99999999");
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [subcategoryDialogOpen, setSubcategoryDialogOpen] = useState(false);
   const [selectedCategoryForSubcategories, setSelectedCategoryForSubcategories] = useState<{ id: string; name: string } | null>(null);
@@ -124,11 +125,12 @@ export default function AdminCategories() {
   };
 
   const addCategoryMutation = useMutation({
-    mutationFn: async ({ name, icon }: { name: string; icon: File | null }) => {
-      console.log('Starting category mutation with name:', name, 'icon:', icon?.name);
+    mutationFn: async ({ name, icon, tax_code }: { name: string; icon: File | null; tax_code: string }) => {
+      console.log('Starting category mutation with name:', name, 'icon:', icon?.name, 'tax_code:', tax_code);
       
       const formData = new FormData();
       formData.append('name', name);
+      formData.append('tax_code', tax_code);
       if (icon) {
         formData.append('images', icon);
       }
@@ -164,6 +166,7 @@ export default function AdminCategories() {
       });
       setCategoryName("");
       setCategoryIcon(null);
+      setCategoryTaxCode("txcd_99999999");
       setAddCategoryDialogOpen(false);
     },
     onError: (error: any) => {
@@ -188,6 +191,7 @@ export default function AdminCategories() {
     addCategoryMutation.mutate({
       name: categoryName,
       icon: categoryIcon,
+      tax_code: categoryTaxCode,
     });
   };
 
@@ -448,6 +452,16 @@ export default function AdminCategories() {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="category-tax-code">Tax Code</Label>
+                    <Input
+                      id="category-tax-code"
+                      placeholder="Enter tax code"
+                      value={categoryTaxCode}
+                      onChange={(e) => setCategoryTaxCode(e.target.value)}
+                      data-testid="input-category-tax-code"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="category-icon">Category Icon (Optional)</Label>
                     <Input
                       id="category-icon"
@@ -465,6 +479,7 @@ export default function AdminCategories() {
                       setAddCategoryDialogOpen(false);
                       setCategoryName("");
                       setCategoryIcon(null);
+                      setCategoryTaxCode("txcd_99999999");
                     }}
                     data-testid="button-cancel-add-category"
                   >

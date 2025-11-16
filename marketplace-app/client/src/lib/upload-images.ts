@@ -50,7 +50,7 @@ export async function uploadShowThumbnail(
     const filename = `${showId}_thumbnail.${fileExtension}`;
     
     // Create Firebase storage reference for show thumbnails
-    const imageRef = ref(storage, `show-thumbnails/${filename}`);
+    const imageRef = ref(storage, `shows/images/${filename}`);
     
     // Upload file to Firebase Storage
     const uploadResult = await uploadBytes(imageRef, file);
@@ -61,6 +61,32 @@ export async function uploadShowThumbnail(
     return downloadURL;
   } catch (error) {
     console.error(`Error uploading show thumbnail:`, error);
+    throw error;
+  }
+}
+
+export async function uploadShowPreviewVideo(
+  file: File,
+  showId: string
+): Promise<string> {
+  try {
+    const storage = getFirebaseStorage();
+    
+    const fileExtension = file.name.split('.').pop() || 'mp4';
+    const filename = `${showId}_preview.${fileExtension}`;
+    
+    // Create Firebase storage reference for show preview videos
+    const videoRef = ref(storage, `shows/preview_videos/${filename}`);
+    
+    // Upload file to Firebase Storage
+    const uploadResult = await uploadBytes(videoRef, file);
+    
+    // Get download URL
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+    
+    return downloadURL;
+  } catch (error) {
+    console.error(`Error uploading show preview video:`, error);
     throw error;
   }
 }

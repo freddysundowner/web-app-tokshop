@@ -389,31 +389,17 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem 
-                        asChild
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setSellerDropdownOpen(false);
-                          setLocation('/add-product');
-                        }}
-                      >
-                        <div className="flex items-center gap-2 cursor-pointer" data-testid="menu-add-listing">
+                      <DropdownMenuItem asChild>
+                        <Link href="/add-product" className="flex items-center gap-2" data-testid="menu-add-listing">
                           <PackagePlus className="h-4 w-4" />
                           <span>Add Listing</span>
-                        </div>
+                        </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        asChild
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setSellerDropdownOpen(false);
-                          setLocation('/schedule-show');
-                        }}
-                      >
-                        <div className="flex items-center gap-2 cursor-pointer" data-testid="menu-schedule-show">
+                      <DropdownMenuItem asChild>
+                        <Link href="/schedule-show" className="flex items-center gap-2" data-testid="menu-schedule-show">
                           <Calendar className="h-4 w-4" />
                           <span>Schedule a Show</span>
-                        </div>
+                        </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

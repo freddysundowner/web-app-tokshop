@@ -208,7 +208,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label htmlFor="prebid-amount" className="text-sm font-medium text-white">
-                Prebid Amount ($)
+                Your Max Bid ($)
               </label>
               <Input
                 id="prebid-amount"
@@ -218,7 +218,17 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                 onChange={(e) => setPrebidAmount(e.target.value)}
                 className="bg-zinc-800 border-zinc-700 text-white"
                 data-testid="input-prebid-amount"
+                autoFocus
               />
+              {prebidAuction?.prebidShippingCost === undefined ? (
+                <p className="text-sm text-center text-zinc-400">
+                  Calculating shipping...
+                </p>
+              ) : prebidAuction?.prebidShippingCost !== null ? (
+                <p className="text-sm text-center text-zinc-300">
+                  + ${prebidAuction.prebidShippingCost.toFixed(2)} Shipping
+                </p>
+              ) : null}
               <p className="text-xs text-zinc-400">
                 Your prebid will automatically place bids up to this amount
               </p>
@@ -238,10 +248,12 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
               <Button
                 onClick={() => {
                   const amount = parseFloat(prebidAmount);
-                  if (!amount || amount <= 0) {
+                  const baseprice = prebidAuction?.auction?.baseprice || prebidAuction?.baseprice || 0;
+                  
+                  if (!amount || amount < baseprice) {
                     toast({
                       title: "Invalid Amount",
-                      description: "Please enter a valid bid amount",
+                      description: `Bid must be at least $${baseprice.toFixed(2)}`,
                       variant: "destructive"
                     });
                     return;
@@ -257,7 +269,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                     Placing...
                   </>
                 ) : (
-                  'Place Prebid'
+                  'Submit'
                 )}
               </Button>
             </div>
@@ -381,7 +393,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                                           <Package className="w-5 h-5 text-zinc-600" />
                                         )}
                                       </div>
-                                      <span className="font-medium text-sm text-white">{itemName}</span>
+                                      <span className="font-medium text-sm text-white">{itemName}{item.order_reference ? ` ${item.order_reference}` : ''}</span>
                                     </div>
                                   </td>
                                   <td className="py-3 px-3 text-center text-sm text-white">{itemQty}</td>

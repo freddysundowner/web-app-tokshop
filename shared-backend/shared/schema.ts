@@ -171,6 +171,7 @@ export const tokshopOrderSchema = z.object({
     width: z.string().optional(),
     length: z.string().optional(),
     scale: z.string().optional(),
+    order_reference: z.string().optional(),
   })).optional(),
   // Financial fields
   total: z.number().optional(), // Items total/subtotal amount
@@ -329,6 +330,7 @@ export const productFormSchema = z.object({
   startingPrice: z.coerce.number().optional().nullable(),
   duration: z.coerce.number().int().optional().nullable(),
   sudden: z.boolean().optional().default(false),
+  list_individually: z.boolean().optional().default(false),
   // Featured auction scheduling fields
   startTime: z.string().optional().nullable(), // ISO datetime string
   endTime: z.string().optional().nullable(), // ISO datetime string

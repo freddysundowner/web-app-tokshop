@@ -44,10 +44,6 @@ export function SocialAuthCompleteForm({ userEmail, socialAuthData, onComplete, 
     try {
       setSubmitError("");
       await onComplete(values);
-      toast({
-        title: "Account setup complete!",
-        description: "Welcome to your account.",
-      });
     } catch (error: any) {
       console.error("Social auth completion failed:", error);
       const errorMessage = error?.message || "Failed to complete account setup. Please try again.";

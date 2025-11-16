@@ -45,6 +45,7 @@ export default function ProductDetail() {
   }, [productId]);
 
   // Fetch product details
+  const shouldFetchProduct = Boolean(productId);
   const { data: product, isLoading } = useQuery<any>({
     queryKey: ['/api/products', productId],
     queryFn: async () => {
@@ -53,23 +54,59 @@ export default function ProductDetail() {
       const data = await response.json();
       return data.product || data;
     },
-    enabled: !!productId,
+    enabled: shouldFetchProduct,
   });
 
-  // Fetch shipping estimate
-  const { data: shippingEstimate } = useQuery<any>({
-    queryKey: ['/api/shipping/estimate', productId],
+  // NOTE: Shipping estimate moved to after defaultAddress is fetched (see below)
+
+  // Use seller info from product data if populated, otherwise fetch separately
+  const sellerFromProduct = product?.ownerId && typeof product.ownerId === 'object' ? product.ownerId : null;
+  const sellerId = product?.ownerId?._id || product?.ownerId;
+  
+  const shouldFetchSeller = Boolean(sellerId && !sellerFromProduct);
+  const { data: fetchedSeller } = useQuery<any>({
+    queryKey: ['/api/profile', sellerId],
     queryFn: async () => {
-      if (!product) return null;
+      if (!sellerId) return null;
+      const response = await fetch(`/api/profile/${sellerId}`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.data || data;
+    },
+    enabled: shouldFetchSeller, // Only fetch if not already in product data
+  });
+  
+  // Use seller data from product if available, otherwise use fetched data
+  const seller = sellerFromProduct || fetchedSeller;
+
+  const userId = (currentUser as any)?._id || (currentUser as any)?.id || currentUser?.id;
+
+  // Always get from user context (localStorage) - never fetch
+  const defaultPayment = currentUser?.defaultpaymentmethod || null;
+  const defaultAddress = currentUser?.address || null;
+
+  // Check if address has required fields for shipping calculation
+  const hasValidAddress = defaultAddress && 
+    defaultAddress.zipcode && 
+    defaultAddress.state && 
+    defaultAddress.city;
+
+  // Fetch shipping estimate - only when we have a valid address
+  const shouldFetchShipping = Boolean(product && productId && hasValidAddress && userId);
+  const { data: shippingEstimate, isLoading: isLoadingShipping } = useQuery<any>({
+    queryKey: ['/api/shipping/estimate', productId, hasValidAddress, userId],
+    queryFn: async () => {
+      if (!product || !userId) return null;
       try {
         const response = await fetch('/api/shipping/estimate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            weight: product.weight || 1,
-            unit: product.unit || 'oz',
+            weight: product.shipping_profile.weight,
+            unit: product.shipping_profile.scale,
             product: productId,
             owner: product.ownerId?._id || product.ownerId,
+            customer: userId,
             tokshow: product.tokshow?._id || product.tokshow || null,
             buying_label: false
           }),
@@ -81,66 +118,17 @@ export default function ProductDetail() {
         return null;
       }
     },
-    enabled: !!product && !!productId,
-  });
-
-  // Use seller info from product data if populated, otherwise fetch separately
-  const sellerFromProduct = product?.ownerId && typeof product.ownerId === 'object' ? product.ownerId : null;
-  const sellerId = product?.ownerId?._id || product?.ownerId;
-  
-  const { data: fetchedSeller } = useQuery<any>({
-    queryKey: ['/api/profile', sellerId],
-    queryFn: async () => {
-      if (!sellerId) return null;
-      const response = await fetch(`/api/profile/${sellerId}`);
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.data || data;
-    },
-    enabled: !!sellerId && !sellerFromProduct, // Only fetch if not already in product data
-  });
-  
-  // Use seller data from product if available, otherwise use fetched data
-  const seller = sellerFromProduct || fetchedSeller;
-
-  const userId = (currentUser as any)?._id || (currentUser as any)?.id || currentUser?.id;
-
-  // Fetch default payment method
-  const { data: defaultPaymentData, refetch: refetchDefaultPayment } = useQuery({
-    queryKey: [`/api/users/paymentmethod/default/${userId}`],
-    enabled: !!userId,
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache
-  });
-
-  const defaultPayment = (defaultPaymentData as any)?.data 
-    ? (defaultPaymentData as any).data 
-    : (defaultPaymentData || null);
-  
-  // Fetch default address
-  const { data: defaultAddressData, refetch: refetchDefaultAddress } = useQuery({
-    queryKey: [`/api/address/default/address/${userId}`],
-    enabled: !!userId,
+    // Only fetch when we have product, productId, AND a valid address
+    enabled: shouldFetchShipping,
+    // Force refetch every time page is visited - no caching for shipping estimates
     staleTime: 0,
     gcTime: 0,
+    refetchOnMount: 'always',
+    retry: false,
   });
 
-  const defaultAddress = (defaultAddressData as any)?.address || null;
-
-  // Refetch payment and address data when opening checkout view
-  useEffect(() => {
-    if (showCheckout) {
-      // Invalidate first to force fresh fetch
-      queryClient.invalidateQueries({ queryKey: [`/api/users/paymentmethod/default/${userId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/address/default/address/${userId}`] });
-      setTimeout(() => {
-        refetchDefaultPayment();
-        refetchDefaultAddress();
-      }, 100);
-    }
-  }, [showCheckout, userId]);
-
   // Fetch seller's other products - same API as profile Shop tab
+  const shouldFetchSellerProducts = Boolean(sellerId);
   const { data: sellerProducts } = useQuery<any>({
     queryKey: ['/api/products', 'seller-products', sellerId, productId], // Unique key to avoid cache collision
     queryFn: async () => {
@@ -148,7 +136,7 @@ export default function ProductDetail() {
       const params = new URLSearchParams({
         userid: sellerId,
         roomid: '',
-        type: 'inventory',
+        type: '',
         saletype: '',
         category: '',
         page: '1',
@@ -160,7 +148,7 @@ export default function ProductDetail() {
       if (!response.ok) return { products: [] };
       return response.json();
     },
-    enabled: !!sellerId,
+    enabled: shouldFetchSellerProducts,
   });
 
   // Checkout mutation - directly place order (defined early to avoid "not defined" error)
@@ -212,6 +200,8 @@ export default function ProductDetail() {
         description: "Your order has been placed",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       setShowCheckout(false);
       
       // Always navigate to thank you page with order ID
@@ -436,14 +426,14 @@ export default function ProductDetail() {
             <Button 
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed" 
               data-testid="button-buy-now"
-              disabled={isOwner}
+              disabled={isOwner || (shouldFetchShipping && isLoadingShipping)}
               onClick={() => {
                 if (!isOwner) {
                   setShowCheckout(true);
                 }
               }}
             >
-              {isOwner ? 'Your Product' : 'Buy Now'}
+              {isOwner ? 'Your Product' : isLoadingShipping && shouldFetchShipping ? 'Loading...' : 'Buy Now'}
             </Button>
           </div>
 
@@ -687,20 +677,19 @@ export default function ProductDetail() {
               <span>Subtotal</span>
               <span className="font-medium">US${((product.price || 0) * quantity).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span>Shipping</span>
-              {shippingCost !== null ? (
-                <span className="font-medium">
-                  US${(typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost).toFixed(2)}
-                </span>
-              ) : (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Taxes</span>
-              <span className="font-medium">US$0.00</span>
-            </div>
+            {/* Only show shipping if user has a valid address */}
+            {hasValidAddress && (
+              <div className="flex justify-between text-sm">
+                <span>Shipping</span>
+                {shippingCost !== null ? (
+                  <span className="font-medium">
+                    US${(typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost).toFixed(2)}
+                  </span>
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
@@ -853,7 +842,6 @@ export default function ProductDetail() {
               setShowAddressDialog(false);
               // Refetch address data to get new address
               await queryClient.invalidateQueries({ queryKey: [`/api/address/default/address/${userId}`] });
-              await refetchDefaultAddress();
               await refreshUserData();
             }}
           />
@@ -869,7 +857,6 @@ export default function ProductDetail() {
               // When closing dialog, always refresh address data (in case addresses were deleted)
               if (!open) {
                 await queryClient.invalidateQueries({ queryKey: [`/api/address/default/address/${userId}`] });
-                await refetchDefaultAddress();
                 await refreshUserData();
               }
             }}
@@ -877,7 +864,6 @@ export default function ProductDetail() {
               setShowAddressListDialog(false);
               // Refetch address data to get updated address
               await queryClient.invalidateQueries({ queryKey: [`/api/address/default/address/${userId}`] });
-              await refetchDefaultAddress();
               await refreshUserData();
             }}
           />

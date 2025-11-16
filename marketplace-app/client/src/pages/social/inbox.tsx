@@ -58,6 +58,7 @@ import {
   updateTypingStatus,
   subscribeToPresence,
   subscribeToTypingStatus,
+  getOrCreateChat,
   type ConversationData,
   type ChatMessage
 } from '@/lib/firebase-chat';
@@ -295,12 +296,12 @@ export default function Inbox() {
     };
   }, [messageText, selectedConversation, userId]);
 
-  // Auto-select conversation when chatId is provided in URL
+  // Auto-select conversation when chatId is provided in URL or create chat from query params
   useEffect(() => {
     const chatId = params?.chatId;
     
+    // Check for direct chatId in URL path
     if (chatId && conversations.length > 0) {
-      // Check if the chatId exists in the loaded conversations
       const chatExists = conversations.some(c => c.id === chatId);
       
       if (chatExists) {
@@ -308,7 +309,48 @@ export default function Inbox() {
         setShowMobileConversation(true);
       }
     }
-  }, [params?.chatId, conversations]);
+    
+    // Check for query parameters (from profile message button)
+    const urlParams = new URLSearchParams(window.location.search);
+    const otherUserId = urlParams.get('otherUserId');
+    const otherUserName = urlParams.get('otherUserName');
+    const otherUserPhoto = urlParams.get('otherUserPhoto');
+    
+    if (otherUserId && userId && !chatId) {
+      // Create or get existing chat
+      const initChat = async () => {
+        try {
+          const currentUserData = {
+            firstName: (user as any)?.firstName || '',
+            lastName: (user as any)?.lastName || '',
+            userName: userName,
+            profilePhoto: userProfileUrl
+          };
+          
+          const otherUserData = {
+            firstName: otherUserName || '',
+            lastName: '',
+            userName: otherUserName || '',
+            profilePhoto: otherUserPhoto || ''
+          };
+          
+          const newChatId = await getOrCreateChat(userId, otherUserId, currentUserData, otherUserData);
+          
+          // Navigate to the chat
+          setLocation(`/inbox/${newChatId}`);
+        } catch (error) {
+          console.error('Error creating chat:', error);
+          toast({
+            title: "Error",
+            description: "Failed to open chat. Please try again.",
+            variant: "destructive",
+          });
+        }
+      };
+      
+      initChat();
+    }
+  }, [params?.chatId, conversations, userId, userName, userProfileUrl, user, setLocation, toast]);
 
   const formatMessageTime = (date: string) => {
     const msgDate = new Date(parseInt(date));

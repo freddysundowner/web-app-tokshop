@@ -67,12 +67,21 @@ export default function EditProduct() {
       }
       
       // Prepare the payload
+      // Form uses snake_case shipping_profile, so check that field
+      const shippingProfileValue = (productData as any).shipping_profile || productData.shippingProfile;
+      console.log('📦 EDIT PRODUCT - productData.shipping_profile:', (productData as any).shipping_profile);
+      console.log('📦 EDIT PRODUCT - productData.shippingProfile:', productData.shippingProfile);
+      console.log('📦 EDIT PRODUCT - Using value:', shippingProfileValue);
+      
       const payload: any = {
         ...productData,
-        shippingProfile: productData.shippingProfile?.trim() ? productData.shippingProfile : "skip",
+        shippingProfile: shippingProfileValue?.trim() ? shippingProfileValue : undefined,
         tokshow: productData.tokshow && productData.tokshow !== "no-show" ? productData.tokshow : null,
         userId: user?.id,
       };
+      
+      console.log('📦 EDIT PRODUCT - payload.shippingProfile:', payload.shippingProfile);
+      console.log('📦 EDIT PRODUCT - Full payload:', JSON.stringify(payload, null, 2));
       
       // For auctions, ensure both price and startingPrice are sent, and preserve auction ID
       if (productData.listingType === 'auction') {

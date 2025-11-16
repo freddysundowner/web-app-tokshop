@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { sendRoomMessage } from '@/lib/firebase-chat';
+import { timeSync } from '@/lib/time-sync';
 
 interface UseShowSocketEventsProps {
   socket: any;
@@ -11,6 +12,7 @@ interface UseShowSocketEventsProps {
   isAuthenticated: boolean;
   user: any;
   currentUserId: string;
+  isShowOwner: boolean;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
   disconnect: () => void;
@@ -23,6 +25,8 @@ interface UseShowSocketEventsProps {
   setShowWinnerDialog: React.Dispatch<React.SetStateAction<boolean>>;
   setGiveawayWinnerData: React.Dispatch<React.SetStateAction<any>>;
   setShowGiveawayWinnerDialog: React.Dispatch<React.SetStateAction<boolean>>;
+  setOrderNotificationData: React.Dispatch<React.SetStateAction<any>>;
+  setShowOrderNotification: React.Dispatch<React.SetStateAction<boolean>>;
   setTimeAddedBlink: React.Dispatch<React.SetStateAction<boolean>>;
   setCurrentUserBid: React.Dispatch<React.SetStateAction<any>>;
   previousHighestBidRef: React.MutableRefObject<number>;
@@ -31,6 +35,7 @@ interface UseShowSocketEventsProps {
   startTimerWithEndTime: (auction: any) => void;
   getShippingEstimate: (auction: any) => void;
   refetchAuction: () => void;
+  refetchBuyNow: () => void;
   refetchGiveaways: () => void;
   shownWinnerAlertsRef: React.MutableRefObject<Set<string>>;
 }
@@ -43,6 +48,7 @@ export function useShowSocketEvents({
   isAuthenticated,
   user,
   currentUserId,
+  isShowOwner,
   joinRoom,
   leaveRoom,
   disconnect,
@@ -55,6 +61,8 @@ export function useShowSocketEvents({
   setShowWinnerDialog,
   setGiveawayWinnerData,
   setShowGiveawayWinnerDialog,
+  setOrderNotificationData,
+  setShowOrderNotification,
   setTimeAddedBlink,
   setCurrentUserBid,
   previousHighestBidRef,
@@ -63,6 +71,7 @@ export function useShowSocketEvents({
   startTimerWithEndTime,
   getShippingEstimate,
   refetchAuction,
+  refetchBuyNow,
   refetchGiveaways,
   shownWinnerAlertsRef,
 }: UseShowSocketEventsProps) {
@@ -110,6 +119,15 @@ export function useShowSocketEvents({
     setViewers(prev => prev.filter(v => (v._id || v.userId) !== data.userId));
   }, [setViewers]);
 
+  // Memoized handler: Current user successfully joined room
+  const handleCurrentUserJoined = useCallback(async (data: any) => {
+    console.log('✅ Current user joined room:', data);
+    
+    // NOTE: Join message is now sent directly in show-view.tsx when the socket connects
+    // This ensures join messages work regardless of show status (live or not)
+    // We don't send it here to avoid duplicates
+  }, []);
+
   // Memoized handler: Room started
   const handleRoomStarted = useCallback((roomData: any) => {
     console.log('Room started - full room data:', roomData);
@@ -134,13 +152,19 @@ export function useShowSocketEvents({
 
   // Memoized handler: Product pinned
   const handleProductPinned = useCallback((roomData: any) => {
-    console.log('Product pinned - full room data:', roomData);
-    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+    console.log('Product pinned - room data:', roomData);
     
-    if (roomData.pinned || roomData.pinnedProduct) {
-      const pinnedProd = roomData.pinned || roomData.pinnedProduct;
-      setPinnedProduct(pinnedProd);
-      
+    // Update state from room data
+    const pinnedProd = roomData.pinned || roomData.pinnedProduct;
+    const activeAuc = roomData.activeauction || roomData.activeAuction || roomData.active_auction;
+    const activeGive = roomData.activegiveaway || roomData.activeGiveaway || roomData.active_giveaway;
+    
+    setPinnedProduct(pinnedProd || null);
+    setActiveAuction(activeAuc || null);
+    setActiveGiveaway(activeGive || null);
+    
+    // Fetch shipping estimate if there's a pinned product
+    if (pinnedProd) {
       // Skip shipping estimate if user is the show owner
       const hostId = roomData?.owner?._id || roomData?.owner?.id;
       const isOwner = isAuthenticated && currentUserId === hostId;
@@ -175,13 +199,19 @@ export function useShowSocketEvents({
             });
           })
           .catch(err => console.error('❌ Error fetching pinned product shipping:', err));
-      } else if (isOwner) {
-        console.log('🚫 Skipping shipping estimate for pinned product: user is show owner');
+      } else {
+        // Clear shipping estimate if owner or no shipping profile
+        console.log('🧹 Clearing shipping estimate (owner or no shipping profile)');
+        setShippingEstimate(null);
       }
     } else {
-      setPinnedProduct(null);
+      // Clear shipping estimate when no product is pinned
+      setShippingEstimate(null);
     }
-  }, [roomId, currentUserId, setPinnedProduct, setShippingEstimate, isAuthenticated]);
+    
+    // Invalidate query to keep data in sync
+    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+  }, [roomId, currentUserId, setPinnedProduct, setActiveAuction, setActiveGiveaway, setShippingEstimate, isAuthenticated]);
 
   // Memoized handler: Pinned product updated
   const handlePinnedProductUpdated = useCallback((data: any) => {
@@ -195,79 +225,100 @@ export function useShowSocketEvents({
     } else {
       setPinnedProduct(null);
     }
-  }, [setPinnedProduct]);
+    
+    // Refetch Buy Now products to keep the list in sync
+    refetchBuyNow();
+  }, [setPinnedProduct, refetchBuyNow]);
 
   // Memoized handler: Auction started
-  const handleAuctionStarted = useCallback((auctionData: any) => {
-    console.log('🎉 AUCTION-STARTED EVENT RECEIVED:', auctionData);
+  const handleAuctionStarted = useCallback((auction: any) => {
+    console.log('🎉 Auction started - auction data:', auction);
     
     // Reset alert tracking for new auction
     lastAlertedMaxBidRef.current = 0;
-    
-    if (auctionData.serverTime) {
-      auctionData.serverOffset = auctionData.serverTime - Date.now();
-      console.log('🔄 Calculated serverOffset:', auctionData.serverOffset, 'from serverTime:', auctionData.serverTime);
-    }
-    
-    console.log('⏰ Auction timing:', {
-      endTime: auctionData.endTime,
-      serverTime: auctionData.serverTime,
-      serverOffset: auctionData.serverOffset,
-      currentTime: Date.now(),
-      timeLeft: auctionData.endTime ? Math.floor((auctionData.endTime - Date.now()) / 1000) : 0
-    });
-    
-    setActiveAuction(auctionData);
-    setPinnedProduct(null);
     setCurrentUserBid(null); // Reset bid state for new auction
     
-    // Update cached auction products list with new auction data
-    const productId = auctionData.product?._id || auctionData.product?.id || auctionData.product;
-    if (roomId && productId) {
-      let cacheUpdated = false;
+    // The auction object is sent directly, not wrapped in roomData
+    // Normalize endTime to always be a number
+    const normalizedAuction = auction ? { ...auction } : null;
+    
+    if (normalizedAuction) {
+      // Convert endTime to number if it's a string
+      if (normalizedAuction.endTime && typeof normalizedAuction.endTime === 'string') {
+        normalizedAuction.endTime = new Date(normalizedAuction.endTime).getTime();
+      }
       
-      queryClient.setQueryData(['/api/products', roomId, 'auction'], (old: any) => {
-        if (!old?.products) {
-          console.log('⚠️ No cached products, skipping cache update');
-          return old;
-        }
-        
-        const updatedProducts = old.products.map((product: any) => {
-          if (product._id === productId || product.id === productId) {
-            cacheUpdated = true;
-            console.log('✅ Updated product auction in cache:', productId);
-            return {
-              ...product,
-              auction: auctionData
-            };
-          }
-          return product;
-        });
-        
-        return {
-          ...old,
-          products: updatedProducts
-        };
-      });
-      
-      // Fallback: If cache update failed (product not found), invalidate to refetch
-      if (!cacheUpdated) {
-        console.log('⚠️ Product not found in cache for new auction, invalidating query');
-        queryClient.invalidateQueries({ queryKey: ['/api/products', roomId, 'auction'] });
+      // Update global time sync service if server time is provided
+      if (normalizedAuction.serverTime) {
+        timeSync.updateFromServerTime(normalizedAuction.serverTime, 'socket');
       }
     }
     
-    findWinner(auctionData.bids || []);
-    startTimerWithEndTime(auctionData);
-    getShippingEstimate(auctionData);
-  }, [setActiveAuction, setPinnedProduct, setCurrentUserBid, findWinner, startTimerWithEndTime, getShippingEstimate, lastAlertedMaxBidRef, roomId]);
+    setActiveAuction(normalizedAuction);
+    setPinnedProduct(null); // Force clear pinned product when auction starts
+    setActiveGiveaway(null); // Force clear giveaway when auction starts
+    
+    // Start timer and fetch shipping estimate for the auction
+    if (normalizedAuction) {
+      findWinner(normalizedAuction.bids || []);
+      startTimerWithEndTime(normalizedAuction);
+      getShippingEstimate(normalizedAuction);
+      
+      // Update cached auction products list with new auction data
+      const productId = auction.product?._id || auction.product?.id || auction.product;
+      if (roomId && productId) {
+        let cacheUpdated = false;
+        
+        queryClient.setQueryData(['/api/products', roomId, 'auction'], (old: any) => {
+          if (!old?.products) {
+            console.log('⚠️ No cached products, skipping cache update');
+            return old;
+          }
+          
+          const updatedProducts = old.products.map((product: any) => {
+            if (product._id === productId || product.id === productId) {
+              cacheUpdated = true;
+              console.log('✅ Updated product auction in cache:', productId);
+              return {
+                ...product,
+                auction: auction
+              };
+            }
+            return product;
+          });
+          
+          return {
+            ...old,
+            products: updatedProducts
+          };
+        });
+        
+        // Fallback: If cache update failed (product not found), invalidate to refetch
+        if (!cacheUpdated) {
+          console.log('⚠️ Product not found in cache for new auction, invalidating query');
+          queryClient.invalidateQueries({ queryKey: ['/api/products', roomId, 'auction'] });
+        }
+      }
+    }
+    
+    // Invalidate query to keep data in sync
+    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+  }, [roomId, currentUserId, setCurrentUserBid, setActiveAuction, setPinnedProduct, setActiveGiveaway, findWinner, startTimerWithEndTime, getShippingEstimate, lastAlertedMaxBidRef]);
 
   // Memoized handler: Auction pinned
-  const handleAuctionPinned = useCallback((auction: any) => {
-    console.log('Auction pinned:', auction);
-    setActiveAuction(auction);
-    setPinnedProduct(null);
-  }, [setActiveAuction, setPinnedProduct]);
+  const handleAuctionPinned = useCallback((roomData: any) => {
+    console.log('Auction pinned - room data:', roomData);
+    
+    // Update state from room data
+    const activeAuc = roomData.activeauction || roomData.activeAuction || roomData.active_auction;
+    
+    setActiveAuction(activeAuc || null);
+    setPinnedProduct(null); // Force clear pinned product when auction is pinned
+    setActiveGiveaway(null); // Force clear giveaway when auction is pinned
+    
+    // Invalidate query to keep data in sync
+    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+  }, [roomId, currentUserId, setActiveAuction, setPinnedProduct, setActiveGiveaway]);
 
   // Memoized handler: Bid updated
   const handleBidUpdated = useCallback((auction: any) => {
@@ -411,6 +462,53 @@ export function useShowSocketEvents({
     findWinner(auction.bids || []);
   }, [setActiveAuction, setCurrentUserBid, toast, previousHighestBidRef, lastAlertedMaxBidRef, currentUserId, findWinner, roomId]);
 
+  // Memoized handler: User bid updated (when updating max autobid)
+  const handleUserBidUpdated = useCallback((updatedBid: any) => {
+    console.log('🔄 USER-BID-UPDATED RECEIVED:', updatedBid);
+    
+    setActiveAuction((prev: any) => {
+      if (!prev || !prev.bids) {
+        console.log('  ⚠️ No previous auction or bids, keeping prev');
+        return prev;
+      }
+      
+      // Find and update the specific user's bid in the bids array
+      const bids = prev.bids.map((bid: any) => {
+        const bidUserId = bid.user?._id || bid.user?.id || bid.user || bid.bidder?._id || bid.bidder?.id || bid.bidder;
+        const updatedUserId = updatedBid.user?._id || updatedBid.user?.id || updatedBid.user || updatedBid.bidder?._id || updatedBid.bidder?.id || updatedBid.bidder;
+        
+        if (bidUserId === updatedUserId) {
+          console.log('  ✅ Found user bid to update:', bidUserId);
+          return updatedBid; // Replace with updated bid
+        }
+        return bid;
+      });
+      
+      const updated = {
+        ...prev,
+        bids: bids,
+      };
+      
+      console.log('  Updated auction with new bid data');
+      return updated;
+    });
+    
+    // Update current user's bid state if it's their bid that was updated
+    const updatedUserId = updatedBid.user?._id || updatedBid.user?.id || updatedBid.user || updatedBid.bidder?._id || updatedBid.bidder?.id || updatedBid.bidder;
+    if (updatedUserId === currentUserId) {
+      setCurrentUserBid(updatedBid);
+      console.log('  💰 Current user bid updated:', updatedBid);
+    }
+    
+    // Recalculate winner with updated bids
+    setActiveAuction((prev: any) => {
+      if (prev && prev.bids) {
+        findWinner(prev.bids);
+      }
+      return prev;
+    });
+  }, [setActiveAuction, setCurrentUserBid, findWinner, currentUserId]);
+
   // Memoized handler: Auction time extended
   const handleAuctionTimeExtended = useCallback((data: any) => {
     console.log('Auction time extended:', data);
@@ -507,14 +605,19 @@ export function useShowSocketEvents({
   }, [debouncedRefetchAuction, roomId, currentUserId]);
 
   // Memoized handler: Giveaway started
-  const handleGiveawayStarted = useCallback((giveaway: any) => {
-    console.log('Giveaway started:', giveaway);
-    setActiveGiveaway(giveaway);
-    toast({
-      title: "Giveaway Started!",
-      description: giveaway.name || "New giveaway"
-    });
-  }, [setActiveGiveaway, toast]);
+  const handleGiveawayStarted = useCallback((roomData: any) => {
+    console.log('Giveaway started - room data:', roomData);
+    
+    // Update state from room data
+    const activeGive = roomData.activegiveaway || roomData.activeGiveaway || roomData.active_giveaway;
+    
+    setActiveGiveaway(activeGive || null);
+    setActiveAuction(null); // Force clear auction when giveaway starts
+    setPinnedProduct(null); // Force clear pinned product when giveaway starts
+    
+    // Invalidate query to keep data in sync
+    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+  }, [roomId, currentUserId, setActiveGiveaway, setActiveAuction, setPinnedProduct]);
 
   // Memoized handler: Giveaway joined
   const handleGiveawayJoined = useCallback((giveaway: any) => {
@@ -550,6 +653,31 @@ export function useShowSocketEvents({
     debouncedRefetchGiveaways();
   }, [setActiveGiveaway, setGiveawayWinnerData, setShowGiveawayWinnerDialog, debouncedRefetchGiveaways]);
 
+  // Memoized handler: Marketplace order (buy-now purchase)
+  const handleMarketplaceOrder = useCallback((data: any) => {
+    console.log('🛒 MARKETPLACE ORDER EVENT RECEIVED:', data);
+    console.log('🛒 Order data:', JSON.stringify(data, null, 2));
+    
+    // Invalidate queries to refresh product lists and room data
+    queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/rooms', roomId, currentUserId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/orders', roomId, 'sold'] });
+    
+    // Show notification banner to show owner only
+    if (isShowOwner) {
+      const buyerName = data?.buyerName || data?.userName || 'Someone';
+      const productName = data?.productName || 'a product';
+      
+      setOrderNotificationData({
+        buyerName,
+        productName,
+        message: data?.msg || `${buyerName} purchased ${productName}`
+      });
+      setShowOrderNotification(true);
+      // Auto-dismiss handled by useEffect in show-view.tsx
+    }
+  }, [roomId, currentUserId, isShowOwner, setOrderNotificationData, setShowOrderNotification]);
+
   // Main effect: Register all socket event listeners
   useEffect(() => {
     if (!socket || !roomId || !isConnected || !proceedWithJoin) return;
@@ -561,6 +689,7 @@ export function useShowSocketEvents({
 
     // Register all event listeners
     socket.on('user-connected', handleUserConnected);
+    socket.on('current-user-joined', handleCurrentUserJoined);
     socket.on('left-room', handleUserDisconnected);
     socket.on('room-started', handleRoomStarted);
     socket.on('room-ended', handleRoomEnded);
@@ -569,16 +698,19 @@ export function useShowSocketEvents({
     socket.on('auction-started', handleAuctionStarted);
     socket.on('auction-pinned', handleAuctionPinned);
     socket.on('bid-updated', handleBidUpdated);
+    socket.on('user-bid-updated', handleUserBidUpdated);
     socket.on('auction-time-extended', handleAuctionTimeExtended);
     socket.on('auction-ended', handleAuctionEnded);
     socket.on('auction-update', handleAuctionUpdate);
     socket.on('started-giveaway', handleGiveawayStarted);
     socket.on('joined-giveaway', handleGiveawayJoined);
     socket.on('ended-giveaway', handleGiveawayEnded);
+    socket.on('marketplace_order', handleMarketplaceOrder);
 
     // Cleanup function
     return () => {
       socket.off('user-connected', handleUserConnected);
+      socket.off('current-user-joined', handleCurrentUserJoined);
       socket.off('left-room', handleUserDisconnected);
       socket.off('room-started', handleRoomStarted);
       socket.off('room-ended', handleRoomEnded);
@@ -587,18 +719,20 @@ export function useShowSocketEvents({
       socket.off('auction-started', handleAuctionStarted);
       socket.off('auction-pinned', handleAuctionPinned);
       socket.off('bid-updated', handleBidUpdated);
+      socket.off('user-bid-updated', handleUserBidUpdated);
       socket.off('auction-time-extended', handleAuctionTimeExtended);
       socket.off('auction-ended', handleAuctionEnded);
       socket.off('auction-update', handleAuctionUpdate);
       socket.off('started-giveaway', handleGiveawayStarted);
       socket.off('joined-giveaway', handleGiveawayJoined);
       socket.off('ended-giveaway', handleGiveawayEnded);
+      socket.off('marketplace_order', handleMarketplaceOrder);
       socket.off('createMessage');
       
-      // Leave room and disconnect socket on unmount
+      // Only leave room on cleanup - DO NOT disconnect socket!
+      // Disconnecting prevents automatic reconnection
       leaveRoom(roomId);
-      disconnect();
-      console.log('🔌 Show view unmounted - disconnected socket');
+      console.log('🔌 Show view cleanup - left room (socket stays connected)');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -606,5 +740,7 @@ export function useShowSocketEvents({
     roomId,
     isConnected,
     proceedWithJoin,
+    handleCurrentUserJoined,
+    handleUserBidUpdated,
   ]);
 }

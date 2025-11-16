@@ -34,6 +34,7 @@ import {
 import { Save, X, Plus, Check, Calendar, Clock, Users, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { 
   Dialog, 
   DialogContent, 
@@ -113,6 +114,7 @@ export function InventoryProductForm({
       startingPrice: 1,
       duration: 5,
       sudden: false,
+      list_individually: false,
       startTime: null,
       endTime: null,
       whocanenter: 'everyone',
@@ -252,17 +254,18 @@ export function InventoryProductForm({
         startingPrice: getStartingPrice(),
         duration: (product as any).duration ?? 5,
         sudden: (product as any).sudden ?? false,
+        list_individually: (product as any).list_individually ?? false,
         whocanenter: (product as any).whocanenter || 'everyone',
       });
     }
   }, [mode, product, categoriesResponse, form]);
 
   const handleSubmit = (data: ProductFormData) => {
-    // Check if it's a giveaway without a shipping profile selected
-    if (data.listingType === 'giveaway' && (!data.shippingProfile || data.shippingProfile === '')) {
+    // Check if shipping profile is selected (required for all product types)
+    if (!data.shippingProfile || data.shippingProfile === '' || data.shippingProfile === 'skip') {
       toast({
         title: "Shipping Profile Required",
-        description: "Giveaways must have a shipping profile. Please select a shipping profile to continue.",
+        description: "All products must have a shipping profile. Please select a shipping profile to continue.",
         variant: "destructive",
       });
       return;
@@ -536,6 +539,37 @@ export function InventoryProductForm({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Listing Type - FIRST because it controls other field visibility */}
+                <FormField
+                  control={form.control}
+                  name="listingType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Listing Type *</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        data-testid="select-listing-type"
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select listing type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="buy_now">Buy Now</SelectItem>
+                          <SelectItem value="auction">Auction</SelectItem>
+                          <SelectItem value="giveaway">Giveaway</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Choose how customers can purchase this product
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="category"
@@ -731,77 +765,6 @@ export function InventoryProductForm({
                   }}
                   />
                 )}
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Shipping</CardTitle>
-                <CardDescription>
-                  Configure shipping preferences for this product
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FormField
-                  control={form.control}
-                  name="shippingProfile"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Shipping Profile</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                        disabled={loadingShippingProfiles}
-                        data-testid="select-shipping-profile"
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select shipping profile" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="skip">No Shipping Profile</SelectItem>
-                          {shippingProfiles.map((profile) => (
-                            <SelectItem key={profile._id} value={profile._id}>
-                              {profile.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="listingType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Listing Type *</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                        data-testid="select-listing-type"
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select listing type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="buy_now">Buy Now</SelectItem>
-                          <SelectItem value="auction">Auction</SelectItem>
-                          <SelectItem value="giveaway">Giveaway</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Choose how customers can purchase this product
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 {/* Only show Featured option when not a giveaway and not assigned to a specific show */}
                 {listingType !== 'giveaway' && selectedShow === 'general' && (
@@ -836,6 +799,31 @@ export function InventoryProductForm({
                           Mark this product as featured to highlight it
                         </FormDescription>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* List Individually toggle for non-featured auctions */}
+                {listingType === 'auction' && !isFeatured && (
+                  <FormField
+                    control={form.control}
+                    name="list_individually"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">List Individually</FormLabel>
+                          <FormDescription>
+                            Turn this on if you want to create 25 instances of the same listing
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-list-individually"
+                          />
+                        </FormControl>
                       </FormItem>
                     )}
                   />
@@ -917,6 +905,46 @@ export function InventoryProductForm({
                     )}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Shipping</CardTitle>
+                <CardDescription>
+                  Configure shipping preferences for this product
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FormField
+                  control={form.control}
+                  name="shippingProfile"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Shipping Profile <span className="text-red-500">*</span></FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        disabled={loadingShippingProfiles}
+                        data-testid="select-shipping-profile"
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select shipping profile" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {shippingProfiles.map((profile) => (
+                            <SelectItem key={profile._id} value={profile._id}>
+                              {profile.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
           </div>

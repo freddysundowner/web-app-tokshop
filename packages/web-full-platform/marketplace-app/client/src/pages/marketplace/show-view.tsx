@@ -1,0 +1,2177 @@
+import { Link, useParams, useLocation } from 'wouter';
+import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package } from 'lucide-react';
+import { format, isToday, isTomorrow } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useSettings } from '@/lib/settings-context';
+import { useAuth } from '@/lib/auth-context';
+import { useSocket } from '@/lib/socket-context';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient, apiRequest } from '@/lib/queryClient';
+import { usePageTitle } from '@/hooks/use-page-title';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { useShowSocketEvents } from '@/hooks/use-show-socket-events';
+import { subscribeToRoomMessages, sendRoomMessage } from '@/lib/firebase-chat';
+import { useLiveKit } from '@/hooks/use-livekit';
+import { ProductForm } from '@/components/product-form';
+import { ShareDialog } from '@/components/share-dialog';
+import { BuyNowDialog } from '@/components/buy-now-dialog';
+import { TipSellerDialog } from '@/components/tip-seller-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
+// Import show-view components
+import { ProductsSidebar } from '@/components/show-view/products-sidebar';
+import { VideoCenter } from '@/components/show-view/video-center';
+import { ChatSidebar } from '@/components/show-view/chat-sidebar';
+import { DialogsContainer } from '@/components/show-view/dialogs-container';
+
+// Lazy load heavy components
+const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
+const PaymentShippingSheet = lazy(() => import('@/components/payment-shipping-sheet').then(m => ({ default: m.PaymentShippingSheet })));
+const PaymentShippingAlertDialog = lazy(() => import('@/components/payment-shipping-alert-dialog').then(m => ({ default: m.PaymentShippingAlertDialog })));
+
+export default function ShowViewNew() {
+  usePageTitle('Live Show');
+  const { settings } = useSettings();
+  const { user, isAuthenticated, refreshUserData } = useAuth();
+  const { socket, isConnected, joinRoom, leaveRoom, connect, disconnect } = useSocket();
+  const { toast } = useToast();
+  const { id } = useParams();
+  const [, navigate] = useLocation();
+  
+  // UI State
+  const [message, setMessage] = useState('');
+  const [muted, setMuted] = useState(false);
+  const [activeTab, setActiveTab] = useState('Chat');
+  const [productTab, setProductTab] = useState('Auction');
+  const [showMobileProducts, setShowMobileProducts] = useState(false);
+  const [showMobileChat, setShowMobileChat] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [productActionSheet, setProductActionSheet] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showAddProductDialog, setShowAddProductDialog] = useState(false);
+  const [addProductType, setAddProductType] = useState<'auction' | 'buy_now' | 'giveaway'>('buy_now');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditProductDialog, setShowEditProductDialog] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [isNotificationSaved, setIsNotificationSaved] = useState(false);
+  const [showUserActionsDialog, setShowUserActionsDialog] = useState(false);
+  const [showMoreOptionsSheet, setShowMoreOptionsSheet] = useState(false);
+  const [isEndingShow, setIsEndingShow] = useState(false);
+  const [selectedChatUser, setSelectedChatUser] = useState<any>(null);
+  const [showMentionDialog, setShowMentionDialog] = useState(false);
+  const [showAuctionSettingsDialog, setShowAuctionSettingsDialog] = useState(false);
+  const [auctionSettings, setAuctionSettings] = useState({
+    startingPrice: 0,
+    duration: 10,
+    sudden: false,
+    counterBidTime: 5
+  });
+  const [showPrebidDialog, setShowPrebidDialog] = useState(false);
+  const [prebidAuction, setPrebidAuction] = useState<any>(null);
+  const [prebidAmount, setPrebidAmount] = useState('');
+  
+  // Real-time State
+  const [viewers, setViewers] = useState<any[]>([]);
+  const [pinnedProduct, setPinnedProduct] = useState<any>(null);
+  const [activeAuction, setActiveAuction] = useState<any>(null);
+  const [activeGiveaway, setActiveGiveaway] = useState<any>(null);
+  const [auctionTimeLeft, setAuctionTimeLeft] = useState<number>(0);
+  const [giveawayTimeLeft, setGiveawayTimeLeft] = useState<number>(0);
+  const [bidAmount, setBidAmount] = useState('');
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
+  const [shippingEstimate, setShippingEstimate] = useState<any>(null);
+  const [winningUser, setWinningUser] = useState<any>(null);
+  const [winningCurrentPrice, setWinningCurrentPrice] = useState<number>(0);
+  const [timeAddedBlink, setTimeAddedBlink] = useState<boolean>(false);
+  const [showWinnerDialog, setShowWinnerDialog] = useState<boolean>(false);
+  const [winnerData, setWinnerData] = useState<any>(null);
+  const [showGiveawayWinnerDialog, setShowGiveawayWinnerDialog] = useState<boolean>(false);
+  const [giveawayWinnerData, setGiveawayWinnerData] = useState<any>(null);
+  
+  // Track current user's bid for reliable state
+  const [currentUserBid, setCurrentUserBid] = useState<any>(null);
+  
+  // Track autobid max exceeded state
+  const previousHighestBidRef = useRef<number>(0);
+  const lastAlertedMaxBidRef = useRef<number>(0);
+  
+  
+  // Payment & Shipping Alert
+  const [showPaymentShippingAlert, setShowPaymentShippingAlert] = useState<boolean>(false);
+  const [showPaymentShippingIntermediateAlert, setShowPaymentShippingIntermediateAlert] = useState<boolean>(false);
+  const hasShownPaymentAlertRef = useRef<boolean>(false);
+  
+  // Track which auctions have already shown winner alerts (to prevent duplicates)
+  const shownWinnerAlertsRef = useRef<Set<string>>(new Set());
+  
+  // Buy Now Dialog
+  const [showBuyNowDialog, setShowBuyNowDialog] = useState<boolean>(false);
+  const [buyNowProduct, setBuyNowProduct] = useState<any>(null);
+  
+  // Custom Bid Dialog
+  const [showCustomBidDialog, setShowCustomBidDialog] = useState<boolean>(false);
+  
+  // Tip Seller Dialog
+  const [showTipDialog, setShowTipDialog] = useState<boolean>(false);
+  
+  // Order Detail Dialog
+  const [showOrderDetailDialog, setShowOrderDetailDialog] = useState<boolean>(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [orderItemsPage, setOrderItemsPage] = useState<number>(1);
+  
+  // Track if join message has been sent
+  const hasJoinedRef = useRef(false);
+  const auctionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Ref for auto-scrolling chat
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Mention/tagging state
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [currentMentions, setCurrentMentions] = useState<Array<{ id: string; name: string }>>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const messageInputRef = useRef<HTMLInputElement>(null);
+  
+  // Connect socket immediately on mount, disconnect on unmount
+  useEffect(() => {
+    console.log('📱 Show view mounted - connecting socket...');
+    connect();
+    
+    return () => {
+      console.log('📱 Show view unmounting - disconnecting socket...');
+      disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount/unmount
+  
+  // Join room immediately when socket is connected
+  const hasJoinedRoomRef = useRef(false);
+  useEffect(() => {
+    if (!id) return;
+    
+    console.log('🔄 Room join check:', {
+      isConnected,
+      hasJoined: hasJoinedRoomRef.current,
+      willJoin: isConnected && !hasJoinedRoomRef.current
+    });
+    
+    if (isConnected && !hasJoinedRoomRef.current) {
+      console.log('✅ Socket connected - joining room immediately:', id);
+      joinRoom(id);
+      hasJoinedRoomRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isConnected]);
+  
+  // Reset join flag when room ID changes
+  useEffect(() => {
+    hasJoinedRoomRef.current = false;
+  }, [id]);
+  
+  // Set mobile viewport height accounting for browser chrome
+  useEffect(() => {
+    const setVH = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--mobile-vh', `${window.innerHeight}px`);
+    };
+    
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+    
+    return () => {
+      window.removeEventListener('resize', setVH);
+      window.removeEventListener('orientationchange', setVH);
+    };
+  }, []);
+  
+  // Follow state - track locally
+  const [isFollowingHost, setIsFollowingHost] = useState(false);
+  
+  // LiveKit state
+  const [livekitEnabled, setLivekitEnabled] = useState(false);
+  
+  // Host conflict detection
+  const [showHostConflictDialog, setShowHostConflictDialog] = useState(false);
+  const [conflictingShow, setConflictingShow] = useState<any>(null);
+  const [proceedWithJoin, setProceedWithJoin] = useState(false);
+  
+  // Fetch single show from API
+  const currentUserId = (user as any)?._id || user?.id;
+  
+  // Initialize currentUserBid when activeAuction loads or changes
+  useEffect(() => {
+    if (!activeAuction || !currentUserId) {
+      setCurrentUserBid(null);
+      return;
+    }
+    
+    // Find user's existing bid in the loaded auction
+    // Handle both bid.user and bid.bidder formats
+    const userBid = activeAuction.bids?.find((bid: any) => 
+      bid.user?._id === currentUserId || 
+      bid.user?.id === currentUserId ||
+      bid.user === currentUserId ||
+      bid.bidder?._id === currentUserId ||
+      bid.bidder?.id === currentUserId ||
+      bid.bidder === currentUserId
+    );
+    
+    if (userBid) {
+      setCurrentUserBid(userBid);
+      console.log('💰 Initial currentUserBid set from activeAuction:', userBid);
+    } else {
+      setCurrentUserBid(null);
+    }
+  }, [activeAuction?._id, activeAuction?.id, currentUserId]); // Watch both _id and id
+  
+  const { data: show, isLoading, refetch: refetchShow } = useQuery<any>({
+    queryKey: ['/api/rooms', id, currentUserId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (currentUserId) {
+        params.set('currentUserId', currentUserId);
+      }
+      const url = `/api/rooms/${id}${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch show');
+      return response.json();
+    },
+    enabled: !!id,
+  });
+
+  // Fetch auction products for this show
+  const { data: auctionProductsData, refetch: refetchAuction } = useQuery<any>({
+    queryKey: ['/api/products', id, 'auction'],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        roomId: id!,
+        saletype: 'auction',
+        status: 'active',
+        page: '1',
+        limit: '50'
+      });
+      const url = `/api/products?${params.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) return { products: [] };
+      return response.json();
+    },
+    enabled: !!id,
+  });
+
+  // Fetch buy now products for this show
+  const { data: buyNowProductsData, refetch: refetchBuyNow } = useQuery<any>({
+    queryKey: ['/api/products', id, 'buy_now'],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        roomId: id!,
+        saletype: 'buy_now',
+        status: 'active',
+        page: '1',
+        limit: '50'
+      });
+      const url = `/api/products?${params.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) return { products: [] };
+      return response.json();
+    },
+    enabled: !!id,
+  });
+
+  // Fetch sold orders for this show
+  const { data: soldOrdersData, refetch: refetchSold } = useQuery<any>({
+    queryKey: ['/api/orders', id, 'sold'],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        tokshow: id!,
+        page: '1',
+        limit: '50'
+      });
+      const url = `/api/orders?${params.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) return { orders: [] };
+      return response.json();
+    },
+    enabled: !!id,
+  });
+
+  // Fetch giveaways for this show
+  const { data: giveawaysData, refetch: refetchGiveaways } = useQuery<any>({
+    queryKey: ['/api/giveaways', id],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        room: id!,
+        page: '1',
+        limit: '20'
+      });
+      const url = `/api/giveaways?${params.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) return { giveaways: [] };
+      return response.json();
+    },
+    enabled: !!id,
+  });
+
+  // Extract stable owner ID from show data to prevent infinite loops
+  const ownerId = useMemo(() => show?.owner?._id || show?.owner?.id, [show?.owner?._id, show?.owner?.id]);
+
+  // Persist owner ID in ref once available (for race condition protection)
+  const ownerIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (ownerId !== ownerIdRef.current) {
+      ownerIdRef.current = ownerId;
+      console.log('📌 Updated ownerId in ref:', ownerId);
+    }
+  }, [ownerId]);
+  
+  // Reset ownerIdRef when room/show changes
+  useEffect(() => {
+    return () => {
+      ownerIdRef.current = undefined;
+    };
+  }, [id]);
+
+  // Initialize viewers from show data
+  useEffect(() => {
+    if (show?.viewers && Array.isArray(show.viewers)) {
+      console.log('👥 Initializing viewers from show data:', show.viewers.length);
+      // Only update if the viewers count or content has actually changed
+      setViewers(prev => {
+        // Check if viewers array has actually changed
+        if (prev.length === show.viewers.length) {
+          const isSame = prev.every((viewer, index) => {
+            const showViewer = show.viewers[index];
+            return (viewer._id || viewer.userId) === (showViewer._id || showViewer.userId);
+          });
+          if (isSame) return prev; // No change, return previous to avoid re-render
+        }
+        return show.viewers;
+      });
+    }
+  }, [show]);
+
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // Helper: Find winner from bids (highest bidder)
+  const findWinner = useCallback((bids: any[]) => {
+    console.log('🏆 findWinner called with bids:', bids);
+    
+    if (!bids || bids.length === 0) {
+      console.log('  ❌ No bids, clearing winner');
+      setWinningUser(null);
+      setWinningCurrentPrice(0);
+      return null;
+    }
+    
+    const allBidAmounts = bids.map(bid => bid.amount);
+    const highestBid = Math.max(...allBidAmounts);
+    const winningBid = bids.find(bid => bid.amount === highestBid);
+    
+    console.log('  🎯 Highest bid:', highestBid);
+    console.log('  🎯 Winning bid:', winningBid);
+    console.log('  👤 Winner user:', winningBid?.user);
+    
+    // Bids have a 'user' field, not 'bidder'
+    const winner = winningBid?.user || winningBid?.bidder;
+    setWinningUser(winner);
+    setWinningCurrentPrice(highestBid);
+    
+    console.log('  ✅ Set winningUser to:', winner);
+    
+    return winningBid;
+  }, []);
+
+  // Helper: Get shipping estimate
+  const getShippingEstimate = useCallback(async (auction: any) => {
+    // Skip if user is the show owner (check persisted ownerIdRef for early events)
+    const stableOwnerId = ownerId || ownerIdRef.current;
+    if (stableOwnerId && isAuthenticated && currentUserId === stableOwnerId) {
+      console.log('🚫 Skipping shipping estimate: user is show owner');
+      return;
+    }
+    
+    if (!auction?.product?.shipping_profile || !currentUserId) {
+      console.log('🚫 Skipping shipping estimate:', {
+        hasShippingProfile: !!auction?.product?.shipping_profile,
+        hasCurrentUserId: !!currentUserId
+      });
+      return;
+    }
+    
+    try {
+      const payload = {
+        weight: auction.product.shipping_profile.weight,
+        unit: auction.product.shipping_profile.scale,
+        product: auction.product._id || auction.product.id,
+        update: true,
+        owner: ownerId,
+        customer: currentUserId,
+        tokshow: id,
+        buying_label: false
+      };
+      
+      console.log('📦 Fetching shipping estimate with payload:', payload);
+      
+      const response = await fetch('/api/shipping/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Shipping estimate received:', data);
+        setShippingEstimate({
+          amount: data.amount,
+          currency: data.currency,
+          rate_id: data.objectId,
+          bundleId: data.bundleId,
+          totalWeightOz: data.totalWeightOz,
+          seller_shipping_fee_pay: data.seller_shipping_fee_pay,
+          servicelevel: data.servicelevel?.name || ''
+        });
+      } else {
+        console.error('❌ Shipping estimate failed:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Error getting shipping estimate:', error);
+    }
+  }, [currentUserId, ownerId, id, isAuthenticated]);
+
+  // Helper: Start timer with endTime and server offset
+  const startTimerWithEndTime = useCallback((auction: any) => {
+    // Cancel existing timer
+    if (auctionTimerRef.current) {
+      clearInterval(auctionTimerRef.current);
+    }
+    
+    // Don't start timer if no endTime
+    if (!auction.endTime) {
+      console.log('⚠️ Cannot start timer: no endTime in auction', auction._id);
+      return;
+    }
+    
+    console.log('⏰ Starting timer with endTime:', auction.endTime, 'Current time:', Date.now());
+    
+    const serverOffset = auction.serverOffset || 0;
+    
+    // Calculate and set initial time IMMEDIATELY (don't wait for interval)
+    const adjustedNow = Date.now() + serverOffset;
+    const initialRemaining = Math.floor((auction.endTime - adjustedNow) / 1000);
+    if (initialRemaining > 0) {
+      setAuctionTimeLeft(initialRemaining);
+    }
+    
+    auctionTimerRef.current = setInterval(() => {
+      // Get current endTime from state instead of closure
+      setActiveAuction((currentAuction: any) => {
+        if (!currentAuction || !currentAuction.endTime) {
+          if (auctionTimerRef.current) {
+            clearInterval(auctionTimerRef.current);
+          }
+          setAuctionTimeLeft(0);
+          return currentAuction;
+        }
+        
+        const adjustedNow = Date.now() + (currentAuction.serverOffset || serverOffset);
+        const remaining = Math.floor((currentAuction.endTime - adjustedNow) / 1000);
+        
+        if (remaining <= 0) {
+          setAuctionTimeLeft(0);
+          if (auctionTimerRef.current) {
+            clearInterval(auctionTimerRef.current);
+          }
+          
+          // Show winner alert when timer expires (only once per auction)
+          const auctionId = currentAuction._id;
+          if (auctionId && !shownWinnerAlertsRef.current.has(auctionId)) {
+            shownWinnerAlertsRef.current.add(auctionId);
+            
+            const winner = findWinner(currentAuction.bids || []);
+            if (winner) {
+              const winnerName = winner.user?.userName || winner.bidder?.userName || 'Someone';
+              const winAmount = winner.amount || currentAuction.higestbid || currentAuction.newbaseprice;
+              
+              setWinnerData({
+                name: winnerName,
+                amount: winAmount,
+                profileImage: winner.user?.profilePhoto,
+                user: winner.user
+              });
+            }
+          }
+          
+          // Don't set ended: true here! Wait for server's auction-ended event
+          return currentAuction;
+        } else {
+          setAuctionTimeLeft(remaining);
+          return currentAuction;
+        }
+      });
+    }, 1000);
+  }, [findWinner]);
+
+  // Reset join flag when room ID changes
+  useEffect(() => {
+    hasJoinedRef.current = false;
+    setImageError(false); // Reset image error state
+  }, [id]);
+
+  // Check if user is already in invitedhostIds when show data loads
+  useEffect(() => {
+    if (show && currentUserId) {
+      const invitedIds = show.invitedhostIds || show.invited_host_ids || [];
+      setIsNotificationSaved(invitedIds.includes(currentUserId));
+    }
+  }, [show, currentUserId]);
+
+  // Initialize activeAuction, activeGiveaway, and pinnedProduct from show data (for page refresh)
+  useEffect(() => {
+    console.log('🔄 Initialization useEffect running. Show data:', show);
+    if (show) {
+      const showActiveAuction = show.activeauction || show.activeAuction || show.active_auction;
+      console.log('🔍 BEFORE setActiveAuction - showActiveAuction:', showActiveAuction);
+      
+      // Validate that showActiveAuction is a real auction object, not an empty Mongoose document
+      // Empty Mongoose docs have {$__, $isNew, _doc, success} but no actual auction data
+      // Check for: valid _id, product object exists, and has bids array (even if empty)
+      const isValidAuction = showActiveAuction && 
+        showActiveAuction._id && 
+        typeof showActiveAuction._id === 'string' &&
+        showActiveAuction._id.length > 0 &&
+        showActiveAuction.product &&
+        Array.isArray(showActiveAuction.bids);
+      
+      // Check if the auction has ended
+      // Calculate endTime from startedTime + duration if not present
+      let calculatedEndTime = showActiveAuction?.endTime;
+      if (!calculatedEndTime && showActiveAuction?.startedTime && showActiveAuction?.duration) {
+        calculatedEndTime = showActiveAuction.startedTime + (showActiveAuction.duration * 1000);
+      }
+      
+      const isAuctionEnded = showActiveAuction?.ended === true || 
+        (calculatedEndTime && Date.now() >= (typeof calculatedEndTime === 'string' ? new Date(calculatedEndTime).getTime() : calculatedEndTime));
+      
+      if (isValidAuction && !isAuctionEnded) {
+        console.log('📦 Initializing active auction from show data:', showActiveAuction);
+        console.log('🔍 Show activeauction bids:', showActiveAuction.bids);
+        console.log('🔍 Show activeauction ended:', showActiveAuction.ended);
+        console.log('🔍 Full show object keys:', Object.keys(show));
+        
+        // Calculate endTime if not present
+        if (!showActiveAuction.endTime && showActiveAuction.duration > 0) {
+          showActiveAuction.endTime = Date.now() + (showActiveAuction.duration * 1000);
+        }
+        
+        console.log('🔍 CALLING setActiveAuction with:', showActiveAuction);
+        setActiveAuction(showActiveAuction);
+        console.log('🔍 AFTER setActiveAuction called');
+      } else if (isAuctionEnded) {
+        console.log('⏰ Auction in show data has ended - setting it to show on overlay');
+        // Set the ended auction so it shows on the overlay
+        setActiveAuction(showActiveAuction);
+        
+        // Find winner and get shipping estimate for ended auction
+        findWinner(showActiveAuction.bids || []);
+        getShippingEstimate(showActiveAuction);
+      } else {
+        console.log('⚠️ NO valid activeAuction found in show data (might be empty Mongoose doc), NOT updating activeAuction state');
+      }
+      
+      const showActiveGiveaway = show.pinned_giveaway || show.pinnedGiveaway || show.activegiveaway || show.activeGiveaway || show.active_giveaway;
+      if (showActiveGiveaway) {
+        console.log('📦 Initializing active giveaway from show data:', showActiveGiveaway);
+        setActiveGiveaway(showActiveGiveaway);
+      }
+      
+      // Initialize pinned product from show data
+      if (show.pinned) {
+        console.log('📌 Initializing pinned product from show data:', show.pinned);
+        setPinnedProduct(show.pinned);
+        
+        // Get shipping estimate for pinned product (skip if user is show owner)
+        const hostId = show?.owner?._id || show?.owner?.id;
+        const isOwner = isAuthenticated && currentUserId === hostId;
+        
+        if (show.pinned.shipping_profile && !isOwner) {
+          const pinnedPayload = {
+            weight: show.pinned.shipping_profile.weight,
+            unit: show.pinned.shipping_profile.scale,
+            product: show.pinned._id || show.pinned.id,
+            update: true,
+            owner: show?.owner?._id || show?.owner?.id,
+            customer: currentUserId,
+            tokshow: id,
+            buying_label: false
+          };
+          
+          console.log('📦 Fetching shipping estimate for pinned product:', pinnedPayload);
+          
+          fetch('/api/shipping/estimate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pinnedPayload)
+          })
+            .then(res => res.json())
+            .then(data => {
+              console.log('✅ Pinned product shipping estimate received:', data);
+              setShippingEstimate({
+                amount: data.amount,
+                currency: data.currency,
+                rate_id: data.objectId,
+                bundleId: data.bundleId,
+              });
+            })
+            .catch(err => console.error('❌ Error fetching pinned product shipping:', err));
+        } else if (isOwner) {
+          console.log('🚫 Skipping shipping estimate for pinned product: user is show owner');
+        }
+      } else {
+        setPinnedProduct(null);
+      }
+    }
+  }, [show]);
+
+  // Auto-connect to LiveKit if show has already started
+  useEffect(() => {
+    console.log('🎥 Auto-connect check:', {
+      hasShow: !!show,
+      status: show?.status,
+      started: show?.started,
+      ended: show?.ended,
+      willConnect: show && show.started === true && !show?.ended
+    });
+    
+    // Don't enable LiveKit if show has ended
+    if (show?.ended) {
+      console.log('❌ Show has ended, not enabling LiveKit');
+      setLivekitEnabled(false);
+      return;
+    }
+    
+    // Don't enable LiveKit if show hasn't started
+    if (show && !show.started) {
+      console.log('❌ Show has not started yet, not enabling LiveKit');
+      setLivekitEnabled(false);
+      return;
+    }
+    
+    if (show && show.started === true) {
+      console.log('✅ Auto-enabling LiveKit connection');
+      setLivekitEnabled(true);
+    }
+  }, [show]);
+
+  // Check for host conflicts before joining room
+  useEffect(() => {
+    if (!socket || !id || !isConnected) return;
+    
+    // If user is not authenticated, allow immediate join
+    if (!isAuthenticated || !currentUserId) {
+      setProceedWithJoin(true);
+      return;
+    }
+    
+    // Check if user has an active show running
+    const checkActiveShows = async () => {
+      try {
+        const params = new URLSearchParams({
+          page: "1",
+          limit: "10",
+          userid: currentUserId,
+          currentUserId: currentUserId,
+          status: "active"
+        });
+        
+        const response = await fetch(`/api/rooms?${params.toString()}`, {
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          setProceedWithJoin(true);
+          return;
+        }
+        
+        const data = await response.json();
+        const activeShows = data.rooms || [];
+        
+        // Find shows where user is the owner and show has started but not ended
+        const userActiveShows = activeShows.filter((s: any) => {
+          const ownerId = s.owner?._id || s.owner?.id;
+          return ownerId === currentUserId && s.started === true && !s.ended;
+        });
+        
+        // If user has an active show and is trying to join a different one
+        if (userActiveShows.length > 0 && userActiveShows[0]._id !== id) {
+          console.log('⚠️ Host conflict detected:', {
+            activeShow: userActiveShows[0]._id,
+            attemptingToJoin: id
+          });
+          setConflictingShow(userActiveShows[0]);
+          setShowHostConflictDialog(true);
+          return; // Don't join yet
+        }
+        
+        // No conflict, proceed with joining
+        setProceedWithJoin(true);
+      } catch (error) {
+        console.error('Error checking active shows:', error);
+        // On error, allow joining anyway
+        setProceedWithJoin(true);
+      }
+    };
+    
+    checkActiveShows();
+  }, [socket, id, isConnected, isAuthenticated, currentUserId]);
+
+
+  // Socket.IO real-time event listeners (refactored into custom hook)
+  useShowSocketEvents({
+    socket,
+    roomId: id,
+    isConnected,
+    proceedWithJoin,
+    isAuthenticated,
+    user,
+    currentUserId,
+    joinRoom,
+    leaveRoom,
+    disconnect,
+    setViewers,
+    setPinnedProduct,
+    setActiveAuction,
+    setActiveGiveaway,
+    setShippingEstimate,
+    setWinnerData,
+    setShowWinnerDialog,
+    setGiveawayWinnerData,
+    setShowGiveawayWinnerDialog,
+    setTimeAddedBlink,
+    setCurrentUserBid,
+    previousHighestBidRef,
+    lastAlertedMaxBidRef,
+    findWinner,
+    startTimerWithEndTime,
+    getShippingEstimate,
+    refetchAuction,
+    refetchGiveaways,
+    shownWinnerAlertsRef,
+  });
+
+
+  // Subscribe to Firebase room messages
+  useEffect(() => {
+    if (!id) return;
+    
+    console.log(`📨 Subscribing to Firebase room messages for show: ${id}`);
+    
+    const unsubscribe = subscribeToRoomMessages(
+      id,
+      (messages) => {
+        console.log(`📨 Received ${messages.length} messages from Firebase:`, messages);
+        const formattedMessages = messages.map(msg => ({
+          message: msg.message,
+          senderName: msg.senderName,
+          senderId: msg.sender,
+          timestamp: msg.date,
+          image_url: msg.senderProfileUrl,
+          mentions: msg.mentions || []
+        }));
+        console.log('📨 Formatted messages:', formattedMessages);
+        setChatMessages(formattedMessages);
+      },
+      (error) => {
+        console.error('❌ Error loading room messages:', error);
+      }
+    );
+    
+    return () => {
+      console.log(`📨 Unsubscribing from Firebase room messages for show: ${id}`);
+      unsubscribe();
+    };
+  }, [id]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [chatMessages]);
+
+  // Search users for mentions
+  const searchUsers = async (query: string) => {
+    if (!query || query.length < 1) {
+      setUserSuggestions([]);
+      return;
+    }
+    
+    setIsSearchingUsers(true);
+    try {
+      const response = await fetch(`/users?title=${encodeURIComponent(query)}&page=1&limit=10`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserSuggestions(data.users || data.data || []);
+      } else {
+        setUserSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setUserSuggestions([]);
+    } finally {
+      setIsSearchingUsers(false);
+    }
+  };
+  
+  // Handle message input change with @ detection
+  const handleMessageChange = (text: string) => {
+    setMessage(text);
+    
+    // Check if last word starts with @
+    const words = text.split(' ');
+    const lastWord = words[words.length - 1];
+    
+    if (lastWord.startsWith('@') && lastWord.length > 1) {
+      // Search for users
+      const searchQuery = lastWord.substring(1);
+      searchUsers(searchQuery);
+      setShowMentionDialog(true);
+    } else {
+      // Clear suggestions
+      setUserSuggestions([]);
+      setShowMentionDialog(false);
+    }
+  };
+  
+  // Handle mention selection
+  const selectMention = (userName: string, userId: string) => {
+    const words = message.split(' ');
+    const lastWord = words[words.length - 1];
+    
+    // Replace the @word with @username followed by space
+    const newText = lastWord.startsWith('@')
+      ? message.substring(0, message.length - lastWord.length) + `@${userName} `
+      : `${message} @${userName} `;
+    
+    setMessage(newText);
+    
+    // Add to current mentions
+    setCurrentMentions(prev => [...prev, { id: userId, name: userName }]);
+    
+    // Clear suggestions and close dialog
+    setUserSuggestions([]);
+    setShowMentionDialog(false);
+    
+    // Focus back on input and move cursor to end
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
+      setTimeout(() => {
+        if (messageInputRef.current) {
+          messageInputRef.current.setSelectionRange(newText.length, newText.length);
+        }
+      }, 0);
+    }
+  };
+  
+  // Render message with clickable mentions
+  const renderMessageWithMentions = (messageText: string, mentions: Array<{ id: string; name: string }> = []) => {
+    // Check if message is a question (contains '?')
+    const isQuestion = messageText.includes('?');
+    const baseTextColor = isQuestion ? 'text-yellow-400' : 'text-zinc-300';
+    
+    if (!mentions || mentions.length === 0) {
+      return <span className={`text-xs ${baseTextColor}`}>{messageText}</span>;
+    }
+
+    const parts: JSX.Element[] = [];
+    let lastIndex = 0;
+
+    // Sort mentions by their position in the text to process them in order
+    const sortedMentions = [...mentions].sort((a, b) => {
+      const handleA = `@${a.name}`;
+      const handleB = `@${b.name}`;
+      const indexA = messageText.indexOf(handleA, lastIndex);
+      const indexB = messageText.indexOf(handleB, lastIndex);
+      return indexA - indexB;
+    });
+
+    sortedMentions.forEach((mention, idx) => {
+      const handle = `@${mention.name}`;
+      const mentionIndex = messageText.indexOf(handle, lastIndex);
+
+      if (mentionIndex === -1) return;
+
+      // Add text before mention
+      if (mentionIndex > lastIndex) {
+        parts.push(
+          <span key={`text-${idx}`} className={`text-xs ${baseTextColor}`}>
+            {messageText.substring(lastIndex, mentionIndex)}
+          </span>
+        );
+      }
+
+      // Add clickable mention
+      parts.push(
+        <span
+          key={`mention-${idx}`}
+          onClick={() => window.open(`/profile/${mention.id}`, '_blank')}
+          className="text-xs text-primary font-bold cursor-pointer hover:underline"
+        >
+          {handle}
+        </span>
+      );
+
+      lastIndex = mentionIndex + handle.length;
+    });
+
+    // Add remaining text after last mention
+    if (lastIndex < messageText.length) {
+      parts.push(
+        <span key="text-end" className={`text-xs ${baseTextColor}`}>
+          {messageText.substring(lastIndex)}
+        </span>
+      );
+    }
+
+    return <span>{parts}</span>;
+  };
+
+  // Helper function to send chat message
+  const handleSendMessage = async (messageText: string) => {
+    if (!id || !messageText.trim() || !currentUserId) return;
+    
+    const userName = (user as any)?.userName || user?.firstName || 'Guest';
+    const userPhoto = (user as any)?.profilePhoto || '';
+    const mentionsToSend = [...currentMentions];
+    
+    console.log('Sending message with mentions:', mentionsToSend);
+    
+    // Clear input immediately for instant feedback
+    setMessage('');
+    setCurrentMentions([]);
+    setUserSuggestions([]);
+    
+    try {
+      await sendRoomMessage(
+        id,
+        messageText.trim(),
+        currentUserId,
+        userName,
+        userPhoto,
+        mentionsToSend
+      );
+      
+      console.log('Message sent successfully');
+      
+      // Send notifications to mentioned users
+      if (mentionsToSend.length > 0) {
+        console.log('Sending notifications to:', mentionsToSend.map(m => m.id));
+        try {
+          const notifResponse = await fetch('/notifications', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              title: `${userName} mentioned you`,
+              ids: mentionsToSend.map(m => m.id),
+              message: "-",
+              screen: "RoomScreen",
+              id: id,
+              sender: currentUserId,
+              senderName: userName,
+              senderphoto: userPhoto
+            })
+          });
+          console.log('Notification response status:', notifResponse.status);
+        } catch (notifError) {
+          console.error('Error sending mention notifications:', notifError);
+          // Don't show error to user, notification failure shouldn't block message sending
+        }
+      } else {
+        console.log('No mentions to send notifications for');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Restore message if sending failed
+      setMessage(messageText);
+      setCurrentMentions(mentionsToSend);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Giveaway timer
+  useEffect(() => {
+    if (!activeGiveaway || activeGiveaway.ended) return;
+    
+    const interval = setInterval(() => {
+      const startTime = activeGiveaway.startedTime || 0;
+      const duration = activeGiveaway.duration || 60; // Default 60 seconds
+      const endTime = startTime + (duration * 1000);
+      const now = Date.now();
+      const timeLeft = Math.max(0, Math.floor((endTime - now) / 1000));
+      
+      setGiveawayTimeLeft(timeLeft);
+    }, 100);
+    
+    return () => clearInterval(interval);
+  }, [activeGiveaway]);
+
+  // Helper function to check if user has payment and shipping info
+  const hasPaymentAndShipping = () => {
+    if (!user) return false;
+    const userData = user as any;
+    return !!(userData.address && userData.defaultpaymentmethod);
+  };
+
+  // Check for payment/shipping when joining show (once per session)
+  useEffect(() => {
+    const checkPaymentShipping = async () => {
+      // Wait for show data to load before checking
+      if (!show || !user || hasShownPaymentAlertRef.current) return;
+      
+      // Check if user is the show owner
+      const hostId = show?.owner?._id || show?.owner?.id;
+      const isOwner = isAuthenticated && currentUserId === hostId;
+      if (isOwner) return;
+      
+      // Refresh user data to get latest address/payment info from API
+      await refreshUserData();
+      
+      // Check if user has payment and shipping after refresh
+      if (!hasPaymentAndShipping()) {
+        setShowPaymentShippingIntermediateAlert(true);
+        hasShownPaymentAlertRef.current = true;
+      }
+    };
+    
+    checkPaymentShipping();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, show]); // Check when user ID changes or show loads
+
+  // Refresh products when switching tabs
+  useEffect(() => {
+    if (productTab === 'Auction') {
+      refetchAuction();
+    } else if (productTab === 'Buy Now') {
+      refetchBuyNow();
+    } else if (productTab === 'Sold') {
+      refetchSold();
+    } else if (productTab === 'Giveaways') {
+      refetchGiveaways();
+    }
+  }, [productTab, refetchAuction, refetchBuyNow, refetchSold, refetchGiveaways]);
+
+  // Place bid mutation - supports both regular and custom bids
+  const placeBidMutation = useMutation({
+    mutationFn: async (options: number | { amount: number; custom?: { autobid: boolean; autobidAmount: number } }) => {
+      if (!socket || !activeAuction) throw new Error('Cannot place bid');
+      
+      // Check if user has payment and shipping info before bidding
+      if (!hasPaymentAndShipping()) {
+        setShowPaymentShippingIntermediateAlert(true);
+        throw new Error('Please add payment and shipping information before bidding');
+      }
+      
+      // Parse options - support both old number format and new object format
+      const isCustomBid = typeof options === 'object' && options.custom;
+      const amount = typeof options === 'number' ? options : options.amount;
+      const customOptions = typeof options === 'object' ? options.custom : undefined;
+      
+      // Use reliable currentUserBid state instead of scanning activeAuction.bids
+      const inheritCustomBidFlag = currentUserBid?.custom_bid || false;
+      const existingMaxBid = currentUserBid?.autobidamount;
+      
+      const bidPayload = {
+        user: currentUserId,
+        amount: isCustomBid ? (activeAuction.newbaseprice || activeAuction.baseprice || 1) : amount,
+        increaseBidBy: activeAuction.increaseBidBy || 5,
+        auction: activeAuction._id || activeAuction.id,
+        prebid: false,
+        autobid: isCustomBid ? customOptions!.autobid : false,
+        autobidamount: isCustomBid ? customOptions!.autobidAmount : (existingMaxBid || amount),
+        custom_bid: isCustomBid ? true : inheritCustomBidFlag,
+        roomId: id
+      };
+      
+      console.log('💰 Placing bid:', bidPayload);
+      console.log('📡 Socket connected:', socket.connected);
+      console.log('  Using currentUserBid:', currentUserBid);
+      
+      socket.emit('place-bid', bidPayload);
+      
+      console.log('✅ place-bid event emitted');
+    },
+    onSuccess: () => {
+      setBidAmount('');
+    }
+  });
+
+  // Prebid mutation
+  const prebidMutation = useMutation({
+    mutationFn: async ({ listing, amount }: { listing: any; amount: number }) => {
+      // Check if user has payment and shipping info before prebidding
+      if (!hasPaymentAndShipping()) {
+        setShowPaymentShippingIntermediateAlert(true);
+        throw new Error('Please add payment and shipping information before prebidding');
+      }
+
+      // Use the NESTED auction ID from listing.auction._id
+      const auctionId = listing.auction?._id || listing.auction?.id;
+      if (!auctionId) {
+        throw new Error('Auction ID not found in listing');
+      }
+      
+      const payload = {
+        user: currentUserId,
+        amount: amount,
+        increaseBidBy: listing.auction?.increaseBidBy || listing.increaseBidBy || 5,
+        auction: auctionId,  // This is the nested auction ID
+        prebid: true,
+        autobid: true,
+        autobidamount: amount,
+        roomId: id
+      };
+
+      const response = await apiRequest('PUT', `/api/auction/bid/${auctionId}`, payload);
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Prebid Placed!",
+        description: "Your prebid has been registered successfully"
+      });
+      setShowPrebidDialog(false);
+      setPrebidAmount('');
+      setPrebidAuction(null);
+      refetchAuction();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Place Prebid",
+        description: error.message || "Failed to place prebid",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Join giveaway mutation
+  const joinGiveawayMutation = useMutation({
+    mutationFn: async () => {
+      if (!socket || !activeGiveaway) throw new Error('Cannot join giveaway');
+      
+      // Check if user has an address (matching Flutter validation)
+      const addressResponse = await fetch(`/api/address/all/${currentUserId}`);
+      if (addressResponse.ok) {
+        const addresses = await addressResponse.json();
+        if (!addresses || addresses.length === 0) {
+          throw new Error('Please add a shipping address before entering giveaways');
+        }
+      }
+      
+      // Check if user is already a participant (matching Flutter validation)
+      const participants = activeGiveaway.participants || [];
+      const isAlreadyParticipant = participants.some((p: any) => 
+        (typeof p === 'string' ? p : p.id || p._id) === currentUserId
+      );
+      if (isAlreadyParticipant) {
+        throw new Error('You have already entered this giveaway');
+      }
+      
+      // Emit join-giveaway with correct structure (matching Flutter)
+      socket.emit('join-giveaway', {
+        giveawayId: activeGiveaway._id || activeGiveaway.id,
+        showId: id,
+        userId: currentUserId
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Joined Giveaway!",
+        description: "Good luck!"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Join Giveaway",
+        description: error.message || "Failed to join giveaway",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Delete product mutation
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      // Check if this is a giveaway
+      const isGiveaway = selectedProduct?.saletype === 'giveaway' || 
+                         selectedProduct?.listing_type === 'giveaway' ||
+                         giveaways.some((g: any) => g._id === productId);
+      
+      if (isGiveaway) {
+        // Delete giveaway using DELETE /api/giveaways/:id
+        const response = await fetch(`/api/giveaways/${productId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to delete giveaway');
+        }
+        return response.json();
+      } else {
+        // Delete regular product using PUT /api/products/:id/delete
+        const response = await fetch(`/api/products/${productId}/delete`, {
+          method: 'PUT',
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to delete product');
+        }
+        return response.json();
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/giveaways'] });
+      refetchAuction();
+      refetchBuyNow();
+      refetchGiveaways();
+      toast({
+        title: "Deleted Successfully",
+        description: "Item has been removed successfully"
+      });
+      setShowDeleteConfirm(false);
+      setProductActionSheet(false);
+      setSelectedProduct(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete item",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Follow user mutation
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentUserId || !hostId) {
+        throw new Error('Missing user or host ID');
+      }
+      const response = await fetch(`/api/follow/${currentUserId}/${hostId}`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to follow user');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsFollowingHost(true);
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/session'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms', id, currentUserId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Follow Failed",
+        description: error.message || "Failed to follow user",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Unfollow user mutation
+  const unfollowMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentUserId || !hostId) {
+        throw new Error('Missing user or host ID');
+      }
+      const response = await fetch(`/api/unfollow/${currentUserId}/${hostId}`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to unfollow user');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsFollowingHost(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/session'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms', id, currentUserId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Unfollow Failed",
+        description: error.message || "Failed to unfollow user",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleFollowToggle = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to follow users",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (isFollowingHost) {
+      unfollowMutation.mutate();
+    } else {
+      followMutation.mutate();
+    }
+  };
+
+  // Handler for "Follow host to enter giveaway" button (matches Flutter behavior)
+  const handleFollowAndJoinGiveaway = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to enter giveaways",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // First, follow the host
+      if (!currentUserId || !hostId) {
+        throw new Error('Missing user or host ID');
+      }
+      
+      const followResponse = await fetch(`/api/follow/${currentUserId}/${hostId}`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      
+      if (!followResponse.ok) {
+        const error = await followResponse.json();
+        throw new Error(error.error || 'Failed to follow user');
+      }
+      
+      // Update following state
+      setIsFollowingHost(true);
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/session'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms', id, currentUserId] });
+      
+      // Then join the giveaway (matching Flutter behavior)
+      joinGiveawayMutation.mutate();
+      
+    } catch (error: any) {
+      toast({
+        title: "Failed to Enter Giveaway",
+        description: error.message || "Could not follow host",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const host = show?.owner;
+  const isLive = show?.started === true;
+  const viewerCount = viewers.length || show?.viewers?.length || 0;
+  const hostName = host?.userName || host?.firstName?.trim() || 'Host';
+  const hostAvatar = host?.profilePhoto && host.profilePhoto.trim() ? host.profilePhoto : '';
+  const showTitle = show?.title || 'Show';
+  const showThumbnail = (show?.thumbnail && show.thumbnail.trim()) ? show.thumbnail.trim() : null;
+  const averageReviews = host?.averagereviews ?? 0;
+  const hasValidThumbnail = showThumbnail !== null && !imageError;
+  const hasExplicitContent = show?.explicitContent === true || show?.explicit_content === true;
+  const shippingOptions = show?.shippingOptions || show?.shipping_options;
+  const hasFreePickup = shippingOptions?.freePickupEnabled === true || shippingOptions?.free_pickup_enabled === true;
+  const hasBuyerCap = shippingOptions?.shippingCostMode === "buyer_pays_up_to" || shippingOptions?.shipping_cost_mode === "buyer_pays_up_to";
+  
+  // Format scheduled time
+  const scheduledAt = show?.date || show?.scheduledAt || show?.scheduled_at;
+  const formatScheduledTime = (timestamp: string | number) => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    const now = new Date();
+    
+    // If scheduled time is in the past, show "Starting soon"
+    if (date < now) {
+      return 'Starting soon';
+    }
+    
+    if (isToday(date)) {
+      return `Today ${format(date, 'HH:mm')}`;
+    } else if (isTomorrow(date)) {
+      return `Tomorrow ${format(date, 'HH:mm')}`;
+    } else {
+      return format(date, 'MMM d, HH:mm');
+    }
+  };
+  const scheduledTimeText = scheduledAt ? formatScheduledTime(scheduledAt) : null;
+  
+  // Calculate actual highest bid from bids array (newbaseprice is already +1, so don't use it)
+  const highestBidFromArray = activeAuction?.bids?.reduce((max: number, bid: any) => 
+    Math.max(max, bid.amount || 0), 0
+  ) || 0;
+  const currentBid = highestBidFromArray || activeAuction?.newbaseprice || activeAuction?.baseprice || activeAuction?.product?.startingPrice || activeAuction?.startingPrice || 0;
+  
+  // Debug logging for current bid calculation
+  if (activeAuction) {
+    console.log('💰 CURRENT BID CALCULATION:', {
+      hasBids: !!activeAuction.bids,
+      bidsLength: activeAuction.bids?.length,
+      highestBidFromArray,
+      newbaseprice: activeAuction?.newbaseprice,
+      baseprice: activeAuction?.baseprice,
+      productStartingPrice: activeAuction?.product?.startingPrice,
+      auctionStartingPrice: activeAuction?.startingPrice,
+      finalCurrentBid: currentBid,
+      activeAuctionKeys: Object.keys(activeAuction)
+    });
+  }
+  const isUserWinning = activeAuction?.bids?.some((b: any) => 
+    (b.bidder?.id === currentUserId || b.bidder?._id === currentUserId) && 
+    b.amount === currentBid
+  );
+
+  // Extract products from API responses - display exactly what comes from the API
+  const auctionProducts = auctionProductsData?.products || [];
+  const buyNowProducts = buyNowProductsData?.products || [];
+  const giveawayProducts = giveawaysData?.giveaways || [];
+  const soldProducts = soldOrdersData?.orders || [];
+  
+  const soldOrders = soldOrdersData?.orders || [];
+  const giveaways = giveawaysData?.giveaways || [];
+
+  // Check if current user is the show owner
+  const hostId = host?._id || host?.id;
+  const isShowOwner = isAuthenticated && currentUserId === hostId;
+  
+  // Initialize LiveKit for video streaming
+  // Role is determined server-side based on room ownership
+  const livekit = useLiveKit({
+    roomId: id || '',
+    userId: currentUserId || '',
+    userName: user?.userName || user?.firstName || currentUserId || '',
+    enabled: livekitEnabled && isLive,
+  });
+  
+  // Extract livekit properties for VideoCenter (avoid name conflicts)
+  const livekitRoom = livekit.room;
+  const livekitIsConnecting = livekit.isConnecting;
+  const livekitIsConnected = livekit.isConnected;
+  
+  // Initialize follow state from host's followers list
+  useEffect(() => {
+    if (host?.followers && currentUserId) {
+      const isCurrentlyFollowing = host.followers.includes(currentUserId);
+      setIsFollowingHost(isCurrentlyFollowing);
+    }
+  }, [host, currentUserId]);
+
+  // Auto-enable LiveKit for viewers when show is live
+  useEffect(() => {
+    // Don't enable if show has ended
+    if (show?.ended) {
+      console.log('❌ Show has ended, not enabling LiveKit for viewer');
+      setLivekitEnabled(false);
+      return;
+    }
+    
+    // Don't enable if show hasn't started
+    if (show && !show.started) {
+      console.log('❌ Show has not started, not enabling LiveKit for viewer');
+      setLivekitEnabled(false);
+      return;
+    }
+    
+    if (isLive && !isShowOwner && !livekitEnabled) {
+      console.log('🔴 Show is live, enabling LiveKit for viewer...');
+      setLivekitEnabled(true);
+    }
+  }, [isLive, isShowOwner, livekitEnabled, show?.ended, show?.started]);
+
+  // Handler to open product action sheet
+  const handleProductAction = (product: any) => {
+    console.log('🛒 Opening product action sheet:', {
+      product,
+      showStatus: show?.status,
+      showStarted: show?.started,
+      isLive,
+      productSaletype: product?.saletype,
+      productListingType: product?.listing_type
+    });
+    setSelectedProduct(product);
+    setProductActionSheet(true);
+  };
+
+  // Handler to open add product dialog
+  const handleAddProduct = (type: 'auction' | 'buy_now' | 'giveaway') => {
+    setAddProductType(type);
+    setShowAddProductDialog(true);
+  };
+
+  // Handler to open auction settings dialog
+  const handleOpenAuctionSettings = () => {
+    if (!selectedProduct) return;
+    
+    // Pre-fill settings with product data
+    setAuctionSettings({
+      startingPrice: selectedProduct.startingPrice || selectedProduct.price || 0,
+      duration: selectedProduct.duration || 10,
+      sudden: selectedProduct.sudden || false,
+      counterBidTime: 5
+    });
+    
+    setProductActionSheet(false);
+    setShowAuctionSettingsDialog(true);
+  };
+
+  // Handler to rerun an ended auction
+  const handleRerunAuction = () => {
+    if (!activeAuction?.product) return;
+    
+    // Set the product from the ended auction
+    setSelectedProduct(activeAuction.product);
+    
+    // Pre-fill settings with the previous auction data
+    setAuctionSettings({
+      startingPrice: activeAuction.baseprice || activeAuction.startingPrice || activeAuction.product.startingPrice || 0,
+      duration: activeAuction.duration || 10,
+      sudden: activeAuction.sudden || false,
+      counterBidTime: activeAuction.increaseBidBy || 5
+    });
+    
+    setShowAuctionSettingsDialog(true);
+  };
+
+  // Handler to pin/unpin product
+  const handlePinProduct = () => {
+    if (!socket || !selectedProduct || !id) return;
+    
+    const isPinned = pinnedProduct?._id === selectedProduct._id;
+    
+    // Emit pin-product event matching Flutter app structure
+    socket.emit('pin-product', {
+      pinned: !isPinned, // true to pin, false to unpin
+      product: selectedProduct._id,
+      tokshow: id
+    });
+    
+    console.log('📌 Pin product emitted:', {
+      pinned: !isPinned,
+      product: selectedProduct._id,
+      tokshow: id
+    });
+    
+    setProductActionSheet(false);
+  };
+  
+  // Handler to start auction with settings
+  const handleStartAuctionWithSettings = () => {
+    if (!socket || !selectedProduct) return;
+    
+    // Extract auction ID from product
+    const auctionId = typeof selectedProduct.auction === 'string' 
+      ? selectedProduct.auction 
+      : selectedProduct.auction?._id;
+    
+    console.log('🎯 Product auction info:', {
+      productId: selectedProduct._id,
+      auctionField: selectedProduct.auction,
+      extractedAuctionId: auctionId
+    });
+    
+    // Build auction object manually - don't spread all auction fields
+    const auctionData = {
+      _id: auctionId,
+      winner: null,
+      higestbid: 0,
+      winning: false,
+      bids: [],
+      tokshow: id,
+      sudden: auctionSettings.sudden,
+      owner: currentUserId,
+      increaseBidBy: auctionSettings.counterBidTime,
+      baseprice: auctionSettings.startingPrice,
+      product: selectedProduct._id || selectedProduct.id,
+      duration: auctionSettings.duration,
+      startedTime: null,
+      started: false,
+      ended: false
+    };
+    
+    console.log('🎯 Starting auction:', {
+      roomId: id,
+      auction: auctionData,
+      increaseBidBy: auctionSettings.counterBidTime
+    });
+    
+    console.log('📡 Socket status before emit:', {
+      connected: socket.connected,
+      id: socket.id,
+      hasListeners: socket.hasListeners('auction-started')
+    });
+    
+    socket.emit('start-auction', {
+      roomId: id,
+      auction: auctionData,
+      increaseBidBy: auctionSettings.counterBidTime
+    });
+    
+    console.log('✅ start-auction event emitted to external API');
+    
+    setShowAuctionSettingsDialog(false);
+    setSelectedProduct(null);
+  };
+
+  // Handler to start giveaway
+  const handleStartGiveaway = () => {
+    if (!socket || !selectedProduct || !id) return;
+    
+    console.log('🎁 Starting giveaway:', {
+      giveawayId: selectedProduct._id,
+      showId: id
+    });
+    
+    // Emit start-giveaway event matching Flutter app structure
+    socket.emit('start-giveaway', {
+      giveawayId: selectedProduct._id,
+      showId: id
+    });
+    
+    setProductActionSheet(false);
+    setSelectedProduct(null);
+    toast({
+      title: "Giveaway Started!",
+      description: selectedProduct.name || "Giveaway is now live"
+    });
+  };
+
+  // Handler to manually end giveaway (draw winner)
+  const handleEndGiveaway = () => {
+    if (!socket || !activeGiveaway || !id) return;
+    
+    console.log('🎁 Ending giveaway:', {
+      giveawayId: activeGiveaway._id,
+      showId: id
+    });
+    
+    // Emit draw-giveaway event matching Flutter app structure
+    socket.emit('draw-giveaway', {
+      giveawayId: activeGiveaway._id,
+      showId: id
+    });
+    
+    toast({
+      title: "Drawing Winner...",
+      description: "Ending giveaway and selecting winner"
+    });
+  };
+
+  // Handler functions for VideoCenter
+  const handleFollowHost = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to follow users",
+        variant: "destructive"
+      });
+      return;
+    }
+    followMutation?.mutate();
+  };
+
+  const handleUnfollowHost = () => {
+    unfollowMutation?.mutate();
+  };
+
+  const handlePlaceBid = () => {
+    const amount = parseFloat(bidAmount);
+    if (!amount || amount <= 0) return;
+    placeBidMutation?.mutate(amount);
+  };
+
+  const handleJoinGiveaway = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to enter giveaways",
+        variant: "destructive"
+      });
+      return;
+    }
+    joinGiveawayMutation?.mutate();
+  };
+
+  if (isLoading && !show) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg">Loading show...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!show) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">Show Not Found</h1>
+          <Link href="/">
+            <Button>Back to Home</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full bg-black text-white flex flex-col overflow-hidden">
+      {/* Show Ended Alert */}
+      {show?.ended && (
+        <Alert className="rounded-none border-x-0 border-t-0 border-b border-zinc-800 bg-red-900/20 border-red-800/30 flex-shrink-0">
+          <AlertTriangle className="h-4 w-4 text-red-400" />
+          <AlertDescription className="text-sm text-red-200">
+            This show has already ended
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Shipping/Explicit Content Warnings */}
+      {(hasFreePickup || hasBuyerCap || hasExplicitContent) && (
+        <Alert className="rounded-none border-x-0 border-t-0 border-b border-zinc-800 bg-zinc-900/50 flex-shrink-0">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center gap-4 text-xs">
+            {hasFreePickup && (
+              <span className="flex items-center gap-1">
+                <Truck className="h-3 w-3" />
+                Free Local Pickup Available
+              </span>
+            )}
+            {hasBuyerCap && (
+              <span className="flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                Shipping capped at ${shippingOptions.reducedShippingCapAmount || shippingOptions.reduced_shipping_cap_amount}
+              </span>
+            )}
+            {hasExplicitContent && (
+              <span className="flex items-center gap-1 text-orange-400">
+                <AlertTriangle className="h-3 w-3" />
+                May contain explicit content
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+
+      {/* Main Content - Testing ProductsSidebar ONLY (fixed) */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        <ProductsSidebar 
+          showMobileProducts={showMobileProducts}
+          setShowMobileProducts={setShowMobileProducts}
+          showTitle={showTitle}
+          productTab={productTab}
+          setProductTab={setProductTab}
+          auctionProducts={auctionProducts}
+          pinnedProduct={pinnedProduct}
+          activeAuction={activeAuction}
+          currentUserId={currentUserId}
+          isShowOwner={isShowOwner}
+          handleProductAction={handleProductAction}
+          setBuyNowProduct={setBuyNowProduct}
+          setShowBuyNowDialog={setShowBuyNowDialog}
+          setPrebidAuction={setPrebidAuction}
+          setShowPrebidDialog={setShowPrebidDialog}
+          handleAddProduct={handleAddProduct}
+          buyNowProducts={buyNowProducts}
+          giveawayProducts={giveawayProducts}
+          soldProducts={soldProducts}
+          activeGiveaway={activeGiveaway}
+          setSelectedProduct={setSelectedProduct}
+          giveaways={giveaways}
+          giveawayTimeLeft={giveawayTimeLeft}
+          soldOrders={soldOrders}
+          setSelectedOrder={setSelectedOrder}
+          setShowOrderDetailDialog={setShowOrderDetailDialog}
+        />
+
+        <VideoCenter
+          id={id}
+          livekitRoom={livekitRoom}
+          muted={muted}
+          setMuted={setMuted}
+          isShowOwner={isShowOwner}
+          hasVideo={livekit.hasVideo}
+          hasAudio={livekit.hasAudio}
+          toggleCamera={livekit.toggleCamera}
+          toggleMicrophone={livekit.toggleMicrophone}
+          isConnecting={livekitIsConnecting}
+          isConnected={livekitIsConnected}
+          hostAvatar={hostAvatar}
+          hostName={hostName}
+          hostId={hostId}
+          averageReviews={averageReviews}
+          isFollowingHost={isFollowingHost}
+          handleFollowHost={handleFollowHost}
+          isFollowLoading={followMutation?.isPending}
+          showTitle={showTitle}
+          activeAuction={activeAuction}
+          auctionTimeLeft={auctionTimeLeft}
+          currentBid={currentBid}
+          bidAmount={bidAmount}
+          setBidAmount={setBidAmount}
+          handlePlaceBid={handlePlaceBid}
+          isPlacingBid={placeBidMutation?.isPending}
+          isUserWinning={isUserWinning}
+          pinnedProduct={pinnedProduct}
+          activeGiveaway={activeGiveaway}
+          giveawayTimeLeft={giveawayTimeLeft}
+          handleJoinGiveaway={handleJoinGiveaway}
+          isJoiningGiveaway={joinGiveawayMutation?.isPending}
+          currentUserId={currentUserId}
+          handleEndGiveaway={handleEndGiveaway}
+          setShowMobileProducts={setShowMobileProducts}
+          setShowMobileChat={setShowMobileChat}
+          handleUnfollowHost={handleUnfollowHost}
+          isLive={isLive}
+          viewerCount={viewers.length}
+          showTipDialog={showTipDialog}
+          setShowTipDialog={setShowTipDialog}
+          showThumbnail={showThumbnail}
+          showMobileProducts={showMobileProducts}
+          showMobileChat={showMobileChat}
+          chatMessagesRef={chatMessagesRef}
+          chatMessages={chatMessages}
+          imageError={imageError}
+          setImageError={setImageError}
+          toast={toast}
+          user={user}
+          show={show}
+          viewers={viewers}
+          isAuthenticated={isAuthenticated}
+          navigate={navigate}
+          userSuggestions={userSuggestions}
+          setUserSuggestions={setUserSuggestions}
+          isEndingShow={isEndingShow}
+          setIsEndingShow={setIsEndingShow}
+          socket={socket}
+          socketIsConnected={isConnected}
+          setLivekitEnabled={setLivekitEnabled}
+          leaveRoom={leaveRoom}
+          queryClient={queryClient}
+          refetchShow={refetchShow}
+          winnerData={winnerData}
+          giveawayWinnerData={giveawayWinnerData}
+          winningUser={winningUser}
+          shippingEstimate={shippingEstimate}
+          handleRerunAuction={handleRerunAuction}
+          placeBidMutation={placeBidMutation}
+          setBuyNowProduct={setBuyNowProduct}
+          renderMessageWithMentions={renderMessageWithMentions}
+          selectMention={selectMention}
+          handleMessageChange={handleMessageChange}
+          handleSendMessage={handleSendMessage}
+          message={message}
+          currentMentions={currentMentions}
+          setCurrentMentions={setCurrentMentions}
+          timeAddedBlink={timeAddedBlink}
+          buyNowProduct={buyNowProduct}
+          host={host}
+          setShowShareDialog={setShowShareDialog}
+          livekit={livekit}
+          showBuyNowDialog={showBuyNowDialog}
+          setShowBuyNowDialog={setShowBuyNowDialog}
+          setShowPaymentShippingAlert={setShowPaymentShippingIntermediateAlert}
+          showCustomBidDialog={showCustomBidDialog}
+          setShowCustomBidDialog={setShowCustomBidDialog}
+        />
+        
+        <ChatSidebar
+          showMobileChat={showMobileChat}
+          setShowMobileChat={setShowMobileChat}
+          isShowOwner={isShowOwner}
+          show={show}
+          viewerCount={viewers.length}
+          activeGiveaway={activeGiveaway}
+          isAuthenticated={isAuthenticated}
+          isFollowingHost={isFollowingHost}
+          joinGiveawayMutation={joinGiveawayMutation}
+          handleFollowAndJoinGiveaway={handleFollowAndJoinGiveaway}
+          setShowShareDialog={setShowShareDialog}
+          handleEndGiveaway={handleEndGiveaway}
+          chatMessages={chatMessages}
+          chatScrollRef={chatScrollRef}
+          renderMessageWithMentions={renderMessageWithMentions}
+          showMentionDialog={showMentionDialog}
+          userSuggestions={userSuggestions}
+          isSearchingUsers={isSearchingUsers}
+          selectMention={selectMention}
+          messageInputRef={messageInputRef}
+          message={message}
+          handleMessageChange={handleMessageChange}
+          handleSendMessage={handleSendMessage}
+          currentUserId={currentUserId}
+          giveaways={giveaways}
+        />
+        
+        <DialogsContainer
+          productActionSheet={productActionSheet}
+          setProductActionSheet={setProductActionSheet}
+          selectedProduct={selectedProduct}
+          setSelectedProduct={setSelectedProduct}
+          setEditingProduct={setEditingProduct}
+          setShowEditProductDialog={setShowEditProductDialog}
+          handlePinProduct={handlePinProduct}
+          pinnedProduct={pinnedProduct}
+          isLive={isLive}
+          show={show}
+          isShowOwner={isShowOwner}
+          handleOpenAuctionSettings={handleOpenAuctionSettings}
+          handleStartGiveaway={handleStartGiveaway}
+          setShowDeleteConfirm={setShowDeleteConfirm}
+          giveaways={giveaways}
+          showAuctionSettingsDialog={showAuctionSettingsDialog}
+          setShowAuctionSettingsDialog={setShowAuctionSettingsDialog}
+          auctionSettings={auctionSettings}
+          setAuctionSettings={setAuctionSettings}
+          handleStartAuctionWithSettings={handleStartAuctionWithSettings}
+          showDeleteConfirm={showDeleteConfirm}
+          deleteProductMutation={deleteProductMutation}
+          showAddProductDialog={showAddProductDialog}
+          setShowAddProductDialog={setShowAddProductDialog}
+          addProductType={addProductType}
+          id={id || ''}
+          refetchAuction={refetchAuction}
+          refetchBuyNow={refetchBuyNow}
+          refetchGiveaways={refetchGiveaways}
+          showEditProductDialog={showEditProductDialog}
+          editingProduct={editingProduct}
+          showShareDialog={showShareDialog}
+          setShowShareDialog={setShowShareDialog}
+          showTitle={showTitle}
+          showPrebidDialog={showPrebidDialog}
+          setShowPrebidDialog={setShowPrebidDialog}
+          prebidAuction={prebidAuction}
+          setPrebidAuction={setPrebidAuction}
+          prebidAmount={prebidAmount}
+          setPrebidAmount={setPrebidAmount}
+          prebidMutation={prebidMutation}
+          toast={toast}
+          showOrderDetailDialog={showOrderDetailDialog}
+          setShowOrderDetailDialog={setShowOrderDetailDialog}
+          selectedOrder={selectedOrder}
+          orderItemsPage={orderItemsPage}
+          setOrderItemsPage={setOrderItemsPage}
+        />
+
+        {/* Buy Now Dialog */}
+        {showBuyNowDialog && buyNowProduct && (
+          <BuyNowDialog
+            open={showBuyNowDialog}
+            onOpenChange={setShowBuyNowDialog}
+            product={buyNowProduct}
+            onOpenPaymentMethods={() => {
+              setShowBuyNowDialog(false);
+              setShowPaymentShippingIntermediateAlert(true);
+            }}
+            onOpenShippingAddresses={() => {
+              setShowBuyNowDialog(false);
+              setShowPaymentShippingIntermediateAlert(true);
+            }}
+          />
+        )}
+
+        {/* Tip Seller Dialog */}
+        {showTipDialog && host && (
+          <TipSellerDialog
+            open={showTipDialog}
+            onOpenChange={setShowTipDialog}
+            seller={host}
+            onOpenPaymentMethods={() => {
+              setShowTipDialog(false);
+              setShowPaymentShippingIntermediateAlert(true);
+            }}
+          />
+        )}
+
+        {/* Intermediate Payment & Shipping Alert - Shows first when user is missing info */}
+        {showPaymentShippingIntermediateAlert && (
+          <Suspense fallback={<div />}>
+            <PaymentShippingAlertDialog
+              open={showPaymentShippingIntermediateAlert}
+              onOpenChange={setShowPaymentShippingIntermediateAlert}
+              onAddInfo={() => setShowPaymentShippingAlert(true)}
+            />
+          </Suspense>
+        )}
+
+        {/* Payment & Shipping Sheet - Only render when actually opening */}
+        {showPaymentShippingAlert && (
+          <Suspense fallback={<div />}>
+            <PaymentShippingSheet
+              open={showPaymentShippingAlert}
+              onOpenChange={setShowPaymentShippingAlert}
+            />
+          </Suspense>
+        )}
+
+        {/* Host Conflict Dialog */}
+        <Dialog open={showHostConflictDialog} onOpenChange={setShowHostConflictDialog}>
+          <DialogContent className="bg-white text-black max-w-[95vw] sm:max-w-md mx-4">
+            <DialogHeader>
+              <DialogTitle className="text-black text-base sm:text-lg">Active Show Detected</DialogTitle>
+              <DialogDescription className="text-gray-600 text-sm">
+                You have an active live show running. Joining this show will end your current show.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {conflictingShow && (
+                <div className="bg-gray-100 p-3 sm:p-4 rounded-lg">
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1">Your Current Show:</p>
+                  <p className="font-semibold text-black text-sm sm:text-base">{conflictingShow.title}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Started {format(new Date(conflictingShow.activeTime || conflictingShow.date), "h:mm a")}
+                  </p>
+                </div>
+              )}
+              <p className="text-xs sm:text-sm text-gray-700">
+                Do you want to leave your current show and join this one?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end pt-2">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto order-2 sm:order-1"
+                  onClick={() => {
+                    setShowHostConflictDialog(false);
+                    
+                    // Navigate back to the active show
+                    if (conflictingShow) {
+                      navigate(`/show/${conflictingShow._id}`);
+                    }
+                    
+                    setConflictingShow(null);
+                  }}
+                  data-testid="button-cancel-join"
+                >
+                  Stay in Current Show
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full sm:w-auto order-1 sm:order-2"
+                  onClick={async () => {
+                    if (socket && conflictingShow && currentUserId) {
+                      console.log('🚪 Leaving previous show:', conflictingShow._id);
+                      
+                      try {
+                        // 1. First, end the previous show by setting ended: true
+                        const endResponse = await fetch(`/api/rooms/${conflictingShow._id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ ended: true })
+                        });
+                        
+                        if (!endResponse.ok) {
+                          console.error('Failed to end previous show');
+                        } else {
+                          console.log('✅ Previous show ended');
+                        }
+                        
+                        // 2. Then delete the previous show
+                        const deleteResponse = await fetch(`/api/rooms/${conflictingShow._id}`, {
+                          method: 'DELETE',
+                          credentials: 'include',
+                        });
+                        
+                        if (!deleteResponse.ok) {
+                          console.error('Failed to delete previous show');
+                        } else {
+                          console.log('✅ Previous show deleted');
+                        }
+                        
+                        // 3. Emit leave-room socket event for the previous show
+                        socket.emit('leave-room', {
+                          roomId: conflictingShow._id,
+                          userId: currentUserId
+                        });
+                        
+                        // 4. Close dialog and proceed with joining new show
+                        setShowHostConflictDialog(false);
+                        setConflictingShow(null);
+                        setProceedWithJoin(true);
+                        
+                        toast({
+                          title: "Left Previous Show",
+                          description: "Your previous show has been ended.",
+                        });
+                      } catch (error) {
+                        console.error('Error leaving previous show:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to leave previous show. Please try again.",
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                  data-testid="button-confirm-join"
+                >
+                  Leave and Join New Show
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+    </div>
+  );
+}

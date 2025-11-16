@@ -83,19 +83,12 @@ function CardForm({ onSuccess, onClose }: { onSuccess?: () => void; onClose: () 
       }
 
       // Step 3: Save payment method to backend
-      // Note: methodid is only passed when editing/replacing an existing payment method
       // When adding a new payment method, we don't pass methodid
-      const existingPaymentMethodId = (userData.defaultpaymentmethod as any)?._id;
-      
+      // This ensures a NEW payment method is added, not replacing the existing one
       const savePayload: any = {
         customer_id,
         userid: userData.id || userData._id,
       };
-      
-      // Only include methodid when replacing an existing payment method
-      if (existingPaymentMethodId) {
-        savePayload.methodid = existingPaymentMethodId;
-      }
 
       await apiRequest('POST', '/stripe/savepaymentmethod', savePayload);
 

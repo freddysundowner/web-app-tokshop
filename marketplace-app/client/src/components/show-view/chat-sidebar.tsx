@@ -142,16 +142,24 @@ export function ChatSidebar(props: ChatSidebarProps) {
               >
                 End Giveaway
               </button>
-            ) : activeGiveaway.participants?.includes(currentUserId) ? (
+            ) : (() => {
+              // Check if user already entered (handle both string IDs and objects)
+              const participants = activeGiveaway.participants || [];
+              const isAlreadyParticipant = participants.some((p: any) => 
+                (typeof p === 'string' ? p : p.id || p._id) === currentUserId
+              );
+              return isAlreadyParticipant;
+            })() ? (
               // User already entered
               <button
                 disabled
                 className="w-full h-11 rounded-full bg-green-600 text-white font-semibold text-sm opacity-80"
+                data-testid="button-already-entered"
               >
                 You're Entered!
               </button>
             ) : activeGiveaway.whocanenter === 'followers' && !isFollowingHost ? (
-              // Followers only and user is not following
+              // Giveaway requires following and user is not following
               <button
                 onClick={handleFollowAndJoinGiveaway}
                 disabled={joinGiveawayMutation.isPending}
@@ -165,7 +173,7 @@ export function ChatSidebar(props: ChatSidebarProps) {
                 )}
               </button>
             ) : isAuthenticated ? (
-              // Can enter the giveaway
+              // Can enter the giveaway (either open to everyone, or user is already following)
               <button
                 onClick={() => joinGiveawayMutation.mutate()}
                 disabled={joinGiveawayMutation.isPending}

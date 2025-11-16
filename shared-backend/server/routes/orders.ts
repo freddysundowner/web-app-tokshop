@@ -107,6 +107,9 @@ export function registerOrderRoutes(app: Express) {
       if (req.query.tokshow) {
         queryParams.set('tokshow', req.query.tokshow as string);
       }
+      if (req.query.marketplace) {
+        queryParams.set('marketplace', req.query.marketplace as string);
+      }
       
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? '?' + queryString : ''}`;
@@ -158,6 +161,7 @@ export function registerOrderRoutes(app: Express) {
         bundleId: z.string().optional(),
         totalWeightOz: z.union([z.string(), z.number()]).optional(),
         seller_shipping_fee_pay: z.union([z.string(), z.number()]).optional(),
+        carrierAccount: z.string().optional(),
         subtotal: z.union([z.string(), z.number()]),
         tax: z.union([z.string(), z.number()]),
         seller: z.string(),

@@ -70,6 +70,7 @@ export function MarketplaceSidebar({ selectedCategory, onCategoryChange, categor
       {/* Footer Links */}
       <div className="px-4 pb-8 space-y-2">
         <div className="flex flex-wrap gap-x-2 text-[13px] text-muted-foreground">
+          <Link href="/knowledge-base" data-testid="link-knowledge-base"><span className="cursor-pointer">Knowledge Base</span></Link>
           <Link href="/privacy-policy" data-testid="link-privacy"><span className="cursor-pointer">Privacy</span></Link>
           <Link href="/terms-of-service" data-testid="link-terms"><span className="cursor-pointer">Terms</span></Link>
           <Link href="/contact" data-testid="link-contact"><span className="cursor-pointer">Contact</span></Link>

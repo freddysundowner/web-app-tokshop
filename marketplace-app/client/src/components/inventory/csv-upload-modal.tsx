@@ -430,19 +430,7 @@ export function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalPro
           throw new Error('User authentication required');
         }
 
-        const response = await fetch(`/api/products/bulkadd/${user.id}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ products: productsData })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to upload batch');
-        }
-
+        const response = await apiRequest('POST', `/api/products/bulkadd/${user.id}`, { products: productsData });
         const result = await response.json();
         
         // Update progress based on API response
