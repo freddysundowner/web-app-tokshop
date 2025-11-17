@@ -6,8 +6,6 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select, 
   SelectContent, 
@@ -48,11 +46,16 @@ const statusPriority = {
   cancelled: 5,
 };
 
+const formatStatus = (status: string) => {
+  return status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 export default function Orders() {
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest");
+  const [selectedShowId, setSelectedShowId] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedOrder, setSelectedOrder] = useState<TokshopOrder | null>(null);
@@ -64,7 +67,7 @@ export default function Orders() {
   const [messagingOrderId, setMessagingOrderId] = useState<string | null>(null);
 
   // Build query key with parameters for proper caching
-  const ordersQueryKey = ['/api/orders', user?.id, statusFilter, selectedCustomerId, currentPage, itemsPerPage];
+  const ordersQueryKey = ['/api/orders', user?.id, statusFilter, currentPage, itemsPerPage];
   
   const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
     queryKey: ordersQueryKey,
@@ -72,6 +75,23 @@ export default function Orders() {
     staleTime: 0, // Always fetch fresh data
     refetchOnMount: true, // Refetch when component mounts
   });
+
+  // Fetch ended shows for filter dropdown
+  const { data: endedShowsResponse } = useQuery({
+    queryKey: ["/api/rooms", "ended", user?.id],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("status", "ended");
+      if (user?.id) {
+        params.set("hostId", user.id);
+      }
+      const response = await fetch(`/api/rooms?${params}`);
+      return response.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  const endedShows = endedShowsResponse?.rooms || [];
 
   // Ship order mutation
   const shipOrderMutation = useMutation({
@@ -226,14 +246,15 @@ export default function Orders() {
     resetPaginationOnFilterChange();
   };
 
-  const handleCustomerFilterChange = (newCustomerId: string) => {
-    setSelectedCustomerId(newCustomerId);
+  const handleShowFilterChange = (newShowId: string) => {
+    setSelectedShowId(newShowId);
     resetPaginationOnFilterChange();
   };
 
-  const handleSortChange = (newSort: string) => {
-    setSortBy(newSort);
-    resetPaginationOnFilterChange();
+  const handleResetFilters = () => {
+    setStatusFilter("all");
+    setSelectedShowId("all");
+    setCurrentPage(1);
   };
 
   // Extract orders array from the response
@@ -260,56 +281,34 @@ export default function Orders() {
     return price - serviceFee - processingFee - sellerShippingCost;
   };
 
-  // Get unique customers from orders for the filter dropdown
-  const uniqueCustomers = orders?.reduce((acc: any[], order) => {
-    if (order.customer && !acc.find(c => c._id === order.customer._id)) {
-      acc.push(order.customer);
-    }
-    return acc;
-  }, []) || [];
-
-  // Apply client-side search and sorting (filtering is done server-side now)
+  // Apply client-side filtering by show/marketplace
   const filteredOrders = orders?.filter((order: TokshopOrder) => {
-    const customerName = `${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`.trim();
-    const orderNumber = order.invoice?.toString() || order._id.slice(-8);
-    const itemName = order.giveaway?.name || '';
-    
-    const matchesSearch = searchTerm === "" || 
-      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      itemName.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesSearch;
-  }).sort((a: TokshopOrder, b: TokshopOrder) => {
-    switch (sortBy) {
-      case "newest":
-        const aDate = a.date ? new Date(a.date) : new Date(a.createdAt || 0);
-        const bDate = b.date ? new Date(b.date) : new Date(b.createdAt || 0);
-        return bDate.getTime() - aDate.getTime();
-      case "oldest":
-        const aDateOld = a.date ? new Date(a.date) : new Date(a.createdAt || 0);
-        const bDateOld = b.date ? new Date(b.date) : new Date(b.createdAt || 0);
-        return aDateOld.getTime() - bDateOld.getTime();
-      case "amount-high":
-        return calculateTotal(b) - calculateTotal(a);
-      case "amount-low":
-        return calculateTotal(a) - calculateTotal(b);
-      case "status":
-        const aPriority = statusPriority[a.status as keyof typeof statusPriority] || 999;
-        const bPriority = statusPriority[b.status as keyof typeof statusPriority] || 999;
-        return aPriority - bPriority;
-      default:
-        return 0;
+    // Filter by show
+    if (selectedShowId !== "all") {
+      if (selectedShowId === "marketplace") {
+        // Show only marketplace orders (ordertype === 'marketplace' or no tokshow)
+        if (order.ordertype !== 'marketplace' && order.tokshow) {
+          return false;
+        }
+      } else {
+        // Show only orders from specific show
+        if (order.tokshow !== selectedShowId) {
+          return false;
+        }
+      }
     }
+    
+    return true;
+  }).sort((a: TokshopOrder, b: TokshopOrder) => {
+    // Sort by newest first (default)
+    const aDate = a.date ? new Date(a.date) : new Date(a.createdAt || 0);
+    const bDate = b.date ? new Date(b.date) : new Date(b.createdAt || 0);
+    return bDate.getTime() - aDate.getTime();
   }) || [];
 
-  // Calculate overview stats - use pagination data
+  // Calculate pagination data
   const totalOrders = orderResponse?.total || 0;
   const totalPages = orderResponse?.pages || 0;
-  const currentPageRevenue = orders?.reduce((sum, order) => sum + calculateTotal(order), 0) || 0;
-  const processingCount = orders?.filter(order => order.status === "processing").length || 0;
-  const shippingCount = orders?.filter(order => order.status === "shipped").length || 0;
-  const deliveredCount = orders?.filter(order => order.status === "delivered" || order.status === "ended").length || 0;
 
   if (isLoading) {
     return (
@@ -371,136 +370,79 @@ export default function Orders() {
           </p>
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total Orders</CardDescription>
-              <CardTitle className="text-2xl" data-testid="metric-total-orders">
-                {totalOrders}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          
-          {user?.seller !== false && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Current Page Revenue</CardDescription>
-                <CardTitle className="text-2xl" data-testid="metric-total-revenue">
-                  {formatCurrency(currentPageRevenue)}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          )}
-
-          {user?.seller !== false && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Processing</CardDescription>
-                <CardTitle className="text-2xl text-orange-600" data-testid="metric-processing">
-                  {processingCount}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Shipping</CardDescription>
-              <CardTitle className="text-2xl text-blue-600" data-testid="metric-shipping">
-                {shippingCount}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Delivered</CardDescription>
-              <CardTitle className="text-2xl text-green-600" data-testid="metric-delivered">
-                {deliveredCount}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Filter Tabs */}
-        <Tabs value={statusFilter} onValueChange={handleStatusFilterChange} className="mb-6">
-          <TabsList className={`grid w-full ${user?.seller === false ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-5'}`}>
-            <TabsTrigger value="all" data-testid="tab-all">
-              All
-            </TabsTrigger>
-            {user?.seller !== false && (
-              <TabsTrigger value="processing" data-testid="tab-processing">
-                Need Label
-              </TabsTrigger>
-            )}
-            {user?.seller !== false && (
-              <TabsTrigger
-                value="ready_to_ship"
-                data-testid="tab-ready-to-ship"
+        {/* Filters */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Show Filter */}
+            <div className="w-full sm:w-auto sm:min-w-64 sm:max-w-md">
+              <Select
+                value={selectedShowId}
+                onValueChange={handleShowFilterChange}
               >
-                Ready to Ship
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="shipped" data-testid="tab-shipped">
-              Shipped
-            </TabsTrigger>
-            <TabsTrigger value="cancelled" data-testid="tab-cancelled">
-              Cancelled
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Search and Filters */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="relative flex-1 sm:max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-              <Input
-                placeholder="Search orders..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-orders"
-              />
-            </div>
-            
-            {user?.seller !== false && (
-              <div className="w-full sm:w-64">
-                <Select
-                  value={selectedCustomerId}
-                  onValueChange={handleCustomerFilterChange}
-                >
-                  <SelectTrigger data-testid="select-customer">
-                    <SelectValue placeholder="Filter by customer..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Customers</SelectItem>
-                    {uniqueCustomers.map((customer) => (
-                      <SelectItem key={customer._id} value={customer._id}>
-                        {customer.firstName} {customer.lastName}
+                <SelectTrigger data-testid="select-show">
+                  <SelectValue placeholder="Filter by show..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Shows & Marketplace</SelectItem>
+                  <SelectItem value="marketplace">Marketplace</SelectItem>
+                  {endedShows.map((show: any) => {
+                    const showDate = show.date || show.startDate || show.createdAt;
+                    const formattedDate = showDate 
+                      ? ` • ${format(new Date(showDate), "d MMM • HH:mm")}` 
+                      : "";
+                    
+                    const showTitle = show.title || `Show #${show._id.slice(-8)}`;
+                    
+                    return (
+                      <SelectItem key={show._id} value={show._id}>
+                        <span className="block">
+                          <span className="font-medium">{showTitle}</span>
+                          {formattedDate && (
+                            <>
+                              <br />
+                              <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                            </>
+                          )}
+                        </span>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            <Select value={sortBy} onValueChange={handleSortChange}>
-              <SelectTrigger className="w-full sm:w-48" data-testid="select-sort-orders">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="amount-high">Amount: High to Low</SelectItem>
-                <SelectItem value="amount-low">Amount: Low to High</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-              </SelectContent>
-            </Select>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="w-full sm:w-64">
+              <Select
+                value={statusFilter}
+                onValueChange={handleStatusFilterChange}
+              >
+                <SelectTrigger data-testid="select-status">
+                  <SelectValue placeholder="Filter by status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Reset Filters Button */}
+            <Button
+              variant="outline"
+              onClick={handleResetFilters}
+              data-testid="button-reset-filters"
+              className="w-full sm:w-auto"
+            >
+              <X size={16} className="mr-1" />
+              Reset Filters
+            </Button>
           </div>
 
-          <div className="text-sm text-muted-foreground text-center sm:text-left">
+          <div className="text-sm text-muted-foreground mt-4">
             Showing {filteredOrders.length} of {totalOrders} orders
           </div>
         </div>
@@ -550,8 +492,8 @@ export default function Orders() {
                       <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">No orders found</h3>
                       <p className="text-muted-foreground">
-                        {searchTerm || statusFilter !== "all" 
-                          ? "Try adjusting your search or filters" 
+                        {statusFilter !== "all" || selectedShowId !== "all"
+                          ? "Try adjusting your filters" 
                           : "Orders will appear here when customers make purchases"}
                       </p>
                     </td>
@@ -629,7 +571,7 @@ export default function Orders() {
                             className={statusColors[orderStatus as keyof typeof statusColors]}
                             data-testid={`order-status-${orderStatus}`}
                           >
-                            {orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)}
+                            {formatStatus(orderStatus)}
                           </Badge>
                         </td>
 
@@ -640,7 +582,7 @@ export default function Orders() {
                               ${earnings.toFixed(2)}
                             </div>
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <span>{orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)}</span>
+                              <span>{formatStatus(orderStatus)}</span>
                             </div>
                           </td>
                         )}

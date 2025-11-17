@@ -29,7 +29,7 @@ interface SettingsContextType {
 }
 
 const defaultSettings: AppSettings = {
-  app_name: 'TokShop',
+  app_name: 'TokshopLive',
   seo_title: '',
   support_email: 'support@example.com',
   primary_color: '#F4D03F',
@@ -43,7 +43,7 @@ const SettingsContext = createContext<SettingsContextType>({
   settings: defaultSettings,
   isLoading: true,
   isFirebaseReady: false,
-  appName: 'TokShop',
+  appName: 'TokshopLive',
 });
 
 // Helper function to convert hex to HSL
@@ -217,7 +217,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings.primary_color, settings.secondary_color]);
 
-  const appName = settings.app_name || 'TokShop';
+  const appName = settings.app_name || 'TokshopLive';
 
   return (
     <SettingsContext.Provider value={{ settings, isLoading, isFirebaseReady, appName }}>

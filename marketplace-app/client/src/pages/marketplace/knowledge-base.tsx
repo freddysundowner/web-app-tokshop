@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -6,9 +6,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Search, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { knowledgeBaseSections } from "@/data/knowledge-base";
+import { getKnowledgeBaseSections } from "@/data/knowledge-base";
+import { useSettings } from "@/lib/settings-context";
 
 export default function KnowledgeBase() {
+  const { appName } = useSettings();
+  const knowledgeBaseSections = useMemo(() => getKnowledgeBaseSections(appName), [appName]);
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredSections, setFilteredSections] = useState(knowledgeBaseSections);
@@ -32,6 +35,11 @@ export default function KnowledgeBase() {
     
     return '';
   };
+
+  // Update filtered sections when knowledge base sections change
+  useEffect(() => {
+    setFilteredSections(knowledgeBaseSections);
+  }, [knowledgeBaseSections]);
 
   // Filter sections based on search query - includes body text
   useEffect(() => {
@@ -96,7 +104,7 @@ export default function KnowledgeBase() {
         <div className="container max-w-7xl mx-auto px-4 py-16">
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-4xl md:text-5xl font-bold mb-4" data-testid="text-knowledge-base-title">
-              TokShopLive Knowledge Base
+              {appName} Knowledge Base
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
               Everything you need to know about the live streaming e-commerce platform

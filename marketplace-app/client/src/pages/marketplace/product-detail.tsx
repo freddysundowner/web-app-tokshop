@@ -185,6 +185,11 @@ export default function ProductDetail() {
         payload.tokshow = product.tokshow;
       }
       
+      // Include carrierAccount from shipping estimate if available
+      if ((shippingEstimate as any)?.carrierAccount) {
+        payload.carrierAccount = (shippingEstimate as any).carrierAccount;
+      }
+      
       const response = await apiRequest('POST', `/api/orders/${productId}`, payload);
       const jsonData = await response.json();
       return jsonData;

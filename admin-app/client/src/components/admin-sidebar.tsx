@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -23,20 +23,41 @@ import {
   Shield,
   FileCheck,
   MessageCircle,
+  ChevronDown,
+  Send,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState, useEffect } from "react";
 
-const navigationItems = [
+// Types for navigation structure
+type NavItem = {
+  id: string;
+  name: string;
+  href?: string;
+  icon: any;
+  children?: NavItem[];
+};
+
+type NavSection = {
+  section: string;
+  items: NavItem[];
+};
+
+const navigationItems: NavSection[] = [
   {
     section: "User Management",
     items: [
       {
+        id: "users",
         name: "Users",
         href: "/admin/users",
         icon: Users,
       },
       {
+        id: "reported-cases",
         name: "Reported Cases",
         href: "/admin/reported-cases",
         icon: Flag,
@@ -47,26 +68,31 @@ const navigationItems = [
     section: "Commerce",
     items: [
       {
+        id: "inventory",
         name: "Inventory",
         href: "/admin/inventory",
         icon: Package,
       },
       {
+        id: "orders",
         name: "Orders",
         href: "/admin/orders",
         icon: ShoppingCart,
       },
       {
+        id: "disputes",
         name: "Disputes",
         href: "/admin/disputes",
         icon: AlertTriangle,
       },
       {
+        id: "transactions",
         name: "Transactions",
         href: "/admin/transactions",
         icon: CreditCard,
       },
       {
+        id: "payouts",
         name: "Payouts",
         href: "/admin/payouts",
         icon: Banknote,
@@ -77,24 +103,47 @@ const navigationItems = [
     section: "Platform",
     items: [
       {
+        id: "revenue",
         name: "Revenue",
         href: "/admin/application-fees",
         icon: Coins,
       },
       {
+        id: "categories",
         name: "Categories",
         href: "/admin/categories",
         icon: FolderOpen,
       },
       {
+        id: "shows",
         name: "Shows",
         href: "/admin/shows",
         icon: Video,
       },
       {
+        id: "emails",
         name: "Emails",
-        href: "/admin/emails",
         icon: Mail,
+        children: [
+          {
+            id: "emails-seller-approval",
+            name: "Seller Approval",
+            href: "/admin/email-seller-approval",
+            icon: FileText,
+          },
+          {
+            id: "emails-app-update",
+            name: "App Update",
+            href: "/admin/email-update",
+            icon: Smartphone,
+          },
+          {
+            id: "emails-settings",
+            name: "Settings",
+            href: "/admin/email-settings",
+            icon: Settings,
+          },
+        ],
       },
     ],
   },
@@ -102,31 +151,37 @@ const navigationItems = [
     section: "Pages",
     items: [
       {
+        id: "landing-page",
         name: "Landing Page",
         href: "/admin/pages/landing",
         icon: Home,
       },
       {
+        id: "faq",
         name: "FAQ",
         href: "/admin/pages/faq",
         icon: HelpCircle,
       },
       {
+        id: "about",
         name: "About Us",
         href: "/admin/pages/about",
         icon: Info,
       },
       {
+        id: "privacy",
         name: "Privacy Policy",
         href: "/admin/pages/privacy",
         icon: Shield,
       },
       {
+        id: "terms",
         name: "Terms of Service",
         href: "/admin/pages/terms",
         icon: FileCheck,
       },
       {
+        id: "contact",
         name: "Contact Us",
         href: "/admin/pages/contact",
         icon: MessageCircle,
@@ -137,11 +192,13 @@ const navigationItems = [
     section: "Account",
     items: [
       {
+        id: "profile",
         name: "Profile",
         href: "/admin/profile",
         icon: UserCircle,
       },
       {
+        id: "settings",
         name: "Settings",
         href: "/admin/settings",
         icon: Settings,
@@ -155,8 +212,44 @@ interface AdminSidebarProps {
   onClose: () => void;
 }
 
+// Helper function to check if any child is active
+const hasActiveChild = (item: NavItem, fullPath: string): boolean => {
+  if (item.href) {
+    // Check exact match or if fullPath matches the base and contains query params
+    if (fullPath === item.href) return true;
+    const [basePath, query] = item.href.split('?');
+    if (fullPath.startsWith(basePath) && query && fullPath.includes(`?${query}`)) {
+      return true;
+    }
+  }
+  if (item.children) {
+    return item.children.some(child => hasActiveChild(child, fullPath));
+  }
+  return false;
+};
+
+// Helper function to get initial open state based on active route
+const getInitialOpenState = (items: NavSection[]): Record<string, boolean> => {
+  const openState: Record<string, boolean> = {};
+  const fullPath = window.location.pathname + window.location.search;
+  
+  const checkItem = (item: NavItem) => {
+    if (item.children && hasActiveChild(item, fullPath)) {
+      openState[item.id] = true;
+      item.children.forEach(checkItem);
+    }
+  };
+  
+  items.forEach(section => {
+    section.items.forEach(checkItem);
+  });
+  
+  return openState;
+};
+
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
   // Fetch settings to get the app name
   const { data: settingsData } = useQuery<any>({
@@ -165,6 +258,83 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
 
   const settings = settingsData?.data || settingsData;
   const appName = settings?.app_name || 'Admin Panel';
+
+  // Update open state when location changes
+  useEffect(() => {
+    const initialState = getInitialOpenState(navigationItems);
+    setOpenItems(initialState);
+  }, [location]);
+
+  // Toggle collapsible item
+  const toggleItem = (id: string) => {
+    setOpenItems(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Recursive function to render nav items
+  const renderNavItem = (item: NavItem, depth: number = 0): JSX.Element => {
+    const Icon = item.icon;
+    // Get full URL including query params for accurate matching
+    const fullPath = window.location.pathname + window.location.search;
+    const isActive = item.href ? fullPath === item.href : false;
+    const hasChildren = item.children && item.children.length > 0;
+    const isOpen = openItems[item.id] || false;
+    const hasActiveDescendant = hasActiveChild(item, fullPath);
+
+    // Collapsible item with children
+    if (hasChildren) {
+      return (
+        <Collapsible key={item.id} open={isOpen} onOpenChange={() => toggleItem(item.id)}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant={hasActiveDescendant ? "secondary" : "ghost"}
+              className={cn(
+                "w-full justify-start",
+                hasActiveDescendant && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary",
+                depth > 0 && "pl-8"
+              )}
+              data-testid={`nav-${item.id}`}
+            >
+              <Icon className="h-4 w-4 mr-3" />
+              <span className="flex-1 text-left">{item.name}</span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  isOpen && "transform rotate-180"
+                )}
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="space-y-1 mt-1">
+              {item.children.map(child => renderNavItem(child, depth + 1))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      );
+    }
+
+    // Regular link item
+    return (
+      <Button
+        key={item.id}
+        variant={isActive ? "secondary" : "ghost"}
+        className={cn(
+          "w-full justify-start",
+          isActive && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary",
+          depth > 0 && "pl-8",
+          depth > 1 && "pl-12"
+        )}
+        onClick={() => {
+          setLocation(item.href!);
+          onClose();
+        }}
+        data-testid={`nav-${item.id}`}
+      >
+        <Icon className="h-4 w-4 mr-3" />
+        {item.name}
+      </Button>
+    );
+  };
 
   return (
     <>
@@ -204,27 +374,7 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
                 {group.section}
               </h3>
               <div className="space-y-1">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location === item.href;
-                  
-                  return (
-                    <Link key={item.href} href={item.href}>
-                      <Button
-                        variant={isActive ? "secondary" : "ghost"}
-                        className={cn(
-                          "w-full justify-start",
-                          isActive && "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-                        )}
-                        onClick={onClose}
-                        data-testid={`link-admin-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
-                      >
-                        <Icon className="h-4 w-4 mr-3" />
-                        {item.name}
-                      </Button>
-                    </Link>
-                  );
-                })}
+                {group.items.map((item) => renderNavItem(item))}
               </div>
             </div>
           ))}

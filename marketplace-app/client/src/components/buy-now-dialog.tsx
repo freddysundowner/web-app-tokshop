@@ -216,6 +216,9 @@ export function BuyNowDialog({
       console.log('🚢 BUY NOW DIALOG - shippingEstimate.totalWeightOz:', (shippingEstimate as any)?.totalWeightOz);
       console.log('🚢 BUY NOW DIALOG - shippingEstimate.carrierAccount:', (shippingEstimate as any)?.carrierAccount);
       
+      // Determine ordertype based on context
+      const ordertype = product.tokshow ? 'tokshow' : 'marketplace';
+      
       const payload = {
         product: productId,
         status: 'processing',
@@ -235,6 +238,7 @@ export function BuyNowDialog({
         color: '',
         size: '',
         tokshow: product.tokshow || '',
+        ordertype: ordertype,
       };
       
       console.log('📦 BUY NOW DIALOG - Full payload before sending:', JSON.stringify(payload, null, 2));

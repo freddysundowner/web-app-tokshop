@@ -29,7 +29,9 @@ import AdminSubCategories from "@/pages/admin/subcategories";
 import AdminDisputes from "@/pages/admin/disputes";
 import AdminDisputeDetail from "@/pages/admin/dispute-detail";
 import AdminReportedCases from "@/pages/admin/reported-cases";
-import AdminEmails from "@/pages/admin/emails";
+import AdminEmailSellerApproval from "@/pages/admin/email-seller-approval";
+import AdminEmailUpdate from "@/pages/admin/email-update";
+import AdminEmailSettings from "@/pages/admin/email-settings";
 import AdminLandingPage from "@/pages/admin/pages/landing";
 import AdminFAQPage from "@/pages/admin/pages/faq";
 import AdminAboutPage from "@/pages/admin/pages/about";
@@ -201,7 +203,9 @@ function Router() {
             <Route path="/admin/categories" component={AdminCategories} />
             <Route path="/admin/shows/:showId" component={AdminShowDetail} />
             <Route path="/admin/shows" component={AdminShows} />
-            <Route path="/admin/emails" component={AdminEmails} />
+            <Route path="/admin/email-seller-approval" component={AdminEmailSellerApproval} />
+            <Route path="/admin/email-update" component={AdminEmailUpdate} />
+            <Route path="/admin/email-settings" component={AdminEmailSettings} />
             <Route path="/admin/pages/landing" component={AdminLandingPage} />
             <Route path="/admin/pages/faq" component={AdminFAQPage} />
             <Route path="/admin/pages/about" component={AdminAboutPage} />

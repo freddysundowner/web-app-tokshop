@@ -21,6 +21,9 @@ import {
   Star,
   Mail,
   Database,
+  Truck,
+  Printer,
+  FileText,
   type LucideIcon
 } from "lucide-react";
 
@@ -35,22 +38,22 @@ export interface KnowledgeBaseSection {
   }[];
 }
 
-export const knowledgeBaseSections: KnowledgeBaseSection[] = [
+export const getKnowledgeBaseSections = (appName: string = 'TokshopLive'): KnowledgeBaseSection[] => [
   {
     id: "overview",
-    title: "What is TokShopLive?",
+    title: `What is ${appName}?`,
     icon: BookOpen,
     description: "Introduction to the platform",
     content: [
       {
         title: "Welcome to Live Shopping",
-        body: "TokShopLive is a live streaming shopping platform where you can watch exciting live shows, interact with sellers in real-time, and purchase products instantly. It's like watching your favorite shopping channel, but interactive - you can chat, ask questions, and buy products with just a few taps. Whether you're looking for great deals, unique items, or just entertainment, TokShopLive brings the shopping mall experience to your screen."
+        body: `${appName} is a live streaming shopping platform where you can watch exciting live shows, interact with sellers in real-time, and purchase products instantly. It's like watching your favorite shopping channel, but interactive - you can chat, ask questions, and buy products with just a few taps. Whether you're looking for great deals, unique items, or just entertainment, ${appName} brings the shopping mall experience to your screen.`
       },
       {
         title: "How It Works",
         body: (
           <div className="space-y-4">
-            <p className="text-muted-foreground">TokShopLive connects buyers and sellers through live video streaming:</p>
+            <p className="text-muted-foreground">{appName} connects buyers and sellers through live video streaming:</p>
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Video className="h-8 w-8 text-primary" />
@@ -92,7 +95,7 @@ export const knowledgeBaseSections: KnowledgeBaseSection[] = [
         )
       },
       {
-        title: "Why Shop on TokShopLive?",
+        title: `Why Shop on ${appName}?`,
         body: (
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -422,6 +425,58 @@ export const knowledgeBaseSections: KnowledgeBaseSection[] = [
             </ul>
           </div>
         )
+      },
+      {
+        title: "Proof-of-Purchase Video Recording",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">For your protection, we automatically capture video evidence of every auction win:</p>
+            
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+              <h5 className="font-semibold mb-2 flex items-center gap-2">
+                <Video className="h-5 w-5 text-primary" />
+                How It Works
+              </h5>
+              <p className="text-sm text-muted-foreground mb-3">
+                When an auction ends with a winner, our system automatically captures the <strong>last 5-10 seconds</strong> of the live stream before the winning bid. This video clip is permanently attached to your order as proof of what you won.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Protection for Buyers</p>
+                  <p className="text-sm text-muted-foreground">The video shows exactly what was displayed when you won - including the item's condition and the seller's description. If what arrives doesn't match what was shown, you have proof.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Protection for Sellers</p>
+                  <p className="text-sm text-muted-foreground">Sellers are protected too - the video proves exactly what was shown and promised during the auction. It prevents false claims about item condition or description.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Database className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Always Accessible</p>
+                  <p className="text-sm text-muted-foreground">Both buyers and sellers can view the proof-of-purchase video anytime in the order details. It's there whenever you need it for reference or dispute resolution.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 mt-4">
+              <p className="text-sm font-medium mb-2">✨ Why This Matters:</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Creates trust and transparency in every transaction</li>
+                <li>• Eliminates "he said, she said" disputes</li>
+                <li>• Provides peace of mind for high-value purchases</li>
+                <li>• Makes returns and refunds fair for everyone</li>
+              </ul>
+            </div>
+          </div>
+        )
       }
     ]
   },
@@ -681,11 +736,11 @@ export const knowledgeBaseSections: KnowledgeBaseSection[] = [
     id: "becoming-seller",
     title: "Becoming a Seller",
     icon: Users,
-    description: "Start selling on TokShopLive",
+    description: `Start selling on ${appName}`,
     content: [
       {
         title: "Who Can Become a Seller?",
-        body: "Anyone with products to sell can apply to become a seller on TokShopLive! Whether you're a small business owner, artist, craftsperson, reseller, or just someone with things to sell, we welcome you. You'll need to be approved by our team before you can start hosting shows, but the application process is straightforward."
+        body: `Anyone with products to sell can apply to become a seller on ${appName}! Whether you're a small business owner, artist, craftsperson, reseller, or just someone with things to sell, we welcome you. You'll need to be approved by our team before you can start hosting shows, but the application process is straightforward.`
       },
       {
         title: "How to Apply",
@@ -824,7 +879,7 @@ export const knowledgeBaseSections: KnowledgeBaseSection[] = [
           <div className="space-y-3">
             <p className="text-muted-foreground">Understanding what you'll pay:</p>
             <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
-              <li><strong>Commission:</strong> A small percentage of each sale goes to TokShopLive (typically 6-10%)</li>
+              <li><strong>Commission:</strong> A small percentage of each sale goes to {appName} (typically 6-10%)</li>
               <li><strong>Payment Processing:</strong> Standard credit card processing fees apply</li>
               <li><strong>No Listing Fees:</strong> It's free to add products to your store</li>
               <li><strong>No Monthly Fees:</strong> You only pay when you make sales</li>
@@ -947,6 +1002,148 @@ export const knowledgeBaseSections: KnowledgeBaseSection[] = [
             </ul>
           </div>
         )
+      },
+      {
+        title: "Advanced Shipping Management",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">{appName} offers powerful shipping tools to streamline your fulfillment process:</p>
+            
+            <div className="border-l-4 border-blue-500 pl-4">
+              <h5 className="font-semibold mb-2 flex items-center gap-2">
+                <Printer className="h-5 w-5 text-primary" />
+                Bulk Label Printing
+              </h5>
+              <p className="text-sm text-muted-foreground mb-2">
+                Print shipping labels for multiple orders at once instead of creating them one by one. This is a huge time-saver during busy periods!
+              </p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p><strong>How it works:</strong></p>
+                <ol className="space-y-1 ml-4">
+                  <li>1. Go to the Shipping Management page</li>
+                  <li>2. Select multiple orders using checkboxes</li>
+                  <li>3. Click "Bulk Label" button</li>
+                  <li>4. All labels are generated and downloaded as a single PDF</li>
+                  <li>5. Print them all at once and attach to packages</li>
+                </ol>
+                <p className="text-xs italic mt-2">💡 Tip: Filter by show or date to process all orders from a specific event together.</p>
+              </div>
+            </div>
+
+            <div className="border-l-4 border-purple-500 pl-4">
+              <h5 className="font-semibold mb-2 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                USPS SCAN Forms
+              </h5>
+              <p className="text-sm text-muted-foreground mb-2">
+                Save time at the post office by creating a USPS SCAN form - one barcode that represents all your packages. No need to scan each package individually!
+              </p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p><strong>Benefits:</strong></p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>Drop off multiple packages with just one scan</li>
+                  <li>Faster processing at USPS facilities</li>
+                  <li>Immediate acceptance tracking for all packages</li>
+                  <li>Professional appearance for your business</li>
+                </ul>
+                <p className="mt-2"><strong>How to use:</strong></p>
+                <ol className="space-y-1 ml-4">
+                  <li>1. Create shipping labels for your orders first</li>
+                  <li>2. Go to Shipping Management and filter by "Marketplace" or specific show</li>
+                  <li>3. Click "Generate SCAN Form"</li>
+                  <li>4. Print the form and bring it with your packages to USPS</li>
+                  <li>5. Hand the form to the postal worker - they'll scan just this one sheet!</li>
+                </ol>
+                <p className="text-xs italic mt-2">💡 You can view and reprint previous SCAN forms anytime using the "View SCAN Form" button.</p>
+              </div>
+            </div>
+
+            <div className="border-l-4 border-green-500 pl-4">
+              <h5 className="font-semibold mb-2 flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                Bundling Shipments
+              </h5>
+              <p className="text-sm text-muted-foreground mb-2">
+                Combine multiple orders going to the same buyer into one package to save on shipping costs.
+              </p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p><strong>When to bundle:</strong></p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>Same buyer purchased multiple items from you</li>
+                  <li>All items are ready to ship at the same time</li>
+                  <li>Items can physically fit in one box together</li>
+                  <li>Shipping destination is the same for all orders</li>
+                </ul>
+                <p className="mt-2"><strong>How to bundle:</strong></p>
+                <ol className="space-y-1 ml-4">
+                  <li>1. The system automatically detects orders that can be bundled together</li>
+                  <li>2. You'll see suggested bundles in the Shipping Management page</li>
+                  <li>3. Review the items and confirm the bundle</li>
+                  <li>4. Create one shipping label for the combined package</li>
+                  <li>5. Pack all items together and ship as one</li>
+                </ol>
+                <p className="text-xs italic mt-2">💡 Bundling saves you money on shipping and provides better service to your customers!</p>
+              </div>
+            </div>
+
+            <div className="border-l-4 border-orange-500 pl-4">
+              <h5 className="font-semibold mb-2 flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                Unbundling Shipments
+              </h5>
+              <p className="text-sm text-muted-foreground mb-2">
+                Need to split a previously bundled shipment? Sometimes you realize items should be shipped separately after bundling them.
+              </p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p><strong>Why unbundle:</strong></p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>One item is out of stock or damaged</li>
+                  <li>Items are too large to fit in one box</li>
+                  <li>Customer requested separate shipment</li>
+                  <li>Different shipping speeds needed</li>
+                </ul>
+                <p className="mt-2"><strong>How to unbundle:</strong></p>
+                <ol className="space-y-1 ml-4">
+                  <li>1. Find the bundled order in Shipping Management</li>
+                  <li>2. Click the unbundle button (unlink icon)</li>
+                  <li>3. Select which items to remove from the bundle</li>
+                  <li>4. The items will become separate shipments</li>
+                  <li>5. Create individual labels for each shipment</li>
+                </ol>
+                <p className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 text-xs mt-2">
+                  <strong>⚠️ Important:</strong> If you've already created a label for the bundle, you may need to void it and create new labels after unbundling.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mt-4">
+              <h5 className="font-semibold mb-2">📦 Complete Shipping Workflow</h5>
+              <p className="text-sm text-muted-foreground mb-3">Here's the recommended process for managing your shipments:</p>
+              <ol className="text-sm text-muted-foreground space-y-2 ml-4">
+                <li className="flex gap-3">
+                  <span className="font-semibold text-foreground min-w-[20px]">1.</span>
+                  <span><strong>Review Orders:</strong> Check your unfulfilled orders and bundle any that can be combined</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-semibold text-foreground min-w-[20px]">2.</span>
+                  <span><strong>Create Labels:</strong> Use bulk label printing to generate all labels at once</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-semibold text-foreground min-w-[20px]">3.</span>
+                  <span><strong>Generate SCAN Form:</strong> Create one form for all your USPS packages</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-semibold text-foreground min-w-[20px]">4.</span>
+                  <span><strong>Pack and Ship:</strong> Attach labels and drop everything off at USPS with your SCAN form</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-semibold text-foreground min-w-[20px]">5.</span>
+                  <span><strong>Track Progress:</strong> Monitor delivery status and handle any issues that arise</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )
       }
     ]
   },
@@ -1019,7 +1216,7 @@ export const knowledgeBaseSections: KnowledgeBaseSection[] = [
     id: "tips-tricks",
     title: "Tips & Best Practices",
     icon: Star,
-    description: "Getting the most from TokShopLive",
+    description: `Getting the most from ${appName}`,
     content: [
       {
         title: "For Buyers",

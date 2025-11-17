@@ -283,6 +283,30 @@ Show auctions are **tied to specific live shows** and run during the stream.
 - System validates before allowing bids
 - Prompts to add missing information
 
+#### Proof-of-Purchase Video Recording:
+
+**Automatic video capture for auction wins** - similar to Whatnot's implementation.
+
+**How It Works:**
+- Platform continuously buffers live stream video during auctions
+- When an auction ends with a winner, system automatically captures the **last 5-10 seconds** of video before the winning bid
+- Video clip is permanently attached to the order as proof of what the buyer won
+- Shows the exact item auctioned and host's description at the moment of sale
+- Both buyer and seller can reference this video in order details
+
+**Benefits:**
+- **Trust & Transparency** - Immutable evidence of the transaction
+- **Dispute Resolution** - Proof of what was actually shown and sold
+- **Buyer Protection** - Evidence of item condition and description
+- **Seller Protection** - Proof of what was displayed during auction
+- **Platform Safety** - Clear record for any disputes
+
+**Technical Implementation:**
+- Recording handled via LiveKit's egress capabilities
+- Video stored and associated with order record in database
+- Accessible to both buyer and seller in order details
+- Provides peace of mind for high-value auction items
+
 ---
 
 ### 1.6 Shopping & Checkout

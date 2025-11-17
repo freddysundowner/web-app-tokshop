@@ -1089,7 +1089,8 @@ export function registerShippingRoutes(app: Express) {
     try {
       const { tokshow, carrierAccount, ownerId } = req.body;
 
-      if (!tokshow) {
+      // Allow null for marketplace orders, but reject undefined or missing
+      if (tokshow === undefined) {
         return res.status(400).json({ 
           success: false,
           message: "tokshow parameter is required" 
@@ -1130,6 +1131,58 @@ export function registerShippingRoutes(app: Express) {
     }
   });
 
+  // View existing scan forms (GET request to external API)
+  app.post("/api/shipping/generate/manifest/view", async (req, res) => {
+    try {
+      const { type, tokshow, status } = req.body;
+
+      console.log('Viewing scan forms with params:', { type, tokshow, status });
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      // Build query parameters for external API
+      const params = new URLSearchParams();
+      
+      if (type === 'marketplace') {
+        params.set('type', 'marketplace');
+      } else if (tokshow) {
+        params.set('tokshow', tokshow);
+      }
+      
+      if (status) {
+        params.set('status', status);
+      }
+
+      // Call external API to get scan forms
+      const response = await fetch(`${BASE_URL}/shipping/generate/manifest?${params.toString()}`, {
+        method: 'GET',
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Scan form view failed:', data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log('Scan forms retrieved successfully:', data);
+      return res.json(data);
+    } catch (error) {
+      console.error('Scan form view error:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to retrieve scan forms"
+      });
+    }
+  });
+
   // Fetch scan form by manifest ID
   app.get("/api/shipping/generate/manifest/:manifestId", async (req, res) => {
     try {
@@ -1143,7 +1196,8 @@ export function registerShippingRoutes(app: Express) {
         });
       }
 
-      if (!tokshow) {
+      // Allow null for marketplace orders, but reject undefined or missing
+      if (tokshow === undefined) {
         return res.status(400).json({ 
           success: false,
           message: "tokshow parameter is required" 

@@ -28,6 +28,12 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  PanelRightOpen,
+  Download,
+  RotateCw,
+  Info,
+  Truck,
+  FileText,
 } from "lucide-react";
 import type {
   TokshopOrder,
@@ -41,6 +47,7 @@ import { ShippingDrawer } from "@/components/shipping/shipping-drawer";
 import { SelectiveUnbundleDialog } from "@/components/shipping/selective-unbundle-dialog";
 import { BulkLabelDialog } from "@/components/shipping/bulk-label-dialog";
 import { ShipmentDetailsDrawer } from "@/components/shipping/shipment-details-drawer";
+import { ScanFormViewerDialog } from "@/components/shipping/scan-form-viewer-dialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -65,6 +72,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogPortal,
+  AlertDialogOverlay,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -73,6 +82,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { CompletePagination } from "@/components/ui/pagination";
 
 const statusColors = {
@@ -127,6 +142,10 @@ export default function Shipping() {
   const [scanFormDialogOpen, setScanFormDialogOpen] = useState(false);
   const [scanFormError, setScanFormError] = useState<string | null>(null);
   const [generatedManifestId, setGeneratedManifestId] = useState<string | null>(null);
+  const [shippingActionsOpen, setShippingActionsOpen] = useState(false);
+  const [scanFormViewerOpen, setScanFormViewerOpen] = useState(false);
+  const [scanForms, setScanForms] = useState<any[]>([]);
+  const [isLoadingScanForms, setIsLoadingScanForms] = useState(false);
   const { user } = useAuth();
 
   const { toast } = useToast();
@@ -332,9 +351,24 @@ export default function Shipping() {
 
   // Fetch scan form by manifest ID mutation
   const fetchScanFormMutation = useMutation({
-    mutationFn: async ({ manifestId, tokshow }: { manifestId: string; tokshow: string }) => {
+    mutationFn: async ({ manifestId, tokshow, orderIds, type, status }: { manifestId: string; tokshow: string; orderIds?: string[]; type?: 'show' | 'marketplace'; status?: string }) => {
       const params = new URLSearchParams();
       params.set('tokshow', tokshow);
+      
+      // Add type parameter to indicate show or marketplace
+      if (type) {
+        params.set('type', type);
+      }
+      
+      // Add status filter
+      if (status) {
+        params.set('status', status);
+      }
+      
+      // Add order IDs as array for marketplace orders
+      if (orderIds && orderIds.length > 0) {
+        params.set('orderIds', JSON.stringify(orderIds));
+      }
       
       const response = await fetch(`/api/shipping/generate/manifest/${manifestId}?${params.toString()}`, {
         method: 'GET',
@@ -367,14 +401,6 @@ export default function Shipping() {
       });
     },
   });
-
-  const handleGenerateScanForm = () => {
-    if (selectedShowId && selectedShowId !== 'all' && selectedShowId !== 'marketplace') {
-      const carrierAccount = selectedShow?.carrierAccount;
-      const ownerId = selectedShow?.owner?._id || selectedShow?.owner;
-      generateScanFormMutation.mutate({ tokshow: selectedShowId, carrierAccount, ownerId });
-    }
-  };
 
   // Pagination handlers
   const handlePageChange = (page: number) => {
@@ -430,34 +456,114 @@ export default function Shipping() {
   const selectedShow = endedShows.find((show: any) => show._id === selectedShowId);
   const hasScanForm = selectedShow?.scan_form_url && selectedShow.scan_form_url.trim() !== '';
   const hasManifestId = selectedShow?.manifest_id && selectedShow.manifest_id.trim() !== '';
+  
+  // For marketplace, always show view button (API will handle if scan form exists)
+  const isMarketplaceSelected = selectedShowId === 'marketplace';
+  const shouldShowViewButton = isMarketplaceSelected || hasScanForm || hasManifestId || generatedManifestId;
 
-  const handleScanFormAction = () => {
-    // Only allow action if a specific show is selected (not all or marketplace)
-    if (!selectedShowId || selectedShowId === 'all' || selectedShowId === 'marketplace') {
+  // Handler for opening the generation dialog
+  const handleOpenScanFormDialog = () => {
+    // Only allow action if a specific show or marketplace is selected (not all)
+    if (!selectedShowId || selectedShowId === 'all') {
       toast({
         title: "Cannot generate scan form",
-        description: "Please select a specific show to generate a scan form",
+        description: "Please select a specific show or marketplace to generate a scan form",
         variant: "destructive",
       });
       return;
     }
 
-    // Priority 1: Use existing scan_form_url from show data
-    if (hasScanForm && selectedShow?.scan_form_url) {
-      window.open(selectedShow.scan_form_url, '_blank');
-    } 
-    // Priority 2: Use manifest_id from show data
-    else if (hasManifestId && selectedShow?.manifest_id) {
-      fetchScanFormMutation.mutate({ manifestId: selectedShow.manifest_id, tokshow: selectedShowId });
+    setShippingActionsOpen(false); // Close the drawer first
+    setScanFormError(null);
+    setScanFormDialogOpen(true);
+  };
+
+  // Handler for actually generating the scan form (called from dialog confirm button)
+  const handleGenerateScanForm = () => {
+    if (selectedShowId && selectedShowId !== 'all') {
+      // For marketplace orders, send null as tokshow value
+      const tokshowValue = selectedShowId === 'marketplace' ? null : selectedShowId;
+      const carrierAccount = selectedShow?.carrierAccount;
+      const ownerId = selectedShow?.owner?._id || selectedShow?.owner || user?.id;
+      generateScanFormMutation.mutate({ tokshow: tokshowValue, carrierAccount, ownerId });
     }
-    // Priority 3: Use generated manifest_id from local state
-    else if (generatedManifestId) {
+  };
+
+  // Handler for viewing existing scan forms
+  const handleViewScanForm = async () => {
+    // Only allow action if a specific show or marketplace is selected (not all)
+    if (!selectedShowId || selectedShowId === 'all') {
+      toast({
+        title: "Cannot view scan form",
+        description: "Please select a specific show or marketplace",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingScanForms(true);
+      setScanFormViewerOpen(true);
+
+      const isMarketplace = selectedShowId === 'marketplace';
+      
+      // Build request body based on selection
+      const requestBody: any = {};
+      
+      if (isMarketplace) {
+        requestBody.type = 'marketplace';
+      } else {
+        requestBody.tokshow = selectedShowId;
+      }
+      
+      // Add status if filtered
+      if (statusFilter !== 'all') {
+        requestBody.status = statusFilter;
+      }
+
+      // Call POST /api/shipping/generate/manifest/view
+      const response = await fetch('/api/shipping/generate/manifest/view', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Failed to fetch scan forms");
+      }
+
+      // Extract forms from response
+      const forms = data.forms || [];
+      setScanForms(forms);
+    } catch (error) {
+      toast({
+        title: "Failed to fetch scan forms",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
+      setScanForms([]);
+      setScanFormViewerOpen(false);
+    } finally {
+      setIsLoadingScanForms(false);
+    }
+  };
+
+  // Handler to check status when manifest exists but URL not ready
+  const handleCheckScanFormStatus = () => {
+    if (hasManifestId && selectedShow?.manifest_id) {
+      fetchScanFormMutation.mutate({ manifestId: selectedShow.manifest_id, tokshow: selectedShowId });
+    } else if (generatedManifestId) {
       fetchScanFormMutation.mutate({ manifestId: generatedManifestId, tokshow: selectedShowId });
-    } 
-    // Priority 4: Open dialog to generate new scan form
-    else {
-      setScanFormError(null);
-      setScanFormDialogOpen(true);
+    } else {
+      toast({
+        title: "No manifest found",
+        description: "Unable to check status",
+        variant: "destructive",
+      });
     }
   };
 
@@ -466,7 +572,7 @@ export default function Shipping() {
     setGeneratedManifestId(null);
   }, [selectedShowId]);
 
-  // Fetch all orders for the selected show (for scan form validation)
+  // Fetch all orders for the selected show or marketplace (for scan form validation)
   const { 
     data: showOrdersResponse, 
     isLoading: isLoadingShowOrders, 
@@ -480,8 +586,12 @@ export default function Shipping() {
       if (user?.id) {
         params.set("userId", user.id);
       }
-      if (selectedShowId && selectedShowId !== "all" && selectedShowId !== "marketplace") {
-        params.set("tokshow", selectedShowId);
+      if (selectedShowId && selectedShowId !== "all") {
+        if (selectedShowId === "marketplace") {
+          params.set("marketplace", "true");
+        } else {
+          params.set("tokshow", selectedShowId);
+        }
       }
 
       const response = await fetch(`/api/orders?${params.toString()}`, {
@@ -496,7 +606,7 @@ export default function Shipping() {
       }
       return response.json();
     },
-    enabled: !!user?.id && !!selectedShowId && selectedShowId !== "all" && selectedShowId !== "marketplace",
+    enabled: !!user?.id && !!selectedShowId && selectedShowId !== "all",
     staleTime: 0,
   });
 
@@ -974,13 +1084,13 @@ export default function Shipping() {
 
   // Bulk label purchase mutation
   const bulkLabelMutation = useMutation({
-    mutationFn: async ({ orderIds, labelFileType }: { orderIds: string[]; labelFileType: string }) => {
+    mutationFn: async ({ orderIds, labelFileType, carrierAccount }: { orderIds: string[]; labelFileType: string; carrierAccount?: string }) => {
       if (!user?.id) throw new Error("User ID required");
 
       const response = await fetch("/api/shipping/bulk-labels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds, labelFileType, userId: user.id }),
+        body: JSON.stringify({ orderIds, labelFileType, userId: user.id, carrierAccount }),
       });
       
       if (!response.ok) {
@@ -993,6 +1103,7 @@ export default function Shipping() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["external-orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/shipping/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["show-orders-all", user?.id, selectedShowId] });
       setSelectedOrders([]);
       setBulkLabelDialogOpen(false);
       toast({ 
@@ -1022,7 +1133,9 @@ export default function Shipping() {
   };
 
   const confirmBulkLabelPurchase = (labelFileType: string) => {
-    bulkLabelMutation.mutate({ orderIds: selectedOrders, labelFileType });
+    // Get carrier account from selected show if available
+    const carrierAccount = selectedShow?.carrierAccount;
+    bulkLabelMutation.mutate({ orderIds: selectedOrders, labelFileType, carrierAccount });
   };
 
   if (metricsLoading || ordersLoading || bundlesLoading) {
@@ -1272,9 +1385,11 @@ export default function Shipping() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="unfulfilled">Unfulfilled</SelectItem>
                   <SelectItem value="processing">Need Label</SelectItem>
                   <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
@@ -1291,23 +1406,106 @@ export default function Shipping() {
               Reset Filters
             </Button>
 
-            {/* Scan Form Button - Only show for "Ready to Ship" status */}
-            {statusFilter === 'ready_to_ship' && (
+            {/* Shipping Actions Sidebar - Only show for "Unfulfilled" status */}
+            {statusFilter === 'unfulfilled' && (
               <div className="w-full sm:w-auto sm:ml-auto">
                 <Button
                   variant="default"
-                  disabled={!selectedShowId || selectedShowId === 'all' || selectedShowId === 'marketplace'}
-                  onClick={handleScanFormAction}
-                  data-testid="button-generate-scan-form"
+                  disabled={!selectedShowId || selectedShowId === 'all'}
+                  onClick={() => setShippingActionsOpen(true)}
+                  data-testid="button-open-shipping-actions"
                   className="w-full sm:w-auto whitespace-nowrap"
                 >
-                  <Printer size={16} className="mr-1" />
-                  {(hasScanForm || hasManifestId || generatedManifestId) ? 'View Scan Form' : 'Generate Scan Form'}
+                  <PanelRightOpen size={16} className="mr-1" />
+                  Open Sidebar
                 </Button>
 
-                {/* Scan Form Dialog */}
-                <AlertDialog open={scanFormDialogOpen} onOpenChange={setScanFormDialogOpen}>
-                <AlertDialogContent data-testid="dialog-scan-form">
+                {/* Shipping Actions Sheet */}
+                <Sheet open={shippingActionsOpen} onOpenChange={setShippingActionsOpen}>
+                  <SheetContent className="w-full sm:max-w-md overflow-y-auto" data-testid="sheet-shipping-actions">
+                    <SheetHeader className="mb-6">
+                      <SheetTitle>Shipping Actions</SheetTitle>
+                    </SheetHeader>
+
+                    <div className="space-y-4">
+                      {/* Shipping Actions Section */}
+                      <div className="border border-border rounded-md p-4">
+                        <h3 className="font-semibold text-base mb-2">Shipping actions</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          These actions apply to all shipments in your {selectedShowId === 'marketplace' ? 'marketplace' : 'show'}.
+                        </p>
+
+                        <div className="space-y-2">
+                          {/* Export shipping labels/slips */}
+                          <Button
+                            variant="default"
+                            className="w-full justify-start"
+                            data-testid="button-export-labels"
+                          >
+                            <Download size={16} className="mr-2" />
+                            Export shipping labels/slips
+                          </Button>
+
+                          {/* View USPS SCAN Form - shown when scan form exists or marketplace is selected */}
+                          {shouldShowViewButton && (
+                            <Button
+                              variant="default"
+                              className="w-full justify-start"
+                              onClick={handleViewScanForm}
+                              data-testid="button-view-scan"
+                            >
+                              <Eye size={16} className="mr-2" />
+                              View USPS SCAN Form
+                            </Button>
+                          )}
+
+                          {/* Generate/Regenerate USPS SCAN Form - always shown */}
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={handleOpenScanFormDialog}
+                            data-testid="button-generate-scan"
+                          >
+                            <RotateCw size={16} className="mr-2" />
+                            {(hasScanForm || hasManifestId || generatedManifestId) ? 'Regenerate USPS SCAN Form' : 'Generate USPS SCAN Form'}
+                          </Button>
+
+                          {/* Check Status - only if manifest exists but no URL yet */}
+                          {!hasScanForm && (hasManifestId || generatedManifestId) && (
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start"
+                              onClick={handleCheckScanFormStatus}
+                              disabled={fetchScanFormMutation.isPending}
+                              data-testid="button-check-scan-status"
+                            >
+                              <Info size={16} className="mr-2" />
+                              {fetchScanFormMutation.isPending ? 'Checking...' : 'Check Status'}
+                            </Button>
+                          )}
+
+                          {/* Mark All Packages As Shipped */}
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            data-testid="button-mark-all-shipped"
+                          >
+                            <Truck size={16} className="mr-2" />
+                            Mark All Packages As Shipped
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Scan Form Dialog - Placed outside Sheet to fix z-index */}
+        <AlertDialog open={scanFormDialogOpen} onOpenChange={setScanFormDialogOpen}>
+          <AlertDialogContent data-testid="dialog-scan-form">
                   <AlertDialogHeader>
                     <AlertDialogTitle data-testid="text-scan-form-title">Generate USPS Scan Form</AlertDialogTitle>
                     <AlertDialogDescription asChild>
@@ -1372,22 +1570,24 @@ export default function Shipping() {
                           <div className="flex justify-between items-start gap-3">
                             <span className="text-sm font-medium text-foreground">Show:</span>
                             <span className="text-sm text-muted-foreground text-right" data-testid="text-scan-form-show-name">
-                              {selectedShowId && selectedShowId !== 'all' && selectedShowId !== 'marketplace' 
-                                ? (() => {
-                                    const show = endedShows.find((s: any) => s._id === selectedShowId);
-                                    const showDate = show?.date || show?.startDate || show?.createdAt;
-                                    const formattedDate = showDate 
-                                      ? format(new Date(showDate), "d MMM yyyy • HH:mm") 
-                                      : "";
-                                    const showTitle = show?.title || `Show #${selectedShowId.slice(-8)}`;
-                                    return (
-                                      <>
-                                        <div className="font-medium">{showTitle}</div>
-                                        {formattedDate && <div className="text-xs">{formattedDate}</div>}
-                                      </>
-                                    );
-                                  })()
-                                : '-'}
+                              {selectedShowId === 'marketplace'
+                                ? <div className="font-medium">Marketplace Orders</div>
+                                : selectedShowId && selectedShowId !== 'all'
+                                  ? (() => {
+                                      const show = endedShows.find((s: any) => s._id === selectedShowId);
+                                      const showDate = show?.date || show?.startDate || show?.createdAt;
+                                      const formattedDate = showDate 
+                                        ? format(new Date(showDate), "d MMM yyyy • HH:mm") 
+                                        : "";
+                                      const showTitle = show?.title || `Show #${selectedShowId.slice(-8)}`;
+                                      return (
+                                        <>
+                                          <div className="font-medium">{showTitle}</div>
+                                          {formattedDate && <div className="text-xs">{formattedDate}</div>}
+                                        </>
+                                      );
+                                    })()
+                                  : '-'}
                             </span>
                           </div>
                           
@@ -1405,7 +1605,7 @@ export default function Shipping() {
                         </div>
 
                         <p className="text-sm text-muted-foreground" data-testid="text-scan-form-description">
-                          This will generate a USPS scan form for all orders in this show. 
+                          This will generate a USPS scan form for all {selectedShowId === 'marketplace' ? 'marketplace orders' : 'orders in this show'}. 
                           Make sure all shipping labels have been purchased before proceeding.
                         </p>
                       </div>
@@ -1421,12 +1621,8 @@ export default function Shipping() {
                       {generateScanFormMutation.isPending ? "Generating..." : "Generate Scan Form"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              </div>
-            )}
-          </div>
-        </div>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Actions */}
         <div className="mb-6">
@@ -1782,8 +1978,8 @@ export default function Shipping() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {/* View & Unbundle option for multi-item orders */}
-                                  {!order.giveaway && order.items && order.items.length > 1 && (
+                                  {/* View & Unbundle option for multi-item orders (not ready_to_ship and no label) */}
+                                  {!order.giveaway && order.items && order.items.length > 1 && order.status !== "ready_to_ship" && !order.shipment_id && (
                                     <DropdownMenuItem
                                       onClick={() => {
                                         setUnbundleOrderId(order._id);
@@ -2148,6 +2344,14 @@ export default function Shipping() {
           orderCount={selectedOrders.length}
           onConfirm={confirmBulkLabelPurchase}
           isPending={bulkLabelMutation.isPending}
+        />
+
+        {/* Scan Form Viewer Dialog */}
+        <ScanFormViewerDialog
+          open={scanFormViewerOpen}
+          onOpenChange={setScanFormViewerOpen}
+          scanForms={scanForms}
+          isLoading={isLoadingScanForms}
         />
 
         {/* Shipment Details Drawer */}
