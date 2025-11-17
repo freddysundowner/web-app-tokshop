@@ -157,16 +157,13 @@ export function OrderDetailsDrawer({
   const shippingFee = order.shipping_fee || 0;
   const orderTotal = price + tax + shippingFee;
   
-  // Seller earnings calculations - use commission rate from settings
-  const commissionRate = settings.commission_rate || 0; // Get from settings API (uses 'commision' key)
-  const serviceFee = (price * commissionRate) / 100;
-  const sellerShippingCost = order.seller_shipping_fee_pay || 0;
+  // Seller earnings calculations - get from order data
+  const serviceFee = order.service_fee ?? order.servicefee ?? 0; // Use service_fee directly from order (fallback to legacy servicefee)
+  const processingFee = order.stripe_fees ?? 0; // Use stripe_fees directly from order
+  const sellerShippingCost = order.seller_shipping_fee_pay ?? 0;
   
-  // Payment processing fee - calculated as 2.9% + $0.30 for display purposes
-  // This is a standard Stripe rate, shown for transparency
-  const processingFeeRate = 2.9;
-  const processingFeeFixed = 0.30;
-  const processingFee = (orderTotal * (processingFeeRate / 100)) + processingFeeFixed;
+  // Commission rate for display purposes only (used in UI text)
+  const commissionRate = settings.commission_rate || 0;
   
   // Net earnings - actual revenue after all fees
   const netEarnings = price - serviceFee - processingFee - sellerShippingCost;
@@ -537,9 +534,6 @@ export function OrderDetailsDrawer({
                     <Info className="w-3 h-3 text-muted-foreground" />
                   </div>
                   <span className="text-foreground">-{formatCurrency(processingFee)}</span>
-                </div>
-                <div className="text-xs text-muted-foreground ml-0">
-                  ({processingFeeRate}% of order total + ${processingFeeFixed.toFixed(2)})
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>

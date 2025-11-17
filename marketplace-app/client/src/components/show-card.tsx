@@ -33,6 +33,7 @@ interface ShowCardData {
   freeShipping?: boolean;
   started?: boolean;
   date?: string | Date;
+  explicit_content?: boolean;
   shipping_settings?: {
     seller_pays?: boolean;
     buyer_pays?: boolean;
@@ -331,6 +332,18 @@ export function ShowCard({ show, currentUserId, variant = 'grid', categoryName, 
                   </div>
                 )}
               </div>
+
+              {/* Bottom-left: Explicit Content badge */}
+              {show.explicit_content && (
+                <div className="absolute bottom-1.5 left-1.5">
+                  <div 
+                    className="bg-orange-600 text-white font-semibold px-2 py-0.5 text-xs rounded"
+                    data-testid={`badge-explicit-content-${showId}`}
+                  >
+                    Explicit Content
+                  </div>
+                </div>
+              )}
 
               {/* Hover Overlay */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />

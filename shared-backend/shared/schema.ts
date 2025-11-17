@@ -175,7 +175,9 @@ export const tokshopOrderSchema = z.object({
   })).optional(),
   // Financial fields
   total: z.number().optional(), // Items total/subtotal amount
-  servicefee: z.number().optional(),
+  servicefee: z.number().optional(), // Legacy field - kept for backward compatibility
+  service_fee: z.number().optional(), // Commission/platform fee charged by the platform
+  stripe_fees: z.number().optional(), // Payment processing fees charged by Stripe
   tax: z.number().optional(),
   shipping_fee: z.number().optional(),
   seller_shipping_fee_pay: z.number().optional(), // Seller's shipping cost (always use this for total shipping)

@@ -271,13 +271,9 @@ export default function Orders() {
     }
     
     const price = calculateOrderSubtotal(order);
-    const commissionRate = settings.commission_rate || 0;
-    const serviceFee = (price * commissionRate) / 100;
-    const processingFeeRate = 2.9;
-    const processingFeeFixed = 0.30;
-    const orderTotal = price + (order.tax || 0) + (order.shipping_fee || 0);
-    const processingFee = (orderTotal * (processingFeeRate / 100)) + processingFeeFixed;
-    const sellerShippingCost = order.seller_shipping_fee_pay || 0;
+    const serviceFee = order.service_fee ?? order.servicefee ?? 0; // Use service_fee from order (fallback to legacy servicefee)
+    const processingFee = order.stripe_fees ?? 0; // Use stripe_fees from order
+    const sellerShippingCost = order.seller_shipping_fee_pay ?? 0;
     return price - serviceFee - processingFee - sellerShippingCost;
   };
 

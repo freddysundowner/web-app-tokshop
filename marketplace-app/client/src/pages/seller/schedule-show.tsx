@@ -1010,7 +1010,7 @@ export default function ScheduleShow() {
                           <div className="space-y-0.5">
                             <FormLabel className="text-sm">Explicit Content</FormLabel>
                             <FormDescription className="text-xs">
-                              Toggle if strong language will be used
+                              Enable this if your stream includes age-restricted (18+) or mature artwork, or if strong language will be used
                             </FormDescription>
                           </div>
                           <FormControl>

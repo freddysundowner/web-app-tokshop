@@ -212,21 +212,13 @@ export function registerShippingRoutes(app: Express) {
     }
   });
 
-  // Shipping metrics
+  // Shipping metrics - proxy to external API
   app.get("/api/shipping/metrics", async (req, res) => {
     try {
-      const { userId, customer } = req.query;
+      const { userId } = req.query;
       
-      if (!userId && !customer) {
-        return res.status(400).json({ error: "userId or customer parameter is required" });
-      }
-
-      // Fetch orders from external API to calculate metrics
-      const queryParams = new URLSearchParams();
-      if (customer) {
-        queryParams.set('customer', customer as string);
-      } else if (userId) {
-        queryParams.set('userId', userId as string);
+      if (!userId) {
+        return res.status(400).json({ error: "userId parameter is required" });
       }
       
       const headers: Record<string, string> = {
@@ -237,7 +229,7 @@ export function registerShippingRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      const response = await fetch(`${BASE_URL}/orders?${queryParams.toString()}`, {
+      const response = await fetch(`${BASE_URL}/orders/shipments/metrics/${userId}`, {
         method: 'GET',
         headers
       });
@@ -246,62 +238,7 @@ export function registerShippingRoutes(app: Express) {
         throw new Error(`External API returned ${response.status}: ${response.statusText}`);
       }
       
-      const data = await response.json() as TokshopOrdersResponse;
-      const orders = data.orders || [];
-      
-      
-
-      // Calculate items revenue only (excluding shipping and service fees)
-      const totalSoldFromItems = orders.reduce((sum, order) => {
-        // Calculate actual subtotal from item quantities and prices
-        const itemsSubtotal = order.items 
-          ? order.items.reduce((itemSum, item) => {
-              const quantity = item.quantity || 0;
-              const price = item.price || 0;
-              return itemSum + (quantity * price);
-            }, 0)
-          : 0;
-        
-        const tax = order.tax || 0;
-        
-        // Items revenue includes only items + tax (not shipping or service fees)
-        const itemsTotal = itemsSubtotal + tax;
-        return sum + itemsTotal;
-      }, 0);
-      
-      // Calculate total shipping costs (all orders) 
-      const totalShippingCosts = orders.reduce((sum, order) => sum + (order.shipping_fee || 0), 0);
-      
-      // Calculate total service fees (all orders)
-      const totalServiceFees = orders.reduce((sum, order) => sum + (order.servicefee || 0), 0);
-      
-      // Calculate total shipping spend that seller pays (only for processing orders)
-      const totalShippingSpend = orders
-        .filter(order => order.status === 'processing')
-        .reduce((sum, order) => sum + (order.seller_shipping_fee_pay || 0), 0);
-      
-      const totalCouponSpend = 0; // No coupon data in current schema
-      const totalEarned = totalSoldFromItems - totalShippingSpend - totalServiceFees - totalCouponSpend;
-      
-      
-      const itemsSold = orders.reduce((sum, order) => {
-        const itemCount = order.items ? order.items.reduce((total, item) => total + (item.quantity || 1), 0) : 1;
-        return sum + itemCount;
-      }, 0);
-      
-      const totalDelivered = orders.filter(order => order.status === "delivered" || order.status === "ended").length;
-      const pendingDelivery = orders.filter(order => order.status === "shipping" || order.status === "shipped").length;
-
-      const metrics = {
-        totalSold: totalSoldFromItems.toFixed(2),
-        totalEarned: totalEarned.toFixed(2),
-        totalShippingSpend: totalShippingSpend.toFixed(2),
-        totalCouponSpend: totalCouponSpend.toFixed(2),
-        itemsSold,
-        totalDelivered,
-        pendingDelivery,
-      };
-
+      const metrics = await response.json();
       res.json(metrics);
     } catch (error) {
       console.error('Shipping metrics error:', error);
