@@ -21,6 +21,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Search, Filter, MoreHorizontal, Package, Printer, Truck, Ship, X, MessageSquare, Info } from "lucide-react";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal, formatCurrency, calculateOrderSubtotal } from "@shared/pricing";
@@ -65,6 +77,9 @@ export default function Orders() {
   const { settings } = useSettings();
   const [, setLocation] = useLocation();
   const [messagingOrderId, setMessagingOrderId] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
+  const [relistOption, setRelistOption] = useState(false);
 
   // Build query key with parameters for proper caching
   const ordersQueryKey = ['/api/orders', user?.id, statusFilter, currentPage, itemsPerPage];
@@ -111,6 +126,7 @@ export default function Orders() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ["external-orders"] });
       toast({ title: "Order marked as shipped" });
     },
@@ -121,12 +137,16 @@ export default function Orders() {
 
   // Cancel order mutation
   const cancelOrderMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        method: "PUT",
+    mutationFn: async ({ orderId, relist }: { orderId: string; relist: boolean }) => {
+      const response = await fetch("/api/orders/cancel/order", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: "cancelled",
+          order: orderId,
+          initiator: "seller",
+          type: "order",
+          relist: relist,
+          description: "Order cancelled by seller"
         }),
       });
       
@@ -137,9 +157,13 @@ export default function Orders() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ["external-orders"] });
       toast({ title: "Order cancelled" });
-      setDrawerOpen(false); // Close drawer after successful cancellation
+      setDrawerOpen(false);
+      setCancelDialogOpen(false);
+      setOrderToCancel(null);
+      setRelistOption(false);
     },
     onError: () => {
       toast({ title: "Failed to cancel order", variant: "destructive" });
@@ -169,8 +193,17 @@ export default function Orders() {
   };
 
   const handleCancelOrder = (orderId: string) => {
-    if (window.confirm('Are you sure you want to cancel this order?')) {
-      cancelOrderMutation.mutate(orderId);
+    setOrderToCancel(orderId);
+    setDrawerOpen(false);
+    setCancelDialogOpen(true);
+  };
+
+  const confirmCancelOrder = () => {
+    if (orderToCancel) {
+      cancelOrderMutation.mutate({ 
+        orderId: orderToCancel,
+        relist: relistOption
+      });
     }
   };
 
@@ -641,6 +674,55 @@ export default function Orders() {
           toast({ title: "Messaging feature coming soon!" });
         }}
       />
+
+      {/* Cancel Order Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={(open) => {
+        setCancelDialogOpen(open);
+        if (!open) {
+          setOrderToCancel(null);
+          setRelistOption(false);
+        }
+      }}>
+        <AlertDialogContent data-testid="dialog-cancel-order">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this order? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center space-x-2 my-4">
+            <Checkbox
+              id="relist-cancel-order"
+              checked={relistOption}
+              onCheckedChange={(checked) => setRelistOption(Boolean(checked === true))}
+              data-testid="checkbox-relist-cancel-order"
+            />
+            <Label htmlFor="relist-cancel-order" className="text-sm cursor-pointer">
+              Relist this order for future processing
+            </Label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setCancelDialogOpen(false);
+                setOrderToCancel(null);
+                setRelistOption(false);
+              }}
+              data-testid="button-keep-order"
+            >
+              Keep Order
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelOrder}
+              disabled={cancelOrderMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              data-testid="button-confirm-cancel-order"
+            >
+              {cancelOrderMutation.isPending ? "Cancelling..." : "Cancel Order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 export default function TrendingProducts() {
   usePageTitle('Trending Products');
 
-  // Fetch trending products
+  // Fetch trending products (same parameters as homepage, but more results)
   const { data: trendingProductsData, isLoading } = useQuery({
     queryKey: ['/api/products', 'trending', 'buy_now'],
     queryFn: async () => {
@@ -16,7 +16,8 @@ export default function TrendingProducts() {
         saletype: 'buy_now',
         status: 'active',
         limit: '50',
-        sortBy: 'views'
+        sortBy: 'views',
+        featured: 'true' // Keep same filter as homepage
       });
       const response = await fetch(`/api/products?${params.toString()}`);
       return response.json();

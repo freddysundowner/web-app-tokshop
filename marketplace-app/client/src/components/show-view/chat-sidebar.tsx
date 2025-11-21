@@ -127,9 +127,15 @@ export function ChatSidebar(props: ChatSidebarProps) {
                   <span>{activeGiveaway.participants?.length || 0} entries</span>
                 </div>
               </div>
-              <button className="text-zinc-400 text-xs underline hover:text-white transition-colors">
+              <a 
+                href="/terms-of-service"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-400 text-xs underline hover:text-white transition-colors"
+                data-testid="link-giveaway-terms"
+              >
                 Terms & Conditions
-              </button>
+              </a>
             </div>
 
             {/* Action Buttons */}

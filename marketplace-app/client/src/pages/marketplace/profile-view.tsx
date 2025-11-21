@@ -336,10 +336,6 @@ export default function ProfileView() {
     onSuccess: () => {
       setIsFollowing(false);
       queryClient.invalidateQueries({ queryKey: ['/api/profile', userId] });
-      toast({
-        title: "Success",
-        description: `You unfollowed @${displayUser?.userName || 'user'}`,
-      });
     },
     onError: (error: Error) => {
       toast({

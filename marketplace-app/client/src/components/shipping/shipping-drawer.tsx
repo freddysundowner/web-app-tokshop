@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Sheet,
@@ -38,25 +38,31 @@ import { BulkLabelDialog } from "./bulk-label-dialog";
 interface ShippingDrawerProps {
   order?: TokshopOrder;
   bundle?: ShipmentBundle & { orders: TokshopOrder[] };
-  children: React.ReactNode;
+  children?: React.ReactNode;
   currentTab?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // Use shared type instead of local interface
 type ShippingEstimate = ShippingEstimateResponse;
 
-export function ShippingDrawer({ order, bundle, children, currentTab }: ShippingDrawerProps) {
+export function ShippingDrawer({ order, bundle, children, currentTab, open: externalOpen, onOpenChange: externalOnOpenChange }: ShippingDrawerProps) {
   // Determine if we're dealing with a bundle or individual order
   const isBundle = !!bundle;
   const bundleOrders = bundle?.orders || [];
   const displayOrder = order || (bundleOrders.length > 0 ? bundleOrders[0] : null);
   
   // Early return if no order data available - BEFORE any hooks are called
-  if (!displayOrder) {
-    return <>{children}</>;
+  if (!displayOrder && !children) {
+    return null;
   }
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use external control if provided, otherwise use internal state
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setIsOpen = externalOnOpenChange || setInternalOpen;
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
   
   // State for collapsible bundle sections - collapsed by default
@@ -65,6 +71,16 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
   // State for label format dialog
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
   const [selectedEstimate, setSelectedEstimate] = useState<ShippingEstimate | null>(null);
+  const [lockedEstimate, setLockedEstimate] = useState<ShippingEstimate | null>(null); // Locked estimate with current rate_id
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('labelDialogOpen changed to:', labelDialogOpen);
+  }, [labelDialogOpen]);
+  
+  // State for price tracking and warnings - track initial price per service
+  const [initialEstimatePrices, setInitialEstimatePrices] = useState<Record<string, number>>({});
+  const [priceIncreaseWarning, setPriceIncreaseWarning] = useState<{ amount: number; percentage: number } | null>(null);
   
   // Helper function to toggle expanded order states
   const toggleOrderExpanded = (orderId: string) => {
@@ -103,30 +119,6 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
     }, { subtotal: 0, tax: 0, shipping: 0, total: 0, itemCount: 0 });
   };
   
-  const getBundleDimensions = () => {
-    // For bundles, don't auto-calculate dimensions - use default 12x12x12
-    if (!isBundle || !bundleOrders.length) {
-      return { length: "0", width: "0", height: "0" };
-    }
-    
-    // Return default dimensions of 12x12x12 for bundles
-    return { length: "12", width: "12", height: "12" };
-  };
-  
-  const getBundleWeight = () => {
-    if (!isBundle || !bundleOrders.length) {
-      return "0";
-    }
-    
-    const totalWeight = bundleOrders.reduce((acc, order) => {
-      // Always get weight from order.weight field
-      const orderWeight = order.weight ? parseFloat(order.weight.toString()) : 0;
-      return acc + orderWeight;
-    }, 0);
-    
-    return totalWeight.toString();
-  };
-  
   // Helper function to calculate correct subtotal for single orders
   const calculateSubtotal = () => {
     // Calculate subtotal from items if available
@@ -140,14 +132,26 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
     return (displayOrder.total || 0) + (displayOrder.servicefee || 0);
   };
   
-  // Extract real dimensions from order data (order level, giveaway, or first item)
+  // Extract real dimensions from order data
   const getRealOrderDimensions = () => {
-    // For bundles, use aggregated dimensions
-    if (isBundle) {
-      return getBundleDimensions();
+    // For giveaway orders, get from giveaway object
+    if (displayOrder.giveaway) {
+      if (displayOrder.giveaway.length && displayOrder.giveaway.width && displayOrder.giveaway.height) {
+        return {
+          length: displayOrder.giveaway.length,
+          width: displayOrder.giveaway.width,
+          height: displayOrder.giveaway.height,
+        };
+      }
+      // Fallback for giveaways
+      return {
+        length: "8",
+        width: "6", 
+        height: "2",
+      };
     }
     
-    // Try order-level dimensions first (most accurate for actual orders)
+    // For regular orders, get from order object directly
     if (displayOrder.length && displayOrder.width && displayOrder.height) {
       return {
         length: displayOrder.length.toString(),
@@ -156,38 +160,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
       };
     }
     
-    // Try giveaway dimensions
-    if (displayOrder.giveaway?.length && displayOrder.giveaway?.width && displayOrder.giveaway?.height) {
-      return {
-        length: displayOrder.giveaway.length,
-        width: displayOrder.giveaway.width,
-        height: displayOrder.giveaway.height,
-      };
-    }
-    
-    // Try first item dimensions
-    if (displayOrder.items && displayOrder.items.length > 0) {
-      const item = displayOrder.items[0];
-      if (item.length && item.width && item.height) {
-        return {
-          length: item.length,
-          width: item.width,
-          height: item.height,
-        };
-      }
-    }
-    
-    // Fallback to reasonable defaults based on order type
-    // For giveaways, typically smaller packages
-    if (displayOrder.giveaway) {
-      return {
-        length: "8",
-        width: "6", 
-        height: "2",
-      };
-    }
-    
-    // For other orders, slightly larger default
+    // Fallback for regular orders
     return {
       length: "10",
       width: "8", 
@@ -197,12 +170,15 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
   
   // Extract real weight from order data
   const getRealOrderWeight = () => {
-    // For bundles, use aggregated weight
-    if (isBundle) {
-      return getBundleWeight();
+    // For giveaways, check shipping_profile.weight first, then order.weight
+    if (displayOrder.giveaway) {
+      const giveawayWeight = displayOrder.giveaway.shipping_profile?.weight;
+      if (giveawayWeight) {
+        return giveawayWeight.toString();
+      }
     }
     
-    // Always get weight from order.weight field
+    // Get weight from order.weight field
     if (displayOrder.weight) {
       return displayOrder.weight.toString();
     }
@@ -273,6 +249,57 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
 
   const estimates = shippingEstimatesQuery.data || [];
 
+  // Track initial estimate prices per service and detect price changes
+  useEffect(() => {
+    if (estimates.length > 0) {
+      const newInitialPrices = { ...initialEstimatePrices };
+      let hasChanges = false;
+      
+      estimates.forEach(estimate => {
+        // Use composite key including delivery time for better uniqueness
+        const serviceKey = `${estimate.carrier}-${estimate.service}-${estimate.deliveryTime}`;
+        
+        // Store initial price for this service if we don't have it
+        if (!(serviceKey in initialEstimatePrices)) {
+          newInitialPrices[serviceKey] = parseFloat(estimate.price);
+          hasChanges = true;
+        }
+      });
+      
+      if (hasChanges) {
+        setInitialEstimatePrices(newInitialPrices);
+        console.log('Stored initial estimate prices:', newInitialPrices);
+      }
+      
+      // Check if first estimate price has increased significantly (>10%) for the warning banner
+      const firstServiceKey = `${estimates[0].carrier}-${estimates[0].service}-${estimates[0].deliveryTime}`;
+      const initialPrice = initialEstimatePrices[firstServiceKey];
+      if (initialPrice) {
+        const currentPrice = parseFloat(estimates[0].price);
+        const priceDiff = currentPrice - initialPrice;
+        const percentIncrease = (priceDiff / initialPrice) * 100;
+        
+        if (priceDiff > 0 && percentIncrease > 10) {
+          setPriceIncreaseWarning({
+            amount: priceDiff,
+            percentage: percentIncrease
+          });
+          console.log('Price increase detected:', { priceDiff, percentIncrease });
+        } else {
+          setPriceIncreaseWarning(null);
+        }
+      }
+    }
+  }, [estimates, initialEstimatePrices]);
+
+  // Reset initial prices and warning when drawer closes
+  useEffect(() => {
+    if (!isOpen) {
+      // Clear when drawer closes
+      setInitialEstimatePrices({});
+      setPriceIncreaseWarning(null);
+    }
+  }, [isOpen]);
 
   const handleRefreshEstimates = () => {
     // Invalidate and refetch the current query
@@ -293,8 +320,20 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
 
   // Purchase shipping label mutation
   const purchaseLabelMutation = useMutation({
-    mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string }) => {
-      const requestData: ShippingLabelPurchaseRequest & { label_file_type?: string } = {
+    mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string; priceDifference?: string }) => {
+      const requestData: ShippingLabelPurchaseRequest & { 
+        label_file_type?: string;
+        estimate_data?: {
+          price: string;
+          carrier: string;
+          service: string;
+          weight: number;
+          weight_unit: string;
+          length: number;
+          width: number;
+          height: number;
+        };
+      } = {
         rate_id: estimate.objectId, // Use objectId from shipping estimate as rate_id
         order: isBundle ? (bundleOrders[0]?.bundleId || displayOrder._id) : displayOrder._id, // Pass the actual bundleId that groups the orders
         isBundle: isBundle, // Explicitly indicate if this is a bundle purchase
@@ -303,6 +342,23 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
         carrier: estimate.carrier,
         deliveryTime: estimate.deliveryTime,
         label_file_type: estimate.labelFileType, // Add label file type
+        // Include weight and dimensions
+        weight: parseFloat(weight),
+        weight_unit: getWeightUnit(),
+        length: parseFloat(dimensions.length),
+        width: parseFloat(dimensions.width),
+        height: parseFloat(dimensions.height),
+        // Add the new estimate data with price DIFFERENCE (not total)
+        estimate_data: {
+          price: estimate.priceDifference || "0.00", // Send the price difference, not the total
+          carrier: estimate.carrier,
+          service: estimate.service,
+          weight: parseFloat(weight),
+          weight_unit: getWeightUnit(),
+          length: parseFloat(dimensions.length),
+          width: parseFloat(dimensions.width),
+          height: parseFloat(dimensions.height),
+        }
       };
 
       const response = await apiRequest('POST', '/api/shipping/profiles/buy/label', requestData);
@@ -363,23 +419,70 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
       return;
     }
     
+    console.log('handlePrintLabel called:', { estimate, labelDialogOpen });
+    
+    // Lock the estimate with its current rate_id - use this for purchase
+    // Don't try to match after refresh as rate_ids change
     setSelectedEstimate(estimate);
+    setLockedEstimate(estimate);
     setLabelDialogOpen(true);
+    
+    console.log('After setState calls - labelDialogOpen set to true');
   };
 
   const confirmLabelPurchase = (labelFileType: string) => {
-    if (!selectedEstimate) return;
+    if (!lockedEstimate) {
+      console.error('No locked estimate available for purchase');
+      toast({
+        title: "Error",
+        description: "Could not find shipping rate. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Add labelFileType to the mutation data - note: this may need backend support
-    purchaseLabelMutation.mutate({ ...selectedEstimate, labelFileType });
+    // Use the LOCKED estimate with its original rate_id
+    // Don't try to find a matching estimate from refreshed list as matching is unreliable
+    const estimateToUse = lockedEstimate;
+    
+    // Calculate the price difference from the INITIAL price for THIS service
+    const serviceKey = `${estimateToUse.carrier}-${estimateToUse.service}-${estimateToUse.deliveryTime}`;
+    const currentPrice = parseFloat(estimateToUse.price);
+    const originalPrice = initialEstimatePrices[serviceKey] || currentPrice;
+    const priceDifference = (currentPrice - originalPrice).toFixed(2);
+    
+    console.log('Purchasing label with locked estimate:', {
+      serviceKey,
+      initialPrice: originalPrice,
+      currentPrice: estimateToUse.price,
+      priceDifference,
+      carrier: estimateToUse.carrier,
+      service: estimateToUse.service,
+      objectId: estimateToUse.objectId, // Use the locked rate_id
+      weight,
+      dimensions,
+      labelFileType
+    });
+    
+    // Add labelFileType and price difference to the mutation data
+    purchaseLabelMutation.mutate({ 
+      ...estimateToUse, 
+      labelFileType,
+      priceDifference 
+    });
     setLabelDialogOpen(false);
+    // Close drawer after confirming (the mutation onSuccess will close it too, but this is immediate)
+    setIsOpen(false);
   };
 
   return (
+    <>
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        {children}
-      </SheetTrigger>
+      {children && (
+        <SheetTrigger asChild>
+          {children}
+        </SheetTrigger>
+      )}
       <SheetContent className="w-[600px] sm:max-w-[600px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
@@ -535,6 +638,29 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Show actual order dimensions from database */}
+              <div className="p-3 bg-muted/30 rounded-md space-y-2">
+                <div className="text-xs font-medium text-muted-foreground mb-2">Order Information:</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Weight: </span>
+                    <span className="font-medium">{displayOrder.weight || '0'} {getWeightUnit()}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Dimensions: </span>
+                    <span className="font-medium">
+                      {displayOrder.giveaway 
+                        ? `${displayOrder.giveaway.length || '—'} × ${displayOrder.giveaway.width || '—'} × ${displayOrder.giveaway.height || '—'} in`
+                        : `${displayOrder.length || '—'} × ${displayOrder.width || '—'} × ${displayOrder.height || '—'} in`
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div className="text-xs font-medium text-muted-foreground">Editable Values for Estimates:</div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label htmlFor="length" className="text-xs">Length (in)</Label>
@@ -611,6 +737,17 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Please check package dimensions and weight, then try again.
+                  </p>
+                </div>
+              )}
+              {priceIncreaseWarning && priceIncreaseWarning.amount > 0 && (
+                <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md" data-testid="alert-price-increase">
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+                    ⚠️ Shipping Cost Increased
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                    The shipping cost has increased by <span className="font-semibold">${priceIncreaseWarning.amount.toFixed(2)}</span> ({priceIncreaseWarning.percentage.toFixed(1)}%). 
+                    You will be charged the current price when purchasing the label.
                   </p>
                 </div>
               )}
@@ -711,14 +848,15 @@ export function ShippingDrawer({ order, bundle, children, currentTab }: Shipping
           )}
         </div>
       </SheetContent>
-      
-      <BulkLabelDialog
-        open={labelDialogOpen}
-        onOpenChange={setLabelDialogOpen}
-        orderCount={1}
-        onConfirm={confirmLabelPurchase}
-        isPending={purchaseLabelMutation.isPending}
-      />
     </Sheet>
+    
+    <BulkLabelDialog
+      open={labelDialogOpen}
+      onOpenChange={setLabelDialogOpen}
+      orderCount={1}
+      onConfirm={confirmLabelPurchase}
+      isPending={purchaseLabelMutation.isPending}
+    />
+  </>
   );
 }

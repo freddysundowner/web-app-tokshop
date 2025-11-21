@@ -21,12 +21,14 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
   const shippingCost = order.shipping_fee || (order as any).total_shipping_cost || 0;
   const sellerCost = (order as any).seller_shipping_fee_pay || 0;
 
-  // Get package details
-  const weight = order.giveaway?.shipping_profile?.weight || order.items?.[0]?.weight;
-  const scale = order.giveaway?.shipping_profile?.scale || order.items?.[0]?.scale || 'oz';
-  const length = order.giveaway?.length || order.items?.[0]?.length;
-  const width = order.giveaway?.width || order.items?.[0]?.width;
-  const height = order.giveaway?.height || order.items?.[0]?.height;
+  // Get package details - always from order object
+  // For giveaway orders, check shipping_profile.weight first, then order.weight
+  const rawWeight = order.giveaway?.shipping_profile?.weight || order.weight;
+  const weight = rawWeight ? rawWeight.toString() : "0";
+  const scale = order.giveaway?.shipping_profile?.scale || 'oz';
+  const length = order.giveaway ? order.giveaway.length : order.length;
+  const width = order.giveaway ? order.giveaway.width : order.width;
+  const height = order.giveaway ? order.giveaway.height : order.height;
 
   // Get shipping address
   const address = order.customer?.address;

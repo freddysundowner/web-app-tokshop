@@ -26,9 +26,14 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Search, Filter, MoreHorizontal, Package, Printer, Truck, Ship, X } from "lucide-react";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal, formatCurrency, getOrderBreakdown } from "@shared/pricing";
@@ -41,6 +46,14 @@ const statusColors = {
   delivered: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   ended: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+};
+
+const itemStatusColors = {
+  "pending cancellation": "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  "progressing": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  "cancelled": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  "completed": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  "shipped": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
 };
 
 const statusPriority = {
@@ -68,6 +81,14 @@ export default function Purchases() {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedOrder, setSelectedOrder] = useState<TokshopOrder | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
+  const [selectedCancelReason, setSelectedCancelReason] = useState("");
+  const [customCancelReason, setCustomCancelReason] = useState("");
+  const [cancelItemDialogOpen, setCancelItemDialogOpen] = useState(false);
+  const [itemToCancel, setItemToCancel] = useState<{ orderId: string; itemId: string } | null>(null);
+  const [selectedItemCancelReason, setSelectedItemCancelReason] = useState("");
+  const [customItemCancelReason, setCustomItemCancelReason] = useState("");
   const { user } = useAuth();
   const { settings } = useSettings();
   const { toast } = useToast();
@@ -122,6 +143,149 @@ export default function Purchases() {
       }
     }
   }, []);
+
+  // Cancel order mutation
+  const cancelOrderMutation = useMutation({
+    mutationFn: async ({
+      orderId,
+      reason,
+    }: {
+      orderId: string;
+      reason: string;
+    }) => {
+      const response = await fetch(`/api/orders/cancel/order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order: orderId,
+          relist: false,
+          initiator: "buyer",
+          type: "order",
+          description: reason,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to cancel order');
+      }
+      
+      return response.json();
+    },
+    onSuccess: async () => {
+      // Invalidate all purchases queries
+      await queryClient.invalidateQueries({ queryKey: ["external-purchases"] });
+      // Also invalidate the /api/orders endpoint
+      await queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      
+      toast({ title: "Order cancelled successfully" });
+      setIsDetailsDialogOpen(false);
+      setCancelDialogOpen(false);
+      setOrderToCancel(null);
+      setSelectedCancelReason("");
+      setCustomCancelReason("");
+    },
+    onError: () => {
+      toast({ title: "Failed to cancel order", variant: "destructive" });
+    },
+  });
+
+  const handleCancelOrder = (orderId: string) => {
+    setOrderToCancel(orderId);
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = () => {
+    if (orderToCancel) {
+      const reason = selectedCancelReason === "Other" ? customCancelReason : selectedCancelReason;
+      cancelOrderMutation.mutate({
+        orderId: orderToCancel,
+        reason: reason,
+      });
+    }
+  };
+
+  // Cancel item mutation
+  const cancelItemMutation = useMutation({
+    mutationFn: async ({
+      orderId,
+      itemId,
+      reason,
+    }: {
+      orderId: string;
+      itemId: string;
+      reason: string;
+    }) => {
+      const response = await fetch(`/api/orders/cancel/order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order: itemId,  // Send item ID in the order field for item-level cancellation
+          relist: false,
+          initiator: "buyer",
+          type: "item",
+          description: reason,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to cancel item');
+      }
+      
+      return response.json();
+    },
+    onSuccess: async () => {
+      // Invalidate all purchases queries
+      await queryClient.invalidateQueries({ queryKey: ["external-purchases"] });
+      // Also invalidate the /api/orders endpoint
+      await queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      
+      toast({ title: "Item cancelled successfully" });
+      setCancelItemDialogOpen(false);
+      setItemToCancel(null);
+      setSelectedItemCancelReason("");
+      setCustomItemCancelReason("");
+      
+      // Wait a moment for the invalidation to trigger refetch
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Update selected order with fresh data from cache
+      if (selectedOrder) {
+        const freshData = queryClient.getQueryData<TokshopOrdersResponse>(["external-purchases", user?.id, statusFilter, currentPage, itemsPerPage]);
+        const updatedOrder = freshData?.orders?.find(o => o._id === selectedOrder._id);
+        if (updatedOrder) {
+          setSelectedOrder(updatedOrder);
+        }
+      }
+    },
+    onError: () => {
+      toast({ title: "Failed to cancel item", variant: "destructive" });
+    },
+  });
+
+  const handleCancelItem = (orderId: string, itemId: string | undefined) => {
+    if (!itemId) {
+      toast({ 
+        title: "Cannot cancel item", 
+        description: "Item ID is missing",
+        variant: "destructive" 
+      });
+      return;
+    }
+    console.log('Cancel item clicked:', { orderId, itemId });
+    setItemToCancel({ orderId, itemId });
+    setCancelItemDialogOpen(true);
+  };
+
+  const handleConfirmItemCancel = () => {
+    if (itemToCancel) {
+      const reason = selectedItemCancelReason === "Other" ? customItemCancelReason : selectedItemCancelReason;
+      cancelItemMutation.mutate({
+        orderId: itemToCancel.orderId,
+        itemId: itemToCancel.itemId,
+        reason: reason,
+      });
+    }
+  };
 
   // Process and filter data
   const orders: TokshopOrder[] = orderResponse?.orders || [];
@@ -511,9 +675,9 @@ export default function Purchases() {
                       </td>
 
                       {/* Actions column */}
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
+                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" data-testid={`button-actions-${order._id}`}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
@@ -532,6 +696,18 @@ export default function Purchases() {
                                 <Truck className="h-4 w-4 mr-2" />
                                 Track Package
                               </DropdownMenuItem>
+                            )}
+                            {(order.status === 'processing' || order.status === 'unfulfilled') && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onSelect={() => handleCancelOrder(order._id)}
+                                  data-testid={`button-cancel-order-${order._id}`}
+                                >
+                                  <X className="h-4 w-4 mr-2" />
+                                  Cancel Order
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -561,7 +737,8 @@ export default function Purchases() {
       
       {/* View Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <div className="flex-1 overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
           </DialogHeader>
@@ -622,6 +799,7 @@ export default function Purchases() {
                         <th className="text-center p-3">Quantity</th>
                         <th className="text-right p-3">Price</th>
                         <th className="text-right p-3">Total</th>
+                        <th className="text-right p-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -645,6 +823,14 @@ export default function Purchases() {
                                 {item.productId?.category?.name && (
                                   <p className="text-sm text-muted-foreground">{item.productId.category.name}</p>
                                 )}
+                                {item.status && (
+                                  <Badge 
+                                    className={`mt-1 text-xs ${itemStatusColors[item.status.toLowerCase() as keyof typeof itemStatusColors] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'}`}
+                                    data-testid={`badge-item-status-${index}`}
+                                  >
+                                    {item.status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -652,6 +838,33 @@ export default function Purchases() {
                           <td className="p-3 text-right">{formatCurrency(item.price || 0)}</td>
                           <td className="p-3 text-right font-medium">
                             {formatCurrency((item.quantity || 0) * (item.price || 0))}
+                          </td>
+                          <td className="p-3 text-right">
+                            {(selectedOrder.status === 'processing' || selectedOrder.status === 'unfulfilled') && 
+                             item.status?.toLowerCase() !== 'pending_cancellation' && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    data-testid={`button-item-actions-${index}`}
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem 
+                                    onSelect={() => {
+                                      handleCancelItem(selectedOrder._id, item._id);
+                                    }}
+                                    data-testid={`button-cancel-item-${index}`}
+                                  >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cancel Item
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -713,6 +926,183 @@ export default function Purchases() {
               </div>
             </div>
           )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent data-testid="dialog-cancel-order">
+          <DialogHeader>
+            <DialogTitle>Cancel Order</DialogTitle>
+            <DialogDescription>
+              Please select a reason for cancelling this order. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label>Reason for Cancellation</Label>
+              <RadioGroup
+                value={selectedCancelReason}
+                onValueChange={setSelectedCancelReason}
+                data-testid="radio-cancel-reasons"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Accidental purchase" id="reason-accidental" data-testid="radio-reason-accidental" />
+                  <Label htmlFor="reason-accidental" className="font-normal cursor-pointer">
+                    Accidental purchase
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Ordered the wrong item" id="reason-wrong-item" data-testid="radio-reason-wrong-item" />
+                  <Label htmlFor="reason-wrong-item" className="font-normal cursor-pointer">
+                    Ordered the wrong item
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Shipping taking too long" id="reason-shipping" data-testid="radio-reason-shipping" />
+                  <Label htmlFor="reason-shipping" className="font-normal cursor-pointer">
+                    Shipping taking too long
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Other" id="reason-other" data-testid="radio-reason-other" />
+                  <Label htmlFor="reason-other" className="font-normal cursor-pointer">
+                    Other
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            {selectedCancelReason === "Other" && (
+              <div className="space-y-2">
+                <Label htmlFor="custom-cancel-reason">Please specify</Label>
+                <Textarea
+                  id="custom-cancel-reason"
+                  placeholder="Enter your reason..."
+                  value={customCancelReason}
+                  onChange={(e) => setCustomCancelReason(e.target.value)}
+                  rows={3}
+                  data-testid="textarea-custom-cancel-reason"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCancelDialogOpen(false);
+                setOrderToCancel(null);
+                setSelectedCancelReason("");
+                setCustomCancelReason("");
+              }}
+              disabled={cancelOrderMutation.isPending}
+              data-testid="button-cancel-dialog-close"
+            >
+              Keep Order
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmCancel}
+              disabled={cancelOrderMutation.isPending || !selectedCancelReason || (selectedCancelReason === "Other" && !customCancelReason.trim())}
+              data-testid="button-confirm-cancel"
+            >
+              {cancelOrderMutation.isPending ? "Cancelling..." : "Cancel Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Item Dialog */}
+      <Dialog open={cancelItemDialogOpen} onOpenChange={(open) => {
+        setCancelItemDialogOpen(open);
+        if (!open) {
+          // Reset state when dialog is closed
+          setItemToCancel(null);
+          setSelectedItemCancelReason("");
+          setCustomItemCancelReason("");
+        }
+      }}>
+        <DialogContent data-testid="dialog-cancel-item">
+          <DialogHeader>
+            <DialogTitle>Cancel Item</DialogTitle>
+            <DialogDescription>
+              Please select a reason for cancelling this item. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label>Reason for Cancellation</Label>
+              <RadioGroup
+                value={selectedItemCancelReason}
+                onValueChange={setSelectedItemCancelReason}
+                data-testid="radio-cancel-item-reasons"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Accidental purchase" id="item-reason-accidental" data-testid="radio-item-reason-accidental" />
+                  <Label htmlFor="item-reason-accidental" className="font-normal cursor-pointer">
+                    Accidental purchase
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Ordered the wrong item" id="item-reason-wrong-item" data-testid="radio-item-reason-wrong-item" />
+                  <Label htmlFor="item-reason-wrong-item" className="font-normal cursor-pointer">
+                    Ordered the wrong item
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Shipping taking too long" id="item-reason-shipping" data-testid="radio-item-reason-shipping" />
+                  <Label htmlFor="item-reason-shipping" className="font-normal cursor-pointer">
+                    Shipping taking too long
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Other" id="item-reason-other" data-testid="radio-item-reason-other" />
+                  <Label htmlFor="item-reason-other" className="font-normal cursor-pointer">
+                    Other
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            {selectedItemCancelReason === "Other" && (
+              <div className="space-y-2">
+                <Label htmlFor="custom-item-cancel-reason">Please specify</Label>
+                <Textarea
+                  id="custom-item-cancel-reason"
+                  placeholder="Enter your reason..."
+                  value={customItemCancelReason}
+                  onChange={(e) => setCustomItemCancelReason(e.target.value)}
+                  rows={3}
+                  data-testid="textarea-custom-item-cancel-reason"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCancelItemDialogOpen(false);
+                setItemToCancel(null);
+                setSelectedItemCancelReason("");
+                setCustomItemCancelReason("");
+              }}
+              disabled={cancelItemMutation.isPending}
+              data-testid="button-cancel-item-dialog-close"
+            >
+              Keep Item
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmItemCancel}
+              disabled={cancelItemMutation.isPending || !selectedItemCancelReason || (selectedItemCancelReason === "Other" && !customItemCancelReason.trim())}
+              data-testid="button-confirm-cancel-item"
+            >
+              {cancelItemMutation.isPending ? "Cancelling..." : "Cancel Item"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

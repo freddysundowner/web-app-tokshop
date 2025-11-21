@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 export default function TrendingAuctions() {
   usePageTitle('Trending Auctions');
 
-  // Fetch trending auctions
+  // Fetch trending auctions (same parameters as homepage, but more results)
   const { data: trendingAuctionsData, isLoading } = useQuery({
     queryKey: ['/api/products', 'trending', 'auction'],
     queryFn: async () => {
@@ -16,7 +16,9 @@ export default function TrendingAuctions() {
         saletype: 'auction',
         status: 'active',
         limit: '50',
-        sortBy: 'views'
+        sortBy: 'views',
+        featured: 'true', // Keep same filter as homepage
+        type: 'scheduled' // Keep same filter as homepage
       });
       const response = await fetch(`/api/products?${params.toString()}`);
       return response.json();

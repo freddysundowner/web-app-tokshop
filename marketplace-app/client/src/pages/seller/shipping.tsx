@@ -34,6 +34,8 @@ import {
   Info,
   Truck,
   FileText,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import type {
   TokshopOrder,
@@ -88,12 +90,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { CompletePagination } from "@/components/ui/pagination";
 
 const statusColors = {
   unfulfilled:
     "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   processing:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  progressing:
     "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   ready_to_ship:
     "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
@@ -102,6 +113,8 @@ const statusColors = {
   delivered:
     "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  pending_cancellation:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   pickup:
     "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
 };
@@ -146,6 +159,15 @@ export default function Shipping() {
   const [scanFormViewerOpen, setScanFormViewerOpen] = useState(false);
   const [scanForms, setScanForms] = useState<any[]>([]);
   const [isLoadingScanForms, setIsLoadingScanForms] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
+  const [cancellationOrderId, setCancellationOrderId] = useState<string | null>(null);
+  const [cancellationItemId, setCancellationItemId] = useState<string | null>(null);
+  const [declineReason, setDeclineReason] = useState("");
+  const [approveRelistOption, setApproveRelistOption] = useState(false);
+  const [shippingDrawerOpen, setShippingDrawerOpen] = useState(false);
+  const [shippingDrawerOrder, setShippingDrawerOrder] = useState<TokshopOrder | null>(null);
+  const [cancelAlertOpen, setCancelAlertOpen] = useState(false);
   const { user } = useAuth();
 
   const { toast } = useToast();
@@ -160,12 +182,18 @@ export default function Shipping() {
       orderId: string;
       relist: boolean;
     }) => {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        method: "PUT",
+      const response = await fetch("/api/orders/cancel/order", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status: "cancelled", relist }),
+        body: JSON.stringify({ 
+          order: orderId,
+          initiator: "seller",
+          type: "order",
+          relist: relist,
+          description: "Order cancelled by seller"
+        }),
       });
 
       if (!response.ok) {
@@ -241,6 +269,109 @@ export default function Shipping() {
     }
     
     return true;
+  };
+
+  // Approve cancellation mutation
+  const approveCancellationMutation = useMutation({
+    mutationFn: async ({ orderId, itemId, relist }: { orderId: string; itemId?: string; relist: boolean }) => {
+      const payload: any = {
+        order: orderId,
+        description: itemId 
+          ? "Item cancellation approved by seller" 
+          : "Order cancellation approved by seller",
+        relist: relist,
+      };
+
+      if (itemId) {
+        payload.item = itemId;
+      }
+
+      const response = await fetch("/api/orders/cancel/approve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to approve cancellation");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["external-orders"] });
+      toast({ title: "Cancellation request approved" });
+      setApproveDialogOpen(false);
+      setCancellationOrderId(null);
+      setCancellationItemId(null);
+      setApproveRelistOption(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to approve cancellation", variant: "destructive" });
+    },
+  });
+
+  // Decline cancellation mutation
+  const declineCancellationMutation = useMutation({
+    mutationFn: async ({ orderId, itemId, reason }: { orderId: string; itemId?: string; reason: string }) => {
+      const payload: any = {
+        order: orderId,
+        description: reason || (itemId 
+          ? "Item cancellation declined by seller" 
+          : "Order cancellation declined by seller"),
+      };
+
+      if (itemId) {
+        payload.item = itemId;
+      }
+
+      const response = await fetch("/api/orders/cancel/decline", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to decline cancellation");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["external-orders"] });
+      toast({ title: "Cancellation request declined" });
+      setDeclineDialogOpen(false);
+      setCancellationOrderId(null);
+      setCancellationItemId(null);
+      setDeclineReason("");
+    },
+    onError: () => {
+      toast({ title: "Failed to decline cancellation", variant: "destructive" });
+    },
+  });
+
+  const handleApproveCancellation = () => {
+    if (cancellationOrderId) {
+      approveCancellationMutation.mutate({
+        orderId: cancellationOrderId,
+        itemId: cancellationItemId || undefined,
+        relist: approveRelistOption,
+      });
+    }
+  };
+
+  const handleDeclineCancellation = () => {
+    if (cancellationOrderId) {
+      declineCancellationMutation.mutate({
+        orderId: cancellationOrderId,
+        itemId: cancellationItemId || undefined,
+        reason: declineReason,
+      });
+    }
   };
 
   // Unbundle items mutation
@@ -484,7 +615,7 @@ export default function Shipping() {
       // For marketplace orders, send null as tokshow value
       const tokshowValue = selectedShowId === 'marketplace' ? null : selectedShowId;
       const carrierAccount = selectedShow?.carrierAccount;
-      const ownerId = selectedShow?.owner?._id || selectedShow?.owner || user?.id;
+      const ownerId = selectedShow?.owner?._id || selectedShow?.owner || user?.id || '';
       generateScanFormMutation.mutate({ tokshow: tokshowValue, carrierAccount, ownerId });
     }
   };
@@ -745,8 +876,12 @@ export default function Shipping() {
       let compareValue = 0;
       
       if (sortColumn === 'customer') {
-        const nameA = `${a.customer?.firstName || ''} ${a.customer?.lastName || ''}`;
-        const nameB = `${b.customer?.firstName || ''} ${b.customer?.lastName || ''}`;
+        const nameA = typeof a.customer === 'object'
+          ? `${a.customer?.firstName || ''} ${a.customer?.lastName || ''}`.trim()
+          : '';
+        const nameB = typeof b.customer === 'object'
+          ? `${b.customer?.firstName || ''} ${b.customer?.lastName || ''}`.trim()
+          : '';
         compareValue = nameA.localeCompare(nameB);
       } else if (sortColumn === 'orderDate') {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -1850,8 +1985,9 @@ export default function Shipping() {
                                     </div>
                                   )}
                                   <span className="text-sm font-medium text-foreground">
-                                    {order.customer?.firstName || "Unknown"}{" "}
-                                    {order.customer?.lastName || ""}
+                                    {typeof order.customer === "object"
+                                      ? `${order.customer?.firstName || "Unknown"} ${order.customer?.lastName || ""}`.trim()
+                                      : "Unknown Customer"}
                                   </span>
                                 </div>
                               </div>
@@ -1979,7 +2115,7 @@ export default function Shipping() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   {/* View & Unbundle option for multi-item orders (not ready_to_ship and no label) */}
-                                  {!order.giveaway && order.items && order.items.length > 1 && order.status !== "ready_to_ship" && !order.shipment_id && (
+                                  {!order.giveaway && order.items && order.items.length > 1 && order.status !== "ready_to_ship" && !(order as any).shipment_id && (
                                     <DropdownMenuItem
                                       onClick={() => {
                                         setUnbundleOrderId(order._id);
@@ -1994,17 +2130,44 @@ export default function Shipping() {
 
                                   {/* Edit/Ship Label option for processing orders */}
                                   {order.status === "processing" && (
-                                    <ShippingDrawer
-                                      order={order}
-                                      currentTab={statusFilter}
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setShippingDrawerOrder(order);
+                                        setShippingDrawerOpen(true);
+                                      }}
                                     >
+                                      <Eye size={14} className="mr-2" />
+                                      Edit/Ship Label
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  {/* Approve/Decline cancellation options for pending_cancellation orders */}
+                                  {order.status === "pending_cancellation" && (
+                                    <>
                                       <DropdownMenuItem
-                                        onSelect={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                          setCancellationOrderId(order._id);
+                                          setApproveDialogOpen(true);
+                                        }}
+                                        data-testid={`menu-approve-cancellation-${order._id}`}
+                                        className="text-green-600"
                                       >
-                                        <Eye size={14} className="mr-2" />
-                                        Edit/Ship Label
+                                        <CheckCircle size={14} className="mr-2" />
+                                        Approve Cancellation
                                       </DropdownMenuItem>
-                                    </ShippingDrawer>
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setCancellationOrderId(order._id);
+                                          setDeclineDialogOpen(true);
+                                        }}
+                                        data-testid={`menu-decline-cancellation-${order._id}`}
+                                        className="text-red-600"
+                                      >
+                                        <XCircle size={14} className="mr-2" />
+                                        Decline Cancellation
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                    </>
                                   )}
 
                                   {/* Options for ready_to_ship orders */}
@@ -2038,7 +2201,9 @@ export default function Shipping() {
                                         View Shipment Details
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
-                                        onClick={() => handleMarkAsShipped(order._id)}
+                                        onClick={() => {
+                                          handleMarkAsShipped(order._id);
+                                        }}
                                         data-testid={`menu-mark-shipped-${order._id}`}
                                       >
                                         <Ship size={14} className="mr-2" />
@@ -2050,17 +2215,15 @@ export default function Shipping() {
                                   {/* Reprint option for shipped orders */}
                                   {(order.status === "shipped" ||
                                     order.status === "delivered") && (
-                                    <ShippingDrawer
-                                      order={order}
-                                      currentTab={statusFilter}
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setShippingDrawerOrder(order);
+                                        setShippingDrawerOpen(true);
+                                      }}
                                     >
-                                      <DropdownMenuItem
-                                        onSelect={(e) => e.preventDefault()}
-                                      >
-                                        <Printer size={14} className="mr-2" />
-                                        Reprint Label
-                                      </DropdownMenuItem>
-                                    </ShippingDrawer>
+                                      <Printer size={14} className="mr-2" />
+                                      Reprint Label
+                                    </DropdownMenuItem>
                                   )}
 
                                   {/* Cancel order option for non-cancelled/shipped orders */}
@@ -2070,91 +2233,20 @@ export default function Shipping() {
                                     !(order as any).tracking_url && (
                                       <>
                                         <DropdownMenuSeparator />
-                                        <AlertDialog
-                                          onOpenChange={(open) => {
-                                            if (!open) {
-                                              setCancelOrderId(null);
-                                              setRelistOption(false);
-                                            }
+                                        <DropdownMenuItem
+                                          className="text-red-600"
+                                          data-testid={`menu-cancel-${order._id}`}
+                                          onClick={() => {
+                                            setCancelOrderId(order._id);
+                                            setCancelAlertOpen(true);
                                           }}
                                         >
-                                          <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem
-                                              onSelect={(e) =>
-                                                e.preventDefault()
-                                              }
-                                              className="text-red-600"
-                                              data-testid={`menu-cancel-${order._id}`}
-                                              onClick={() =>
-                                                setCancelOrderId(order._id)
-                                              }
-                                            >
-                                              <X size={14} className="mr-2" />
-                                              Cancel Order
-                                            </DropdownMenuItem>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>
-                                                Cancel Order
-                                              </AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                Are you sure you want to
-                                                cancel order #
-                                                {order.invoice ||
-                                                  order._id.slice(-8)}
-                                                ? This action cannot be
-                                                undone.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-
-                                            <div className="flex items-center space-x-2 my-4">
-                                              <Checkbox
-                                                id={`relist-${order._id}`}
-                                                checked={relistOption}
-                                                onCheckedChange={(checked) =>
-                                                  setRelistOption(
-                                                    Boolean(checked === true),
-                                                  )
-                                                }
-                                                data-testid={`checkbox-relist-${order._id}`}
-                                              />
-                                              <label
-                                                htmlFor={`relist-${order._id}`}
-                                                className="text-sm"
-                                              >
-                                                Relist this order for future
-                                                processing
-                                              </label>
-                                            </div>
-
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel
-                                                onClick={() => {
-                                                  setCancelOrderId(null);
-                                                  setRelistOption(false);
-                                                }}
-                                                data-testid={`button-keep-order-${order._id}`}
-                                              >
-                                                Keep Order
-                                              </AlertDialogCancel>
-                                              <AlertDialogAction
-                                                onClick={handleCancelOrder}
-                                                disabled={
-                                                  cancelOrderMutation.isPending
-                                                }
-                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-                                                data-testid={`button-confirm-cancel-${order._id}`}
-                                              >
-                                                {cancelOrderMutation.isPending
-                                                  ? "Cancelling..."
-                                                  : "Cancel Order"}
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
+                                          <X size={14} className="mr-2" />
+                                          Cancel Order
+                                        </DropdownMenuItem>
                                       </>
-                                    )}
+                                    )
+                                  }
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -2177,14 +2269,27 @@ export default function Shipping() {
                                     <thead>
                                       <tr className="border-b">
                                         <th className="text-left py-2 px-2 font-medium text-muted-foreground">Listing</th>
-                                        <th className="text-left py-2 px-2 font-medium text-muted-foreground">Description</th>
                                         <th className="text-left py-2 px-2 font-medium text-muted-foreground">Qty</th>
                                         <th className="text-left py-2 px-2 font-medium text-muted-foreground">Weight</th>
-                                        <th className="text-left py-2 px-2 font-medium text-muted-foreground">Sale Price</th>
+                                        <th className="text-left py-2 px-2 font-medium text-muted-foreground">Price</th>
                                         <th className="text-left py-2 px-2 font-medium text-muted-foreground">Shipping</th>
-                                        <th className="text-left py-2 px-2 font-medium text-muted-foreground">Order Type</th>
+                                        <th className="text-left py-2 px-2 font-medium text-muted-foreground">
+                                          <HoverCard>
+                                            <HoverCardTrigger asChild>
+                                              <div className="flex items-center gap-1 cursor-help">
+                                                S. Shipping
+                                                <Info size={12} className="text-muted-foreground" />
+                                              </div>
+                                            </HoverCardTrigger>
+                                            <HoverCardContent className="w-64">
+                                              <p className="text-xs">Shipping seller is paying</p>
+                                            </HoverCardContent>
+                                          </HoverCard>
+                                        </th>
+                                        <th className="text-left py-2 px-2 font-medium text-muted-foreground">Type</th>
                                         <th className="text-left py-2 px-2 font-medium text-muted-foreground">Date</th>
                                         <th className="text-left py-2 px-2 font-medium text-muted-foreground">Status</th>
+                                        <th className="text-center py-2 px-2 font-medium text-muted-foreground">Actions</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -2205,15 +2310,20 @@ export default function Shipping() {
                                               )}
                                               <div>
                                                 <p className="font-medium">{order.giveaway.name}</p>
+                                                <p className="text-xs text-muted-foreground lowercase">{order.giveaway.category?.name || '-'}</p>
                                                 <p className="text-xs text-muted-foreground">#{order.invoice || order._id.slice(-8)}</p>
                                               </div>
                                             </div>
                                           </td>
-                                          <td className="py-2 px-2 text-muted-foreground">{order.giveaway.description || '-'}</td>
                                           <td className="py-2 px-2">{order.giveaway.quantity || 1}</td>
                                           <td className="py-2 px-2">{order.giveaway.shipping_profile?.weight ? `${order.giveaway.shipping_profile.weight} ${order.giveaway.shipping_profile.scale || ''}` : '-'}</td>
                                           <td className="py-2 px-2">$0.00</td>
                                           <td className="py-2 px-2">${(order.shipping_fee || 0).toFixed(2)}</td>
+                                          <td className="py-2 px-2 text-center">
+                                            {order.seller_shipping_fee_pay && order.seller_shipping_fee_pay > 0 
+                                              ? `$${order.seller_shipping_fee_pay.toFixed(2)}`
+                                              : '-'}
+                                          </td>
                                           <td className="py-2 px-2">Giveaway</td>
                                           <td className="py-2 px-2 text-xs text-muted-foreground">
                                             {order.date ? new Date(order.date).toLocaleDateString() : '-'}
@@ -2223,9 +2333,52 @@ export default function Shipping() {
                                               {order.status || 'unfulfilled'}
                                             </span>
                                           </td>
+                                          <td className="py-2 px-2 text-center">
+                                            {(order.giveaway as any)?.status === 'pending_cancellation' ? (
+                                              <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    data-testid={`button-giveaway-actions-${order.giveaway._id}`}
+                                                  >
+                                                    <MoreHorizontal size={16} />
+                                                  </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                  <DropdownMenuItem
+                                                    onClick={() => {
+                                                      setCancellationOrderId(order._id);
+                                                      setCancellationItemId((order.giveaway as any)._id || null);
+                                                      setApproveDialogOpen(true);
+                                                    }}
+                                                    data-testid={`button-approve-item-${order.giveaway._id}`}
+                                                    className="text-green-600"
+                                                  >
+                                                    <CheckCircle size={14} className="mr-2" />
+                                                    Approve
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem
+                                                    onClick={() => {
+                                                      setCancellationOrderId(order._id);
+                                                      setCancellationItemId((order.giveaway as any)._id || null);
+                                                      setDeclineDialogOpen(true);
+                                                    }}
+                                                    data-testid={`button-decline-item-${order.giveaway._id}`}
+                                                    className="text-red-600"
+                                                  >
+                                                    <XCircle size={14} className="mr-2" />
+                                                    Reject
+                                                  </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                              </DropdownMenu>
+                                            ) : '-'}
+                                          </td>
                                         </tr>
                                       ) : order.items && order.items.length > 0 ? (
-                                        order.items.map((item, idx) => (
+                                        order.items.map((item, idx) => {
+                                          const itemStatus = (item as any).status || order.status;
+                                          return (
                                           <tr key={`${order._id}-${idx}`} className="border-b">
                                             <td className="py-2 px-2">
                                               <div className="flex items-center gap-2">
@@ -2242,53 +2395,82 @@ export default function Shipping() {
                                                 )}
                                                 <div>
                                                   <p className="font-medium">{item.productId?.name || 'Item'}{(item as any).order_reference ? ` ${(item as any).order_reference}` : ''}</p>
+                                                  <p className="text-xs text-muted-foreground lowercase">{item.productId?.category?.name || '-'}</p>
                                                   <p className="text-xs text-muted-foreground">#{order.invoice || order._id.slice(-8)}</p>
                                                 </div>
                                               </div>
                                             </td>
-                                            <td className="py-2 px-2 text-muted-foreground">{item.productId?.category?.name || '-'}</td>
                                             <td className="py-2 px-2">{item.quantity || 1}</td>
                                             <td className="py-2 px-2">{item.weight ? `${item.weight} ${item.scale || ''}` : '-'}</td>
                                             <td className="py-2 px-2">${(item.price || 0).toFixed(2)}</td>
                                             <td className="py-2 px-2">${(item.shipping_fee || 0).toFixed(2)}</td>
+                                            <td className="py-2 px-2 text-center">
+                                              {order.seller_shipping_fee_pay && order.seller_shipping_fee_pay > 0 
+                                                ? `$${order.seller_shipping_fee_pay.toFixed(2)}`
+                                                : '-'}
+                                            </td>
                                             <td className="py-2 px-2">{order.tokshow ? 'Show' : 'Marketplace'}</td>
                                             <td className="py-2 px-2 text-xs text-muted-foreground">
                                               {order.date ? new Date(order.date).toLocaleDateString() : '-'}
                                             </td>
                                             <td className="py-2 px-2">
-                                              <span className={`px-2 py-1 rounded-md text-xs ${statusColors[order.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}`}>
-                                                {order.status || 'unfulfilled'}
+                                              <span className={`px-2 py-1 rounded-md text-xs ${statusColors[itemStatus as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}`}>
+                                                {itemStatus?.replace(/_/g, ' ') || 'unfulfilled'}
                                               </span>
                                             </td>
+                                            <td className="py-2 px-2 text-center">
+                                              {itemStatus === 'pending_cancellation' ? (
+                                                <DropdownMenu>
+                                                  <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      data-testid={`button-item-actions-${item._id || idx}`}
+                                                    >
+                                                      <MoreHorizontal size={16} />
+                                                    </Button>
+                                                  </DropdownMenuTrigger>
+                                                  <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                      onClick={() => {
+                                                        setCancellationOrderId(order._id);
+                                                        setCancellationItemId(item._id || null);
+                                                        setApproveDialogOpen(true);
+                                                      }}
+                                                      data-testid={`button-approve-item-${item._id || idx}`}
+                                                      className="text-green-600"
+                                                    >
+                                                      <CheckCircle size={14} className="mr-2" />
+                                                      Approve
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                      onClick={() => {
+                                                        setCancellationOrderId(order._id);
+                                                        setCancellationItemId(item._id || null);
+                                                        setDeclineDialogOpen(true);
+                                                      }}
+                                                      data-testid={`button-decline-item-${item._id || idx}`}
+                                                      className="text-red-600"
+                                                    >
+                                                      <XCircle size={14} className="mr-2" />
+                                                      Reject
+                                                    </DropdownMenuItem>
+                                                  </DropdownMenuContent>
+                                                </DropdownMenu>
+                                              ) : '-'}
+                                            </td>
                                           </tr>
-                                        ))
+                                        );
+                                        })
                                       ) : (
                                         <tr className="border-b">
-                                          <td colSpan={9} className="py-4 px-2 text-center text-muted-foreground">
+                                          <td colSpan={10} className="py-4 px-2 text-center text-muted-foreground">
                                             No items available
                                           </td>
                                         </tr>
                                       )}
                                     </tbody>
                                   </table>
-                                </div>
-                                <div className="mt-3 pt-3 border-t border-border flex justify-between items-center text-sm">
-                                  <span className="text-muted-foreground">
-                                    Total items:{" "}
-                                    {order.items?.reduce(
-                                      (sum, item) =>
-                                        sum + (item.quantity || 0),
-                                      0,
-                                    ) || 1}
-                                  </span>
-                                  <span className="font-medium text-foreground">
-                                    Total value: $
-                                    {(
-                                      (order.total || 0) +
-                                      (order.tax || 0) +
-                                      (order.shipping_fee || 0)
-                                    ).toFixed(2)}
-                                  </span>
                                 </div>
                               </div>
                             </td>
@@ -2360,6 +2542,178 @@ export default function Shipping() {
           onOpenChange={setShipmentDetailsOpen}
           order={shipmentDetailsOrder}
         />
+
+        {/* Approve Cancellation Dialog */}
+        <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+          <DialogContent data-testid="dialog-approve-cancellation">
+            <DialogHeader>
+              <DialogTitle>Approve {cancellationItemId ? 'Item' : 'Order'} Cancellation Request</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to approve this {cancellationItemId ? 'item' : 'order'} cancellation request? {cancellationItemId ? 'The item' : 'The order'} will be cancelled and the buyer will be refunded.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-between space-x-2 py-4">
+              <Label htmlFor="relist-switch" className="flex flex-col space-y-1">
+                <span>Relist {cancellationItemId ? 'item' : 'product'}</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Make the {cancellationItemId ? 'item' : 'product'} available for sale again after cancellation
+                </span>
+              </Label>
+              <Switch
+                id="relist-switch"
+                checked={approveRelistOption}
+                onCheckedChange={setApproveRelistOption}
+                data-testid="switch-approve-relist"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setApproveDialogOpen(false);
+                  setCancellationOrderId(null);
+                  setCancellationItemId(null);
+                  setApproveRelistOption(false);
+                }}
+                disabled={approveCancellationMutation.isPending}
+                data-testid="button-cancel-approve"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApproveCancellation}
+                disabled={approveCancellationMutation.isPending}
+                data-testid="button-confirm-approve"
+              >
+                {approveCancellationMutation.isPending ? "Approving..." : "Approve Cancellation"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Decline Cancellation Dialog */}
+        <Dialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
+          <DialogContent data-testid="dialog-decline-cancellation">
+            <DialogHeader>
+              <DialogTitle>Decline {cancellationItemId ? 'Item' : 'Order'} Cancellation Request</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for declining this {cancellationItemId ? 'item' : 'order'} cancellation request. The buyer will be notified.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="decline-reason">Reason (Optional)</Label>
+                <Textarea
+                  id="decline-reason"
+                  placeholder="Enter your reason for declining..."
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  rows={3}
+                  data-testid="textarea-decline-reason"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeclineDialogOpen(false);
+                  setCancellationOrderId(null);
+                  setCancellationItemId(null);
+                  setDeclineReason("");
+                }}
+                disabled={declineCancellationMutation.isPending}
+                data-testid="button-cancel-decline"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeclineCancellation}
+                disabled={declineCancellationMutation.isPending}
+                data-testid="button-confirm-decline"
+              >
+                {declineCancellationMutation.isPending ? "Declining..." : "Decline Request"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Controlled Shipping Drawer */}
+        {shippingDrawerOrder && (
+          <ShippingDrawer
+            order={shippingDrawerOrder}
+            currentTab={statusFilter}
+            open={shippingDrawerOpen}
+            onOpenChange={(open) => {
+              setShippingDrawerOpen(open);
+              if (!open) {
+                setShippingDrawerOrder(null);
+              }
+            }}
+          />
+        )}
+
+        {/* Controlled Cancel Order Alert Dialog */}
+        {cancelOrderId && (
+          <AlertDialog
+            open={cancelAlertOpen}
+            onOpenChange={(open) => {
+              setCancelAlertOpen(open);
+              if (!open) {
+                setCancelOrderId(null);
+                setRelistOption(false);
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel Order</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to cancel order #
+                  {orders.find(o => o._id === cancelOrderId)?.invoice ||
+                    cancelOrderId.slice(-8)}
+                  ? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <div className="flex items-center space-x-2 my-4">
+                <Checkbox
+                  id="relist-order"
+                  checked={relistOption}
+                  onCheckedChange={(checked) =>
+                    setRelistOption(Boolean(checked === true))
+                  }
+                  data-testid="checkbox-relist"
+                />
+                <label htmlFor="relist-order" className="text-sm">
+                  Relist this order for future processing
+                </label>
+              </div>
+
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={() => {
+                    setCancelOrderId(null);
+                    setRelistOption(false);
+                    setCancelAlertOpen(false);
+                  }}
+                  data-testid="button-keep-order"
+                >
+                  Keep Order
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleCancelOrder}
+                  disabled={cancelOrderMutation.isPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                  data-testid="button-confirm-cancel"
+                >
+                  {cancelOrderMutation.isPending ? "Cancelling..." : "Cancel Order"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
     </div>
   );

@@ -546,4 +546,193 @@ export function registerOrderRoutes(app: Express) {
       res.status(500).json({ error: "Failed to unbundle items" });
     }
   });
+
+  // Cancel order endpoint - POST /api/orders/cancel/order
+  app.post("/api/orders/cancel/order", async (req, res) => {
+    try {
+      const { order, relist, initiator, type, description } = req.body;
+
+      console.log('Cancelling order:', { order, relist, initiator, type, description });
+
+      if (!order) {
+        return res.status(400).json({ 
+          success: false,
+          error: "Order ID is required" 
+        });
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/orders/cancel/order`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          order,
+          relist: relist || false,
+          initiator: initiator || 'buyer',
+          type: type || 'order',
+          description: description || ''
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to cancel order in Tokshop API:', response.status, errorText);
+        return res.status(response.status).json({ 
+          success: false,
+          error: `Failed to cancel order: ${response.status}`,
+          details: errorText
+        });
+      }
+
+      const result = await response.json();
+      console.log('Order cancelled successfully:', result);
+      res.json({
+        success: true,
+        ...result
+      });
+
+    } catch (error) {
+      console.error('Order cancellation error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: "Failed to cancel order" 
+      });
+    }
+  });
+
+  // Approve cancellation request endpoint - POST /api/orders/cancel/approve
+  app.post("/api/orders/cancel/approve", async (req, res) => {
+    try {
+      const { order, item, description, relist } = req.body;
+
+      console.log('Approving cancellation request:', { order, item, description, relist });
+
+      if (!order) {
+        return res.status(400).json({ 
+          success: false,
+          error: "Order ID is required" 
+        });
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const payload: any = {
+        order: item || order,  // Use item ID if present, otherwise order ID
+        action: 'approve',
+        type: item ? 'item' : 'order',
+        initiator: 'seller',
+        description: description || 'Cancellation approved by seller',
+        relist: relist || false
+      };
+
+      const response = await fetch(`${BASE_URL}/orders/cancel/order`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to approve cancellation in Tokshop API:', response.status, errorText);
+        return res.status(response.status).json({ 
+          success: false,
+          error: `Failed to approve cancellation: ${response.status}`,
+          details: errorText
+        });
+      }
+
+      const result = await response.json();
+      console.log('Cancellation approved successfully:', result);
+      res.json({
+        success: true,
+        ...result
+      });
+
+    } catch (error) {
+      console.error('Approve cancellation error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: "Failed to approve cancellation" 
+      });
+    }
+  });
+
+  // Decline cancellation request endpoint - POST /api/orders/cancel/decline
+  app.post("/api/orders/cancel/decline", async (req, res) => {
+    try {
+      const { order, item, description } = req.body;
+
+      console.log('Declining cancellation request:', { order, item, description });
+
+      if (!order) {
+        return res.status(400).json({ 
+          success: false,
+          error: "Order ID is required" 
+        });
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const payload: any = {
+        order: item || order,  // Use item ID if present, otherwise order ID
+        action: 'reject',
+        type: item ? 'item' : 'order',
+        initiator: 'seller',
+        description: description || (item 
+          ? 'Item cancellation declined by seller' 
+          : 'Order cancellation declined by seller')
+      };
+
+      console.log('Sending REJECT payload to Tokshop API:', JSON.stringify(payload, null, 2));
+
+      const response = await fetch(`${BASE_URL}/orders/cancel/order`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to decline cancellation in Tokshop API:', response.status, errorText);
+        return res.status(response.status).json({ 
+          success: false,
+          error: `Failed to decline cancellation: ${response.status}`,
+          details: errorText
+        });
+      }
+
+      const result = await response.json();
+      console.log('Cancellation declined successfully:', result);
+      res.json({
+        success: true,
+        ...result
+      });
+
+    } catch (error) {
+      console.error('Decline cancellation error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: "Failed to decline cancellation" 
+      });
+    }
+  });
 }

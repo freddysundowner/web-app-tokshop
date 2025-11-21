@@ -451,7 +451,11 @@ export function registerShippingRoutes(app: Express) {
       const rates = [{
         rate_id: validatedData.rate_id,
         label_file_type: (req.body as any).label_file_type || 'PDF_4x6',
-        order: orderIdToSend
+        order: orderIdToSend,
+        // Include new estimate data if provided
+        ...((req.body as any).estimate_data && {
+          estimate_data: (req.body as any).estimate_data
+        })
       }];
 
       console.log('Calling external shipping API:', `${BASE_URL}/shipping/profiles/buy/label`);

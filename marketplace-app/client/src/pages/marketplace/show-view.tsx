@@ -2237,7 +2237,11 @@ export default function ShowViewNew() {
 
         {/* Host Conflict Dialog */}
         <Dialog open={showHostConflictDialog} onOpenChange={setShowHostConflictDialog}>
-          <DialogContent className="bg-white text-black max-w-[95vw] sm:max-w-md mx-4">
+          <DialogContent 
+            className="bg-white text-black max-w-[95vw] sm:max-w-md mx-4 [&>button]:hidden"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle className="text-black text-base sm:text-lg">Active Show Detected</DialogTitle>
               <DialogDescription className="text-gray-600 text-sm">

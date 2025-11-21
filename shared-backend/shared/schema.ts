@@ -172,6 +172,7 @@ export const tokshopOrderSchema = z.object({
     length: z.string().optional(),
     scale: z.string().optional(),
     order_reference: z.string().optional(),
+    status: z.string().optional(),
   })).optional(),
   // Financial fields
   total: z.number().optional(), // Items total/subtotal amount
