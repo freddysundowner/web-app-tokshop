@@ -19,6 +19,7 @@ const AddPaymentDialog = lazy(() => import('@/components/add-payment-dialog'));
 const AddAddressDialog = lazy(() => import('@/components/add-address-dialog'));
 const PaymentMethodListDialog = lazy(() => import('@/components/payment-method-list-dialog'));
 const AddressListDialog = lazy(() => import('@/components/address-list-dialog'));
+const MakeOfferDialog = lazy(() => import('@/components/make-offer-dialog'));
 
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:productId");
@@ -36,12 +37,15 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [showOptionDropdown, setShowOptionDropdown] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showMakeOfferDialog, setShowMakeOfferDialog] = useState(false);
+  const [offerPrice, setOfferPrice] = useState<number | null>(null);
 
   const productId = params?.productId;
 
-  // Reset checkout view when product changes
+  // Reset checkout view and offer price when product changes
   useEffect(() => {
     setShowCheckout(false);
+    setOfferPrice(null);
   }, [productId]);
 
   // Fetch product details
@@ -151,16 +155,46 @@ export default function ProductDetail() {
     enabled: shouldFetchSellerProducts,
   });
 
-  // Checkout mutation - directly place order (defined early to avoid "not defined" error)
+  // Checkout mutation - place order OR create offer depending on offerPrice state
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       if (!product) throw new Error("Product not found");
       
       const productId = product._id || product.id;
       const shippingCost = parseFloat((shippingEstimate as any)?.amount || '0');
-      const subtotal = (product.price || 0) * quantity;
+      // Use offer price if making an offer, otherwise use product price
+      const priceToUse = offerPrice !== null ? offerPrice : (product.price || 0);
+      const subtotal = priceToUse * quantity;
       const total = subtotal + shippingCost;
       
+      // If making an offer, call the offers API
+      if (offerPrice !== null) {
+        const offerPayload: any = {
+          product: productId,
+          seller: sellerId,
+          buyer: userId,
+          quantity: quantity,
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          shippingFee: parseFloat(shippingCost.toFixed(2)),
+          tax: 0,
+          bundleId: (shippingEstimate as any)?.bundleId || '',
+          rate_id: (shippingEstimate as any)?.rate_id || '',
+          servicelevel: (shippingEstimate as any)?.servicelevel?.name || (shippingEstimate as any)?.servicelevel || '',
+          totalWeightOz: parseFloat((shippingEstimate as any)?.totalWeightOz || '0'),
+          seller_shipping_fee_pay: parseFloat((shippingEstimate as any)?.seller_shipping_fee_pay || '0'),
+        };
+        
+        // Only include tokshow if it has a value
+        if (product.tokshow) {
+          offerPayload.tokshow = product.tokshow;
+        }
+        
+        const response = await apiRequest('POST', '/api/offers', offerPayload);
+        const jsonData = await response.json();
+        return { ...jsonData, isOffer: true };
+      }
+      
+      // Regular checkout - create order
       const payload: any = {
         product: productId,
         seller: sellerId,
@@ -195,6 +229,21 @@ export default function ProductDetail() {
       return jsonData;
     },
     onSuccess: (data: any) => {
+      // Handle offer success differently from order success
+      if (data?.isOffer) {
+        console.log('Offer created, response:', data);
+        toast({
+          title: "Offer Sent!",
+          description: "Your offer has been sent to the seller. You can track it in My Offers.",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/offers'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+        setShowCheckout(false);
+        setOfferPrice(null);
+        // Stay on product page - don't navigate away
+        return;
+      }
+      
       console.log('Order created, response:', data);
       // API returns { success: true, data: { newOrder: {...}, newItem: {...} } }
       const orderId = data?.data?.newOrder?._id || data?.newOrder?._id || data?.order?._id || data?._id;
@@ -219,8 +268,9 @@ export default function ProductDetail() {
       }
     },
     onError: (error: any) => {
+      const isOffer = offerPrice !== null;
       toast({
-        title: "Purchase Failed",
+        title: isOffer ? "Offer Failed" : "Purchase Failed",
         description: error?.message || "Please try again later",
         variant: "destructive",
       });
@@ -427,9 +477,9 @@ export default function ProductDetail() {
           </div>
 
           {/* Action Buttons */}
-          <div>
+          <div className="flex items-center gap-2">
             <Button 
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed" 
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed" 
               data-testid="button-buy-now"
               disabled={isOwner || (shouldFetchShipping && isLoadingShipping)}
               onClick={() => {
@@ -440,6 +490,19 @@ export default function ProductDetail() {
             >
               {isOwner ? 'Your Product' : isLoadingShipping && shouldFetchShipping ? 'Loading...' : 'Buy Now'}
             </Button>
+            
+            {/* Make Offer Button - only show if product accepts offers and user is not owner */}
+            {product.offer && !isOwner && (
+              <Button 
+                size="sm"
+                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground" 
+                data-testid="button-make-offer"
+                disabled={shouldFetchShipping && isLoadingShipping}
+                onClick={() => setShowMakeOfferDialog(true)}
+              >
+                Make Offer
+              </Button>
+            )}
           </div>
 
           {/* Seller Info */}
@@ -607,10 +670,23 @@ export default function ProductDetail() {
 
           {/* Price */}
           <div className="flex items-center justify-between py-3 px-0 border-b">
-            <span className="text-sm font-medium">Price</span>
-            <span className="font-semibold" data-testid="text-product-price">
-              US${(product.price || 0).toFixed(2)}
-            </span>
+            <span className="text-sm font-medium">{offerPrice !== null ? 'Your Offer' : 'Price'}</span>
+            <div className="flex items-center gap-2" data-testid="text-product-price">
+              {offerPrice !== null ? (
+                <>
+                  <span className="text-muted-foreground line-through text-sm">
+                    US${(product.price || 0).toFixed(2)}
+                  </span>
+                  <span className="font-semibold text-green-600">
+                    US${offerPrice.toFixed(2)}
+                  </span>
+                </>
+              ) : (
+                <span className="font-semibold">
+                  US${(product.price || 0).toFixed(2)}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Payment Method */}
@@ -680,7 +756,7 @@ export default function ProductDetail() {
           <div className="space-y-3 pt-4">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span className="font-medium">US${((product.price || 0) * quantity).toFixed(2)}</span>
+              <span className="font-medium">US${((offerPrice !== null ? offerPrice : (product.price || 0)) * quantity).toFixed(2)}</span>
             </div>
             {/* Only show shipping if user has a valid address */}
             {hasValidAddress && (
@@ -700,7 +776,7 @@ export default function ProductDetail() {
               <span>Total</span>
               <span data-testid="text-total-price">
                 US${(
-                  (product.price || 0) * quantity + 
+                  (offerPrice !== null ? offerPrice : (product.price || 0)) * quantity + 
                   (shippingCost ? (typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost) : 0)
                 ).toFixed(2)}
               </span>
@@ -712,8 +788,11 @@ export default function ProductDetail() {
             <Button
               variant="outline"
               className="flex-1"
-              onClick={() => setShowCheckout(false)}
-              data-testid="button-back"
+              onClick={() => {
+                setShowCheckout(false);
+                setOfferPrice(null);
+              }}
+              data-testid="button-checkout-back"
             >
               Back
             </Button>
@@ -729,7 +808,7 @@ export default function ProductDetail() {
                   Processing...
                 </>
               ) : (
-                'Check out'
+                offerPrice !== null ? 'Make Offer' : 'Check out'
               )}
             </Button>
           </div>
@@ -870,6 +949,22 @@ export default function ProductDetail() {
               // Refetch address data to get updated address
               await queryClient.invalidateQueries({ queryKey: [`/api/address/default/address/${userId}`] });
               await refreshUserData();
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* Make Offer Dialog - Lazy loaded and only rendered when needed */}
+      {showMakeOfferDialog && (
+        <Suspense fallback={<div />}>
+          <MakeOfferDialog
+            open={showMakeOfferDialog}
+            onOpenChange={setShowMakeOfferDialog}
+            product={product}
+            shippingEstimate={shippingEstimate}
+            onContinueWithOffer={(price: number) => {
+              setOfferPrice(price);
+              setShowCheckout(true);
             }}
           />
         </Suspense>

@@ -86,6 +86,7 @@ export function ProductForm({
       list_individually: false,
       whocanenter: 'everyone',
       tokshow: roomId || "",
+      acceptsOffers: false,
     },
   });
 
@@ -166,6 +167,9 @@ export function ProductForm({
       const productDuration = existingProduct.auction?.duration || existingProduct.duration || 5;
       const productSudden = existingProduct.auction?.sudden || existingProduct.sudden || false;
       
+      // API returns 'offer' field, but form uses 'acceptsOffers'
+      const acceptsOffersValue = existingProduct.offer ?? existingProduct.acceptsOffers ?? false;
+      
       console.log('Form values being set:', {
         name: existingProduct.name,
         quantity: productQuantity,
@@ -174,6 +178,7 @@ export function ProductForm({
         sudden: productSudden,
         shippingProfile: shippingProfileId,
         category: categoryId,
+        acceptsOffers: acceptsOffersValue,
       });
       
       // Reset form with existing product data
@@ -193,6 +198,7 @@ export function ProductForm({
         duration: productDuration,
         sudden: productSudden,
         tokshow: roomId || existingProduct.tokshow || "",
+        acceptsOffers: acceptsOffersValue,
       });
       
       // Set preview images
@@ -323,7 +329,10 @@ export function ProductForm({
         submitData.price = data.price;
         submitData.shippingProfile = data.shippingProfile;
         submitData.featured = data.featured;
+        // Map acceptsOffers to offer for the backend API (same as inventory form)
+        submitData.offer = data.acceptsOffers ?? false;
         console.log('🛒 Buy Now - setting shippingProfile to:', data.shippingProfile);
+        console.log('🛒 Buy Now - setting offer (acceptsOffers) to:', data.acceptsOffers);
       } else if (currentListingType === 'auction') {
         submitData.startingPrice = data.startingPrice;
         submitData.price = data.startingPrice; // Backend expects price
@@ -997,6 +1006,31 @@ export function ProductForm({
                     checked={field.value}
                     onCheckedChange={field.onChange}
                     data-testid="switch-sudden-death"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        )}
+
+        {/* Buy Now-specific: Accept Offers */}
+        {currentListingType === 'buy_now' && (
+          <FormField
+            control={form.control}
+            name="acceptsOffers"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-700 p-3 bg-zinc-800">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-sm text-white font-medium">Accept Offers</FormLabel>
+                  <FormDescription className="text-xs text-zinc-300">
+                    Allow buyers to make offers on this product
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    data-testid="switch-accepts-offers"
                   />
                 </FormControl>
               </FormItem>

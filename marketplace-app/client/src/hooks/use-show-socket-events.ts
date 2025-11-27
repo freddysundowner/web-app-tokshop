@@ -37,6 +37,7 @@ interface UseShowSocketEventsProps {
   refetchAuction: () => void;
   refetchBuyNow: () => void;
   refetchGiveaways: () => void;
+  refetchOffers: () => void;
   shownWinnerAlertsRef: React.MutableRefObject<Set<string>>;
 }
 
@@ -73,11 +74,13 @@ export function useShowSocketEvents({
   refetchAuction,
   refetchBuyNow,
   refetchGiveaways,
+  refetchOffers,
   shownWinnerAlertsRef,
 }: UseShowSocketEventsProps) {
   const { toast } = useToast();
   const lastAuctionRefetchRef = useRef<number>(0);
   const lastGiveawayRefetchRef = useRef<number>(0);
+  const lastOffersRefetchRef = useRef<number>(0);
 
   // Debounced refetch functions to prevent duplicate calls
   const debouncedRefetchAuction = useCallback(() => {
@@ -101,6 +104,26 @@ export function useShowSocketEvents({
       refetchGiveaways();
     }
   }, [refetchGiveaways]);
+
+  const debouncedRefetchOffers = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastRefetch = now - lastOffersRefetchRef.current;
+    
+    // Only refetch if it's been more than 500ms since the last refetch
+    if (timeSinceLastRefetch > 500) {
+      lastOffersRefetchRef.current = now;
+      console.log('🔄 Refetching offers via socket event');
+      refetchOffers();
+    }
+  }, [refetchOffers]);
+
+  // Memoized handler: Fetch offers (triggered by socket event)
+  const handleFetchOffers = useCallback((data: any) => {
+    console.log('📬 fetch_offers socket event received:', data);
+    debouncedRefetchOffers();
+    // Also refetch buy now products since offer acceptance affects product quantity
+    refetchBuyNow();
+  }, [debouncedRefetchOffers, refetchBuyNow]);
 
   // Memoized handler: User connected
   const handleUserConnected = useCallback((data: any) => {
@@ -706,6 +729,7 @@ export function useShowSocketEvents({
     socket.on('joined-giveaway', handleGiveawayJoined);
     socket.on('ended-giveaway', handleGiveawayEnded);
     socket.on('marketplace_order', handleMarketplaceOrder);
+    socket.on('fetch_offers', handleFetchOffers);
 
     // Cleanup function
     return () => {
@@ -727,6 +751,7 @@ export function useShowSocketEvents({
       socket.off('joined-giveaway', handleGiveawayJoined);
       socket.off('ended-giveaway', handleGiveawayEnded);
       socket.off('marketplace_order', handleMarketplaceOrder);
+      socket.off('fetch_offers', handleFetchOffers);
       socket.off('createMessage');
       
       // Only leave room on cleanup - DO NOT disconnect socket!

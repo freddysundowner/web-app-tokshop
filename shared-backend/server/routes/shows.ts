@@ -117,6 +117,8 @@ export function registerShowRoutes(app: Express) {
       }
 
       const data = await response.json();
+      console.log('📋 PUT response data structure:', Object.keys(data));
+      
       res.json(data);
     } catch (error) {
       console.error("Error updating room from Tokshop API:", error);

@@ -519,36 +519,68 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Set user immediately from localStorage
           setUser(userData);
           
-          // Validate session in background (non-blocking)
-          apiRequest('GET', '/api/auth/session')
-            .then(response => response.json())
-            .then(sessionData => {
-              if (!sessionData.success) {
-                console.log('Session validation failed but keeping localStorage user');
-              }
-            })
-            .catch(error => {
-              console.log('Session validation error but keeping localStorage user:', error);
-            });
+          // Fetch fresh user profile from API to validate user exists
+          console.log('[checkAuth] Fetching fresh user data from API...');
           
-          // Fetch fresh address and payment data in background
-          console.log('[checkAuth] Fetching fresh user data for address and payment...');
-          Promise.all([
-            apiRequest('GET', `/api/address/default/address/${userData.id}`)
-              .then(res => res.json())
-              .catch(() => ({ address: null })),
-            apiRequest('GET', `/api/users/paymentmethod/${userData.id}`)
-              .then(res => res.json())
-              .catch(() => [])
-          ])
-            .then(([addressData, paymentMethods]) => {
-              const defaultAddress = addressData?.address || null;
-              const hasPaymentMethod = Array.isArray(paymentMethods) && paymentMethods.length > 0;
-              const defaultPaymentMethod = hasPaymentMethod ? paymentMethods[0] : null;
+          // Use fetch directly (not apiRequest) so we can check 404 status before it throws
+          fetch(`/api/profile/${userData.id}`, {
+            method: 'GET',
+            credentials: 'include'
+          })
+            .then(async (res) => {
+              // If 404, user doesn't exist in database - log them out
+              if (res.status === 404) {
+                console.log('[checkAuth] User not found in database (404), logging out...');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('user');
+                localStorage.removeItem('accessToken');
+                setUser(null);
+                return null;
+              }
               
-              // Update user with fresh data
+              if (!res.ok) {
+                console.log('[checkAuth] Profile fetch failed with status:', res.status);
+                return null;
+              }
+              
+              return res.json();
+            })
+            .then(async (profileData) => {
+              // If profileData is null, user was logged out or fetch failed
+              if (profileData === null) {
+                return;
+              }
+              
+              // User exists, fetch additional data
+              const [addressRes, paymentRes] = await Promise.all([
+                fetch(`/api/address/default/address/${userData.id}`, { credentials: 'include' })
+                  .then(res => res.ok ? res.json() : { address: null })
+                  .catch(() => ({ address: null })),
+                fetch(`/api/users/paymentmethod/${userData.id}`, { credentials: 'include' })
+                  .then(res => res.ok ? res.json() : [])
+                  .catch(() => [])
+              ]);
+              
+              const defaultAddress = addressRes?.address || null;
+              const hasPaymentMethod = Array.isArray(paymentRes) && paymentRes.length > 0;
+              const defaultPaymentMethod = hasPaymentMethod ? paymentRes[0] : null;
+              
+              // Merge fresh profile data with existing user data
               const updatedUser = {
                 ...userData,
+                // Update profile fields from fresh data
+                firstName: profileData.firstName || userData.firstName,
+                lastName: profileData.lastName || userData.lastName,
+                userName: profileData.userName || userData.userName,
+                email: profileData.email || userData.email,
+                profilePhoto: profileData.profilePhoto || userData.profilePhoto,
+                coverPhoto: profileData.coverPhoto || userData.coverPhoto,
+                bio: profileData.bio || userData.bio,
+                phonenumber: profileData.phonenumber || userData.phonenumber,
+                applied_seller: profileData.applied_seller ?? userData.applied_seller,
+                stripe_account: profileData.stripe_account || userData.stripe_account,
+                shipping_settings: profileData.shipping_settings || userData.shipping_settings,
+                notification_settings: profileData.notification_settings || userData.notification_settings,
                 address: defaultAddress,
                 defaultpaymentmethod: defaultPaymentMethod
               };
@@ -557,8 +589,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
               localStorage.setItem('user', JSON.stringify(updatedUser));
               
               console.log('[checkAuth] Fresh user data updated:', {
+                hasProfile: true,
                 hasAddress: !!defaultAddress,
-                hasPayment: !!defaultPaymentMethod
+                hasPayment: !!defaultPaymentMethod,
+                profilePhoto: updatedUser.profilePhoto ? 'SET' : 'NONE'
               });
             })
             .catch(error => {

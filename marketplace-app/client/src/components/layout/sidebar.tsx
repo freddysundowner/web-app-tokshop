@@ -9,7 +9,6 @@ import {
   MessageSquare,
   Store,
   Package,
-  ShoppingBag,
   Box,
   Truck,
   Package2,
@@ -18,6 +17,7 @@ import {
   ChevronRight,
   Video,
   BookOpen,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -75,14 +75,13 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
   const sellingItems = [
     { name: "Shows", href: "/live-shows", icon: Video },
     { name: "Orders", href: "/orders", icon: Package },
+    { name: "Offers", href: "/offers", icon: Tag },
     { name: "Inventory", href: "/inventory", icon: Box },
     { name: "Shipments", href: "/shipping", icon: Truck },
     { name: "Shipping Profiles", href: "/shipping-profiles", icon: Package2 },
   ];
 
-  const buyingItems = [
-    { name: "Purchases", href: "/purchases", icon: ShoppingBag },
-  ];
+  const buyingItems: { name: string; href: string; icon: any }[] = [];
 
   const helpItems = [
     { name: "Knowledge Base", href: "/knowledge-base", icon: BookOpen },
@@ -124,41 +123,44 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
         </div>
       </div>
 
-      <Separator />
-
-      {/* Buying Section */}
-      <div className="px-4 py-4">
-        <h2 className="text-lg font-semibold text-foreground mb-3">Buying</h2>
-        <nav className="space-y-1" data-testid="nav-buying">
-          {buyingItems.map((item) => {
-            const isActive = location === item.href;
-            return (
-              <button
-                key={item.name}
-                type="button"
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors cursor-pointer w-full text-left",
-                  isActive
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-                data-testid={`nav-${item.name.toLowerCase().replace(" ", "-")}`}
-                onClick={() => {
-                  if (onMobileClose) {
-                    onMobileClose();
-                    setTimeout(() => setLocation(item.href), 150);
-                  } else {
-                    setLocation(item.href);
-                  }
-                }}
-              >
-                <item.icon className="h-5 w-5" />
-                <span>{item.name}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      {/* Buying Section - only show if there are items */}
+      {buyingItems.length > 0 && (
+        <>
+          <Separator />
+          <div className="px-4 py-4">
+            <h2 className="text-lg font-semibold text-foreground mb-3">Buying</h2>
+            <nav className="space-y-1" data-testid="nav-buying">
+              {buyingItems.map((item) => {
+                const isActive = location === item.href;
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors cursor-pointer w-full text-left",
+                      isActive
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    data-testid={`nav-${item.name.toLowerCase().replace(" ", "-")}`}
+                    onClick={() => {
+                      if (onMobileClose) {
+                        onMobileClose();
+                        setTimeout(() => setLocation(item.href), 150);
+                      } else {
+                        setLocation(item.href);
+                      }
+                    }}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.name}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </>
+      )}
 
       {/* Selling Section (for sellers only) */}
       {currentUser?.seller && (

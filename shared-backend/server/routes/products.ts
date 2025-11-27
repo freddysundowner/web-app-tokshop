@@ -302,6 +302,7 @@ export function registerProductRoutes(app: Express) {
         ...(req.body.sizes && { sizes: req.body.sizes }),
         ...(req.body.reserved !== undefined && { reserved: req.body.reserved }),
         ...(req.body.tokshow !== undefined && { tokshow: req.body.tokshow }),
+        ...(req.body.offer !== undefined && { offer: req.body.offer }),
         ...(() => {
           // Handle shippingProfile - could be string or object, could be camelCase or snake_case
           const shippingProfile = req.body.shippingProfile || req.body.shipping_profile;
@@ -588,6 +589,7 @@ export function registerProductRoutes(app: Express) {
         tokshow: productData.tokshow,
         featured: productData.featured || false,
         started: (productData.featured && productData.listingType === 'auction') || false,
+        ...(req.body.offer !== undefined && { offer: req.body.offer }),
       };
       
       // Add scheduling fields for featured auctions (already converted to timestamps on frontend)

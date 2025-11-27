@@ -16,6 +16,7 @@ import { registerSettingsRoutes } from "./routes/settings";
 import { registerGiveawayRoutes } from "./routes/giveaways";
 import { registerStripeRoutes } from "./routes/stripe";
 import { registerContentRoutes } from "./routes/content";
+import { registerOfferRoutes } from "./routes/offers";
 import auctionRoutes from "./routes/auctions";
 import { BASE_URL } from "./utils";
 
@@ -47,6 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerShippingRoutes(app);
   registerBundleRoutes(app);
   registerReportRoutes(app);
+  registerOfferRoutes(app);
   app.use('/api/auction', auctionRoutes);
 
   const httpServer = createServer(app);

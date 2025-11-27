@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
+import { Switch } from "@/components/ui/switch";
 
 interface Category {
   _id: string;
@@ -24,6 +25,8 @@ interface Category {
   followersCount?: number;
   viewersCount?: number;
   subCategories?: any[];
+  commission?: number;
+  commission_enabled?: boolean;
 }
 
 export default function AdminCategories() {
@@ -36,6 +39,8 @@ export default function AdminCategories() {
   const [categoryName, setCategoryName] = useState("");
   const [categoryIcon, setCategoryIcon] = useState<File | null>(null);
   const [categoryTaxCode, setCategoryTaxCode] = useState("txcd_99999999");
+  const [categoryCommission, setCategoryCommission] = useState("");
+  const [categoryCommissionEnabled, setCategoryCommissionEnabled] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [subcategoryDialogOpen, setSubcategoryDialogOpen] = useState(false);
   const [selectedCategoryForSubcategories, setSelectedCategoryForSubcategories] = useState<{ id: string; name: string } | null>(null);
@@ -44,6 +49,8 @@ export default function AdminCategories() {
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [editCategoryName, setEditCategoryName] = useState("");
   const [editCategoryIcon, setEditCategoryIcon] = useState<File | null>(null);
+  const [editCategoryCommission, setEditCategoryCommission] = useState("");
+  const [editCategoryCommissionEnabled, setEditCategoryCommissionEnabled] = useState(false);
   const [convertToChildDialogOpen, setConvertToChildDialogOpen] = useState(false);
   const { externalApiUrl } = useApiConfig();
   const [categoryToConvert, setCategoryToConvert] = useState<Category | null>(null);
@@ -125,22 +132,44 @@ export default function AdminCategories() {
   };
 
   const addCategoryMutation = useMutation({
-    mutationFn: async ({ name, icon, tax_code }: { name: string; icon: File | null; tax_code: string }) => {
-      console.log('Starting category mutation with name:', name, 'icon:', icon?.name, 'tax_code:', tax_code);
+    mutationFn: async ({ name, icon, tax_code, commission, commission_enabled }: { name: string; icon: File | null; tax_code: string; commission: string; commission_enabled: boolean }) => {
+      console.log('Starting category mutation with name:', name, 'icon:', icon?.name, 'tax_code:', tax_code, 'commission:', commission, 'commission_enabled:', commission_enabled);
       
       const formData = new FormData();
       formData.append('name', name);
       formData.append('tax_code', tax_code);
+      formData.append('commission', commission);
+      formData.append('commission_enabled', String(commission_enabled));
       if (icon) {
         formData.append('images', icon);
       }
 
       console.log('Sending request to /api/admin/categories');
       
+      // Get admin token from localStorage
+      const adminToken = localStorage.getItem('adminAccessToken');
+      const userToken = localStorage.getItem('accessToken');
+      const userData = localStorage.getItem('user');
+      
+      const headers: Record<string, string> = {};
+      
+      if (adminToken) {
+        headers['x-admin-token'] = adminToken;
+      }
+      if (userToken) {
+        headers['x-access-token'] = userToken;
+        headers['Authorization'] = `Bearer ${userToken}`;
+      }
+      if (userData) {
+        headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+      }
+      
       try {
         const response = await fetch('/api/admin/categories', {
           method: 'POST',
+          headers,
           body: formData,
+          credentials: 'include',
         });
 
         console.log('Response received:', response.status, response.statusText);
@@ -167,6 +196,8 @@ export default function AdminCategories() {
       setCategoryName("");
       setCategoryIcon(null);
       setCategoryTaxCode("txcd_99999999");
+      setCategoryCommission("");
+      setCategoryCommissionEnabled(false);
       setAddCategoryDialogOpen(false);
     },
     onError: (error: any) => {
@@ -192,6 +223,8 @@ export default function AdminCategories() {
       name: categoryName,
       icon: categoryIcon,
       tax_code: categoryTaxCode,
+      commission: categoryCommission,
+      commission_enabled: categoryCommissionEnabled,
     });
   };
 
@@ -223,16 +256,38 @@ export default function AdminCategories() {
   };
 
   const editCategoryMutation = useMutation({
-    mutationFn: async ({ id, name, icon }: { id: string; name: string; icon: File | null }) => {
+    mutationFn: async ({ id, name, icon, commission, commission_enabled }: { id: string; name: string; icon: File | null; commission: string; commission_enabled: boolean }) => {
       const formData = new FormData();
       formData.append('name', name);
+      formData.append('commission', commission);
+      formData.append('commission_enabled', String(commission_enabled));
       if (icon) {
         formData.append('images', icon);
       }
 
+      // Get admin token from localStorage
+      const adminToken = localStorage.getItem('adminAccessToken');
+      const userToken = localStorage.getItem('accessToken');
+      const userData = localStorage.getItem('user');
+      
+      const headers: Record<string, string> = {};
+      
+      if (adminToken) {
+        headers['x-admin-token'] = adminToken;
+      }
+      if (userToken) {
+        headers['x-access-token'] = userToken;
+        headers['Authorization'] = `Bearer ${userToken}`;
+      }
+      if (userData) {
+        headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+      }
+
       const response = await fetch(`/api/admin/categories/${id}`, {
         method: 'PUT',
+        headers,
         body: formData,
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -252,6 +307,8 @@ export default function AdminCategories() {
       setCategoryToEdit(null);
       setEditCategoryName("");
       setEditCategoryIcon(null);
+      setEditCategoryCommission("");
+      setEditCategoryCommissionEnabled(false);
     },
     onError: (error: any) => {
       toast({
@@ -276,6 +333,8 @@ export default function AdminCategories() {
       id: categoryToEdit._id,
       name: editCategoryName,
       icon: editCategoryIcon,
+      commission: editCategoryCommission,
+      commission_enabled: editCategoryCommissionEnabled,
     });
   };
 
@@ -283,6 +342,8 @@ export default function AdminCategories() {
     setCategoryToEdit(category);
     setEditCategoryName(category.name);
     setEditCategoryIcon(null);
+    setEditCategoryCommission(category.commission?.toString() || "");
+    setEditCategoryCommissionEnabled(category.commission_enabled || false);
     setEditCategoryDialogOpen(true);
   };
 
@@ -462,6 +523,34 @@ export default function AdminCategories() {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="category-commission">Commission Rate (%)</Label>
+                    <Input
+                      id="category-commission"
+                      type="number"
+                      placeholder="Enter commission rate (e.g., 5 for 5%)"
+                      value={categoryCommission}
+                      onChange={(e) => setCategoryCommission(e.target.value)}
+                      data-testid="input-category-commission"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="category-commission-enabled">Enable Commission</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Apply commission to products in this category
+                      </p>
+                    </div>
+                    <Switch
+                      id="category-commission-enabled"
+                      checked={categoryCommissionEnabled}
+                      onCheckedChange={setCategoryCommissionEnabled}
+                      data-testid="switch-category-commission-enabled"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="category-icon">Category Icon (Optional)</Label>
                     <Input
                       id="category-icon"
@@ -480,6 +569,8 @@ export default function AdminCategories() {
                       setCategoryName("");
                       setCategoryIcon(null);
                       setCategoryTaxCode("txcd_99999999");
+                      setCategoryCommission("");
+                      setCategoryCommissionEnabled(false);
                     }}
                     data-testid="button-cancel-add-category"
                   >
@@ -564,6 +655,9 @@ export default function AdminCategories() {
                         Type
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
+                        Commission
+                      </th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
                         Subcategories
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
@@ -610,6 +704,22 @@ export default function AdminCategories() {
                             <span className="text-sm text-muted-foreground capitalize">
                               {category.type || 'N/A'}
                             </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            {category.commission_enabled ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-green-600">
+                                  {category.commission}%
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  (Enabled)
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                Disabled
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <span className="text-sm text-muted-foreground">
@@ -796,6 +906,34 @@ export default function AdminCategories() {
               />
             </div>
             <div>
+              <Label htmlFor="edit-category-commission">Commission Rate (%)</Label>
+              <Input
+                id="edit-category-commission"
+                type="number"
+                placeholder="Enter commission rate (e.g., 5 for 5%)"
+                value={editCategoryCommission}
+                onChange={(e) => setEditCategoryCommission(e.target.value)}
+                data-testid="input-edit-category-commission"
+                min="0"
+                max="100"
+                step="0.01"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-category-commission-enabled">Enable Commission</Label>
+                <p className="text-sm text-muted-foreground">
+                  Apply commission to products in this category
+                </p>
+              </div>
+              <Switch
+                id="edit-category-commission-enabled"
+                checked={editCategoryCommissionEnabled}
+                onCheckedChange={setEditCategoryCommissionEnabled}
+                data-testid="switch-edit-category-commission-enabled"
+              />
+            </div>
+            <div>
               <Label htmlFor="edit-category-icon">Category Icon (Optional)</Label>
               <Input
                 id="edit-category-icon"
@@ -824,6 +962,8 @@ export default function AdminCategories() {
                 setCategoryToEdit(null);
                 setEditCategoryName("");
                 setEditCategoryIcon(null);
+                setEditCategoryCommission("");
+                setEditCategoryCommissionEnabled(false);
               }}
               data-testid="button-cancel-edit-category"
             >

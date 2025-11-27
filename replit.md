@@ -143,7 +143,14 @@ The marketplace app faced significant mobile Safari compatibility issues that dr
 
 ### Email (Marketplace App)
 - **@sendgrid/mail** - Transactional email service
+- **nodemailer** - SMTP email client
 - **SendGrid API** - Email delivery (external service)
+
+**Email Features**:
+- Multi-provider support (SendGrid, Mailgun, Resend, SMTP)
+- Show analytics emails sent when shows end
+- HTML email templates with fallback text versions
+- Automatic email triggering via PUT /api/rooms/:id endpoint when `ended: true`
 
 ### Build & Development
 - **vite** - Build tool and dev server
@@ -163,3 +170,50 @@ The marketplace app faced significant mobile Safari compatibility issues that dr
 
 ### Media Handling (Marketplace App)
 - **multer** - File upload middleware (referenced in types)
+
+## Recent Changes (November 22, 2025)
+
+### Help Center System
+
+A public-facing help center has been added to the marketplace app with a Whatnot-style design:
+
+**Location**: `/marketplace-app/client/src/pages/marketplace/`
+- `help-center.tsx` - Main help center page with article grid
+- `help-article.tsx` - Individual article detail page
+
+**Routes**:
+- `/help-center` - Public help center landing page
+- `/help-center/:slug` - Individual article pages
+
+**API Endpoints** (Public, no authentication required):
+- `GET /api/articles/published` - Fetch all published articles
+- `GET /api/articles/published/:slug` - Fetch single article by slug
+
+**Features**:
+- Hero section with gradient background and dark wash overlay
+- Breadcrumb navigation (Home > Help Center > Category)
+- Search bar for filtering articles (client-side)
+- Category filter buttons
+- 3-column responsive grid of article cards
+- Individual article pages with formatted content
+- Help footer with "Contact Support" and "View FAQ" links
+
+**Design**:
+- Matches Whatnot's help center aesthetic with hero section
+- Uses shadcn/ui components throughout
+- Fully responsive with mobile-first approach
+- Articles stored in MongoDB via external API
+- Category badges and excerpt previews on article cards
+
+**Data Storage**:
+- Help articles are stored in MongoDB (dynamic business data)
+- Managed through admin panel at `/admin/help-articles`
+- Separate from static content pages (which use Firebase)
+
+**Important Note**: 
+- The marketplace app runs independently from the admin app
+- The admin app is currently served by the default workflow on port 5000
+- To access the marketplace app help center, you need to either:
+  1. Create a separate workflow to run the marketplace app
+  2. Or manually navigate to the marketplace app URL if it's running
+  3. Or switch the default workflow to serve the marketplace app instead

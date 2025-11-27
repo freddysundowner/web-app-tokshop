@@ -14,6 +14,7 @@ import cookieParser from "cookie-parser";
 import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { socketListener } from "./services/socket-listener";
 
 const app = express();
 
@@ -153,7 +154,15 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Initialize Socket.IO listener for show events
+    try {
+      await socketListener.initialize();
+      console.log('✅ Socket.IO listener initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize Socket.IO listener:', error);
+    }
   });
 })();

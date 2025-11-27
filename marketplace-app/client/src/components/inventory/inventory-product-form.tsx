@@ -111,6 +111,7 @@ export function InventoryProductForm({
       colors: [],
       sizes: [],
       featured: false,
+      acceptsOffers: false,
       startingPrice: 1,
       duration: 5,
       sudden: false,
@@ -244,6 +245,7 @@ export function InventoryProductForm({
         colors: product.colors || [],
         sizes: product.sizes || [],
         featured: product.featured ?? false,
+        acceptsOffers: (product as any).offer ?? (product as any).acceptsOffers ?? false,
         startTime: product.auction?.start_time_date
           ? new Date(product.auction.start_time_date).toISOString().slice(0, 16)
           : null,
@@ -329,6 +331,10 @@ export function InventoryProductForm({
       submitData.shipping_profile = data.shippingProfile;
     }
     delete submitData.shippingProfile;
+    
+    // Map acceptsOffers to offer for the backend API
+    submitData.offer = data.acceptsOffers ?? false;
+    delete submitData.acceptsOffers;
     
     onSubmit(submitData);
   };
@@ -464,6 +470,30 @@ export function InventoryProductForm({
                     )}
                   />
                 </div>
+
+                {listingType === 'buy_now' && (
+                  <FormField
+                    control={form.control}
+                    name="acceptsOffers"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">Accept Offers</FormLabel>
+                          <FormDescription>
+                            Allow buyers to make offers on this product
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-accepts-offers"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {listingType === 'giveaway' && (
                   <>

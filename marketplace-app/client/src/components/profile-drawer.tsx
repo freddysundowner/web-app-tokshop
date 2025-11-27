@@ -110,6 +110,7 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
   // Buying action buttons
   const buyingActions: ActionButton[] = [
     { icon: ShoppingBag, label: 'Purchases', href: '/purchases', testId: 'action-purchases' },
+    { icon: Tag, label: 'My Offers', href: '/my-offers', testId: 'action-my-offers' },
     { icon: MapPin, label: 'Addresses', href: '/addresses', testId: 'action-addresses' },
   ];
 

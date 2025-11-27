@@ -26,6 +26,8 @@ import {
   ChevronDown,
   Send,
   Smartphone,
+  BookOpen,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -55,6 +57,12 @@ const navigationItems: NavSection[] = [
         name: "Users",
         href: "/admin/users",
         icon: Users,
+      },
+      {
+        id: "pending-approvals",
+        name: "Pending Approvals",
+        href: "/admin/pending-approvals",
+        icon: Clock,
       },
       {
         id: "reported-cases",
@@ -155,6 +163,12 @@ const navigationItems: NavSection[] = [
         name: "Landing Page",
         href: "/admin/pages/landing",
         icon: Home,
+      },
+      {
+        id: "general",
+        name: "General",
+        href: "/admin/pages/general",
+        icon: BookOpen,
       },
       {
         id: "faq",

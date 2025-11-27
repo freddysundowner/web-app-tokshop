@@ -26,6 +26,7 @@ interface BuyNowDialogProps {
   shippingEstimate?: any;
   onOpenPaymentMethods?: () => void;
   onOpenShippingAddresses?: () => void;
+  offerPrice?: number | null;
 }
 
 export function BuyNowDialog({ 
@@ -34,7 +35,8 @@ export function BuyNowDialog({
   product,
   shippingEstimate: passedShippingEstimate,
   onOpenPaymentMethods,
-  onOpenShippingAddresses
+  onOpenShippingAddresses,
+  offerPrice
 }: BuyNowDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -185,7 +187,9 @@ export function BuyNowDialog({
     }
   };
 
-  const subtotal = (product?.price || 0) * quantity;
+  // Use offerPrice if provided, otherwise use product price
+  const unitPrice = offerPrice ?? product?.price ?? 0;
+  const subtotal = unitPrice * quantity;
   const hasShippingError = (shippingEstimate as any)?.error === true;
   const shippingErrorMessage = (shippingEstimate as any)?.message || '';
   const shippingCost = hasShippingError ? 0 : parseFloat((shippingEstimate as any)?.amount || '0');
@@ -216,6 +220,37 @@ export function BuyNowDialog({
       console.log('🚢 BUY NOW DIALOG - shippingEstimate.totalWeightOz:', (shippingEstimate as any)?.totalWeightOz);
       console.log('🚢 BUY NOW DIALOG - shippingEstimate.carrierAccount:', (shippingEstimate as any)?.carrierAccount);
       
+      // If offerPrice is set, create an OFFER instead of an order
+      if (offerPrice !== null && offerPrice !== undefined) {
+        const offerPayload: any = {
+          offeredPrice: offerPrice,
+          product: productId,
+          seller: sellerId,
+          buyer: userId,
+          quantity: quantity,
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          shippingFee: parseFloat((shippingEstimate as any)?.amount || '0'),
+          tax: parseFloat(taxAmount.toString() || '0'),
+          bundleId: (shippingEstimate as any)?.bundleId || '',
+          rate_id: (shippingEstimate as any)?.rate_id || '',
+          servicelevel: (shippingEstimate as any)?.servicelevel?.name || (shippingEstimate as any)?.servicelevel || '',
+          totalWeightOz: parseFloat((shippingEstimate as any)?.totalWeightOz || '0'),
+          seller_shipping_fee_pay: parseFloat((shippingEstimate as any)?.seller_shipping_fee_pay || '0'),
+        };
+        
+        // Only include tokshow if it has a value
+        if (product.tokshow) {
+          offerPayload.tokshow = product.tokshow;
+        }
+        
+        console.log('📦 BUY NOW DIALOG - Creating OFFER with payload:', JSON.stringify(offerPayload, null, 2));
+        
+        const response = await apiRequest('POST', '/api/offers', offerPayload);
+        const jsonData = await response.json();
+        return { ...jsonData, isOffer: true };
+      }
+      
+      // Regular checkout - create order
       // Determine ordertype based on context
       const ordertype = product.tokshow ? 'tokshow' : 'marketplace';
       
@@ -247,6 +282,20 @@ export function BuyNowDialog({
       return await apiRequest('POST', `/api/orders/${productId}`, payload);
     },
     onSuccess: (response: any) => {
+      // Handle offer success differently from order success
+      if (response?.isOffer) {
+        console.log('Offer created, response:', response);
+        toast({
+          title: "Offer Sent!",
+          description: "Your offer has been sent to the seller. You can track it in My Offers.",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/offers'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+        onOpenChange(false);
+        return;
+      }
+      
       toast({
         title: "Purchase Successful!",
         description: "Your order has been placed",
@@ -259,7 +308,7 @@ export function BuyNowDialog({
     onError: (error: any) => {
       const errorMessage = error?.response?.error || error?.message || "Failed to complete purchase";
       toast({
-        title: "Purchase Failed",
+        title: offerPrice ? "Offer Failed" : "Purchase Failed",
         description: errorMessage,
         variant: "destructive",
       });
@@ -429,10 +478,26 @@ export function BuyNowDialog({
 
           <Separator className="bg-zinc-800" />
 
+          {/* Offer Disclaimer */}
+          {offerPrice && (
+            <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">
+              <p className="text-xs text-blue-300">
+                You won't be charged until the seller accepts your offer.
+              </p>
+            </div>
+          )}
+
           {/* Price Breakdown */}
           <div className="space-y-2 bg-zinc-800/30 p-4 rounded-lg">
+            {offerPrice && (
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-green-600 text-white text-xs">Offer Price</Badge>
+                <span className="text-xs text-zinc-400 line-through">${(product?.price || 0).toFixed(2)}</span>
+                <span className="text-xs text-green-400 font-medium">${offerPrice.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Subtotal</span>
+              <span className="text-zinc-400">{offerPrice ? 'Your Offer' : 'Subtotal'}</span>
               <span className="font-medium">${subtotal.toFixed(2)}</span>
             </div>
             {/* Only show shipping if user has a valid address */}
@@ -487,13 +552,15 @@ export function BuyNowDialog({
               {buyNowMutation.isPending ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Processing...
+                  {offerPrice ? 'Submitting Offer...' : 'Processing...'}
                 </>
               ) : isLoadingShipping ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                   Calculating shipping...
                 </>
+              ) : offerPrice ? (
+                `Submit Offer - $${total.toFixed(2)}`
               ) : (
                 `Buy Now - $${total.toFixed(2)}`
               )}

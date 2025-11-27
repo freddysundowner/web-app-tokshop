@@ -107,7 +107,7 @@ export default function Help() {
 
   return (
     <div className="min-h-screen bg-background" data-testid="page-help">
-      <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-4xl mx-auto">
+      <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="heading-help">Help & Legal</h1>
@@ -191,50 +191,6 @@ export default function Help() {
           </CardContent>
         </Card>
 
-        {/* Contact Support */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Contact Support
-            </CardTitle>
-            <CardDescription>
-              Can't find what you're looking for? Send us a message
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSupportSubmit} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block" data-testid="label-support-message">
-                  How can we help?
-                </label>
-                <Textarea
-                  placeholder="Describe your issue or question..."
-                  value={supportMessage}
-                  onChange={(e) => setSupportMessage(e.target.value)}
-                  rows={5}
-                  data-testid="textarea-support-message"
-                />
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button type="submit" className="flex-1" data-testid="button-submit-support">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Message
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => window.open('/contact', '_blank')}
-                  data-testid="button-contact-page"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Visit Contact Page
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
         {/* Support Hours */}
         <Card data-testid="card-support-hours">
           <CardContent className="p-4">
@@ -253,41 +209,88 @@ export default function Help() {
           </CardContent>
         </Card>
 
-        {/* Legal Links */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Legal Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Link href="/terms-of-service">
-              <button
-                className="flex items-center justify-between w-full py-3 px-4 rounded-lg hover-elevate active-elevate-2 transition-all"
-                data-testid="button-terms-of-service"
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-foreground">Terms of Service</span>
+        {/* Contact Support and Legal Information - Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Contact Support */}
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Contact Support
+              </CardTitle>
+              <CardDescription>
+                Can't find what you're looking for? Send us a message
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSupportSubmit} className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block" data-testid="label-support-message">
+                    How can we help?
+                  </label>
+                  <Textarea
+                    placeholder="Describe your issue or question..."
+                    value={supportMessage}
+                    onChange={(e) => setSupportMessage(e.target.value)}
+                    rows={5}
+                    data-testid="textarea-support-message"
+                  />
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
-            </Link>
-            <Link href="/privacy-policy">
-              <button
-                className="flex items-center justify-between w-full py-3 px-4 rounded-lg hover-elevate active-elevate-2 transition-all"
-                data-testid="button-privacy-policy"
-              >
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-foreground">Privacy Policy</span>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button type="submit" className="flex-1" data-testid="button-submit-support">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Message
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => window.open('/contact', '_blank')}
+                    data-testid="button-contact-page"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Visit Contact Page
+                  </Button>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
-            </Link>
-          </CardContent>
-        </Card>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Legal Links */}
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Legal Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Link href="/terms-of-service">
+                <button
+                  className="flex items-center justify-between w-full py-3 px-4 rounded-lg hover-elevate active-elevate-2 transition-all"
+                  data-testid="button-terms-of-service"
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-foreground">Terms of Service</span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </button>
+              </Link>
+              <Link href="/privacy-policy">
+                <button
+                  className="flex items-center justify-between w-full py-3 px-4 rounded-lg hover-elevate active-elevate-2 transition-all"
+                  data-testid="button-privacy-policy"
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-foreground">Privacy Policy</span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

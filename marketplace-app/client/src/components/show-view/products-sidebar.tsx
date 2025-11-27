@@ -1,15 +1,20 @@
-import { X, MoreVertical, Plus, Clock, Gift, Package } from "lucide-react";
+import { useState } from "react";
+import { X, MoreVertical, Plus, Clock, Gift, Package, Tag, Loader2, ChevronDown, ChevronUp, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export function ProductsSidebar(props: any) {
+  const [expandedOfferProducts, setExpandedOfferProducts] = useState<Set<string>>(new Set());
   const {
     showMobileProducts, setShowMobileProducts, showTitle, productTab, setProductTab,
     auctionProducts, pinnedProduct, activeAuction, currentUserId, isShowOwner,
     handleProductAction, setBuyNowProduct, setShowBuyNowDialog, setPrebidAuction,
     setShowPrebidDialog, handleAddProduct, buyNowProducts, giveawayProducts,
     soldProducts, activeGiveaway, setSelectedProduct, giveaways, giveawayTimeLeft,
-    soldOrders, setSelectedOrder, setShowOrderDetailDialog, shippingEstimate, id
+    soldOrders, setSelectedOrder, setShowOrderDetailDialog, shippingEstimate, id,
+    offers, offersCount, onViewOffers, onAcceptOffer, onDeclineOffer, onCounterOffer,
+    onMakeOffer, isOfferActionPending, pendingOfferId
   } = props;
 
   // Check if auction is actually running based on time
@@ -66,6 +71,20 @@ export function ProductsSidebar(props: any) {
             >
               Sold
             </button>
+            {isShowOwner && (
+              <button 
+                className={`flex-1 px-2 py-2.5 relative ${productTab === 'Offers' ? 'border-b-2 border-primary text-white' : 'text-zinc-400'}`}
+                onClick={() => setProductTab('Offers')}
+                data-testid="tab-offers"
+              >
+                Offers
+                {offersCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                    {offersCount > 99 ? '99+' : offersCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Tab Content - Fixed Height */}
@@ -301,17 +320,29 @@ export function ProductsSidebar(props: any) {
                         <p className="text-sm text-zinc-400 mb-1">{pinnedProduct.quantity || 0} Available</p>
                         <p className="text-sm text-zinc-400 mb-2">Price: ${(pinnedProduct.price || 0).toFixed(2)}</p>
                         {!isShowOwner && !shippingEstimate?.error && (
-                          <Button
-                            size="sm"
-                            className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                            onClick={() => {
-                              setBuyNowProduct(pinnedProduct);
-                              setShowBuyNowDialog(true);
-                            }}
-                            data-testid="button-buy-now-pinned"
-                          >
-                            Buy Now
-                          </Button>
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                              onClick={() => {
+                                setBuyNowProduct(pinnedProduct);
+                                setShowBuyNowDialog(true);
+                              }}
+                              data-testid="button-buy-now-pinned"
+                            >
+                              Buy Now
+                            </Button>
+                            {pinnedProduct.offer && (
+                              <Button
+                                size="sm"
+                                className="bg-zinc-700 text-white hover:bg-zinc-600"
+                                onClick={() => onMakeOffer?.(pinnedProduct)}
+                                data-testid="button-make-offer-pinned"
+                              >
+                                Make Offer
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="w-20 h-20 flex-shrink-0 relative">
@@ -344,17 +375,29 @@ export function ProductsSidebar(props: any) {
                         <p className="text-sm text-zinc-400 mb-1">{product.quantity || 1} Available</p>
                         <p className="text-base font-semibold text-white mb-2">Price: ${(product.price || 0).toFixed(2)}</p>
                         {!isShowOwner && !shippingEstimate?.error && (
-                          <Button
-                            size="sm"
-                            className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                            onClick={() => {
-                              setBuyNowProduct(product);
-                              setShowBuyNowDialog(true);
-                            }}
-                            data-testid={`button-buy-now-${product._id || index}`}
-                          >
-                            Buy Now
-                          </Button>
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                              onClick={() => {
+                                setBuyNowProduct(product);
+                                setShowBuyNowDialog(true);
+                              }}
+                              data-testid={`button-buy-now-${product._id || index}`}
+                            >
+                              Buy Now
+                            </Button>
+                            {product.offer && (
+                              <Button
+                                size="sm"
+                                className="bg-zinc-700 text-white hover:bg-zinc-600"
+                                onClick={() => onMakeOffer?.(product)}
+                                data-testid={`button-make-offer-${product._id || index}`}
+                              >
+                                Make Offer
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="w-20 h-20 flex-shrink-0 relative">
@@ -495,7 +538,9 @@ export function ProductsSidebar(props: any) {
                     quantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || 1;
                   }
                   
-                  const customerName = `${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`.trim() || order.customer?.userName || order.customer?.email || 'Customer';
+                  const customerDisplay = order.customer?.userName 
+                    ? `@${order.customer.userName}` 
+                    : order.customer?.email || 'Customer';
                   
                   return (
                     <div key={order._id || order.id || index} className="px-4 py-4 border-b border-zinc-700" data-testid={`order-sold-${order._id || index}`}>
@@ -514,7 +559,7 @@ export function ProductsSidebar(props: any) {
                         
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-semibold text-white mb-0.5 leading-tight truncate">{productName}</h3>
-                          <p className="text-xs text-zinc-400 mb-1 truncate">{customerName}</p>
+                          <p className="text-xs text-primary font-medium mb-1 truncate">{customerDisplay}</p>
                           <div className="flex items-center gap-2 flex-wrap">
                             {isGiveaway ? (
                               <Badge className="bg-purple-600 text-white text-xs px-2 py-0.5">
@@ -550,6 +595,221 @@ export function ProductsSidebar(props: any) {
                   </div>
                 )}
                 </div>
+            )}
+
+            {productTab === 'Offers' && isShowOwner && (
+              <div className="h-full overflow-y-auto pb-20">
+                {offers && offers.length > 0 ? (
+                  <>
+                    {/* Group offers by product */}
+                    {(() => {
+                      const productOffers: Record<string, { product: any; offers: any[] }> = {};
+                      offers.forEach((offer: any) => {
+                        const productId = offer.product?._id || offer.productId;
+                        if (!productOffers[productId]) {
+                          productOffers[productId] = {
+                            product: offer.product || { _id: productId, name: 'Unknown Product' },
+                            offers: []
+                          };
+                        }
+                        productOffers[productId].offers.push(offer);
+                      });
+
+                      const toggleProductExpanded = (productId: string) => {
+                        setExpandedOfferProducts(prev => {
+                          const next = new Set(prev);
+                          if (next.has(productId)) {
+                            next.delete(productId);
+                          } else {
+                            next.add(productId);
+                          }
+                          return next;
+                        });
+                      };
+
+                      return Object.entries(productOffers).map(([productId, data]) => {
+                        const { product, offers: productOffersList } = data;
+                        const pendingOffers = productOffersList.filter((o: any) => o.status === 'pending');
+                        const counteredOffers = productOffersList.filter((o: any) => o.status === 'countered');
+                        const highestOffer = pendingOffers.reduce((max: any, o: any) => {
+                          const offerAmt = o.offeredPrice || o.offerAmount || 0;
+                          const maxAmt = max ? (max.offeredPrice || max.offerAmount || 0) : 0;
+                          return offerAmt > maxAmt ? o : max;
+                        }, null);
+                        const isExpanded = expandedOfferProducts.has(productId);
+                        
+                        return (
+                          <div key={productId} className="border-b border-zinc-700" data-testid={`offer-product-${productId}`}>
+                            {/* Product Header - Clickable to expand */}
+                            <button
+                              className="w-full px-4 py-3 bg-zinc-900/30 hover:bg-zinc-800/50 transition-colors text-left"
+                              onClick={() => toggleProductExpanded(productId)}
+                              data-testid={`button-toggle-offers-${productId}`}
+                            >
+                              <div className="flex gap-3">
+                                <div className="w-14 h-14 flex-shrink-0">
+                                  <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
+                                    {product.images?.[0] ? (
+                                      <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <Tag className="h-5 w-5 text-zinc-600" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="text-sm font-semibold text-white truncate">{product.name}</h3>
+                                  <p className="text-xs text-zinc-400">Listed: ${(product.price || 0).toFixed(2)}</p>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    {pendingOffers.length > 0 && (
+                                      <Badge className="bg-primary/20 text-primary text-[10px]">
+                                        {pendingOffers.length} pending
+                                      </Badge>
+                                    )}
+                                    {counteredOffers.length > 0 && (
+                                      <Badge className="bg-secondary/20 text-secondary text-[10px]">
+                                        {counteredOffers.length} countered
+                                      </Badge>
+                                    )}
+                                    {highestOffer && (
+                                      <span className="text-xs text-success">
+                                        Highest: ${(highestOffer.offeredPrice || highestOffer.offerAmount || 0).toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center">
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-5 w-5 text-zinc-400" />
+                                  ) : (
+                                    <ChevronDown className="h-5 w-5 text-zinc-400" />
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+
+                            {/* Individual Offers - Collapsible */}
+                            {isExpanded && (
+                              <div className="bg-zinc-900/20">
+                                {productOffersList.map((offer: any, idx: number) => (
+                                  <div 
+                                    key={offer._id || idx} 
+                                    className={`px-4 py-3 border-t border-zinc-800 ${offer.status !== 'pending' ? 'opacity-60' : ''}`}
+                                    data-testid={`offer-item-${offer._id || idx}`}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <Avatar className="h-8 w-8 flex-shrink-0">
+                                          <AvatarImage src={offer.buyer?.profilePhoto} alt={offer.buyer?.userName || 'User'} />
+                                          <AvatarFallback className="bg-zinc-700 text-zinc-300 text-xs">
+                                            <User className="h-4 w-4" />
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium text-white">
+                                              ${(offer.offeredPrice || offer.offerAmount || 0).toFixed(2)}
+                                            </span>
+                                            {product.price > 0 && (
+                                              <span className="text-xs text-zinc-500">
+                                                ({Math.round((1 - (offer.offeredPrice || offer.offerAmount || 0) / product.price) * 100)}% off)
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-xs text-zinc-400 truncate">
+                                            by @{offer.buyer?.userName || offer.buyer?.firstName || 'User'}
+                                          </p>
+                                          {offer.status !== 'pending' && (
+                                            <div className="flex items-center gap-2 mt-1">
+                                              <Badge 
+                                                className={`text-[10px] ${
+                                                  offer.status === 'accepted' ? 'bg-success text-white' :
+                                                  offer.status === 'declined' ? 'bg-destructive text-destructive-foreground' :
+                                                  offer.status === 'countered' ? 'bg-secondary text-secondary-foreground' :
+                                                  'bg-muted text-muted-foreground'
+                                                }`}
+                                              >
+                                                {offer.status}
+                                              </Badge>
+                                              {offer.status === 'countered' && offer.counterPrice && (
+                                                <span className="text-xs text-secondary">
+                                                  Your counter offer: ${offer.counterPrice.toFixed(2)}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      {offer.status === 'pending' && (
+                                        <div className="flex gap-1">
+                                          {isOfferActionPending && pendingOfferId === offer._id ? (
+                                            <div className="flex items-center gap-2 px-2">
+                                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                              <span className="text-xs text-zinc-400">Processing...</span>
+                                            </div>
+                                          ) : (
+                                            <>
+                                              <Button
+                                                size="sm"
+                                                className="h-7 px-2 text-xs bg-green-600 hover:bg-green-700"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  onAcceptOffer?.(offer);
+                                                }}
+                                                disabled={isOfferActionPending}
+                                                data-testid={`button-accept-offer-${offer._id || idx}`}
+                                              >
+                                                Accept
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                className="h-7 px-2 text-xs bg-zinc-700 text-white hover:bg-zinc-600 border-0"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  onCounterOffer?.(offer);
+                                                }}
+                                                disabled={isOfferActionPending}
+                                                data-testid={`button-counter-offer-${offer._id || idx}`}
+                                              >
+                                                Counter
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-zinc-800"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  onDeclineOffer?.(offer);
+                                                }}
+                                                disabled={isOfferActionPending}
+                                                data-testid={`button-decline-offer-${offer._id || idx}`}
+                                              >
+                                                Decline
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </>
+                ) : (
+                  <div className="p-4 text-center text-zinc-500 text-sm">
+                    <Tag className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No offers yet</p>
+                    <p className="text-xs mt-1">Offers from buyers will appear here</p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

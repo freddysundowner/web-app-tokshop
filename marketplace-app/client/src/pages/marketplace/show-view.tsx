@@ -41,6 +41,7 @@ import { ShareDialog } from '@/components/share-dialog';
 import { BuyNowDialog } from '@/components/buy-now-dialog';
 import { TipSellerDialog } from '@/components/tip-seller-dialog';
 import { WalletDialog } from '@/components/wallet-dialog';
+import { MakeOfferDialog } from '@/components/make-offer-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 // Import show-view components
@@ -162,6 +163,11 @@ export default function ShowViewNew() {
   // Buy Now Dialog
   const [showBuyNowDialog, setShowBuyNowDialog] = useState<boolean>(false);
   const [buyNowProduct, setBuyNowProduct] = useState<any>(null);
+  
+  // Make Offer Dialog
+  const [showMakeOfferDialog, setShowMakeOfferDialog] = useState<boolean>(false);
+  const [makeOfferProduct, setMakeOfferProduct] = useState<any>(null);
+  const [pendingOfferPrice, setPendingOfferPrice] = useState<number | null>(null);
   
   // Custom Bid Dialog
   const [showCustomBidDialog, setShowCustomBidDialog] = useState<boolean>(false);
@@ -394,6 +400,52 @@ export default function ShowViewNew() {
     },
     enabled: !!id,
   });
+
+  // Fetch offers for this show (only for show owner)
+  const { data: offersData, refetch: refetchOffers } = useQuery<any>({
+    queryKey: ['/api/offers', id, 'show', currentUserId],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        tokshowId: id!,
+        user: currentUserId!,
+        role: 'seller',
+        page: '1',
+        limit: '100'
+      });
+      const url = `/api/offers?${params.toString()}`;
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) return { offers: [] };
+      return response.json();
+    },
+    enabled: !!id && !!currentUserId && isAuthenticated,
+  });
+
+  // Extract offers data - flatten from products array if grouped by product
+  const offers = useMemo(() => {
+    if (offersData?.offers) {
+      return offersData.offers;
+    }
+    // If grouped by products, flatten them
+    if (offersData?.products) {
+      const allOffers: any[] = [];
+      offersData.products.forEach((product: any) => {
+        (product.offers || []).forEach((offer: any) => {
+          allOffers.push({
+            ...offer,
+            product: {
+              _id: product._id,
+              name: product.name,
+              price: product.price,
+              images: product.images
+            }
+          });
+        });
+      });
+      return allOffers;
+    }
+    return [];
+  }, [offersData]);
+  const offersCount = offers.filter((o: any) => o.status === 'pending').length;
 
   // Extract stable owner ID from show data to prevent infinite loops
   const ownerId = useMemo(() => show?.owner?._id || show?.owner?.id, [show?.owner?._id, show?.owner?.id]);
@@ -927,6 +979,7 @@ export default function ShowViewNew() {
     refetchAuction,
     refetchBuyNow,
     refetchGiveaways,
+    refetchOffers,
     shownWinnerAlertsRef,
   });
 
@@ -1265,8 +1318,10 @@ export default function ShowViewNew() {
       refetchSold();
     } else if (productTab === 'Giveaways') {
       refetchGiveaways();
+    } else if (productTab === 'Offers') {
+      refetchOffers();
     }
-  }, [productTab, refetchAuction, refetchBuyNow, refetchSold, refetchGiveaways]);
+  }, [productTab, refetchAuction, refetchBuyNow, refetchSold, refetchGiveaways, refetchOffers]);
 
   // Place bid mutation - supports both regular and custom bids
   const placeBidMutation = useMutation({
@@ -1387,6 +1442,130 @@ export default function ShowViewNew() {
       });
     }
   });
+
+  // Accept offer mutation
+  const acceptOfferMutation = useMutation({
+    mutationFn: async (offer: any) => {
+      const offerId = offer._id || offer.id;
+      return await apiRequest('POST', `/api/offers/accept`, { offerId });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Offer Accepted",
+        description: "The offer has been accepted. An order will be created automatically."
+      });
+      refetchOffers();
+      queryClient.invalidateQueries({ queryKey: ['/api/offers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Accept Offer",
+        description: error.message || "Failed to accept offer",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Decline offer mutation
+  const declineOfferMutation = useMutation({
+    mutationFn: async (offer: any) => {
+      const offerId = offer._id || offer.id;
+      return await apiRequest('POST', `/api/offers/reject`, { offerId });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Offer Declined",
+        description: "The offer has been declined."
+      });
+      refetchOffers();
+      queryClient.invalidateQueries({ queryKey: ['/api/offers'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Decline Offer",
+        description: error.message || "Failed to decline offer",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Counter offer state
+  const [showCounterOfferDialog, setShowCounterOfferDialog] = useState(false);
+  const [counterOfferData, setCounterOfferData] = useState<any>(null);
+  const [counterOfferAmount, setCounterOfferAmount] = useState('');
+  const [offerConfirmAction, setOfferConfirmAction] = useState<{ offer: any; action: 'accept' | 'decline' } | null>(null);
+
+  // Counter offer mutation
+  const counterOfferMutation = useMutation({
+    mutationFn: async ({ offer, amount }: { offer: any; amount: number }) => {
+      const offerId = offer._id || offer.id;
+      return await apiRequest('POST', `/api/offers/counter`, { offerId, counterPrice: amount });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Counter Offer Sent",
+        description: "Your counter offer has been sent to the buyer."
+      });
+      setShowCounterOfferDialog(false);
+      setCounterOfferData(null);
+      setCounterOfferAmount('');
+      refetchOffers();
+      queryClient.invalidateQueries({ queryKey: ['/api/offers'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Send Counter Offer",
+        description: error.message || "Failed to send counter offer",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Handlers for offer actions - show confirmation dialog first
+  const handleAcceptOffer = useCallback((offer: any) => {
+    setOfferConfirmAction({ offer, action: 'accept' });
+  }, []);
+
+  const handleDeclineOffer = useCallback((offer: any) => {
+    setOfferConfirmAction({ offer, action: 'decline' });
+  }, []);
+
+  const handleCounterOffer = useCallback((offer: any) => {
+    setCounterOfferData(offer);
+    setCounterOfferAmount('');
+    setShowCounterOfferDialog(true);
+  }, []);
+
+  // Handle confirmed offer action
+  const handleConfirmOfferAction = useCallback(() => {
+    if (!offerConfirmAction) return;
+    if (offerConfirmAction.action === 'accept') {
+      acceptOfferMutation.mutate(offerConfirmAction.offer, {
+        onSettled: () => setOfferConfirmAction(null)
+      });
+    } else {
+      declineOfferMutation.mutate(offerConfirmAction.offer, {
+        onSettled: () => setOfferConfirmAction(null)
+      });
+    }
+  }, [offerConfirmAction, acceptOfferMutation, declineOfferMutation]);
+
+  const isOfferConfirmPending = acceptOfferMutation.isPending || declineOfferMutation.isPending;
+
+  const submitCounterOffer = useCallback(() => {
+    if (!counterOfferData || !counterOfferAmount) return;
+    const amount = parseFloat(counterOfferAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid counter offer amount",
+        variant: "destructive"
+      });
+      return;
+    }
+    counterOfferMutation.mutate({ offer: counterOfferData, amount });
+  }, [counterOfferData, counterOfferAmount, counterOfferMutation, toast]);
 
   // Join giveaway mutation
   const joinGiveawayMutation = useMutation({
@@ -1985,6 +2164,18 @@ export default function ShowViewNew() {
           setSelectedOrder={setSelectedOrder}
           setShowOrderDetailDialog={setShowOrderDetailDialog}
           shippingEstimate={shippingEstimate}
+          id={id}
+          offers={offers}
+          offersCount={offersCount}
+          onAcceptOffer={handleAcceptOffer}
+          onDeclineOffer={handleDeclineOffer}
+          onCounterOffer={handleCounterOffer}
+          onMakeOffer={(product: any) => {
+            setMakeOfferProduct(product);
+            setShowMakeOfferDialog(true);
+          }}
+          isOfferActionPending={isOfferConfirmPending}
+          pendingOfferId={isOfferConfirmPending ? (offerConfirmAction?.offer?._id || offerConfirmAction?.offer?.id) : null}
         />
 
         <VideoCenter
@@ -2163,9 +2354,16 @@ export default function ShowViewNew() {
         {showBuyNowDialog && buyNowProduct && (
           <BuyNowDialog
             open={showBuyNowDialog}
-            onOpenChange={setShowBuyNowDialog}
+            onOpenChange={(open) => {
+              setShowBuyNowDialog(open);
+              if (!open) {
+                // Reset offer price when dialog closes
+                setPendingOfferPrice(null);
+              }
+            }}
             product={buyNowProduct}
             shippingEstimate={shippingEstimate}
+            offerPrice={pendingOfferPrice}
             onOpenPaymentMethods={() => {
               setShowBuyNowDialog(false);
               setShowPaymentShippingIntermediateAlert(true);
@@ -2173,6 +2371,23 @@ export default function ShowViewNew() {
             onOpenShippingAddresses={() => {
               setShowBuyNowDialog(false);
               setShowPaymentShippingIntermediateAlert(true);
+            }}
+          />
+        )}
+
+        {/* Make Offer Dialog */}
+        {showMakeOfferDialog && makeOfferProduct && (
+          <MakeOfferDialog
+            open={showMakeOfferDialog}
+            onOpenChange={setShowMakeOfferDialog}
+            product={makeOfferProduct}
+            shippingEstimate={shippingEstimate}
+            onContinueWithOffer={(offerPrice: number) => {
+              // Just set the offer price and open BuyNowDialog
+              // The actual offer submission happens in BuyNowDialog
+              setPendingOfferPrice(offerPrice);
+              setBuyNowProduct(makeOfferProduct);
+              setShowBuyNowDialog(true);
             }}
           />
         )}
@@ -2234,6 +2449,114 @@ export default function ShowViewNew() {
             />
           </Suspense>
         )}
+
+        {/* Counter Offer Dialog */}
+        <Dialog open={showCounterOfferDialog} onOpenChange={setShowCounterOfferDialog}>
+          <DialogContent className="bg-zinc-900 text-white border-zinc-700 max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-white">Counter Offer</DialogTitle>
+              <DialogDescription className="text-zinc-400">
+                Send a counter offer to the buyer
+              </DialogDescription>
+            </DialogHeader>
+            {counterOfferData && (
+              <div className="space-y-4">
+                <div className="bg-zinc-800 p-3 rounded-lg">
+                  <p className="text-xs text-zinc-400 mb-1">Original Offer</p>
+                  <p className="font-semibold text-white">${(counterOfferData.offeredPrice || counterOfferData.offerAmount || 0).toFixed(2)}</p>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    from @{counterOfferData.buyer?.userName || counterOfferData.buyer?.firstName || 'User'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-zinc-300">Your Counter Amount</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={counterOfferAmount}
+                      onChange={(e) => setCounterOfferAmount(e.target.value)}
+                      className="pl-7 bg-zinc-800 border-zinc-600 text-white"
+                      placeholder="Enter counter amount"
+                      data-testid="input-counter-offer-amount"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-zinc-600 bg-zinc-800 text-white hover:bg-zinc-700 hover:text-white"
+                    onClick={() => {
+                      setShowCounterOfferDialog(false);
+                      setCounterOfferData(null);
+                      setCounterOfferAmount('');
+                    }}
+                    disabled={counterOfferMutation.isPending}
+                    data-testid="button-cancel-counter-offer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-primary hover:bg-primary/90"
+                    onClick={submitCounterOffer}
+                    disabled={counterOfferMutation.isPending || !counterOfferAmount}
+                    data-testid="button-submit-counter-offer"
+                  >
+                    {counterOfferMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Sending...
+                      </>
+                    ) : 'Send Counter'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Offer Accept/Decline Confirmation Dialog */}
+        <AlertDialog open={!!offerConfirmAction} onOpenChange={(open) => !isOfferConfirmPending && !open && setOfferConfirmAction(null)}>
+          <AlertDialogContent className="bg-zinc-900 text-white border-zinc-700">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">
+                {offerConfirmAction?.action === 'accept' ? 'Accept Offer?' : 'Decline Offer?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-zinc-400">
+                {offerConfirmAction?.action === 'accept' 
+                  ? `Accept this offer of $${(offerConfirmAction?.offer?.offeredPrice || offerConfirmAction?.offer?.offerAmount || 0).toFixed(2)}? An order will be created automatically.`
+                  : "Are you sure you want to decline this offer?"
+                }
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel 
+                disabled={isOfferConfirmPending}
+                className="bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600 hover:text-white"
+                data-testid="button-cancel-offer-action"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <Button 
+                onClick={handleConfirmOfferAction}
+                disabled={isOfferConfirmPending}
+                className={offerConfirmAction?.action === 'accept' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+                data-testid="button-confirm-offer-action"
+              >
+                {isOfferConfirmPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    {offerConfirmAction?.action === 'accept' ? 'Creating Order...' : 'Declining...'}
+                  </>
+                ) : (
+                  offerConfirmAction?.action === 'accept' ? 'Accept' : 'Decline'
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Host Conflict Dialog */}
         <Dialog open={showHostConflictDialog} onOpenChange={setShowHostConflictDialog}>

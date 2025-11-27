@@ -339,6 +339,7 @@ export const productFormSchema = z.object({
   endTime: z.string().optional().nullable(), // ISO datetime string
   // Buy Now-specific fields
   featured: z.boolean().optional().default(false),
+  acceptsOffers: z.boolean().optional().default(false),
   // Giveaway-specific fields
   whocanenter: z.enum(['everyone', 'followers']).optional().default('everyone'),
   // Room association
@@ -739,3 +740,33 @@ export const contactContentSchema = z.object({
 
 export type ContactInfo = z.infer<typeof contactInfoSchema>;
 export type ContactContent = z.infer<typeof contactContentSchema>;
+
+// Help Article Schema (for General/Help Center pages)
+export const helpArticleSchema = z.object({
+  _id: z.string().optional(),
+  title: z.string().min(1, "Title is required"),
+  slug: z.string().min(1, "Slug is required"),
+  excerpt: z.string().min(1, "Excerpt/description is required"),
+  content: z.string().min(1, "Content is required"),
+  category: z.enum(["general", "seller", "buyer", "payments", "shipping", "other"]).default("general"),
+  published: z.boolean().default(true),
+  order: z.number().default(0),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export const createHelpArticleSchema = helpArticleSchema.omit({ 
+  _id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+export const updateHelpArticleSchema = helpArticleSchema.partial().omit({ 
+  _id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+export type HelpArticle = z.infer<typeof helpArticleSchema>;
+export type CreateHelpArticle = z.infer<typeof createHelpArticleSchema>;
+export type UpdateHelpArticle = z.infer<typeof updateHelpArticleSchema>;

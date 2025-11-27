@@ -146,6 +146,10 @@ export const getQueryFn: <T>(options: {
       else if (endpoint === '/api/auction' && params.length === 1 && typeof params[0] === 'string') {
         apiUrl = `${endpoint}/${params[0]}`;
       }
+      // For individual published article fetches: ['/api/articles/published', slug]
+      else if (endpoint === '/api/articles/published' && params.length === 1 && typeof params[0] === 'string') {
+        apiUrl = `${endpoint}/${params[0]}`;
+      }
       // For other endpoints that use userId pattern
       else if (params[0] && typeof params[0] === 'string') {
         queryParams.set('userId', params[0]);

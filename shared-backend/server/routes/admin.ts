@@ -297,6 +297,7 @@ export function registerAdminRoutes(app: Express) {
       if (req.query.page) queryParams.append("page", req.query.page as string);
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
       if (req.query.title) queryParams.append("title", req.query.title as string);
+      if (req.query.status) queryParams.append("status", req.query.status as string);
 
       const url = `${BASE_URL}/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
@@ -2034,7 +2035,7 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const { name, tax_code } = req.body;
+      const { name, tax_code, commission, commission_enabled } = req.body;
       const files = req.files as Express.Multer.File[];
 
       if (!name) {
@@ -2048,6 +2049,14 @@ If you have any questions, feel free to reach out to our support team.
       const formData = new FormData();
       formData.append('name', name);
       formData.append('tax_code', tax_code || 'txcd_99999999');
+      
+      // Add commission fields if provided
+      if (commission !== undefined && commission !== '') {
+        formData.append('commission', commission);
+      }
+      if (commission_enabled !== undefined && commission_enabled !== '') {
+        formData.append('commission_enabled', commission_enabled);
+      }
       
       if (files && files.length > 0) {
         files.forEach(file => {
@@ -2099,7 +2108,7 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const { name } = req.body;
+      const { name, commission, commission_enabled } = req.body;
       const files = req.files as Express.Multer.File[];
 
       if (!name) {
@@ -2112,6 +2121,14 @@ If you have any questions, feel free to reach out to our support team.
       // Create form data for the API request
       const formData = new FormData();
       formData.append('name', name);
+      
+      // Add commission fields if provided
+      if (commission !== undefined && commission !== '') {
+        formData.append('commission', commission);
+      }
+      if (commission_enabled !== undefined && commission_enabled !== '') {
+        formData.append('commission_enabled', commission_enabled);
+      }
       
       if (files && files.length > 0) {
         files.forEach(file => {
@@ -4161,6 +4178,377 @@ Thank you for using ${appName}!
   // PUT /api/admin/content/landing (admin)
   // POST /api/admin/content/landing/reset (admin)
   // See: shared-backend/server/routes/content.ts
+
+  // ===== Help Articles Management (General Help Page) =====
+  
+  // Get all articles
+  app.get("/api/admin/articles", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/articles`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to fetch articles",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching articles:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch articles",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get published articles (public)
+  app.get("/api/admin/articles/published/articles", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/articles/published/articles`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to fetch published articles",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching published articles:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch published articles",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get article by slug (published)
+  app.get("/api/admin/articles/published/articles/:slug", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      const { slug } = req.params;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/articles/published/articles/${slug}`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to fetch article",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching article by slug:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch article",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get single article by ID
+  app.get("/api/admin/articles/:id", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      const { id } = req.params;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/articles/${id}`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to fetch article",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching article:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch article",
+        details: error.message,
+      });
+    }
+  });
+
+  // Create new article
+  app.post("/api/admin/articles", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/articles`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to create article",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error creating article:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create article",
+        details: error.message,
+      });
+    }
+  });
+
+  // Update article
+  app.put("/api/admin/articles/:id", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      const { id } = req.params;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/articles/${id}`;
+      
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to update article",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error updating article:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update article",
+        details: error.message,
+      });
+    }
+  });
+
+  // Delete article
+  app.delete("/api/admin/articles/:id", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      const { id } = req.params;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/articles/${id}`;
+      
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to delete article",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Article deleted successfully",
+      });
+    } catch (error: any) {
+      console.error("Error deleting article:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete article",
+        details: error.message,
+      });
+    }
+  });
+
+  // ========== PUBLIC ARTICLE ENDPOINTS (NO AUTH REQUIRED) ==========
+  
+  // Get all published articles (public - no authentication required)
+  app.get("/api/articles/published", async (req, res) => {
+    try {
+      const url = `${BASE_URL}/articles/published/articles`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to fetch published articles",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching published articles:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch published articles",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get single published article by slug (public - no authentication required)
+  app.get("/api/articles/published/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const url = `${BASE_URL}/articles/published/articles/${slug}`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.error || "Failed to fetch article",
+        });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching article by slug:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch article",
+        details: error.message,
+      });
+    }
+  });
 
   // Change admin password
   app.post("/api/admin/change-password", requireAdmin, checkDemoMode, async (req, res) => {

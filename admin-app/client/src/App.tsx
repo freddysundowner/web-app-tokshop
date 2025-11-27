@@ -11,6 +11,7 @@ import AdminLogin from "@/pages/admin/login";
 import AdminSetup from "@/pages/admin/setup";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
+import AdminPendingApprovals from "@/pages/admin/pending-approvals";
 import AdminUserDetail from "@/pages/admin/user-detail";
 import AdminUserItemDetail from "@/pages/admin/user-item-detail";
 import AdminInventory from "@/pages/admin/inventory";
@@ -33,6 +34,8 @@ import AdminEmailSellerApproval from "@/pages/admin/email-seller-approval";
 import AdminEmailUpdate from "@/pages/admin/email-update";
 import AdminEmailSettings from "@/pages/admin/email-settings";
 import AdminLandingPage from "@/pages/admin/pages/landing";
+import AdminGeneralPage from "@/pages/admin/pages/general";
+import AdminGeneralArticlePage from "@/pages/admin/pages/general-article";
 import AdminFAQPage from "@/pages/admin/pages/faq";
 import AdminAboutPage from "@/pages/admin/pages/about";
 import AdminPrivacyPage from "@/pages/admin/pages/privacy";
@@ -189,6 +192,7 @@ function Router() {
             <Route path="/admin/users/:userId/details/:itemType/:itemId" component={AdminUserItemDetail} />
             <Route path="/admin/users/:userId" component={AdminUserDetail} />
             <Route path="/admin/users" component={AdminUsers} />
+            <Route path="/admin/pending-approvals" component={AdminPendingApprovals} />
             <Route path="/admin/inventory" component={AdminInventory} />
             <Route path="/admin/products/:productId" component={AdminProductDetail} />
             <Route path="/admin/orders/:orderId" component={AdminOrderDetail} />
@@ -207,6 +211,8 @@ function Router() {
             <Route path="/admin/email-update" component={AdminEmailUpdate} />
             <Route path="/admin/email-settings" component={AdminEmailSettings} />
             <Route path="/admin/pages/landing" component={AdminLandingPage} />
+            <Route path="/admin/pages/general/:id" component={AdminGeneralArticlePage} />
+            <Route path="/admin/pages/general" component={AdminGeneralPage} />
             <Route path="/admin/pages/faq" component={AdminFAQPage} />
             <Route path="/admin/pages/about" component={AdminAboutPage} />
             <Route path="/admin/pages/privacy" component={AdminPrivacyPage} />

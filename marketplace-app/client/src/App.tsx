@@ -65,9 +65,13 @@ const FAQ = lazy(() => import("@/pages/marketplace/faq"));
 const AboutUs = lazy(() => import("@/pages/marketplace/about"));
 const KnowledgeBase = lazy(() => import("@/pages/marketplace/knowledge-base"));
 const SellerHub = lazy(() => import("@/pages/seller/hub"));
+const SellerOffers = lazy(() => import("@/pages/seller/offers"));
+const BuyerOffers = lazy(() => import("@/pages/buyer/offers"));
 const Inbox = lazy(() => import("@/pages/social/inbox"));
 const Friends = lazy(() => import("@/pages/social/friends"));
 const Help = lazy(() => import("@/pages/help"));
+const HelpCenter = lazy(() => import("@/pages/marketplace/help-center"));
+const HelpArticle = lazy(() => import("@/pages/marketplace/help-article"));
 const SellerSetup = lazy(() => import("@/pages/seller/setup"));
 const ScheduleShow = lazy(() => import("@/pages/seller/schedule-show"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -170,10 +174,11 @@ function Router() {
     '/terms-of-service',
     '/contact',
     '/faq',
-    '/knowledge-base'
+    '/knowledge-base',
+    '/help-center'
   ];
 
-  const isPublicPage = publicPages.includes(location);
+  const isPublicPage = publicPages.includes(location) || location.startsWith('/help-center/');
 
   // Redirect to login if trying to access protected pages without authentication
   if (!isAuthenticated && !isPublicPage) {
@@ -248,6 +253,8 @@ function Router() {
               <Route path="/faq" component={FAQ} />
               <Route path="/about" component={AboutUs} />
               <Route path="/knowledge-base" component={KnowledgeBase} />
+              <Route path="/help-center/:slug" component={HelpArticle} />
+              <Route path="/help-center" component={HelpCenter} />
               <Route component={LandingPage} />
             </Switch>
           </main>
@@ -297,7 +304,9 @@ function Router() {
                           location.startsWith('/analytics') ||
                           location.startsWith('/dashboard') ||
                           location.startsWith('/live-shows') ||
-                          location.startsWith('/schedule-show');
+                          location.startsWith('/schedule-show') ||
+                          location.startsWith('/offers') ||
+                          location.startsWith('/my-offers');
 
   if (isDashboardRoute) {
     return (
@@ -333,6 +342,8 @@ function Router() {
               <Switch>
                 <Route path="/dashboard" component={Dashboard} />
                 <Route path="/orders" component={Orders} />
+                <Route path="/offers" component={SellerOffers} />
+                <Route path="/my-offers" component={BuyerOffers} />
                 <Route path="/purchases" component={Purchases} />
                 <Route path="/thank-you/:orderId" component={ThankYou} />
                 <Route path="/inventory" component={Inventory} />
@@ -427,6 +438,8 @@ function Router() {
             <Route path="/about" component={AboutUs} />
             <Route path="/knowledge-base" component={KnowledgeBase} />
             <Route path="/help" component={Help} />
+            <Route path="/help-center/:slug" component={HelpArticle} />
+            <Route path="/help-center" component={HelpCenter} />
             <Route component={NotFound} />
           </Switch>
         </main>
