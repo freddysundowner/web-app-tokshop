@@ -983,7 +983,7 @@ export default function Inventory() {
                           data-testid="checkbox-select-all"
                         />
                       </th>
-                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Details</th>
+                      <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm w-[250px] md:w-[300px] max-w-[300px]">Details</th>
                       <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Channel</th>
                       <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Type</th>
                       <th className="text-left p-2 md:p-4 font-medium text-xs md:text-sm">Price</th>
@@ -1010,7 +1010,7 @@ export default function Inventory() {
                             data-testid={`checkbox-product-${product._id}`}
                           />
                         </td>
-                        <td className="p-2 md:p-4">
+                        <td className="p-2 md:p-4 w-[250px] md:w-[300px] max-w-[300px]">
                           <div className="flex gap-3 items-start">
                             <div className="w-12 h-12 md:w-14 md:h-14 bg-muted rounded overflow-hidden flex-shrink-0">
                               {product.images && product.images.length > 0 ? (
@@ -1026,7 +1026,7 @@ export default function Inventory() {
                                 </div>
                               )}
                             </div>
-                            <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex-1 min-w-0 overflow-hidden space-y-1">
                               <div
                                 className="font-medium text-sm md:text-base text-foreground truncate"
                                 data-testid={`text-product-name-${product._id}`}
@@ -1035,13 +1035,13 @@ export default function Inventory() {
                               </div>
                               {product.description && (
                                 <div
-                                  className="text-xs text-muted-foreground truncate"
+                                  className="text-xs text-muted-foreground truncate max-w-full"
                                   data-testid={`text-product-description-${product._id}`}
                                 >
                                   {product.description}
                                 </div>
                               )}
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <Badge
                                   variant="outline"
                                   className="text-xs"
