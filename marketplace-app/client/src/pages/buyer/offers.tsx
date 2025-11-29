@@ -113,7 +113,7 @@ export default function BuyerOffers() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [actionOffer, setActionOffer] = useState<{ offer: Offer; action: 'accept' | 'reject' } | null>(null);
+  const [actionOffer, setActionOffer] = useState<{ offer: Offer; action: 'accept' | 'reject' | 'cancel' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   const userId = (user as any)?._id || user?.id;
@@ -168,6 +168,26 @@ export default function BuyerOffers() {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async (offerId: string) => {
+      return apiRequest('POST', '/api/offers/cancel', { offerId });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Offer cancelled",
+        description: "Your offer has been withdrawn.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/offers'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel offer",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleConfirmAction = () => {
     if (!actionOffer) return;
     
@@ -175,14 +195,18 @@ export default function BuyerOffers() {
       acceptMutation.mutate(actionOffer.offer._id, {
         onSettled: () => setActionOffer(null),
       });
-    } else {
+    } else if (actionOffer.action === 'reject') {
       rejectMutation.mutate(actionOffer.offer._id, {
+        onSettled: () => setActionOffer(null),
+      });
+    } else if (actionOffer.action === 'cancel') {
+      cancelMutation.mutate(actionOffer.offer._id, {
         onSettled: () => setActionOffer(null),
       });
     }
   };
   
-  const isDialogPending = acceptMutation.isPending || rejectMutation.isPending;
+  const isDialogPending = acceptMutation.isPending || rejectMutation.isPending || cancelMutation.isPending;
 
   const getProductImage = (product: Offer['product']) => {
     if (product.images && product.images.length > 0) {
@@ -337,6 +361,18 @@ export default function BuyerOffers() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {offer.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-destructive hover:text-destructive"
+                            onClick={() => setActionOffer({ offer, action: 'cancel' })}
+                            disabled={isPending}
+                            data-testid="button-cancel-offer"
+                          >
+                            Cancel
+                          </Button>
+                        )}
                         {offer.status === 'countered' && (
                           <>
                             <Button
@@ -406,17 +442,23 @@ export default function BuyerOffers() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {actionOffer?.action === 'accept' ? 'Accept Counter Offer?' : 'Decline Counter Offer?'}
+              {actionOffer?.action === 'accept' 
+                ? 'Accept Counter Offer?' 
+                : actionOffer?.action === 'cancel'
+                ? 'Cancel Offer?'
+                : 'Decline Counter Offer?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {actionOffer?.action === 'accept' 
                 ? `Accept the seller's counter of $${actionOffer?.offer.counterPrice?.toFixed(2)}?`
+                : actionOffer?.action === 'cancel'
+                ? "This will withdraw your offer. You can make a new offer later if you change your mind."
                 : "This will withdraw your offer."
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDialogPending} data-testid="button-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDialogPending} data-testid="button-cancel">Go Back</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmAction}
               disabled={isDialogPending}
@@ -425,7 +467,11 @@ export default function BuyerOffers() {
               {isDialogPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              {actionOffer?.action === 'accept' ? 'Accept' : 'Decline'}
+              {actionOffer?.action === 'accept' 
+                ? 'Accept' 
+                : actionOffer?.action === 'cancel'
+                ? 'Cancel Offer'
+                : 'Decline'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

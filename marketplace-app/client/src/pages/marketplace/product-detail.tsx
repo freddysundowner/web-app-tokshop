@@ -888,7 +888,7 @@ export default function ProductDetail() {
               setShowPaymentDialog(false);
               // Invalidate cache and refetch to show the newly added card
               await queryClient.invalidateQueries({ queryKey: [`/api/users/paymentmethod/default/${userId}`] });
-              await refetchDefaultPayment();
+              await refreshUserData();
             }}
           />
         </Suspense>
@@ -903,14 +903,14 @@ export default function ProductDetail() {
               // When closing dialog, always refresh payment data (in case cards were deleted)
               if (!open) {
                 await queryClient.invalidateQueries({ queryKey: [`/api/users/paymentmethod/default/${userId}`] });
-                await refetchDefaultPayment();
+                await refreshUserData();
               }
             }}
             onSuccess={async () => {
               setShowPaymentListDialog(false);
               // Invalidate cache and refetch to show the newly selected card
               await queryClient.invalidateQueries({ queryKey: [`/api/users/paymentmethod/default/${userId}`] });
-              await refetchDefaultPayment();
+              await refreshUserData();
             }}
           />
         </Suspense>
