@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DollarSign } from "lucide-react";
+import { useSettings } from "@/lib/settings-context";
 
 interface MakeOfferDialogProps {
   open: boolean;
@@ -21,8 +22,22 @@ export function MakeOfferDialog({
   shippingEstimate,
   onContinueWithOffer
 }: MakeOfferDialogProps) {
+  const { theme } = useSettings();
   const [selectedOption, setSelectedOption] = useState<OfferOption>("-10%");
   const [customPrice, setCustomPrice] = useState<string>("");
+  
+  // Convert AARRGGBB format to CSS hex color
+  const getHexColor = (color: string): string => {
+    if (!color) return '';
+    // Remove alpha channel if present (AARRGGBB -> RRGGBB)
+    if (color.length === 8) {
+      return `#${color.substring(2)}`;
+    }
+    return color.startsWith('#') ? color : `#${color}`;
+  };
+  
+  const buttonBgColor = getHexColor(theme.button_color);
+  const buttonTextColor = getHexColor(theme.button_text_color);
 
   const productPrice = product?.price || 0;
 
@@ -157,7 +172,11 @@ export function MakeOfferDialog({
           <Button
             onClick={handleContinue}
             disabled={!offerAmount || offerAmount <= 0}
-            className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+            className="flex-1 font-semibold"
+            style={{
+              backgroundColor: buttonBgColor || '#FACC15',
+              color: buttonTextColor || '#000000',
+            }}
             data-testid="button-continue-offer"
           >
             Continue With Offer

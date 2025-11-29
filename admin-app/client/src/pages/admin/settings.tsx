@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Settings, DollarSign, Key, Video, Package, Link as LinkIcon, Smartphone, ShieldX, Mail, Info, Languages, Plus, Trash2, Download, Upload } from "lucide-react";
+import { Settings, DollarSign, Key, Package, Link as LinkIcon, Smartphone, ShieldX, Mail, Info, Languages, Plus, Trash2, Download, Upload, Palette } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
@@ -28,6 +28,13 @@ export default function AdminSettings() {
   });
 
   const settings = settingsData?.data || settingsData;
+
+  // Separate query for themes
+  const { data: themesData, isLoading: isLoadingThemes } = useQuery<any>({
+    queryKey: ['/api/themes'],
+  });
+
+  const themes = themesData?.data || themesData;
 
   // Helper function to mask sensitive keys in demo mode
   const maskKey = (key: string) => {
@@ -64,10 +71,19 @@ export default function AdminSettings() {
     livekit_url: '',
     livekit_api_key: '',
     livekit_api_secret: '',
+  });
+
+  // Separate state for theme data
+  const [themeFormData, setThemeFormData] = useState({
+    app_name: '',
+    slogan: '',
     primary_color: '',
     secondary_color: '',
+    button_color: '',
+    button_text_color: '',
     app_logo: '',
   });
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
 
   // Update form data when settings load from API
   useEffect(() => {
@@ -100,11 +116,21 @@ export default function AdminSettings() {
       livekit_url: settings?.livekit_url || '',
       livekit_api_key: settings?.livekit_api_key || '',
       livekit_api_secret: settings?.livekit_api_secret || '',
-      primary_color: settings?.primary_color || 'FFFACC15',
-      secondary_color: settings?.secondary_color || 'FF0D9488',
-      app_logo: settings?.app_logo || '',
     });
   }, [settings]);
+
+  // Update theme form data when themes load from API
+  useEffect(() => {
+    setThemeFormData({
+      app_name: themes?.app_name || '',
+      slogan: themes?.slogan || '',
+      primary_color: themes?.primary_color || 'FFFACC15',
+      secondary_color: themes?.secondary_color || 'FF0D9488',
+      button_color: themes?.button_color || 'FF000000',
+      button_text_color: themes?.button_text_color || 'FFFFFFFF',
+      app_logo: themes?.app_logo || '',
+    });
+  }, [themes]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -141,6 +167,42 @@ export default function AdminSettings() {
     },
   });
 
+  // Mutation for updating themes via POST /themes
+  const updateThemeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/themes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Theme update failed:', errorData);
+        throw new Error(errorData?.error || 'Failed to update theme');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/themes'] });
+      toast({
+        title: "Theme updated",
+        description: "Theme settings have been saved successfully.",
+      });
+      setIsSavingTheme(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update theme. Please try again.",
+        variant: "destructive",
+      });
+      setIsSavingTheme(false);
+    },
+  });
+
   const handleSave = () => {
     if (!canManageSettings) {
       toast({
@@ -154,8 +216,28 @@ export default function AdminSettings() {
     updateMutation.mutate(formData);
   };
 
+  const handleSaveTheme = () => {
+    if (!canManageSettings) {
+      toast({
+        title: "Action not allowed",
+        description: "Settings cannot be changed in demo mode",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSavingTheme(true);
+    updateThemeMutation.mutate(themeFormData);
+  };
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleThemeInputChange = (field: string, value: any) => {
+    setThemeFormData(prev => ({
       ...prev,
       [field]: value,
     }));
@@ -167,18 +249,26 @@ export default function AdminSettings() {
       const formDataToSend = new FormData();
       formDataToSend.append('logo', file);
 
-      const response = await fetch('/api/admin/upload-logo', {
+      const response = await fetch('/api/themes/upload-logo', {
         method: 'POST',
         body: formDataToSend,
       });
 
       const result = await response.json();
+      console.log('Logo upload response:', result);
 
       if (result.success) {
-        setFormData(prev => ({
-          ...prev,
-          app_logo: result.data.logo_url,
-        }));
+        // Handle different response formats from the API
+        // The API might return: { data: { logo_url: "..." } } or { data: { app_logo: "..." } } or { data: "..." }
+        const logoUrl = result.data?.logo_url || result.data?.app_logo || (typeof result.data === 'string' ? result.data : null);
+        console.log('Extracted logo URL:', logoUrl);
+        
+        if (logoUrl) {
+          setThemeFormData(prev => ({
+            ...prev,
+            app_logo: logoUrl,
+          }));
+        }
         setSelectedLogoFile(null);
         // Clear the file input
         const fileInput = document.getElementById('app_logo') as HTMLInputElement;
@@ -186,11 +276,10 @@ export default function AdminSettings() {
         
         toast({
           title: "Logo uploaded",
-          description: "App logo has been uploaded successfully.",
+          description: "App logo has been uploaded. Click 'Save Theme Settings' to apply the change.",
         });
         
-        // Refresh settings to get the latest logo URL
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
+        // Don't invalidate themes here - it would overwrite our local state before user saves
       } else {
         throw new Error(result.error || 'Upload failed');
       }
@@ -255,13 +344,13 @@ export default function AdminSettings() {
                 <DollarSign className="h-4 w-4 mr-2 hidden sm:inline" />
                 Payment
               </TabsTrigger>
+              <TabsTrigger value="theme" data-testid="tab-theme" className="flex-shrink-0 sm:flex-shrink">
+                <Palette className="h-4 w-4 mr-2 hidden sm:inline" />
+                Theme
+              </TabsTrigger>
               <TabsTrigger value="api-keys" data-testid="tab-api-keys" className="flex-shrink-0 sm:flex-shrink">
                 <Key className="h-4 w-4 mr-2 hidden sm:inline" />
-                API Keys
-              </TabsTrigger>
-              <TabsTrigger value="integrations" data-testid="tab-integrations" className="flex-shrink-0 sm:flex-shrink">
-                <Video className="h-4 w-4 mr-2 hidden sm:inline" />
-                Integrations
+                API & Integrations
               </TabsTrigger>
               <TabsTrigger value="app-versions" data-testid="tab-app-versions" className="flex-shrink-0 sm:flex-shrink">
                 <Smartphone className="h-4 w-4 mr-2 hidden sm:inline" />
@@ -282,17 +371,6 @@ export default function AdminSettings() {
                 <CardDescription>Basic platform configuration</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="app_name">App Name</Label>
-                  <Input
-                    id="app_name"
-                    value={formData.app_name}
-                    onChange={(e) => handleInputChange('app_name', e.target.value)}
-                    placeholder="Your App Name"
-                    data-testid="input-app-name"
-                  />
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="seo_title">SEO Title</Label>
                   <Input
@@ -379,66 +457,6 @@ export default function AdminSettings() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="app_logo">App Logo</Label>
-                  <div className="flex items-start gap-4">
-                    {formData.app_logo && (
-                      <div className="flex-shrink-0">
-                        <img 
-                          src={
-                            formData.app_logo.startsWith('http') 
-                              ? formData.app_logo 
-                              : getImageUrl(formData.app_logo, externalApiUrl)
-                          } 
-                          alt="App Logo" 
-                          className="h-20 w-20 object-contain rounded border border-border bg-muted p-2"
-                          onError={(e) => {
-                            e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23666">Logo</text></svg>';
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1 space-y-2">
-                      <div className="flex gap-2">
-                        <Input
-                          id="app_logo"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setSelectedLogoFile(file);
-                            }
-                          }}
-                          data-testid="input-app-logo"
-                          className="cursor-pointer flex-1"
-                        />
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            if (selectedLogoFile) {
-                              handleLogoUpload(selectedLogoFile);
-                            } else {
-                              toast({
-                                title: "No file selected",
-                                description: "Please select a logo file first.",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                          disabled={!selectedLogoFile || isUploadingLogo}
-                          data-testid="button-upload-logo"
-                        >
-                          {isUploadingLogo ? "Uploading..." : "Upload"}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Select a logo file and click Upload (PNG, JPG, or SVG recommended)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
               </CardContent>
             </Card>
 
@@ -469,57 +487,6 @@ export default function AdminSettings() {
                     placeholder="https://example.com/terms"
                     data-testid="input-terms-url"
                   />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>App Theme Colors</CardTitle>
-                <CardDescription>Configure primary and secondary colors for your mobile app</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="primary_color">Primary Color (Main Color)</Label>
-                    <div className="flex gap-2">
-                      <div 
-                        className="w-12 h-10 rounded border border-border flex-shrink-0"
-                        style={{ backgroundColor: formData.primary_color ? `#${formData.primary_color.slice(-6)}` : '#FACC15' }}
-                      />
-                      <Input
-                        id="primary_color"
-                        value={formData.primary_color}
-                        onChange={(e) => handleInputChange('primary_color', e.target.value.toUpperCase())}
-                        placeholder="FFFACC15"
-                        data-testid="input-primary-color"
-                        maxLength={8}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Format: AARRGGBB (e.g., FFFACC15 for yellow).
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="secondary_color">Secondary Color (Sub Color)</Label>
-                    <div className="flex gap-2">
-                      <div 
-                        className="w-12 h-10 rounded border border-border flex-shrink-0"
-                        style={{ backgroundColor: formData.secondary_color ? `#${formData.secondary_color.slice(-6)}` : '#0D9488' }}
-                      />
-                      <Input
-                        id="secondary_color"
-                        value={formData.secondary_color}
-                        onChange={(e) => handleInputChange('secondary_color', e.target.value.toUpperCase())}
-                        placeholder="FF0D9488"
-                        data-testid="input-secondary-color"
-                        maxLength={8}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Format: AARRGGBB (e.g., FF0D9488 for teal).
-                    </p>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -678,6 +645,211 @@ export default function AdminSettings() {
             </Card>
           </TabsContent>
 
+          {/* Theme Settings */}
+          <TabsContent value="theme" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Branding</CardTitle>
+                <CardDescription>Configure your app name, logo and slogan</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="app_name">App Name</Label>
+                  <Input
+                    id="app_name"
+                    value={themeFormData.app_name}
+                    onChange={(e) => handleThemeInputChange('app_name', e.target.value)}
+                    placeholder="Your App Name"
+                    data-testid="input-app-name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="app_logo">App Logo</Label>
+                  <div className="flex items-start gap-4">
+                    {themeFormData.app_logo && (
+                      <div className="flex-shrink-0">
+                        {(() => {
+                          const logoSrc = themeFormData.app_logo.startsWith('http') 
+                            ? themeFormData.app_logo 
+                            : `${externalApiUrl}/${themeFormData.app_logo.replace(/^\//, '')}`;
+                          console.log('Logo preview URL:', logoSrc, 'from:', themeFormData.app_logo, 'baseUrl:', externalApiUrl);
+                          return (
+                            <img 
+                              src={logoSrc} 
+                              alt="App Logo" 
+                              className="h-20 w-20 object-contain rounded border border-border bg-muted p-2"
+                              onError={(e) => {
+                                console.log('Logo image failed to load:', logoSrc);
+                                e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23666">Logo</text></svg>';
+                              }}
+                            />
+                          );
+                        })()}
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          id="app_logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setSelectedLogoFile(file);
+                            }
+                          }}
+                          data-testid="input-app-logo"
+                          className="cursor-pointer flex-1"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            if (selectedLogoFile) {
+                              handleLogoUpload(selectedLogoFile);
+                            } else {
+                              toast({
+                                title: "No file selected",
+                                description: "Please select a logo file first.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          disabled={!selectedLogoFile || isUploadingLogo}
+                          data-testid="button-upload-logo"
+                        >
+                          {isUploadingLogo ? "Uploading..." : "Upload"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Select a logo file and click Upload (PNG, JPG, or SVG recommended)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slogan">Slogan</Label>
+                  <Input
+                    id="slogan"
+                    value={themeFormData.slogan}
+                    onChange={(e) => handleThemeInputChange('slogan', e.target.value)}
+                    placeholder="Your app tagline or slogan"
+                    data-testid="input-slogan"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    A short tagline that appears with your brand
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>App Theme Colors</CardTitle>
+                <CardDescription>Configure colors for your mobile app</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="primary_color_theme">Primary Color</Label>
+                    <div className="flex gap-2">
+                      <div 
+                        className="w-12 h-10 rounded border border-border flex-shrink-0"
+                        style={{ backgroundColor: themeFormData.primary_color ? `#${themeFormData.primary_color.slice(-6)}` : '#FACC15' }}
+                      />
+                      <Input
+                        id="primary_color_theme"
+                        value={themeFormData.primary_color}
+                        onChange={(e) => handleThemeInputChange('primary_color', e.target.value.toUpperCase())}
+                        placeholder="FFFACC15"
+                        data-testid="input-primary-color-theme"
+                        maxLength={8}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Format: AARRGGBB (e.g., FFFACC15 for yellow)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="secondary_color_theme">Secondary Color</Label>
+                    <div className="flex gap-2">
+                      <div 
+                        className="w-12 h-10 rounded border border-border flex-shrink-0"
+                        style={{ backgroundColor: themeFormData.secondary_color ? `#${themeFormData.secondary_color.slice(-6)}` : '#0D9488' }}
+                      />
+                      <Input
+                        id="secondary_color_theme"
+                        value={themeFormData.secondary_color}
+                        onChange={(e) => handleThemeInputChange('secondary_color', e.target.value.toUpperCase())}
+                        placeholder="FF0D9488"
+                        data-testid="input-secondary-color-theme"
+                        maxLength={8}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Format: AARRGGBB (e.g., FF0D9488 for teal)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="button_color">Button Color</Label>
+                    <div className="flex gap-2">
+                      <div 
+                        className="w-12 h-10 rounded border border-border flex-shrink-0"
+                        style={{ backgroundColor: themeFormData.button_color ? `#${themeFormData.button_color.slice(-6)}` : '#000000' }}
+                      />
+                      <Input
+                        id="button_color"
+                        value={themeFormData.button_color}
+                        onChange={(e) => handleThemeInputChange('button_color', e.target.value.toUpperCase())}
+                        placeholder="FF000000"
+                        data-testid="input-button-color"
+                        maxLength={8}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Format: AARRGGBB (e.g., FF000000 for black)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="button_text_color">Button Text Color</Label>
+                    <div className="flex gap-2">
+                      <div 
+                        className="w-12 h-10 rounded border border-border flex-shrink-0"
+                        style={{ backgroundColor: themeFormData.button_text_color ? `#${themeFormData.button_text_color.slice(-6)}` : '#FFFFFF' }}
+                      />
+                      <Input
+                        id="button_text_color"
+                        value={themeFormData.button_text_color}
+                        onChange={(e) => handleThemeInputChange('button_text_color', e.target.value.toUpperCase())}
+                        placeholder="FFFFFFFF"
+                        data-testid="input-button-text-color"
+                        maxLength={8}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Format: AARRGGBB (e.g., FFFFFFFF for white)
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSaveTheme}
+                disabled={isSavingTheme || !canManageSettings}
+                data-testid="button-save-theme"
+              >
+                {isSavingTheme ? "Saving..." : "Save Theme Settings"}
+              </Button>
+            </div>
+          </TabsContent>
+
           {/* API Keys */}
           <TabsContent value="api-keys" className="space-y-6">
             <Card>
@@ -778,39 +950,6 @@ export default function AdminSettings() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Other API Keys</CardTitle>
-                <CardDescription>Additional third-party service keys</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="shippo_api_key">Shippo API Key</Label>
-                  <Input
-                    id="shippo_api_key"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.shippo_api_key) : formData.shippo_api_key}
-                    onChange={(e) => handleInputChange('shippo_api_key', e.target.value)}
-                    placeholder="shippo_..."
-                    data-testid="input-shippo-api-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Used for shipping label generation
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-          </TabsContent>
-
-          {/* Integrations */}
-          <TabsContent value="integrations" className="space-y-6">
-            <Card>
-              <CardHeader>
                 <CardTitle>LiveKit Integration</CardTitle>
                 <CardDescription>Live streaming platform configuration</CardDescription>
               </CardHeader>
@@ -864,6 +1003,36 @@ export default function AdminSettings() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Other API Keys</CardTitle>
+                <CardDescription>Additional third-party service keys</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="shippo_api_key">Shippo API Key</Label>
+                  <Input
+                    id="shippo_api_key"
+                    type={formData.demoMode ? 'text' : 'password'}
+                    value={formData.demoMode ? maskKey(formData.shippo_api_key) : formData.shippo_api_key}
+                    onChange={(e) => handleInputChange('shippo_api_key', e.target.value)}
+                    placeholder="shippo_..."
+                    data-testid="input-shippo-api-key"
+                    readOnly={formData.demoMode}
+                    disabled={formData.demoMode}
+                    onCopy={(e) => formData.demoMode && e.preventDefault()}
+                    onCut={(e) => formData.demoMode && e.preventDefault()}
+                    onPaste={(e) => formData.demoMode && e.preventDefault()}
+                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for shipping label generation
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
           </TabsContent>
 
           {/* App Versions */}

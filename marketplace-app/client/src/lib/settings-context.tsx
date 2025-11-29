@@ -21,8 +21,19 @@ interface AppSettings {
   agerestricted?: boolean;
 }
 
+interface ThemeSettings {
+  app_name: string;
+  slogan: string;
+  primary_color: string;
+  secondary_color: string;
+  button_color: string;
+  button_text_color: string;
+  app_logo: string;
+}
+
 interface SettingsContextType {
   settings: AppSettings;
+  theme: ThemeSettings;
   isLoading: boolean;
   isFirebaseReady: boolean;
   appName: string;
@@ -38,8 +49,19 @@ const defaultSettings: AppSettings = {
   commission_rate: 0, // Default 0% commission
 };
 
+const defaultTheme: ThemeSettings = {
+  app_name: '',
+  slogan: '',
+  primary_color: 'FFFACC15',
+  secondary_color: 'FF0D9488',
+  button_color: 'FF000000',
+  button_text_color: 'FFFFFFFF',
+  app_logo: '',
+};
+
 const SettingsContext = createContext<SettingsContextType>({
   settings: defaultSettings,
+  theme: defaultTheme,
   isLoading: true,
   isFirebaseReady: false,
   appName: 'TokshopLive',
@@ -107,8 +129,13 @@ function getLuminance(hex: string): number {
 }
 
 // Apply theme colors to CSS variables
-function applyThemeColors(primaryColor: string, secondaryColor: string) {
-  console.log('🎨 Applying theme colors:', { primaryColor, secondaryColor });
+function applyThemeColors(
+  primaryColor: string, 
+  secondaryColor: string,
+  buttonColor?: string,
+  buttonTextColor?: string
+) {
+  console.log('🎨 Applying theme colors:', { primaryColor, secondaryColor, buttonColor, buttonTextColor });
   
   const root = document.documentElement;
   
@@ -148,11 +175,25 @@ function applyThemeColors(primaryColor: string, secondaryColor: string) {
   root.style.setProperty('--accent-foreground', secondaryForeground);
   root.style.setProperty('--chart-2', secondaryHSL);
   
+  // Apply button colors if provided
+  if (buttonColor) {
+    const buttonHSL = hexToHSL(buttonColor);
+    root.style.setProperty('--button', buttonHSL);
+    console.log('🎨 Button color applied:', buttonHSL);
+  }
+  
+  if (buttonTextColor) {
+    const buttonTextHSL = hexToHSL(buttonTextColor);
+    root.style.setProperty('--button-foreground', buttonTextHSL);
+    console.log('🎨 Button text color applied:', buttonTextHSL);
+  }
+  
   console.log('✅ Theme colors applied successfully');
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [theme, setTheme] = useState<ThemeSettings>(defaultTheme);
   const [isLoading, setIsLoading] = useState(true);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
@@ -207,22 +248,49 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     fetchSettings();
   }, []);
 
-  // Apply theme colors when settings are first loaded
+  // Fetch theme settings separately
   useEffect(() => {
-    if (!isLoading && settings.primary_color && settings.secondary_color) {
-      applyThemeColors(settings.primary_color, settings.secondary_color);
+    async function fetchThemes() {
+      try {
+        const response = await fetch('/api/public/themes');
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🎨 Themes fetched:', data);
+          if (data.success && data.data) {
+            console.log('🎨 Theme data:', data.data);
+            setTheme(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch theme settings:', error);
+      }
     }
-  }, [isLoading, settings.primary_color, settings.secondary_color]);
+
+    fetchThemes();
+  }, []);
+
+  // Apply theme colors when theme settings are loaded
+  useEffect(() => {
+    if (!isLoading && theme.primary_color && theme.secondary_color) {
+      applyThemeColors(
+        theme.primary_color, 
+        theme.secondary_color,
+        theme.button_color,
+        theme.button_text_color
+      );
+    }
+  }, [isLoading, theme.primary_color, theme.secondary_color, theme.button_color, theme.button_text_color]);
 
   const appName = settings.app_name || 'TokshopLive';
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
     settings,
+    theme,
     isLoading,
     isFirebaseReady,
     appName
-  }), [settings, isLoading, isFirebaseReady, appName]);
+  }), [settings, theme, isLoading, isFirebaseReady, appName]);
 
   return (
     <SettingsContext.Provider value={value}>

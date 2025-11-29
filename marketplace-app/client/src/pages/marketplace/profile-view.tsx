@@ -763,13 +763,15 @@ export default function ProfileView() {
             >
               Shows
             </TabsTrigger>
-            <TabsTrigger 
-              value="reviews" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent px-3 sm:px-6 text-sm"
-              data-testid="tab-reviews"
-            >
-              Reviews
-            </TabsTrigger>
+            {displayUser?.seller && (
+              <TabsTrigger 
+                value="reviews" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent px-3 sm:px-6 text-sm"
+                data-testid="tab-reviews"
+              >
+                Reviews
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="shop" className="p-4 sm:p-6">
@@ -879,23 +881,25 @@ export default function ProfileView() {
             </div>
           </TabsContent>
 
-          <TabsContent value="reviews" className="p-4 sm:p-6">
-            {reviewsLoading ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">Loading reviews...</p>
-              </div>
-            ) : (reviewsData?.reviews || []).length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No reviews yet</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {(reviewsData?.reviews || []).map((review: any) => (
-                  <ReviewCard key={review._id} review={review} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
+          {displayUser?.seller && (
+            <TabsContent value="reviews" className="p-4 sm:p-6">
+              {reviewsLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading reviews...</p>
+                </div>
+              ) : (reviewsData?.reviews || []).length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No reviews yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  {(reviewsData?.reviews || []).map((review: any) => (
+                    <ReviewCard key={review._id} review={review} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          )}
         </Tabs>
         </div>
       </main>

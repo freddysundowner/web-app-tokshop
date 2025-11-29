@@ -2,6 +2,78 @@ import type { Express } from "express";
 import { BASE_URL } from "../utils";
 
 export function registerSettingsRoutes(app: Express) {
+  // Get public theme settings (no auth required)
+  app.get("/api/public/themes", async (req, res) => {
+    try {
+      const url = `${BASE_URL}/themes`;
+      console.log(`Fetching public themes from: ${url}`);
+      
+      // Try to get access token from session if available
+      const accessToken = req.session?.accessToken;
+      
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        // Return default values if API fails
+        console.warn(`Failed to fetch themes from API, using defaults`);
+        return res.json({
+          success: true,
+          data: {
+            app_name: "",
+            slogan: "",
+            primary_color: "FFFACC15",
+            secondary_color: "FF0D9488",
+            button_color: "FF000000",
+            button_text_color: "FFFFFFFF",
+            app_logo: "",
+          },
+        });
+      }
+
+      const data = await response.json();
+      const themes = Array.isArray(data) ? data[0] : data;
+      
+      res.json({
+        success: true,
+        data: {
+          app_name: themes?.app_name || "",
+          slogan: themes?.slogan || "",
+          primary_color: themes?.primary_color || "FFFACC15",
+          secondary_color: themes?.secondary_color || "FF0D9488",
+          button_color: themes?.button_color || "FF000000",
+          button_text_color: themes?.button_text_color || "FFFFFFFF",
+          app_logo: themes?.app_logo || "",
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching public themes:", error);
+      // Return default values on error
+      res.json({
+        success: true,
+        data: {
+          app_name: "",
+          slogan: "",
+          primary_color: "FFFACC15",
+          secondary_color: "FF0D9488",
+          button_color: "FF000000",
+          button_text_color: "FFFFFFFF",
+          app_logo: "",
+        },
+      });
+    }
+  });
+
   // Get public app settings (branding information)
   app.get("/api/settings", async (req, res) => {
     try {

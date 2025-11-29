@@ -454,6 +454,53 @@ export async function getOrCreateChat(
     for (const chatDoc of snapshot.docs) {
       const chatData = chatDoc.data();
       if (chatData.userIds && chatData.userIds.includes(userId2)) {
+        // Found existing chat - update user data if we have new info
+        const existingUsers = chatData.users || [];
+        let needsUpdate = false;
+        
+        const updatedUsers = existingUsers.map((u: any) => {
+          if (u.id === userId1 && user1Data) {
+            // Update user1 data if it's missing or we have new data
+            if (!u.userName && user1Data.userName) {
+              needsUpdate = true;
+              return { ...u, ...user1Data };
+            }
+          }
+          if (u.id === userId2 && user2Data) {
+            // Update user2 data if it's missing or we have new data
+            if (!u.userName && user2Data.userName) {
+              needsUpdate = true;
+              return { ...u, ...user2Data };
+            }
+          }
+          return u;
+        });
+        
+        // If users array is empty or missing users, rebuild it
+        if (existingUsers.length < 2) {
+          needsUpdate = true;
+          const newUsers = [
+            existingUsers.find((u: any) => u.id === userId1) || {
+              id: userId1,
+              firstName: user1Data?.firstName || '',
+              lastName: user1Data?.lastName || '',
+              userName: user1Data?.userName || '',
+              profilePhoto: user1Data?.profilePhoto || ''
+            },
+            existingUsers.find((u: any) => u.id === userId2) || {
+              id: userId2,
+              firstName: user2Data?.firstName || '',
+              lastName: user2Data?.lastName || '',
+              userName: user2Data?.userName || '',
+              profilePhoto: user2Data?.profilePhoto || ''
+            }
+          ];
+          
+          await updateDoc(doc(getFirebaseDb(), 'chats', chatDoc.id), { users: newUsers });
+        } else if (needsUpdate) {
+          await updateDoc(doc(getFirebaseDb(), 'chats', chatDoc.id), { users: updatedUsers });
+        }
+        
         return chatDoc.id;
       }
     }

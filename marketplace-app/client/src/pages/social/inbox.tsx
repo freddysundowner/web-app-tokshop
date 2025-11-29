@@ -111,9 +111,9 @@ export default function Inbox() {
 
   // Update current user's profile data in all their chats
   useEffect(() => {
-    if (!userId || !userProfileUrl) return;
+    if (!userId) return;
     
-    // This will be called when opening inbox to ensure profile photos are current
+    // This will be called when opening inbox to ensure profile photos and usernames are current
     const updateUserProfileInChats = async () => {
       try {
         const chatsRef = collection(getFirebaseDb(), 'chats');
@@ -124,19 +124,40 @@ export default function Inbox() {
           try {
             const chatData = chatDoc.data();
             const users = chatData.users || [];
+            let needsUpdate = false;
             
-            // Update current user's profile photo if it's missing or different
+            // Update current user's profile data if it's missing or different
             const updatedUsers = users.map((u: any) => {
-              if (u.id === userId && u.profilePhoto !== userProfileUrl) {
-                return { ...u, profilePhoto: userProfileUrl };
+              if (u.id === userId) {
+                const updates: any = { ...u };
+                
+                // Update profile photo if different
+                if (userProfileUrl && u.profilePhoto !== userProfileUrl) {
+                  updates.profilePhoto = userProfileUrl;
+                  needsUpdate = true;
+                }
+                
+                // Update userName if missing
+                if (!u.userName && userName && userName !== 'User') {
+                  updates.userName = userName;
+                  needsUpdate = true;
+                }
+                
+                // Update firstName if missing
+                if (!u.firstName && (user as any)?.firstName) {
+                  updates.firstName = (user as any).firstName;
+                  needsUpdate = true;
+                }
+                
+                return updates;
               }
               return u;
             });
             
             // Only update if there were changes
-            if (JSON.stringify(users) !== JSON.stringify(updatedUsers)) {
+            if (needsUpdate) {
               await updateDoc(doc(getFirebaseDb(), 'chats', chatDoc.id), { users: updatedUsers });
-              console.log('Updated profile photo in chat:', chatDoc.id);
+              console.log('Updated user data in chat:', chatDoc.id);
             }
           } catch (err) {
             console.error('Error updating chat:', chatDoc.id, err);
@@ -150,7 +171,7 @@ export default function Inbox() {
     };
     
     updateUserProfileInChats();
-  }, [userId, userProfileUrl]);
+  }, [userId, userProfileUrl, userName, user]);
   
   // Subscribe to chats
   useEffect(() => {
@@ -296,6 +317,9 @@ export default function Inbox() {
     };
   }, [messageText, selectedConversation, userId]);
 
+  // Track if we've already initialized a chat from query params
+  const chatInitializedRef = useRef(false);
+  
   // Auto-select conversation when chatId is provided in URL or create chat from query params
   useEffect(() => {
     const chatId = params?.chatId;
@@ -316,7 +340,10 @@ export default function Inbox() {
     const otherUserName = urlParams.get('otherUserName');
     const otherUserPhoto = urlParams.get('otherUserPhoto');
     
-    if (otherUserId && userId && !chatId) {
+    // Only create chat once to prevent duplicates
+    if (otherUserId && userId && !chatId && !chatInitializedRef.current) {
+      chatInitializedRef.current = true;
+      
       // Create or get existing chat
       const initChat = async () => {
         try {
@@ -336,10 +363,14 @@ export default function Inbox() {
           
           const newChatId = await getOrCreateChat(userId, otherUserId, currentUserData, otherUserData);
           
+          // Clear query params to prevent re-triggering
+          window.history.replaceState({}, '', `/inbox/${newChatId}`);
+          
           // Navigate to the chat
           setLocation(`/inbox/${newChatId}`);
         } catch (error) {
           console.error('Error creating chat:', error);
+          chatInitializedRef.current = false; // Allow retry on error
           toast({
             title: "Error",
             description: "Failed to open chat. Please try again.",

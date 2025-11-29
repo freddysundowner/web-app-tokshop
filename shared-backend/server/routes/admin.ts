@@ -1641,6 +1641,102 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  // Get themes
+  app.get("/api/themes", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/themes`;
+      console.log(`Fetching themes from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: "Failed to fetch themes",
+        });
+      }
+
+      const data = await response.json();
+      
+      res.json({
+        success: true,
+        data: Array.isArray(data) ? data[0] : data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching themes:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch themes",
+        details: error.message,
+      });
+    }
+  });
+
+  // Update themes
+  app.post("/api/themes", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/themes`;
+      console.log(`Updating themes at: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Themes update error:", errorData);
+        return res.status(response.status).json({
+          success: false,
+          error: "Failed to update themes",
+          details: errorData,
+        });
+      }
+
+      const data = await response.json();
+      
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error updating themes:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update themes",
+        details: error.message,
+      });
+    }
+  });
+
   // Upload app logo
   app.post("/api/admin/upload-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
     try {
@@ -1688,6 +1784,58 @@ If you have any questions, feel free to reach out to our support team.
       res.status(500).json({
         success: false,
         error: "Failed to upload logo",
+        details: error.response?.data || error.message,
+      });
+    }
+  });
+
+  // Upload theme logo (POST to /themes/upload-logo)
+  app.post("/api/themes/upload-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "No logo file uploaded",
+        });
+      }
+
+      const formData = new FormData();
+      formData.append('logo', req.file.buffer, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
+
+      const url = `${BASE_URL}/themes/upload-logo`;
+      console.log(`Uploading theme logo to: ${url}`);
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      });
+
+      res.json({
+        success: true,
+        data: response.data,
+        message: "Theme logo uploaded successfully",
+      });
+    } catch (error: any) {
+      console.error("Error uploading theme logo:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to upload theme logo",
         details: error.response?.data || error.message,
       });
     }

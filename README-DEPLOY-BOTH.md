@@ -151,7 +151,7 @@ You'll see **TWO apps** in the file. Find these lines and change **BOTH**:
 
 **Change both to your actual API server URL**, for example:
 ```javascript
-BASE_URL: 'https://api.tokshoplive.com'
+BASE_URL: 'https://api.iconaapp.com'
 ```
 
 **Make sure both apps use the SAME API URL!**
