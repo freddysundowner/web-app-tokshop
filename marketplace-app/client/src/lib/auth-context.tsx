@@ -38,7 +38,7 @@ interface AuthContextType {
   completeSocialAuth: (data: SocialAuthCompleteData) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  refreshUserData: () => Promise<void>;
+  refreshUserData: () => Promise<{ address: any; defaultpaymentmethod: any } | null>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -647,24 +647,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const refreshUserData = async () => {
+  const refreshUserData = async (): Promise<{ address: any; defaultpaymentmethod: any } | null> => {
     try {
       if (!user?.id) {
         console.log('[refreshUserData] No user logged in');
-        return;
+        return null;
       }
 
       // Prevent multiple simultaneous calls
       if (isRefreshing.current) {
         console.log('[refreshUserData] Already refreshing, skipping...');
-        return;
+        return null;
       }
 
       // Debounce: Don't refresh if we refreshed less than 2 seconds ago
       const now = Date.now();
       if (now - lastRefreshTime.current < 2000) {
         console.log('[refreshUserData] Refreshed recently, skipping...');
-        return;
+        // Return current user data for the check
+        return { address: user.address, defaultpaymentmethod: user.defaultpaymentmethod };
       }
 
       isRefreshing.current = true;
@@ -702,8 +703,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         hasAddress: !!updatedUser.address,
         hasPayment: !!updatedUser.defaultpaymentmethod
       });
+
+      // Return the fresh data for immediate use
+      return { address: defaultAddress, defaultpaymentmethod: defaultPaymentMethod };
     } catch (error) {
       console.error('[refreshUserData] Failed to refresh user data:', error);
+      return null;
     } finally {
       isRefreshing.current = false;
     }

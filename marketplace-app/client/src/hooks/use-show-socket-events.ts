@@ -81,6 +81,10 @@ export function useShowSocketEvents({
   const lastAuctionRefetchRef = useRef<number>(0);
   const lastGiveawayRefetchRef = useRef<number>(0);
   const lastOffersRefetchRef = useRef<number>(0);
+  
+  // Track the current running auction ID to prevent stale ended flags from previous auctions
+  // This is used to sanitize incoming room data that might have stale ended: true
+  const currentRunningAuctionIdRef = useRef<string | null>(null);
 
   // Debounced refetch functions to prevent duplicate calls
   const debouncedRefetchAuction = useCallback(() => {
@@ -266,10 +270,20 @@ export function useShowSocketEvents({
     const normalizedAuction = auction ? { ...auction } : null;
     
     if (normalizedAuction) {
+      // Track the current running auction ID to sanitize stale room data
+      const auctionId = normalizedAuction._id || normalizedAuction.id;
+      currentRunningAuctionIdRef.current = auctionId;
+      console.log('📌 Tracking new running auction ID:', auctionId);
+      
       // Convert endTime to number if it's a string
       if (normalizedAuction.endTime && typeof normalizedAuction.endTime === 'string') {
         normalizedAuction.endTime = new Date(normalizedAuction.endTime).getTime();
       }
+      
+      // CRITICAL: Ensure ended is explicitly false for new auctions
+      // This prevents stale ended:true from previous auctions persisting
+      normalizedAuction.ended = false;
+      normalizedAuction.started = true;
       
       // Update global time sync service if server time is provided
       if (normalizedAuction.serverTime) {
@@ -335,6 +349,17 @@ export function useShowSocketEvents({
     // Update state from room data
     const activeAuc = roomData.activeauction || roomData.activeAuction || roomData.active_auction;
     
+    // CRITICAL: Sanitize incoming auction data to prevent stale ended flags
+    // If this auction matches the current running auction, force ended=false
+    if (activeAuc) {
+      const incomingId = activeAuc._id || activeAuc.id;
+      if (currentRunningAuctionIdRef.current && incomingId === currentRunningAuctionIdRef.current) {
+        console.log('🧹 Sanitizing auction pinned data - forcing ended=false for running auction:', incomingId);
+        activeAuc.ended = false;
+        activeAuc.started = true;
+      }
+    }
+    
     setActiveAuction(activeAuc || null);
     setPinnedProduct(null); // Force clear pinned product when auction is pinned
     setActiveGiveaway(null); // Force clear giveaway when auction is pinned
@@ -348,8 +373,17 @@ export function useShowSocketEvents({
     console.log('🔍 BID-UPDATED RECEIVED:');
     console.log('  Full auction object:', auction);
     console.log('  Has endTime?:', auction.endTime);
+    console.log('  Has ended?:', auction.ended);
     console.log('  Bids count:', auction.bids?.length);
     console.log('  newbaseprice:', auction.newbaseprice);
+    
+    // Track this as the current running auction if not already tracked
+    // This helps when viewer joins mid-auction after auction-started already fired
+    const incomingAuctionId = auction._id || auction.id;
+    if (incomingAuctionId && !currentRunningAuctionIdRef.current) {
+      console.log('📌 Setting running auction ID from bid-updated:', incomingAuctionId);
+      currentRunningAuctionIdRef.current = incomingAuctionId;
+    }
     
     setActiveAuction((prev: any) => {
       if (!prev) {
@@ -358,16 +392,25 @@ export function useShowSocketEvents({
       }
       
       console.log('  Previous endTime:', prev.endTime);
+      console.log('  Previous ended:', prev.ended);
       console.log('  Previous serverOffset:', prev.serverOffset);
       
+      // CRITICAL FIX: Also update ended, startedTime, and endTime from the socket payload
+      // This prevents stale "ended: true" from a previous auction from persisting
       const updated = {
         ...prev,
         bids: auction.bids || prev.bids,
         higestbid: auction.higestbid !== undefined ? auction.higestbid : prev.higestbid,
         newbaseprice: auction.newbaseprice !== undefined ? auction.newbaseprice : prev.newbaseprice,
+        // Update timing/state fields from socket payload to fix stale ended flag
+        ended: auction.ended !== undefined ? auction.ended : prev.ended,
+        startedTime: auction.startedTime !== undefined ? auction.startedTime : prev.startedTime,
+        endTime: auction.endTime !== undefined ? auction.endTime : prev.endTime,
+        started: auction.started !== undefined ? auction.started : prev.started,
       };
       
       console.log('  Updated auction endTime:', updated.endTime);
+      console.log('  Updated auction ended:', updated.ended);
       console.log('  Updated auction serverOffset:', updated.serverOffset);
       
       return updated;
@@ -568,6 +611,11 @@ export function useShowSocketEvents({
     if (!auction) {
       return;
     }
+    
+    // Clear the running auction tracking since this auction has ended
+    const endedAuctionId = auction._id || auction.id;
+    console.log('🏁 Auction ended, clearing tracking for:', endedAuctionId);
+    currentRunningAuctionIdRef.current = null;
     
     // Mark the auction as ended and preserve ALL bid data
     const endedAuction = {

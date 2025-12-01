@@ -701,8 +701,8 @@ export function VideoCenter(props: any) {
                 </div>
               )}
 
-              {/* Show waiting for host state - for viewers when connected but no video yet */}
-              {livekit.isConnected && !livekit.hasVideo && !livekit.isConnecting && !isShowOwner && (
+              {/* Show waiting for host state - for viewers when connected but host has no video yet */}
+              {livekit.isConnected && !livekit.hasHostVideo && !livekit.isConnecting && !isShowOwner && (
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-black/85 via-black/80 to-black/85 z-30 flex items-center justify-center backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-6 text-white max-w-md mx-4 text-center">
                     <div className="relative">

@@ -735,40 +735,68 @@ export default function ShowViewNew() {
       const isAuctionEnded = showActiveAuction?.ended === true || 
         (calculatedEndTime && Date.now() >= (typeof calculatedEndTime === 'string' ? new Date(calculatedEndTime).getTime() : calculatedEndTime));
       
-      if (isValidAuction && !isAuctionEnded) {
-        console.log('📦 Initializing active auction from show data:', showActiveAuction);
-        console.log('🔍 Show activeauction bids:', showActiveAuction.bids);
-        console.log('🔍 Show activeauction ended:', showActiveAuction.ended);
-        console.log('🔍 Full show object keys:', Object.keys(show));
+      // CRITICAL FIX: Check if we already have an activeAuction in state with a DIFFERENT ID
+      // If so, don't overwrite it - the socket event (auction-started) has the fresher data
+      // This prevents stale show query data from overwriting the correct auction state
+      setActiveAuction((currentAuction: any) => {
+        const showAuctionId = showActiveAuction?._id;
+        const currentAuctionId = currentAuction?._id;
         
-        // Normalize endTime to always be a number
-        const normalizedAuction = normalizeAuctionEndTime(showActiveAuction);
-        
-        // Update global time sync if serverTime is present
-        if (normalizedAuction.serverTime) {
-          timeSync.updateFromServerTime(normalizedAuction.serverTime, 'http');
+        // If we have a current auction with a DIFFERENT ID and it's NOT ended, don't overwrite
+        // The socket auction-started event has already set the correct auction
+        if (currentAuction && currentAuctionId && showAuctionId && 
+            currentAuctionId !== showAuctionId && currentAuction.ended !== true) {
+          console.log('🛡️ PROTECTING activeAuction state - current auction ID differs from show data:', {
+            currentId: currentAuctionId,
+            showId: showAuctionId,
+            currentEnded: currentAuction.ended
+          });
+          return currentAuction; // Keep the current (fresher) auction
         }
         
-        console.log('🔍 CALLING setActiveAuction with:', normalizedAuction);
-        setActiveAuction(normalizedAuction);
-        console.log('🔍 AFTER setActiveAuction called');
-        
-        // Start timer and find winner for running auction
-        findWinner(normalizedAuction.bids || []);
-        startTimerWithEndTime(normalizedAuction);
-        getShippingEstimate(normalizedAuction);
-      } else if (isAuctionEnded) {
-        console.log('⏰ Auction in show data has ended - setting it to show on overlay');
-        // Set the ended auction so it shows on the overlay
-        const normalizedEndedAuction = normalizeAuctionEndTime(showActiveAuction);
-        setActiveAuction(normalizedEndedAuction);
-        
-        // Find winner and get shipping estimate for ended auction
-        findWinner(showActiveAuction.bids || []);
-        getShippingEstimate(showActiveAuction);
-      } else {
-        console.log('⚠️ NO valid activeAuction found in show data (might be empty Mongoose doc), NOT updating activeAuction state');
-      }
+        if (isValidAuction && !isAuctionEnded) {
+          console.log('📦 Initializing active auction from show data:', showActiveAuction);
+          console.log('🔍 Show activeauction bids:', showActiveAuction.bids);
+          console.log('🔍 Show activeauction ended:', showActiveAuction.ended);
+          console.log('🔍 Full show object keys:', Object.keys(show));
+          
+          // Normalize endTime to always be a number
+          const normalizedAuction = normalizeAuctionEndTime(showActiveAuction);
+          
+          // Update global time sync if serverTime is present
+          if (normalizedAuction.serverTime) {
+            timeSync.updateFromServerTime(normalizedAuction.serverTime, 'http');
+          }
+          
+          console.log('🔍 CALLING setActiveAuction with:', normalizedAuction);
+          
+          // Start timer and find winner for running auction
+          findWinner(normalizedAuction.bids || []);
+          startTimerWithEndTime(normalizedAuction);
+          getShippingEstimate(normalizedAuction);
+          
+          return normalizedAuction;
+        } else if (isAuctionEnded) {
+          // Only set ended auction if we don't have a current running auction with different ID
+          if (!currentAuction || currentAuctionId === showAuctionId || currentAuction.ended === true) {
+            console.log('⏰ Auction in show data has ended - setting it to show on overlay');
+            // Set the ended auction so it shows on the overlay
+            const normalizedEndedAuction = normalizeAuctionEndTime(showActiveAuction);
+            
+            // Find winner and get shipping estimate for ended auction
+            findWinner(showActiveAuction.bids || []);
+            getShippingEstimate(showActiveAuction);
+            
+            return normalizedEndedAuction;
+          } else {
+            console.log('🛡️ Not overwriting current running auction with ended show data');
+            return currentAuction;
+          }
+        } else {
+          console.log('⚠️ NO valid activeAuction found in show data (might be empty Mongoose doc), NOT updating activeAuction state');
+          return currentAuction;
+        }
+      });
       
       const showActiveGiveaway = show.pinned_giveaway || show.pinnedGiveaway || show.activegiveaway || show.activeGiveaway || show.active_giveaway;
       if (showActiveGiveaway) {
@@ -1295,10 +1323,14 @@ export default function ShowViewNew() {
       if (isOwner) return;
       
       // Refresh user data to get latest address/payment info from API
-      await refreshUserData();
+      // Use the RETURNED data (not stale React state) to check
+      const freshData = await refreshUserData();
       
-      // Check if user has payment and shipping after refresh
-      if (!hasPaymentAndShipping()) {
+      // Check using the fresh data returned from the API
+      const hasAddress = !!freshData?.address;
+      const hasPayment = !!freshData?.defaultpaymentmethod;
+      
+      if (!hasAddress || !hasPayment) {
         setShowPaymentShippingIntermediateAlert(true);
         hasShownPaymentAlertRef.current = true;
       }

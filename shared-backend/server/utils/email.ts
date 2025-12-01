@@ -1,5 +1,80 @@
 import nodemailer from "nodemailer";
 import sgMail from "@sendgrid/mail";
+import fs from "fs";
+import path from "path";
+
+// File-based email logging for bulk sends (faster than DB updates)
+const EMAIL_LOG_DIR = path.join(process.cwd(), "logs");
+const EMAIL_SENT_LOG = path.join(EMAIL_LOG_DIR, "emails_sent.log");
+
+// Ensure log directory exists
+if (!fs.existsSync(EMAIL_LOG_DIR)) {
+  fs.mkdirSync(EMAIL_LOG_DIR, { recursive: true });
+}
+
+// Fast file-based logging - appends to file without blocking
+export function logSentEmail(email: string, messageId?: string, campaignId?: string): void {
+  const timestamp = new Date().toISOString();
+  const logEntry = `${timestamp}|${email}|${messageId || 'unknown'}|${campaignId || 'bulk'}\n`;
+  
+  // Append async - doesn't block the sending process
+  fs.appendFile(EMAIL_SENT_LOG, logEntry, (err) => {
+    if (err) console.error('[EmailLog] Failed to log:', err.message);
+  });
+}
+
+// Check if an email was already sent (reads from log file)
+export function wasEmailSent(email: string, campaignId?: string): boolean {
+  try {
+    if (!fs.existsSync(EMAIL_SENT_LOG)) return false;
+    
+    const content = fs.readFileSync(EMAIL_SENT_LOG, 'utf-8');
+    const lines = content.split('\n');
+    
+    for (const line of lines) {
+      const [, loggedEmail, , loggedCampaign] = line.split('|');
+      if (loggedEmail === email) {
+        if (!campaignId || loggedCampaign === campaignId) {
+          return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// Get all sent emails from log
+export function getSentEmails(campaignId?: string): string[] {
+  try {
+    if (!fs.existsSync(EMAIL_SENT_LOG)) return [];
+    
+    const content = fs.readFileSync(EMAIL_SENT_LOG, 'utf-8');
+    const lines = content.split('\n').filter(Boolean);
+    
+    return lines
+      .map(line => {
+        const [, email, , campaign] = line.split('|');
+        return { email, campaign };
+      })
+      .filter(entry => !campaignId || entry.campaign === campaignId)
+      .map(entry => entry.email);
+  } catch {
+    return [];
+  }
+}
+
+// Clear log file (use after reconciling with database)
+export function clearEmailLog(): void {
+  try {
+    if (fs.existsSync(EMAIL_SENT_LOG)) {
+      fs.unlinkSync(EMAIL_SENT_LOG);
+    }
+  } catch (err) {
+    console.error('[EmailLog] Failed to clear log:', err);
+  }
+}
 
 interface EmailSettings {
   email_service_provider?: string;
@@ -133,6 +208,10 @@ async function sendWithMailgun(settings: EmailSettings, emailData: EmailData, fr
     const errorText = await response.text();
     console.error(`[Mailgun] Error response:`, errorText);
     
+    // Handle rate limiting (429)
+    if (response.status === 429) {
+      throw new Error(`Mailgun Rate Limit: Too many requests. Please wait and try again.`);
+    }
     // Provide helpful error messages
     if (response.status === 401) {
       throw new Error(`Mailgun Authentication Failed: Invalid API key. Please check your Mailgun API key in settings.`);
@@ -147,7 +226,14 @@ async function sendWithMailgun(settings: EmailSettings, emailData: EmailData, fr
     throw new Error(`Mailgun error (${response.status}): ${errorText}`);
   }
 
-  console.log(`[Mailgun] Email sent successfully!`);
+  // Parse response to get message ID
+  const result = await response.json() as { id?: string; message?: string };
+  const messageId = result.id || 'unknown';
+  
+  // Log to file (non-blocking, won't slow down bulk sends)
+  logSentEmail(emailData.to, messageId);
+  
+  console.log(`[Mailgun] Email sent successfully! ID: ${messageId}`);
 }
 
 async function sendWithResend(settings: EmailSettings, emailData: EmailData, fromEmail: string): Promise<void> {

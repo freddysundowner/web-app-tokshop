@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, Home, HelpCircle, ArrowLeft, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Article {
   _id: string;
@@ -142,9 +144,12 @@ export default function HelpArticle() {
                 prose-code:text-primary prose-code:bg-muted prose-code:px-1 prose-code:rounded
                 prose-pre:bg-muted prose-pre:text-foreground
                 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground"
-              dangerouslySetInnerHTML={{ __html: article.content }}
               data-testid="article-content"
-            />
+            >
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {article.content}
+              </ReactMarkdown>
+            </div>
           </CardContent>
         </Card>
 

@@ -77,6 +77,7 @@ export default function AdminSettings() {
   const [themeFormData, setThemeFormData] = useState({
     app_name: '',
     slogan: '',
+    website_url: '',
     primary_color: '',
     secondary_color: '',
     button_color: '',
@@ -124,6 +125,7 @@ export default function AdminSettings() {
     setThemeFormData({
       app_name: themes?.app_name || '',
       slogan: themes?.slogan || '',
+      website_url: themes?.website_url || '',
       primary_color: themes?.primary_color || 'FFFACC15',
       secondary_color: themes?.secondary_color || 'FF0D9488',
       button_color: themes?.button_color || 'FF000000',
@@ -740,6 +742,21 @@ export default function AdminSettings() {
                   />
                   <p className="text-xs text-muted-foreground">
                     A short tagline that appears with your brand
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="website_url">Website URL</Label>
+                  <Input
+                    id="website_url"
+                    type="url"
+                    value={themeFormData.website_url}
+                    onChange={(e) => handleThemeInputChange('website_url', e.target.value)}
+                    placeholder="https://yourwebsite.com"
+                    data-testid="input-website-url"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your main website URL
                   </p>
                 </div>
               </CardContent>
