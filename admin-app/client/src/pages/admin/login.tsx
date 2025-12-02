@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, Mail, Loader2, Lock, Info } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
@@ -180,6 +181,9 @@ export default function AdminLogin() {
 
       // Refresh auth context to pick up the new user from localStorage
       await checkAuth();
+      
+      // Invalidate all queries to ensure fresh data on dashboard
+      await queryClient.invalidateQueries();
       
       toast({
         title: "Admin Login Successful",

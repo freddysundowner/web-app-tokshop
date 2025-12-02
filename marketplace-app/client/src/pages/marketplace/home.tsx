@@ -8,6 +8,7 @@ import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { MarketplaceSidebar } from '@/components/layout/marketplace-sidebar';
+import { MarketplaceFooter } from '@/components/layout/marketplace-footer';
 import { ShowCard } from '@/components/show-card';
 import { ProductCard } from '@/components/product-card';
 import { AuctionCard } from '@/components/auction-card';
@@ -336,6 +337,8 @@ export default function MarketplaceHome() {
                 </>
               )}
             </div>
+
+            <MarketplaceFooter />
           </main>
         </div>
       </div>

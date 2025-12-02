@@ -14,7 +14,6 @@ import {
   Store,
   MessageCircle,
   Settings,
-  HelpCircle,
   ChevronRight,
   ShoppingBag,
   MapPin,
@@ -125,7 +124,6 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
     { icon: Store, label: 'Seller Hub', href: '/seller/hub', testId: 'menu-seller-hub', sellerOnly: true },
     { icon: MessageCircle, label: 'Friends', href: '/friends', testId: 'menu-friends' },
     // { icon: Settings, label: 'Account Settings', href: '/settings', testId: 'menu-settings' },
-    { icon: HelpCircle, label: 'Help & Legal', href: '/help', testId: 'menu-help' },
     { icon: LogOut, label: 'Logout', testId: 'menu-logout', onClick: handleLogout, isDestructive: true },
   ];
 

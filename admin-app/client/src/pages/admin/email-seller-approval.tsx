@@ -77,7 +77,7 @@ export default function EmailSellerApproval() {
 
   return (
     <AdminLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
+      <div className="p-4 sm:p-6 lg:p-8">
         {isDemoMode && (
           <Alert className="mb-6 border-destructive bg-destructive/10">
             <ShieldX className="h-4 w-4 text-destructive" />

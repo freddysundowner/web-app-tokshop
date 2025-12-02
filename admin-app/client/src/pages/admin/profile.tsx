@@ -161,7 +161,7 @@ export default function AdminProfile() {
 
   return (
     <AdminLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6">
           <h2 className="text-3xl font-bold text-foreground">My Profile</h2>
           <p className="text-muted-foreground">Manage your account information and security</p>

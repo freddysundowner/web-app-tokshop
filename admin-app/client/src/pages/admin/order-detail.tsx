@@ -106,6 +106,9 @@ export default function AdminOrderDetail() {
   const shippingFee = order.shipping_fee || order.shippingFee || order.shipping || 0;
   const tax = order.tax || 0;
   const total = subtotal + shippingFee + tax;
+  
+  // Debug: log values to see what's being used
+  console.log(`[Order Detail ${order._id}] subtotal: ${subtotal}, shipping: ${shippingFee}, tax: ${tax}, total: ${total}`);
 
   return (
     <AdminLayout>

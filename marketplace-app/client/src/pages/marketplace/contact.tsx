@@ -37,15 +37,40 @@ export default function ContactUs() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    setTimeout(() => {
-      toast({
-        title: 'Message sent!',
-        description: 'Thank you for contacting us. We\'ll get back to you soon.',
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       });
-      setFormData({ name: '', email: '', subject: '', message: '' });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast({
+          title: 'Message sent!',
+          description: result.message || 'Thank you for contacting us. We\'ll get back to you soon.',
+        });
+        setFormData({ name: '', email: '', subject: '', message: '' });
+      } else {
+        toast({
+          title: 'Failed to send message',
+          description: result.error || 'Please try again later.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Contact form error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send your message. Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   if (isLoading) {
@@ -81,8 +106,7 @@ export default function ContactUs() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <main className="flex justify-center w-full">
-        <div className="w-full lg:w-[90%] px-4 sm:px-6 py-8 sm:py-12">
+      <main className="w-full px-4 sm:px-6 py-8 sm:py-12">
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-contact-title">
             {content.title}
@@ -287,7 +311,6 @@ export default function ContactUs() {
             </div>
           </div>
         </div>
-      </div>
       </main>
     </div>
   );

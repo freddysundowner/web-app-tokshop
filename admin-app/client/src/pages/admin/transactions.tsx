@@ -28,11 +28,39 @@ export default function AdminTransactions() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Helper function to get auth headers
+  const getAuthHeaders = () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const adminToken = localStorage.getItem('adminAccessToken');
+    const userToken = localStorage.getItem('accessToken');
+    const userData = localStorage.getItem('user');
+    
+    console.log('[Transactions] getAuthHeaders:', {
+      adminToken: adminToken ? 'present' : 'missing',
+      userToken: userToken ? 'present' : 'missing',
+      userData: userData ? 'present' : 'missing',
+    });
+    
+    if (adminToken) {
+      headers['x-admin-token'] = adminToken;
+    }
+    if (userToken) {
+      headers['x-access-token'] = userToken;
+    }
+    if (userData) {
+      headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+    }
+    return headers;
+  };
+
   const { data: transactionsData, isLoading } = useQuery<any>({
     queryKey: ['admin-transactions'],
     queryFn: async () => {
       const response = await fetch('/api/admin/transactions', {
         credentials: 'include',
+        headers: getAuthHeaders(),
       });
       if (!response.ok) {
         throw new Error('Failed to fetch transactions');
@@ -47,6 +75,7 @@ export default function AdminTransactions() {
     queryFn: async () => {
       const response = await fetch(`/api/admin/refunds?limit=10&page=${currentPage}`, {
         credentials: 'include',
+        headers: getAuthHeaders(),
       });
       if (!response.ok) {
         throw new Error('Failed to fetch refunds');
@@ -61,6 +90,7 @@ export default function AdminTransactions() {
     queryFn: async () => {
       const response = await fetch('/api/admin/settings', {
         credentials: 'include',
+        headers: getAuthHeaders(),
       });
       if (!response.ok) {
         throw new Error('Failed to fetch settings');

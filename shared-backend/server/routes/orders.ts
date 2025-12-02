@@ -10,8 +10,8 @@ export function registerOrderRoutes(app: Express) {
       const { orderId } = req.params;
       console.log('Fetching single order:', orderId);
       
-      // Use query parameter approach like products endpoint since /orders/:id doesn't work
-      const url = `${BASE_URL}/orders/?_id=${orderId}`;
+      // Use proper path parameter for single order
+      const url = `${BASE_URL}/orders/${orderId}`;
       console.log('Final API URL being called:', url);
       
       const headers: Record<string, string> = {
@@ -40,10 +40,10 @@ export function registerOrderRoutes(app: Express) {
       const data = await response.json() as any;
       console.log('Order data structure:', Object.keys(data));
       
-      // Extract the single order from the orders array (like products endpoint)
-      const order = data.orders?.[0] || data.data?.orders?.[0];
+      // Handle both direct order response and wrapped response
+      const order = data.order || data.data || data;
       
-      if (!order) {
+      if (!order || !order._id) {
         return res.status(404).json({
           success: false,
           error: "Order not found"

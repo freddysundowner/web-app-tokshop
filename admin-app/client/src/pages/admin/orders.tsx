@@ -264,11 +264,8 @@ export default function AdminOrders() {
                         : 'Unknown';
                       const itemsCount = order.items?.length || 0;
                       
-                      // Calculate total from items if not provided
+                      // Calculate total from items
                       const calculateTotal = () => {
-                        if (order.totalAmount || order.total) {
-                          return order.totalAmount || order.total;
-                        }
                         if (!order.items || order.items.length === 0) return 0;
                         const subtotal = order.items.reduce((sum: number, item: any) => {
                           const price = item.price || 0;
@@ -277,6 +274,7 @@ export default function AdminOrders() {
                         }, 0);
                         const shippingFee = order.shipping_fee || order.shippingFee || order.shipping || 0;
                         const tax = order.tax || 0;
+                        console.log(`[Order ${order._id}] subtotal: ${subtotal}, shipping: ${shippingFee}, tax: ${tax}, total: ${subtotal + shippingFee + tax}`);
                         return subtotal + shippingFee + tax;
                       };
                       

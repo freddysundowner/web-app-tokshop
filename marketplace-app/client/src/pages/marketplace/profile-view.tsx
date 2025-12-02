@@ -618,7 +618,7 @@ export default function ProfileView() {
     <div className="flex flex-col min-h-screen bg-background" data-testid="page-profile-view">
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto bg-white dark:bg-background">
-        <div className="w-[90%] mx-auto">
+        <div className="w-full">
         {/* Profile Header Section */}
         <div className="bg-card border-b border-border px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4 sm:mb-6">

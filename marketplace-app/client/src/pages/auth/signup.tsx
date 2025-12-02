@@ -1,55 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, Mail, Apple, Chrome, User, Globe, Phone } from "lucide-react";
+import { Eye, EyeOff, Mail, Apple, Chrome, User, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { Link, useLocation } from "wouter";
 import type { SignupData } from "@shared/schema";
 import { signupSchema } from "@shared/schema";
-
-// Popular countries list
-const COUNTRIES = [
-  "United States",
-  "Canada", 
-  "United Kingdom",
-  "Australia",
-  "Germany",
-  "France",
-  "Italy",
-  "Spain",
-  "Netherlands",
-  "Sweden",
-  "Norway",
-  "Denmark",
-  "Finland",
-  "Belgium",
-  "Switzerland",
-  "Austria",
-  "Japan",
-  "South Korea",
-  "Singapore",
-  "New Zealand",
-  "Ireland",
-  "Portugal",
-  "Poland",
-  "Czech Republic",
-  "Brazil",
-  "Mexico",
-  "Argentina",
-  "Chile",
-  "Colombia",
-  "India",
-  "Other"
-].sort();
+import { CountrySelect } from "react-country-state-city";
+import "react-country-state-city/dist/react-country-state-city.css";
 
 export default function Signup() {
   const { settings } = useSettings();
@@ -57,9 +23,17 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupError, setSignupError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<any>(null);
   const { toast } = useToast();
   const { emailSignup, loginWithGoogle, loginWithApple } = useAuth();
   const [, setLocation] = useLocation();
+
+  // Set default country to United States
+  useEffect(() => {
+    if (!selectedCountry) {
+      setSelectedCountry({ id: 233, name: "United States", iso2: "US" });
+    }
+  }, []);
 
   // Extended schema with password confirmation
   const extendedSignupSchema = signupSchema.extend({
@@ -79,7 +53,7 @@ export default function Signup() {
       lastName: "",
       userName: "",
       phone: "",
-      country: "",
+      country: "United States",
       password: "",
       confirmPassword: "",
     },
@@ -161,7 +135,9 @@ export default function Signup() {
     try {
       setIsLoading(true);
       setSignupError("");
-      await emailSignup(data.email, data.password, data.firstName, data.lastName, data.userName, data.phone || "", data.country);
+      // Use the country name from the selected country object
+      const countryName = selectedCountry?.name || data.country || "";
+      await emailSignup(data.email, data.password, data.firstName, data.lastName, data.userName, data.phone || "", countryName);
       // Redirect to marketplace home after successful signup
       setLocation("/");
     } catch (error) {
@@ -355,32 +331,23 @@ export default function Signup() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} data-testid="select-country">
-                          <SelectTrigger className="bg-input border-border text-foreground">
-                            <div className="flex items-center">
-                              <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
-                              <SelectValue placeholder="Select your country" />
-                            </div>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRIES.map((country) => (
-                              <SelectItem key={country} value={country}>
-                                {country}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormItem>
+                  <FormControl>
+                    <div data-testid="select-country">
+                      <CountrySelect
+                        defaultValue={selectedCountry}
+                        onChange={(e: any) => {
+                          setSelectedCountry(e);
+                          form.setValue("country", e?.name || "");
+                        }}
+                        placeHolder="Select your country"
+                        containerClassName="w-full"
+                        inputClassName="w-full h-10 px-3 py-2 text-sm bg-input border border-border rounded-md text-foreground placeholder:text-muted-foreground"
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
 
                 <FormField
                   control={form.control}

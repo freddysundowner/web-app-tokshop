@@ -62,8 +62,8 @@ export default function AdminPendingApprovals() {
   } : undefined;
 
   const approveUserMutation = useMutation({
-    mutationFn: async ({ userId }: { userId: string }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/approve`, { approved: true });
+    mutationFn: async ({ userId, email }: { userId: string; email: string }) => {
+      return apiRequest("PATCH", `/api/admin/users/${userId}/approve-seller`, { email });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -83,7 +83,7 @@ export default function AdminPendingApprovals() {
 
   const rejectUserMutation = useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/approve`, { approved: false });
+      return apiRequest("PATCH", `/api/admin/users/${userId}/approve-seller`, { approved: false });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -233,6 +233,7 @@ export default function AdminPendingApprovals() {
                                   onClick={() => {
                                     approveUserMutation.mutate({
                                       userId: pendingUser._id || pendingUser.id,
+                                      email: pendingUser.email,
                                     });
                                   }}
                                   disabled={approveUserMutation.isPending}

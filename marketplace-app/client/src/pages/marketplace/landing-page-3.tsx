@@ -303,6 +303,9 @@ export default function LandingPage3() {
               <Link href="/faq" className="hover:text-foreground transition-colors" data-testid="link-faq">
                 FAQ
               </Link>
+              <Link href="/help-center" className="hover:text-foreground transition-colors" data-testid="link-help-center">
+                Help Center
+              </Link>
             </div>
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-2">

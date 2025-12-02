@@ -69,7 +69,6 @@ const SellerOffers = lazy(() => import("@/pages/seller/offers"));
 const BuyerOffers = lazy(() => import("@/pages/buyer/offers"));
 const Inbox = lazy(() => import("@/pages/social/inbox"));
 const Friends = lazy(() => import("@/pages/social/friends"));
-const Help = lazy(() => import("@/pages/help"));
 const HelpCenter = lazy(() => import("@/pages/marketplace/help-center"));
 const HelpArticle = lazy(() => import("@/pages/marketplace/help-article"));
 const SellerSetup = lazy(() => import("@/pages/seller/setup"));
@@ -437,7 +436,6 @@ function Router() {
             <Route path="/faq" component={FAQ} />
             <Route path="/about" component={AboutUs} />
             <Route path="/knowledge-base" component={KnowledgeBase} />
-            <Route path="/help" component={Help} />
             <Route path="/help-center/:slug" component={HelpArticle} />
             <Route path="/help-center" component={HelpCenter} />
             <Route component={NotFound} />

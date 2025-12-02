@@ -1112,7 +1112,21 @@ If you have any questions, feel free to reach out to our support team.
   // Get all transactions
   app.get("/api/admin/transactions", requireAdmin, async (req, res) => {
     try {
-      const accessToken = req.session.accessToken;
+      // Debug: log all token sources
+      console.log('[Transactions] Token sources:');
+      console.log('  - session.accessToken:', req.session?.accessToken ? 'present' : 'missing');
+      console.log('  - x-admin-token header:', req.headers['x-admin-token'] ? 'present' : 'missing');
+      console.log('  - x-access-token header:', req.headers['x-access-token'] ? 'present' : 'missing');
+      
+      // PRIORITY: Headers take priority over stale session tokens
+      // Check headers FIRST, then fall back to session
+      const accessToken = req.headers['x-admin-token'] as string ||
+                         req.headers['x-access-token'] as string ||
+                         req.session?.accessToken || 
+                         (req.headers['authorization']?.startsWith('Bearer ') ? 
+                          req.headers['authorization'].substring(7) : null);
+      
+      console.log(`[Transactions] Using token from: ${req.headers['x-admin-token'] ? 'x-admin-token header' : req.headers['x-access-token'] ? 'x-access-token header' : req.session?.accessToken ? 'session' : req.headers['authorization'] ? 'authorization header' : 'none'}`);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -3063,11 +3077,17 @@ If you have any questions, feel free to reach out to our support team.
   // Refund order or transaction
   app.put("/api/admin/refund/:id", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = req.session.accessToken;
+      // PRIORITY: Headers take priority over stale session tokens
+      const accessToken = req.headers['x-admin-token'] as string ||
+                         req.headers['x-access-token'] as string ||
+                         req.session?.accessToken || 
+                         (req.headers['authorization']?.startsWith('Bearer ') ? 
+                          req.headers['authorization'].substring(7) : null);
       const { id } = req.params;
       const { type } = req.body;
       
       console.log(`[Refund] Request to refund ${type}: ${id}`);
+      console.log(`[Refund] Token source: ${req.headers['x-admin-token'] ? 'x-admin-token header' : req.headers['x-access-token'] ? 'x-access-token header' : req.session?.accessToken ? 'session' : req.headers['authorization'] ? 'authorization header' : 'none'}`);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -3126,7 +3146,14 @@ If you have any questions, feel free to reach out to our support team.
   // Get refunds list
   app.get("/api/admin/refunds", requireAdmin, async (req, res) => {
     try {
-      const accessToken = req.session.accessToken;
+      // PRIORITY: Headers take priority over stale session tokens
+      const accessToken = req.headers['x-admin-token'] as string ||
+                         req.headers['x-access-token'] as string ||
+                         req.session?.accessToken || 
+                         (req.headers['authorization']?.startsWith('Bearer ') ? 
+                          req.headers['authorization'].substring(7) : null);
+      
+      console.log(`[Refunds] Token source: ${req.headers['x-admin-token'] ? 'x-admin-token header' : req.headers['x-access-token'] ? 'x-access-token header' : req.session?.accessToken ? 'session' : req.headers['authorization'] ? 'authorization header' : 'none'}`);
       
       if (!accessToken) {
         return res.status(401).json({
