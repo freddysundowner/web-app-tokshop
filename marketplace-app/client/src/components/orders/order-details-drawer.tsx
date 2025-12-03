@@ -160,13 +160,13 @@ export function OrderDetailsDrawer({
   // Seller earnings calculations - get from order data
   const serviceFee = order.service_fee ?? order.servicefee ?? 0; // Use service_fee directly from order (fallback to legacy servicefee)
   const processingFee = order.stripe_fees ?? 0; // Use stripe_fees directly from order
-  const sellerShippingCost = order.seller_shipping_fee_pay ?? 0;
+  const sellerShippingPaid = order.seller_shipping_fee_pay ?? 0;
   
   // Commission rate for display purposes only (used in UI text)
   const commissionRate = settings.commission_rate || 0;
   
-  // Net earnings - actual revenue after all fees
-  const netEarnings = price - serviceFee - processingFee - sellerShippingCost;
+  // Net earnings - actual revenue after all fees and seller shipping paid
+  const netEarnings = price - serviceFee - processingFee - sellerShippingPaid;
   
   // Status badge
   const getStatusBadge = () => {
@@ -536,8 +536,8 @@ export function OrderDetailsDrawer({
                   <span className="text-foreground">-{formatCurrency(processingFee)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span className="text-foreground">-{formatCurrency(sellerShippingCost)}</span>
+                  <span className="text-muted-foreground">Seller Shipping Paid</span>
+                  <span className="text-foreground">-{formatCurrency(sellerShippingPaid)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">

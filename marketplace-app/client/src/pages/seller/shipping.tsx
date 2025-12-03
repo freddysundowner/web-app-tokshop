@@ -44,7 +44,10 @@ import type {
 
 // Temporary type for shipment bundles (not exported from schema)
 type ShipmentBundle = any;
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import { ShippingDrawer } from "@/components/shipping/shipping-drawer";
 import { SelectiveUnbundleDialog } from "@/components/shipping/selective-unbundle-dialog";
 import { BulkLabelDialog } from "@/components/shipping/bulk-label-dialog";
@@ -168,6 +171,8 @@ export default function Shipping() {
   const [shippingDrawerOpen, setShippingDrawerOpen] = useState(false);
   const [shippingDrawerOrder, setShippingDrawerOrder] = useState<TokshopOrder | null>(null);
   const [cancelAlertOpen, setCancelAlertOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const { user } = useAuth();
 
   const { toast } = useToast();
@@ -559,9 +564,21 @@ export default function Shipping() {
     resetPaginationOnFilterChange();
   };
 
+  const handleDateFromChange = (date: Date | undefined) => {
+    setDateFrom(date);
+    resetPaginationOnFilterChange();
+  };
+
+  const handleDateToChange = (date: Date | undefined) => {
+    setDateTo(date);
+    resetPaginationOnFilterChange();
+  };
+
   const handleResetFilters = () => {
     setStatusFilter("all");
     setSelectedShowId("all");
+    setDateFrom(undefined);
+    setDateTo(undefined);
     resetPaginationOnFilterChange();
   };
 
@@ -583,14 +600,11 @@ export default function Shipping() {
 
   const endedShows = endedShowsResponse?.rooms || [];
 
-  // Get selected show data to check for existing scan form
+  // Get selected show data from list
   const selectedShow = endedShows.find((show: any) => show._id === selectedShowId);
-  const hasScanForm = selectedShow?.scan_form_url && selectedShow.scan_form_url.trim() !== '';
-  const hasManifestId = selectedShow?.manifest_id && selectedShow.manifest_id.trim() !== '';
   
   // For marketplace, always show view button (API will handle if scan form exists)
   const isMarketplaceSelected = selectedShowId === 'marketplace';
-  const shouldShowViewButton = isMarketplaceSelected || hasScanForm || hasManifestId || generatedManifestId;
 
   // Handler for opening the generation dialog
   const handleOpenScanFormDialog = () => {
@@ -685,10 +699,10 @@ export default function Shipping() {
 
   // Handler to check status when manifest exists but URL not ready
   const handleCheckScanFormStatus = () => {
-    if (hasManifestId && selectedShow?.manifest_id) {
-      fetchScanFormMutation.mutate({ manifestId: selectedShow.manifest_id, tokshow: selectedShowId });
-    } else if (generatedManifestId) {
-      fetchScanFormMutation.mutate({ manifestId: generatedManifestId, tokshow: selectedShowId });
+    // Use manifest ID from orders first, then fall back to recently generated
+    const manifestId = manifestIdFromOrder || generatedManifestId;
+    if (manifestId) {
+      fetchScanFormMutation.mutate({ manifestId, tokshow: selectedShowId });
     } else {
       toast({
         title: "No manifest found",
@@ -749,9 +763,54 @@ export default function Shipping() {
     ? ordersWithoutShipmentId.length === 0 
     : false;
 
+  // Check if any order has manifest_id (scan form was generated)
+  const orderWithManifestId = allShowOrders.find((order: any) => order.manifest_id && order.manifest_id.trim() !== '');
+  const hasManifestId = !!orderWithManifestId;
+  const manifestIdFromOrder = orderWithManifestId?.manifest_id || null;
+  
+  // Check for scan_form_url on orders
+  const orderWithScanForm = allShowOrders.find((order: any) => order.scan_form_url && order.scan_form_url.trim() !== '');
+  const hasScanForm = !!orderWithScanForm;
+  
+  // Show view button if marketplace selected, or if any order has manifest_id/scan_form, or if just generated
+  const shouldShowViewButton = isMarketplaceSelected || hasScanForm || hasManifestId || generatedManifestId;
+
   const { data: metrics, isLoading: metricsLoading, error: metricsError, isError: metricsIsError, refetch: refetchMetrics } =
     useQuery<ShipmentMetrics>({
-      queryKey: ["/api/shipping/metrics", user?.id],
+      queryKey: ["/api/shipping/metrics", user?.id, dateFrom?.toISOString(), dateTo?.toISOString(), selectedShowId],
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (user?.id) {
+          params.set("userId", user.id);
+        }
+        // Add date filter parameters
+        if (dateFrom) {
+          params.set("startDate", startOfDay(dateFrom).toISOString());
+        }
+        if (dateTo) {
+          params.set("endDate", endOfDay(dateTo).toISOString());
+        }
+        // Add show filter parameters
+        if (selectedShowId && selectedShowId !== "all") {
+          if (selectedShowId === "marketplace") {
+            params.set("marketplace", "true");
+          } else {
+            params.set("tokshow", selectedShowId);
+          }
+        }
+
+        const response = await fetch(`/api/shipping/metrics?${params.toString()}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`External API error: ${response.status}`);
+        }
+        return response.json();
+      },
       enabled: !!user?.id,
       staleTime: 0, // Always fetch fresh data
       refetchOnMount: true, // Refetch when component mounts
@@ -759,7 +818,7 @@ export default function Shipping() {
 
   const { data: orderResponse, isLoading: ordersLoading, error: ordersError, isError: ordersIsError, refetch: refetchOrders } =
     useQuery<TokshopOrdersResponse>({
-      queryKey: ["external-orders", user?.id, statusFilter, selectedShowId, currentPage, itemsPerPage],
+      queryKey: ["external-orders", user?.id, statusFilter, selectedShowId, currentPage, itemsPerPage, dateFrom?.toISOString(), dateTo?.toISOString()],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (user?.id) {
@@ -774,6 +833,13 @@ export default function Shipping() {
           } else {
             params.set("tokshow", selectedShowId);
           }
+        }
+        // Add date filter parameters
+        if (dateFrom) {
+          params.set("startDate", startOfDay(dateFrom).toISOString());
+        }
+        if (dateTo) {
+          params.set("endDate", endOfDay(dateTo).toISOString());
         }
         // Add pagination parameters
         params.set("page", currentPage.toString());
@@ -1530,6 +1596,54 @@ export default function Shipping() {
               </Select>
             </div>
 
+            {/* Date From Filter */}
+            <div className="w-full sm:w-auto">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-[160px] justify-start text-left font-normal"
+                    data-testid="button-date-from"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "MMM d, yyyy") : "From date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={handleDateFromChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Date To Filter */}
+            <div className="w-full sm:w-auto">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-[160px] justify-start text-left font-normal"
+                    data-testid="button-date-to"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateTo ? format(dateTo, "MMM d, yyyy") : "To date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={handleDateToChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {/* Reset Filters Button */}
             <Button
               variant="outline"
@@ -1551,8 +1665,17 @@ export default function Shipping() {
                   data-testid="button-open-shipping-actions"
                   className="w-full sm:w-auto whitespace-nowrap"
                 >
-                  <PanelRightOpen size={16} className="mr-1" />
-                  Open Sidebar
+                  {shouldShowViewButton ? (
+                    <>
+                      <Eye size={16} className="mr-1" />
+                      View SCAN Form
+                    </>
+                  ) : (
+                    <>
+                      <PanelRightOpen size={16} className="mr-1" />
+                      Shipping Actions
+                    </>
+                  )}
                 </Button>
 
                 {/* Shipping Actions Sheet */}

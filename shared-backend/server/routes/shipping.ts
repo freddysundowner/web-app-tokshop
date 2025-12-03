@@ -215,7 +215,7 @@ export function registerShippingRoutes(app: Express) {
   // Shipping metrics - proxy to external API
   app.get("/api/shipping/metrics", async (req, res) => {
     try {
-      const { userId } = req.query;
+      const { userId, startDate, endDate, tokshow, marketplace } = req.query;
       
       if (!userId) {
         return res.status(400).json({ error: "userId parameter is required" });
@@ -229,7 +229,23 @@ export function registerShippingRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      const response = await fetch(`${BASE_URL}/orders/shipments/metrics/${userId}`, {
+      // Build query string with filters
+      const params = new URLSearchParams();
+      if (startDate) {
+        params.set("startDate", startDate as string);
+      }
+      if (endDate) {
+        params.set("endDate", endDate as string);
+      }
+      if (tokshow) {
+        params.set("tokshow", tokshow as string);
+      }
+      if (marketplace) {
+        params.set("marketplace", marketplace as string);
+      }
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+
+      const response = await fetch(`${BASE_URL}/orders/shipments/metrics/${userId}${queryString}`, {
         method: 'GET',
         headers
       });

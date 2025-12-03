@@ -2,7 +2,7 @@ import express from 'express';
 import fetch from 'node-fetch';
 
 const router = express.Router();
-const BASE_URL = process.env.BASE_URL || 'https://api.iconaapp.com';
+const BASE_URL = process.env.BASE_URL || 'https://api.tokshoplive.com';
 
 // GET /auction/:id - Fetch full auction details with bids
 router.get('/:id', async (req, res) => {

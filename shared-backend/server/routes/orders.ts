@@ -110,6 +110,13 @@ export function registerOrderRoutes(app: Express) {
       if (req.query.marketplace) {
         queryParams.set('marketplace', req.query.marketplace as string);
       }
+      // Add date filter parameters
+      if (req.query.startDate) {
+        queryParams.set('startDate', req.query.startDate as string);
+      }
+      if (req.query.endDate) {
+        queryParams.set('endDate', req.query.endDate as string);
+      }
       
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? '?' + queryString : ''}`;

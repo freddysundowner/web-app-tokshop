@@ -605,22 +605,35 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                   <span>{(displayOrder.tax ?? 0) > 0 ? `$${(displayOrder.tax ?? 0).toFixed(2)}` : '—'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Shipping:</span>
+                  <span className="text-muted-foreground">Buyer Paid Shipping:</span>
                   <span>
+                    {(displayOrder.shipping_fee ?? 0) > 0 ? `$${(displayOrder.shipping_fee ?? 0).toFixed(2)}` : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Your Shipping Cost:</span>
+                  <span className="text-red-600">
                     {(() => {
-                      const orderShipping = Number(displayOrder.seller_shipping_fee_pay ?? displayOrder.shipping_fee ?? 0);
+                      const sellerShippingCost = Number(displayOrder.seller_shipping_fee_pay ?? 0);
                       const estimatedShipping = Number(selectedEstimate?.price ?? estimates[0]?.price ?? 0);
-                      const shippingCost = orderShipping > 0 ? orderShipping : estimatedShipping;
-                      return shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : '—';
+                      const shippingCost = sellerShippingCost > 0 ? sellerShippingCost : estimatedShipping;
+                      return shippingCost > 0 ? `-$${shippingCost.toFixed(2)}` : '—';
                     })()}
                   </span>
                 </div>
-                {(calculateSubtotal() + (displayOrder.tax || 0) + (displayOrder.seller_shipping_fee_pay || displayOrder.shipping_fee || selectedEstimate?.price || estimates[0]?.price || 0)) > 0 && (
-                  <div className="flex justify-between text-sm font-semibold border-t pt-2">
-                    <span className="text-muted-foreground">Total:</span>
-                    <span>${(calculateSubtotal() + (displayOrder.tax || 0) + (displayOrder.seller_shipping_fee_pay || displayOrder.shipping_fee || selectedEstimate?.price || estimates[0]?.price || 0)).toFixed(2)}</span>
-                  </div>
-                )}
+                {(() => {
+                  const subtotal = calculateSubtotal();
+                  const tax = displayOrder.tax || 0;
+                  const buyerShipping = displayOrder.shipping_fee || 0;
+                  const sellerShippingCost = displayOrder.seller_shipping_fee_pay || selectedEstimate?.price || estimates[0]?.price || 0;
+                  const total = subtotal + tax + buyerShipping - Number(sellerShippingCost);
+                  return total > 0 ? (
+                    <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                      <span className="text-muted-foreground">Net Total:</span>
+                      <span>${total.toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Order Date:</span>
                   <span>{displayOrder.createdAt ? format(new Date(displayOrder.createdAt), "MMM dd, yyyy") : "N/A"}</span>

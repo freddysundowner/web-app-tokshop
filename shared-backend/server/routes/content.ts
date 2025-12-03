@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { pageTypeEnum, type PageType } from "../../shared/schema";
 
-const BASE_URL = process.env.BASE_URL || "https://api.iconaapp.com";
+const BASE_URL = process.env.BASE_URL || "https://api.tokshoplive.com";
 
 export function registerContentRoutes(app: Express) {
   // Get page content (public endpoint) - /api/content/:pageType
