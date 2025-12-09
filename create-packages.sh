@@ -58,8 +58,8 @@ module.exports = {
     {
       name: 'tokshop-admin',
       cwd: './admin-app',
-      script: 'npm',
-      args: 'start',
+      script: 'dist/server.js',
+      interpreter: 'node',
       env: {
         NODE_ENV: 'production',
         PORT: 5000,
@@ -74,8 +74,8 @@ module.exports = {
     {
       name: 'tokshop-marketplace',
       cwd: './marketplace-app',
-      script: 'npm',
-      args: 'start',
+      script: 'dist/server.js',
+      interpreter: 'node',
       env: {
         NODE_ENV: 'production',
         PORT: 5001,
@@ -249,8 +249,8 @@ module.exports = {
     {
       name: 'tokshop-admin',
       cwd: './admin-app',
-      script: 'npm',
-      args: 'start',
+      script: 'dist/server.js',
+      interpreter: 'node',
       env: {
         NODE_ENV: 'production',
         PORT: 5000,
