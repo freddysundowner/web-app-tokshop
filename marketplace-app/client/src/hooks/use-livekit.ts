@@ -332,8 +332,46 @@ export function useLiveKit(config: LiveKitConfig) {
     }
   }, [state.isHost, state.isMuted, config.roomId]);
 
+  // When roomId changes, disconnect from the previous room and reset all state
+  // This prevents audio/video from the old room bleeding into the new one
   useEffect(() => {
+    // Capture the current roomId for logging
+    const currentRoomId = config.roomId;
+    
+    // On roomId change, first disconnect from previous room if any
+    if (roomRef.current) {
+      console.log('🔌 Disconnecting from previous LiveKit room before connecting to:', currentRoomId);
+      // Remove all listeners before disconnect to prevent stale callbacks
+      roomRef.current.removeAllListeners();
+      roomRef.current.disconnect();
+      roomRef.current = null;
+    }
+    
+    // Reset the attempt flag and state for the new room
     hasAttemptedRef.current = false;
+    setState({
+      room: null,
+      isConnecting: false,
+      isConnected: false,
+      error: null,
+      hasVideo: false,
+      hasAudio: false,
+      isHost: false,
+      isMuted: false,
+      hasHostVideo: false,
+      hasHostAudio: false,
+      hostParticipantCount: 0,
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      if (roomRef.current) {
+        console.log('🔌 Disconnecting from LiveKit room (unmount):', currentRoomId);
+        roomRef.current.removeAllListeners();
+        roomRef.current.disconnect();
+        roomRef.current = null;
+      }
+    };
   }, [config.roomId]);
 
   useEffect(() => {
@@ -341,15 +379,6 @@ export function useLiveKit(config: LiveKitConfig) {
       connect();
     }
   }, [config.enabled, state.isConnected, state.isConnecting, state.error, connect]);
-
-  useEffect(() => {
-    return () => {
-      if (roomRef.current) {
-        roomRef.current.disconnect();
-        roomRef.current = null;
-      }
-    };
-  }, []);
 
   return {
     ...state,

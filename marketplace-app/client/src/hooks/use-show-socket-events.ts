@@ -15,7 +15,9 @@ interface UseShowSocketEventsProps {
   isShowOwner: boolean;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
+  setLeavingRoom: (leaving: boolean) => void;
   disconnect: () => void;
+  navigate: (to: string) => void;
   setViewers: React.Dispatch<React.SetStateAction<any[]>>;
   setPinnedProduct: React.Dispatch<React.SetStateAction<any>>;
   setActiveAuction: React.Dispatch<React.SetStateAction<any>>;
@@ -52,7 +54,9 @@ export function useShowSocketEvents({
   isShowOwner,
   joinRoom,
   leaveRoom,
+  setLeavingRoom,
   disconnect,
+  navigate,
   setViewers,
   setPinnedProduct,
   setActiveAuction,
@@ -749,7 +753,42 @@ export function useShowSocketEvents({
     }
   }, [roomId, currentUserId, isShowOwner, setOrderNotificationData, setShowOrderNotification]);
 
+  // Memoized handler: Rally in - viewer is being raided to another show
+  const handleRallyIn = useCallback((data: any) => {
+    console.log('🚀 RALLY-IN EVENT RECEIVED:', data);
+    const { toRoom, hostName, viewerCount } = data;
+    
+    // Don't redirect the host who initiated the rally
+    if (isShowOwner) {
+      console.log('🚀 Host initiated rally, not redirecting self');
+      return;
+    }
+    
+    // Show toast notification
+    toast({
+      title: "You're being raided!",
+      description: `${hostName} is moving you and ${viewerCount - 1} others to a new show`,
+      duration: 3000,
+    });
+    
+    // Leave current room
+    if (roomId) {
+      leaveRoom(roomId);
+    }
+    
+    // Navigate to the target show after a short delay for smooth transition
+    setTimeout(() => {
+      navigate(`/show/${toRoom}`);
+    }, 1000);
+  }, [isShowOwner, roomId, leaveRoom, navigate, toast]);
+
+  // Refs to track current room and pending leave timeout for cleanup decisions
+  const currentRoomRef = useRef<string | null>(null);
+  const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Main effect: Register all socket event listeners
+  // NOTE: This effect should NOT leave the room on cleanup when isConnected changes
+  // That would cause issues during brief socket disconnects
   useEffect(() => {
     if (!socket || !roomId || !isConnected || !proceedWithJoin) return;
 
@@ -778,8 +817,10 @@ export function useShowSocketEvents({
     socket.on('ended-giveaway', handleGiveawayEnded);
     socket.on('marketplace_order', handleMarketplaceOrder);
     socket.on('fetch_offers', handleFetchOffers);
+    socket.on('rally-in', handleRallyIn);
 
-    // Cleanup function
+    // Cleanup function - only unregister listeners, don't leave room
+    // Room leaving is handled by the separate roomId-only effect below
     return () => {
       socket.off('user-connected', handleUserConnected);
       socket.off('current-user-joined', handleCurrentUserJoined);
@@ -800,12 +841,9 @@ export function useShowSocketEvents({
       socket.off('ended-giveaway', handleGiveawayEnded);
       socket.off('marketplace_order', handleMarketplaceOrder);
       socket.off('fetch_offers', handleFetchOffers);
+      socket.off('rally-in', handleRallyIn);
       socket.off('createMessage');
-      
-      // Only leave room on cleanup - DO NOT disconnect socket!
-      // Disconnecting prevents automatic reconnection
-      leaveRoom(roomId);
-      console.log('🔌 Show view cleanup - left room (socket stays connected)');
+      console.log('🔌 Socket listeners cleaned up (room not left - handled separately)');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -816,4 +854,53 @@ export function useShowSocketEvents({
     handleCurrentUserJoined,
     handleUserBidUpdated,
   ]);
+
+  // SEPARATE EFFECT: Handle room leaving ONLY when roomId changes or component unmounts
+  // Uses debounced cleanup to prevent false leaves during re-renders
+  useEffect(() => {
+    if (!roomId) return;
+    
+    // Cancel any pending leave timeout - we're (re)entering a room
+    if (leaveTimeoutRef.current) {
+      console.log('🔌 Cancelled pending leave - effect re-ran');
+      clearTimeout(leaveTimeoutRef.current);
+      leaveTimeoutRef.current = null;
+      // IMPORTANT: Clear the leaving flag since we cancelled the debounced leave
+      // This re-enables auto-rejoin on reconnect for the new room
+      setLeavingRoom(false);
+    }
+    
+    // Track the current room
+    const previousRoom = currentRoomRef.current;
+    currentRoomRef.current = roomId;
+    
+    // If we're switching rooms, leave the previous one immediately
+    if (previousRoom && previousRoom !== roomId) {
+      console.log('🔌 Leaving previous room:', previousRoom, '(navigated to:', roomId, ')');
+      leaveRoom(previousRoom);
+    }
+    
+    // Cleanup: set leaving flag to prevent auto-rejoin, then schedule debounced leave
+    return () => {
+      const roomToLeave = roomId;
+      
+      // IMMEDIATELY set leaving flag to suppress auto-rejoin on reconnect during debounce window
+      // This is synchronous and happens before any debounce
+      setLeavingRoom(true);
+      
+      // Schedule leave-room emit after a short delay
+      // If effect re-runs immediately (re-render), this will be cancelled (and joinRoom clears the flag)
+      // If it's a real unmount, the timeout will fire
+      leaveTimeoutRef.current = setTimeout(() => {
+        console.log('🔌 Debounced leave triggered - leaving room:', roomToLeave);
+        leaveRoom(roomToLeave);
+        // Clear the leaving flag after the leave is complete
+        setLeavingRoom(false);
+        if (currentRoomRef.current === roomToLeave) {
+          currentRoomRef.current = null;
+        }
+        leaveTimeoutRef.current = null;
+      }, 300); // 300ms debounce - enough to cancel on re-renders
+    };
+  }, [roomId, leaveRoom, setLeavingRoom]);
 }

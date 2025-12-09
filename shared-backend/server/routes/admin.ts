@@ -1206,7 +1206,19 @@ If you have any questions, feel free to reach out to our support team.
       if (req.query.page) queryParams.append("page", req.query.page as string);
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
       if (req.query.title) queryParams.append("title", req.query.title as string);
-      if (req.query.type) queryParams.append("type", req.query.type as string);
+      
+      // Map filter type to external API parameters
+      const filterType = req.query.type as string;
+      if (filterType === "live") {
+        queryParams.append("live", "true");
+      } else if (filterType === "scheduled") {
+        queryParams.append("status", "active");
+      } else if (filterType === "ended") {
+        queryParams.append("status", "inactive");
+      } else if (filterType === "featured") {
+        queryParams.append("featured", "true");
+      }
+      
       queryParams.append("sort", "-1"); // Sort descending
 
       const url = `${BASE_URL}/rooms${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
@@ -4791,6 +4803,293 @@ Thank you for using ${appName}!
       res.status(500).json({
         success: false,
         error: "Failed to change password",
+        details: error.message,
+      });
+    }
+  });
+
+  // Send Brevo email campaign
+  app.post("/api/admin/brevo/send-campaign", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const { recipients, subject, htmlContent, senderName, senderEmail } = req.body;
+
+      // Get Brevo API key from environment
+      const brevoApiKey = process.env.BREVO_API_KEY;
+      
+      if (!brevoApiKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Brevo API key not configured. Please add BREVO_API_KEY to your environment variables.",
+        });
+      }
+
+      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Recipients list is required",
+        });
+      }
+
+      if (!subject || !htmlContent) {
+        return res.status(400).json({
+          success: false,
+          error: "Subject and HTML content are required",
+        });
+      }
+
+      const sender = {
+        name: senderName || "Tokshop",
+        email: senderEmail || "noreply@tokshoplive.com",
+      };
+
+      // Send emails in batches (Brevo allows up to 1000 per request with messageVersions)
+      const batchSize = 50; // Use smaller batches for better deliverability
+      const batches = [];
+      
+      for (let i = 0; i < recipients.length; i += batchSize) {
+        batches.push(recipients.slice(i, i + batchSize));
+      }
+
+      let successCount = 0;
+      let failureCount = 0;
+      const errors: string[] = [];
+
+      for (const batch of batches) {
+        try {
+          // Create message versions for each recipient
+          const messageVersions = batch.map((recipient: { email: string; name?: string }) => ({
+            to: [{ 
+              email: recipient.email, 
+              name: recipient.name || recipient.email.split('@')[0] 
+            }],
+            params: {
+              name: recipient.name || recipient.email.split('@')[0],
+              email: recipient.email,
+            },
+          }));
+
+          const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'api-key': brevoApiKey,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              sender,
+              subject,
+              htmlContent,
+              messageVersions,
+            }),
+          });
+
+          if (response.ok) {
+            successCount += batch.length;
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            failureCount += batch.length;
+            errors.push(`Batch failed: ${errorData.message || response.statusText}`);
+          }
+
+          // Add delay between batches to avoid rate limiting
+          if (batches.indexOf(batch) < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (batchError: any) {
+          failureCount += batch.length;
+          errors.push(`Batch error: ${batchError.message}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Campaign sent: ${successCount} successful, ${failureCount} failed`,
+        details: {
+          total: recipients.length,
+          successful: successCount,
+          failed: failureCount,
+          errors: errors.length > 0 ? errors : undefined,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error sending Brevo campaign:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to send campaign",
+        details: error.message,
+      });
+    }
+  });
+
+  // Send a batch of Brevo emails (for frontend batching)
+  app.post("/api/admin/brevo/send-batch", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const { recipients, subject, htmlContent, senderName, senderEmail, replyToEmail } = req.body;
+
+      const brevoApiKey = process.env.BREVO_API_KEY;
+      
+      if (!brevoApiKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Brevo API key not configured. Please add BREVO_API_KEY to your environment variables.",
+        });
+      }
+
+      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Recipients list is required",
+        });
+      }
+
+      if (!subject || !htmlContent) {
+        return res.status(400).json({
+          success: false,
+          error: "Subject and HTML content are required",
+        });
+      }
+
+      const sender = {
+        name: senderName || "Tokshop",
+        email: senderEmail || "sales@tokshoplive.com",
+      };
+
+      const replyTo = replyToEmail ? { email: replyToEmail } : undefined;
+
+      // Create message versions for each recipient in this batch
+      const messageVersions = recipients.map((recipient: { email: string; name?: string }) => ({
+        to: [{ 
+          email: recipient.email, 
+          name: recipient.name || recipient.email.split('@')[0] 
+        }],
+        params: {
+          name: recipient.name || recipient.email.split('@')[0],
+          email: recipient.email,
+        },
+      }));
+
+      const emailPayload: any = {
+        sender,
+        subject,
+        htmlContent,
+        messageVersions,
+      };
+
+      if (replyTo) {
+        emailPayload.replyTo = replyTo;
+      }
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(emailPayload),
+      });
+
+      if (response.ok) {
+        res.json({
+          success: true,
+          message: `Batch sent: ${recipients.length} emails`,
+          details: {
+            successful: recipients.length,
+            failed: 0,
+          },
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Brevo API error:", JSON.stringify(errorData, null, 2));
+        res.status(response.status).json({
+          success: false,
+          error: errorData.message || errorData.code || response.statusText,
+          details: {
+            successful: 0,
+            failed: recipients.length,
+            brevoError: errorData,
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error("Error sending Brevo batch:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to send batch",
+        details: error.message,
+      });
+    }
+  });
+
+  // Send single Brevo email (for testing)
+  app.post("/api/admin/brevo/send-test", requireAdmin, async (req, res) => {
+    try {
+      const { email, subject, htmlContent, senderName, senderEmail } = req.body;
+
+      // Get Brevo API key from environment
+      const brevoApiKey = process.env.BREVO_API_KEY;
+      
+      if (!brevoApiKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Brevo API key not configured. Please add BREVO_API_KEY to your environment variables.",
+        });
+      }
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: "Email address is required",
+        });
+      }
+
+      if (!subject || !htmlContent) {
+        return res.status(400).json({
+          success: false,
+          error: "Subject and HTML content are required",
+        });
+      }
+
+      const sender = {
+        name: senderName || "Tokshop",
+        email: senderEmail || "noreply@tokshoplive.com",
+      };
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender,
+          to: [{ email, name: email.split('@')[0] }],
+          subject,
+          htmlContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || `Failed to send email: ${response.statusText}`,
+        });
+      }
+
+      const data = await response.json();
+
+      res.json({
+        success: true,
+        message: `Test email sent successfully to ${email}`,
+        messageId: data.messageId,
+      });
+    } catch (error: any) {
+      console.error("Error sending Brevo test email:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to send test email",
         details: error.message,
       });
     }

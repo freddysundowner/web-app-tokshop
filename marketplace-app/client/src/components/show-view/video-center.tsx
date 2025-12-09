@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package } from 'lucide-react';
+import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sendRoomMessage } from '@/lib/firebase-chat';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { CustomBidDialog } from '@/components/custom-bid-dialog';
+import { RaidShowDialog } from '@/components/raid-show-dialog';
 
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
@@ -19,6 +20,7 @@ export function VideoCenter(props: any) {
   const [isNotificationSaved, setIsNotificationSaved] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [currentBanner, setCurrentBanner] = useState<'explicit' | 'shipping' | null>(null);
+  const [showRaidDialog, setShowRaidDialog] = useState(false);
   
   // Track if banners have been shown (only show once per session)
   const bannersShownRef = useRef(false);
@@ -408,6 +410,24 @@ export function VideoCenter(props: any) {
                         <p className="text-sm text-gray-600 mt-1">Manage your live show</p>
                       </div>
                       <div className="space-y-2">
+                        {/* Raid Show - Only show when live and has viewers */}
+                        {isLive && viewerCount > 0 && (
+                          <button
+                            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-100 rounded-lg transition-colors"
+                            onClick={() => {
+                              setShowMoreOptionsSheet(false);
+                              setShowRaidDialog(true);
+                            }}
+                            data-testid="button-raid-show"
+                          >
+                            <Zap className="h-5 w-5 text-primary" />
+                            <span className="flex-1 text-left text-black font-semibold">Raid Another Show</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {viewerCount} viewer{viewerCount !== 1 ? 's' : ''}
+                            </Badge>
+                          </button>
+                        )}
+
                         {/* End Show - Only show when live */}
                         {isLive && (
                           <button
@@ -1529,6 +1549,100 @@ export function VideoCenter(props: any) {
             timeLeft={auctionTimeLeft}
           />
         )}
+
+        {/* Raid Show Dialog */}
+        <RaidShowDialog
+          open={showRaidDialog}
+          onOpenChange={setShowRaidDialog}
+          currentShowId={id}
+          hostName={hostName}
+          hostId={hostId}
+          viewerCount={viewerCount}
+          onRaid={async (targetShowId: string) => {
+            // CRITICAL: Capture the source show ID immediately before any async operations
+            // The `id` from useParams is reactive and will change after navigation
+            const sourceShowId = id;
+            console.log('🚀 Initiating raid from show:', sourceShowId, 'to show:', targetShowId);
+            
+            // Get current viewer count from state for accuracy
+            const currentViewerCount = viewerCount || viewers?.length || 0;
+            
+            // Emit rally socket event first - this triggers viewers to move
+            if (socket && socketIsConnected) {
+              socket.emit('rally', {
+                fromRoom: sourceShowId,
+                toRoom: targetShowId,
+                hostName: hostName,
+                hostId: hostId,
+                viewerCount: currentViewerCount
+              });
+              console.log('✅ Rally event emitted to move', currentViewerCount, 'viewers');
+            } else {
+              console.warn('⚠️ Socket not connected, raid may not work properly');
+            }
+            
+            // Show toast immediately
+            toast({
+              title: "Raid Started!",
+              description: `Sending ${currentViewerCount} viewer${currentViewerCount !== 1 ? 's' : ''} to the other show`,
+            });
+            
+            // Send chat message to target show about the raid (via Firebase, not socket)
+            try {
+              await sendRoomMessage(
+                targetShowId,
+                `${hostName} has rallied for you with ${currentViewerCount} viewer${currentViewerCount !== 1 ? 's' : ''}! 🚀`,
+                hostId,
+                hostName,
+                hostAvatar || '',
+                []
+              );
+              console.log('✅ Rally chat message sent to target show');
+            } catch (error) {
+              console.error('Failed to send rally chat message:', error);
+            }
+            
+            // End the current show after giving viewers time to receive the rally event
+            setTimeout(async () => {
+              try {
+                // End the SOURCE show via API (using captured ID, not reactive `id`)
+                console.log('🔴 Ending source show:', sourceShowId);
+                await fetch(`/api/rooms/${sourceShowId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ ended: true })
+                });
+                console.log('✅ Source show ended via API:', sourceShowId);
+                
+                // Notify via socket
+                if (socket) {
+                  socket.emit('end-room', { roomId: sourceShowId });
+                }
+                
+                // Disconnect LiveKit
+                if (livekit?.disconnect) {
+                  await livekit.disconnect();
+                }
+                setLivekitEnabled(false);
+                
+                // Leave the source room
+                leaveRoom(sourceShowId);
+                
+                // Navigate host to the target show they're raiding
+                console.log('🚀 Navigating host to target show:', targetShowId);
+                navigate(`/show/${targetShowId}`);
+              } catch (error) {
+                console.error('Error ending show after raid:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to end show properly. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            }, 2000);
+          }}
+        />
     </>
   );
 }

@@ -33,6 +33,7 @@ import AdminReportedCases from "@/pages/admin/reported-cases";
 import AdminEmailSellerApproval from "@/pages/admin/email-seller-approval";
 import AdminEmailUpdate from "@/pages/admin/email-update";
 import AdminEmailSettings from "@/pages/admin/email-settings";
+import AdminEmailBrevoCampaign from "@/pages/admin/email-brevo-campaign";
 import AdminLandingPage from "@/pages/admin/pages/landing";
 import AdminGeneralPage from "@/pages/admin/pages/general";
 import AdminGeneralArticlePage from "@/pages/admin/pages/general-article";
@@ -210,6 +211,7 @@ function Router() {
             <Route path="/admin/email-seller-approval" component={AdminEmailSellerApproval} />
             <Route path="/admin/email-update" component={AdminEmailUpdate} />
             <Route path="/admin/email-settings" component={AdminEmailSettings} />
+            <Route path="/admin/email-brevo-campaign" component={AdminEmailBrevoCampaign} />
             <Route path="/admin/pages/landing" component={AdminLandingPage} />
             <Route path="/admin/pages/general/:id" component={AdminGeneralArticlePage} />
             <Route path="/admin/pages/general" component={AdminGeneralPage} />

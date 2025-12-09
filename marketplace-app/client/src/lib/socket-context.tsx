@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
 import { useSettings } from './settings-context';
@@ -10,6 +10,7 @@ interface SocketContextType {
   disconnect: () => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
+  setLeavingRoom: (leaving: boolean) => void; // Flag to suppress auto-rejoin during leave window
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -19,6 +20,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const currentRoomIdRef = useRef<string | null>(null);
   const isManualConnectRef = useRef<boolean>(false);
+  const isLeavingRoomRef = useRef<boolean>(false); // Flag to suppress auto-rejoin during leave window
+  const socketRef = useRef<Socket | null>(null); // Ref for cleanup to access latest socket
   const { user } = useAuth();
   const userRef = useRef<any>(null);
   
@@ -28,7 +31,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [user]);
   
   // Helper function to get current user identity (always uses fresh data from ref)
-  const getUserIdentity = (socketId: string) => {
+  // Wrapped in useCallback for stable reference
+  const getUserIdentity = useCallback((socketId: string) => {
     const currentUser = userRef.current;
     const userId = currentUser 
       ? ((currentUser as any)._id || (currentUser as any).id || currentUser.id) 
@@ -37,7 +41,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       ? ((currentUser as any).userName || currentUser.firstName || currentUser.email) 
       : `Guest_${socketId.slice(0, 6)}`;
     return { userId, userName };
-  };
+  }, []);
 
   useEffect(() => {
     // Fetch external API URL from backend config, then connect to Socket.IO
@@ -75,7 +79,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           
           // Automatically rejoin the room if we were in one before disconnect
           // BUT skip if this is a manual connection (joinRoom will handle the emit)
-          if (currentRoomIdRef.current && !isManualConnectRef.current) {
+          // AND skip if we're in the process of leaving (to prevent ghost rejoin)
+          if (currentRoomIdRef.current && !isManualConnectRef.current && !isLeavingRoomRef.current) {
             console.log('🔄 Reconnected! Auto-rejoining room:', currentRoomIdRef.current);
             const socketId = socketInstance.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
             const { userId, userName } = getUserIdentity(socketId);
@@ -101,6 +106,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           console.error('Socket.IO connection error:', error);
         });
 
+        socketRef.current = socketInstance; // Store in ref for cleanup
         setSocket(socketInstance);
       } catch (error) {
         console.error('Failed to initialize Socket.IO:', error);
@@ -110,15 +116,16 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     initializeSocket();
 
     return () => {
-      // Cleanup socket connection on unmount
-      if (socket) {
-        console.log('🔌 Disconnecting socket on unmount');
-        socket.disconnect();
+      // Cleanup socket connection on unmount (use ref to access latest socket)
+      if (socketRef.current) {
+        console.log('🔌 Disconnecting socket on provider unmount');
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, []);
 
-  const connect = () => {
+  const connect = useCallback(() => {
     if (!socket) {
       console.warn('⚠️ Cannot connect: socket not initialized');
       return;
@@ -130,9 +137,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     } else {
       console.log('✅ Socket already connected');
     }
-  };
+  }, [socket]);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (!socket) {
       console.warn('⚠️ Cannot disconnect: socket not initialized');
       return;
@@ -142,9 +149,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       console.log('🔌 Manually disconnecting socket...');
       socket.disconnect();
     }
-  };
+  }, [socket]);
 
-  const joinRoom = (roomId: string) => {
+  const joinRoom = useCallback((roomId: string) => {
     if (!socket) {
       console.warn('⚠️ Cannot join room: socket not initialized');
       return;
@@ -153,6 +160,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     if (!socket.connected) {
       console.warn('⚠️ Cannot join room: socket not connected yet');
       return;
+    }
+    
+    // Clear leaving flag since we're joining a room
+    if (isLeavingRoomRef.current) {
+      console.log('🔌 Clearing isLeavingRoom flag (joining new room)');
+      isLeavingRoomRef.current = false;
     }
     
     // Store the room ID for auto-rejoin on reconnect
@@ -168,17 +181,21 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       userId,
       userName
     });
-  };
+  }, [socket, getUserIdentity]);
 
-  const leaveRoom = (roomId: string) => {
+  const leaveRoom = useCallback((roomId: string) => {
     if (!socket) {
       console.warn('⚠️ Cannot leave room: socket not initialized');
       return;
     }
     
-    // DON'T clear currentRoomIdRef here! 
-    // We need it for auto-rejoin after reconnection
-    // Only clear it when joining a different room
+    // Clear currentRoomIdRef if it matches the room being left
+    // This prevents auto-rejoin on reconnect after intentionally leaving
+    // During room switches, joinRoom() will immediately set the new room ID
+    if (currentRoomIdRef.current === roomId) {
+      console.log('🔌 Clearing current room ref (leaving room):', roomId);
+      currentRoomIdRef.current = null;
+    }
     
     // Get current user identity using fresh data
     const socketId = socket.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
@@ -190,10 +207,16 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       userId,
       userName
     });
-  };
+  }, [socket, getUserIdentity]);
+
+  // Set the leaving flag to suppress auto-rejoin during debounce window
+  const setLeavingRoom = useCallback((leaving: boolean) => {
+    console.log('🔌 Setting isLeavingRoom flag:', leaving);
+    isLeavingRoomRef.current = leaving;
+  }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, connect, disconnect, joinRoom, leaveRoom }}>
+    <SocketContext.Provider value={{ socket, isConnected, connect, disconnect, joinRoom, leaveRoom, setLeavingRoom }}>
       {children}
     </SocketContext.Provider>
   );

@@ -143,7 +143,7 @@ BASE_URL: 'https://api.yourdomain.com'
 
 **Change it to your actual API server URL**, for example:
 ```javascript
-BASE_URL: 'https://api.iconaapp.com'
+BASE_URL: 'https://api.tokshoplive.com'
 ```
 
 **Save and exit:**

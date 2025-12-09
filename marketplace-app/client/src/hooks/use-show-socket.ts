@@ -109,6 +109,12 @@ export function useShowSocket(
      */
     endRoom: (data: any) => {
       serviceRef.current?.endRoom(data);
+    },
+    /**
+     * Rally/Raid another show - move viewers from current show to target show (host only)
+     */
+    rally: (fromRoom: string, toRoom: string, hostName: string, hostId: string, viewerCount: number) => {
+      serviceRef.current?.rally(fromRoom, toRoom, hostName, hostId, viewerCount);
     }
   };
 }

@@ -4,10 +4,10 @@
 
 Tokshop is a monorepo containing two web applications:
 
-1. **Main App** (`/client`) - A minimal web experience showcasing the "tokshop" brand
+1. **Admin App** (`/client`) - Administrative dashboard for managing the platform
 2. **Marketplace App** (`/marketplace-app`) - A live streaming marketplace platform with real-time video streaming, auctions, chat, and product sales
 
-Both applications are built with React, TypeScript, and Vite, sharing similar UI component libraries (shadcn/ui) but serving different purposes. The marketplace app is a full-featured e-commerce platform with live streaming capabilities, while the main app is a simple landing page.
+Both applications are built with React, TypeScript, and Vite, sharing similar UI component libraries (shadcn/ui) but serving different purposes. The marketplace app is a full-featured e-commerce platform with live streaming capabilities, while the admin app provides platform management tools.
 
 ## User Preferences
 
@@ -19,11 +19,11 @@ Preferred communication style: Simple, everyday language.
 
 The project is organized as a monorepo with two independent frontends and a shared backend:
 
-- **`/client`** - Minimal landing page application
+- **`/client`** - Admin dashboard application
 - **`/marketplace-app`** - Full marketplace application with seller and buyer features
 - **`/shared-backend`** - Shared server logic used by marketplace-app (referenced but not in provided files)
 
-**Key Decision**: Separate applications instead of a unified codebase allows independent development and deployment of the simple landing page versus the complex marketplace features.
+**Key Decision**: Separate applications instead of a unified codebase allows independent development and deployment of the admin dashboard versus the complex marketplace features.
 
 ### Frontend Architecture
 
@@ -41,7 +41,7 @@ Both applications use **Wouter** for client-side routing instead of React Router
 #### UI Components
 Both apps use **shadcn/ui** with **Radix UI** primitives and **Tailwind CSS** for styling.
 
-**Design Decision**: The component library is duplicated between apps (not shared) to allow independent customization. The main app uses Space Grotesk font, while the marketplace uses Inter font.
+**Design Decision**: The component library is duplicated between apps (not shared) to allow independent customization. The admin app uses Space Grotesk font, while the marketplace uses Inter font.
 
 #### Lazy Loading Strategy
 The marketplace app initially used lazy loading for all routes but encountered critical issues on mobile Safari.
@@ -217,3 +217,57 @@ A public-facing help center has been added to the marketplace app with a Whatnot
   1. Create a separate workflow to run the marketplace app
   2. Or manually navigate to the marketplace app URL if it's running
   3. Or switch the default workflow to serve the marketplace app instead
+
+## Recent Changes (December 8, 2025)
+
+### Rally/Raid Feature
+
+A feature allowing hosts to "raid" another live show when ending their show, moving their viewers to the target show automatically.
+
+**Location**: `/marketplace-app/client/src/`
+- `components/raid-show-dialog.tsx` - Dialog to select target show for raid
+- `components/show-view/video-center.tsx` - Integration with Show Options menu
+- `hooks/use-show-socket-events.ts` - Rally-in event handler for viewers
+- `lib/socket-service.ts` - Socket event definitions
+
+**Flow**:
+1. Host clicks Show Options menu → "Raid Another Show"
+2. Dialog opens showing all other live shows (fetched with `?live=true`)
+3. Host selects target show and confirms
+4. System validates target show is still live
+5. Socket emits 'rally' event to backend
+6. Backend broadcasts 'rally-in' to all viewers in the host's room
+7. Viewers receive rally-in and are auto-redirected to target show
+8. Chat message is sent to target show announcing the raid via Firebase
+9. Host's current show is ended and host navigates to target show
+
+**Socket Events**:
+- `rally` (emit from host): `{ fromRoom, toRoom, hostName, hostId, viewerCount }`
+- `rally-in` (received by viewers): `{ toRoom, hostName, viewerCount }`
+
+**Features**:
+- Validates target show is still live before raiding (prevents raids to ended shows)
+- Auto-redirects viewers with 1-second delay for smooth transition
+- Host navigates to target show after ending their own show
+- Chat announcement in target show with viewer count
+- Loading state during validation
+- Error toasts for failed validations
+
+**Edge Cases Handled**:
+- Target show ends between selection and confirmation → Shows error toast
+- Socket disconnected → Warning logged, raid may not work
+- Host doesn't redirect themselves (isShowOwner check)
+
+**Race Conditions Fixed**:
+1. **Source show ID capture**: The raid handler captures `sourceShowId` before any async operations to prevent the reactive `useParams` ID from changing during navigation
+2. **useEffect cleanup capture**: The socket events cleanup captures `roomId` at effect setup time (`capturedRoomId`) to ensure cleanup leaves the correct room even when `isConnected` changes trigger a re-run after navigation
+3. **Navigation timing**: Host's navigation to target show happens AFTER the source show is ended via API, preventing the cleanup from ending the wrong show
+4. **Socket auto-rejoin suppression (Dec 2025)**: When navigating between shows, socket cleanup now uses a flag-based approach (`isLeavingRoomRef`) to prevent auto-rejoin during the debounce window while preserving room references for proper leave-room emits:
+   - `setLeavingRoom(true)` is called immediately in cleanup to suppress auto-rejoin
+   - When debounce is cancelled (room switch), flag is cleared and `leaveRoom(previousRoom)` is called
+   - When debounce fires (final unmount), leave-room is emitted and flag cleared
+   - `joinRoom()` also clears the flag when joining a new room
+
+**Key Files for Socket Room Management**:
+- `socket-context.tsx`: SocketProvider with `isLeavingRoomRef` flag and `setLeavingRoom()` function
+- `use-show-socket-events.ts`: Debounced room leaving with flag-based auto-rejoin suppression

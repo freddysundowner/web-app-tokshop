@@ -36,6 +36,45 @@ export function registerShowRoutes(app: Express) {
     }
   });
 
+  // Update room featured status - proxy to external API
+  app.put("/api/rooms/features/:roomId", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      console.log('Updating room featured status:', roomId, 'with data:', req.body);
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Include auth token if available
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const url = `${BASE_URL}/rooms/features/${roomId}`;
+      console.log('Calling external API:', url);
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(req.body)
+      });
+      
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Error details:', errorText);
+        return res.status(response.status).json({ error: 'Failed to update featured status' });
+      }
+
+      const data = await response.json();
+      console.log('Room featured status updated:', data);
+      res.json(data);
+    } catch (error) {
+      console.error("Error updating room featured status:", error);
+      res.status(500).json({ error: "Failed to update featured status" });
+    }
+  });
+
   // Get single room by ID - proxy to external API
   app.get("/api/rooms/:id", async (req, res) => {
     try {
@@ -264,6 +303,7 @@ export function registerShowRoutes(app: Express) {
       if (req.query.currentUserId !== undefined) params.push(`currentUserId=${req.query.currentUserId}`);
       if (req.query.title !== undefined) params.push(`title=${req.query.title}`);
       if (req.query.status !== undefined) params.push(`status=${req.query.status}`);
+      if (req.query.live !== undefined) params.push(`live=${req.query.live}`);
 
       const queryString = params.join('&');
       const url = `${BASE_URL}/rooms?${queryString}`;

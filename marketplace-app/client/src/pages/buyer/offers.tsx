@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -115,6 +116,7 @@ export default function BuyerOffers() {
   const [, setLocation] = useLocation();
   const [actionOffer, setActionOffer] = useState<{ offer: Offer; action: 'accept' | 'reject' | 'cancel' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const { externalApiUrl } = useApiConfig();
 
   const userId = (user as any)?._id || user?.id;
 
@@ -210,9 +212,7 @@ export default function BuyerOffers() {
 
   const getProductImage = (product: Offer['product']) => {
     if (product.images && product.images.length > 0) {
-      const img = product.images[0];
-      if (img.startsWith('http')) return img;
-      return `https://api.iconaapp.com${img}`;
+      return getImageUrl(product.images[0], externalApiUrl) || 'https://placehold.co/100x100/e2e8f0/64748b?text=No+Image';
     }
     return 'https://placehold.co/100x100/e2e8f0/64748b?text=No+Image';
   };

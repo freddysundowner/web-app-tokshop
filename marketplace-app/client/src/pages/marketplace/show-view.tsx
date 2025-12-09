@@ -81,7 +81,7 @@ export default function ShowViewNew() {
   usePageTitle('Live Show');
   const { settings } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
-  const { socket, isConnected, joinRoom, leaveRoom, connect, disconnect } = useSocket();
+  const { socket, isConnected, joinRoom, leaveRoom, setLeavingRoom, connect, disconnect } = useSocket();
   const { toast } = useToast();
   const { id } = useParams();
   const [, navigate] = useLocation();
@@ -195,17 +195,17 @@ export default function ShowViewNew() {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const messageInputRef = useRef<HTMLInputElement>(null);
   
-  // Connect socket immediately on mount, disconnect on unmount
+  // Connect socket on mount (but don't disconnect on unmount - socket stays connected for show-to-show navigation)
+  // Socket will auto-reconnect and auto-rejoin rooms, so we don't need to manage disconnect here
+  // The SocketProvider handles cleanup when the entire app unmounts
   useEffect(() => {
     console.log('📱 Show view mounted - connecting socket...');
     connect();
-    
-    return () => {
-      console.log('📱 Show view unmounting - disconnecting socket...');
-      disconnect();
-    };
+    // Note: We intentionally do NOT disconnect on unmount to prevent race conditions
+    // during show-to-show navigation (e.g., Rally feature). The socket stays connected
+    // and room membership is managed by useShowSocketEvents hook.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once on mount/unmount
+  }, []); // Empty deps - only run once on mount
   
   // Join room immediately when socket is connected
   const hasJoinedRoomRef = useRef(false);
@@ -985,7 +985,9 @@ export default function ShowViewNew() {
     isShowOwner,
     joinRoom,
     leaveRoom,
+    setLeavingRoom,
     disconnect,
+    navigate,
     setViewers,
     setPinnedProduct,
     setActiveAuction,

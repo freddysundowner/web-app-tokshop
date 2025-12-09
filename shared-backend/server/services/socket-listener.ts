@@ -38,15 +38,26 @@ class SocketListener {
       });
 
       // Listen for room-ended events
+      // NOTE: The external API has a bug where it emits socket.id instead of roomId
+      // We validate that the payload looks like a MongoDB ObjectId (24 hex chars)
       this.socket.on('room-ended', async (data: any) => {
         console.log('📧 ROOM-ENDED EVENT RECEIVED:', data);
         
         const roomId = data?.roomId || data?._id || data?.id || data;
         
-        if (roomId && typeof roomId === 'string') {
+        // Validate that roomId looks like a MongoDB ObjectId (24 hex characters)
+        // Socket IDs look like "UmsEoKhDif_Z0cDTAAA9" - contain underscores and mixed chars
+        const isValidMongoId = roomId && 
+          typeof roomId === 'string' && 
+          /^[a-f0-9]{24}$/i.test(roomId);
+        
+        if (isValidMongoId) {
           console.log(`📧 Show ended for room: ${roomId}`);
+          // TODO: Add any room-ended handling logic here
         } else {
-          console.error('❌ No valid roomId in room-ended event:', data);
+          // This is likely a socket ID due to the external API bug
+          // Log but don't process to avoid affecting wrong rooms
+          console.warn('⚠️ Ignoring room-ended with invalid/socket ID payload:', roomId);
         }
       });
 

@@ -1,6 +1,14 @@
 import { Socket } from 'socket.io-client';
 import { QueryClient } from '@tanstack/react-query';
 
+export interface RallyInData {
+  fromRoom: string;
+  toRoom: string;
+  hostName: string;
+  hostId: string;
+  viewerCount: number;
+}
+
 export interface ShowSocketEventHandlers {
   onUserConnected?: (data: { userId: string; userName: string }) => void;
   onCurrentUserJoined?: (data: any) => void;
@@ -20,6 +28,7 @@ export interface ShowSocketEventHandlers {
   onGiveawayJoined?: (giveaway: any) => void;
   onGiveawayEnded?: (giveaway: any) => void;
   onMessage?: (message: any) => void;
+  onRallyIn?: (data: RallyInData) => void;
 }
 
 export class ShowSocketService {
@@ -145,6 +154,12 @@ export class ShowSocketService {
       this.handlers.onMessage?.(message);
     });
 
+    // Rally in - viewers are being redirected to this show
+    this.socket.on('rally-in', (data: RallyInData) => {
+      console.log('Rally in received:', data);
+      this.handlers.onRallyIn?.(data);
+    });
+
     // Return cleanup function
     return () => this.unsubscribe();
   }
@@ -171,6 +186,7 @@ export class ShowSocketService {
     this.socket.off('joined-giveaway');
     this.socket.off('ended-giveaway');
     this.socket.off('createMessage');
+    this.socket.off('rally-in');
   }
 
   /**
@@ -289,6 +305,20 @@ export class ShowSocketService {
       roomId: this.roomId,
       userId,
       userName
+    });
+  }
+
+  /**
+   * Rally/Raid another show - move viewers from current show to target show (host only)
+   */
+  rally(fromRoom: string, toRoom: string, hostName: string, hostId: string, viewerCount: number): void {
+    console.log('Emitting rally event:', { fromRoom, toRoom, hostName, hostId, viewerCount });
+    this.socket.emit('rally', {
+      fromRoom,
+      toRoom,
+      hostName,
+      hostId,
+      viewerCount
     });
   }
 }
