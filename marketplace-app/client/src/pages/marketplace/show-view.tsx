@@ -1159,9 +1159,9 @@ export default function ShowViewNew() {
   
   // Render message with clickable mentions
   const renderMessageWithMentions = (messageText: string, mentions: Array<{ id: string; name: string }> = []) => {
-    // Check if message is a question (contains '?')
+    // Check if message is a question (contains '?') - use primary color from settings
     const isQuestion = messageText.includes('?');
-    const baseTextColor = isQuestion ? 'text-yellow-400' : 'text-zinc-300';
+    const baseTextColor = isQuestion ? 'text-primary font-medium' : 'text-zinc-300';
     
     if (!mentions || mentions.length === 0) {
       return <span className={`text-xs ${baseTextColor}`}>{messageText}</span>;

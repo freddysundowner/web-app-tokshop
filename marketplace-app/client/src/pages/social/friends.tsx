@@ -9,6 +9,7 @@ import { Search, MessageCircle, Users, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
+import { UserBadge } from "@/components/user-badge";
 
 interface Following {
   _id: string;
@@ -19,6 +20,8 @@ interface Following {
   email?: string;
   followerCount?: number;
   followingCount?: number;
+  badge?: string;
+  badgeTier?: string;
 }
 
 export default function Friends() {
@@ -139,9 +142,14 @@ export default function Friends() {
                         </Avatar>
                         
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground text-base" data-testid={`text-name-${person._id}`}>
-                            {getDisplayName(person)}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-foreground text-base" data-testid={`text-name-${person._id}`}>
+                              {getDisplayName(person)}
+                            </p>
+                            {(person.badge || person.badgeTier) && (
+                              <UserBadge badge={person.badge} badgeTier={person.badgeTier} size="md" />
+                            )}
+                          </div>
                           {person.userName && (
                             <p className="text-sm text-muted-foreground" data-testid={`text-username-${person._id}`}>
                               @{person.userName}

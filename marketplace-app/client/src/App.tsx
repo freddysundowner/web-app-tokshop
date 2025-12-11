@@ -45,6 +45,7 @@ const Category = lazy(() => import("@/pages/marketplace/category"));
 const SearchResults = lazy(() => import("@/pages/marketplace/search-results"));
 const TrendingProducts = lazy(() => import("@/pages/marketplace/trending-products"));
 const TrendingAuctions = lazy(() => import("@/pages/marketplace/trending-auctions"));
+const FeaturedShows = lazy(() => import("@/pages/marketplace/featured-shows"));
 const Deals = lazy(() => import("@/pages/marketplace/deals"));
 const DealsAuctions = lazy(() => import("@/pages/marketplace/deals-auctions"));
 const DealsTrending = lazy(() => import("@/pages/marketplace/deals-trending"));
@@ -419,6 +420,7 @@ function Router() {
             <Route path="/search" component={SearchResults} />
             <Route path="/trending/products" component={TrendingProducts} />
             <Route path="/trending/auctions" component={TrendingAuctions} />
+            <Route path="/featured/shows" component={FeaturedShows} />
             <Route path="/show/:id" component={ShowView} />
             <Route path="/product/:productId" component={ProductDetail} />
             <Route path="/auction/:auctionId" component={AuctionDetail} />

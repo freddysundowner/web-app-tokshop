@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Share2, MessageCircle, Star, ShoppingBag, Calendar, MoreVertical, Ban, Flag, ChevronDown, ChevronUp, Waves } from "lucide-react";
+import { UserBadge } from "@/components/user-badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -639,6 +640,9 @@ export default function ProfileView() {
                   <h1 className="text-lg sm:text-xl font-bold text-foreground truncate" data-testid="text-display-name">
                     {userDisplayName}
                   </h1>
+                  {(displayUser?.badge || displayUser?.badgeTier) && (
+                    <UserBadge badge={displayUser.badge} badgeTier={displayUser.badgeTier} size="lg" />
+                  )}
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground mb-2">
                   @{userUsername}

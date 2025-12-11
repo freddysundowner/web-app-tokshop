@@ -85,6 +85,30 @@ export default function MarketplaceHome() {
   const trendingProducts = trendingProductsData?.products || [];
   const trendingAuctions = trendingAuctionsData?.products || [];
 
+  // Fetch featured shows (same filters as homepage shows but with featured=true)
+  const { data: featuredShowsData } = useQuery({
+    queryKey: ['/api/rooms', 'featured', selectedCategory, currentUserId],
+    queryFn: async () => {
+      const params = [
+        `page=1`,
+        `live=`,
+        `featured=true`,
+        `ownerUsername=`,
+        `limit=15`,
+        `category=${selectedTab?.categoryId || ''}`,
+        `userid=`,
+        `currentUserId=${currentUserId || ''}`,
+        `title=`,
+        `status=active`
+      ];
+      const queryString = params.join('&');
+      const response = await fetch(`/api/rooms?${queryString}`);
+      return response.json();
+    }
+  });
+
+  const featuredShows = featuredShowsData?.rooms || [];
+
   // Fetch rooms with infinite scroll
   const {
     data,
@@ -238,6 +262,31 @@ export default function MarketplaceHome() {
                 </div>
               ) : (
                 <>
+                  {/* Featured Shows Section - Horizontal Scroll */}
+                  {featuredShows.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold">Featured Shows</h2>
+                        <Link href="/featured/shows">
+                          <Button variant="ghost" size="sm" className="text-primary">
+                            See all <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </Link>
+                      </div>
+                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2" data-testid="featured-shows-carousel">
+                        {featuredShows.map((show: any) => (
+                          <div key={show._id || show.id} className="flex-shrink-0 w-52 sm:w-60">
+                            <ShowCard
+                              show={show}
+                              currentUserId={currentUserId || ''}
+                              variant="grid"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* First Section: Live Shows (4 rows ≈ 12 shows) */}
                   {rooms.length > 0 && (
                     <div>

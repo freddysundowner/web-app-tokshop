@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
+import { UserBadge } from '@/components/user-badge';
 
 interface ShowCardOwner {
   _id?: string;
@@ -13,6 +14,8 @@ interface ShowCardOwner {
   firstName?: string;
   lastName?: string;
   profilePhoto?: string;
+  badge?: string;
+  badgeTier?: string;
 }
 
 interface ShowCardData {
@@ -257,6 +260,9 @@ export function ShowCard({ show, currentUserId, variant = 'grid', categoryName, 
             <span className="text-xs font-medium text-foreground truncate group-hover/host:underline">
               {hostName}
             </span>
+            {(show.owner?.badge || show.owner?.badgeTier) && (
+              <UserBadge badge={show.owner.badge} badgeTier={show.owner.badgeTier} size="sm" />
+            )}
           </Link>
         )}
 

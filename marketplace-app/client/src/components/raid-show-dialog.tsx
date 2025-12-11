@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, Radio, Zap } from 'lucide-react';
 import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
 import { useToast } from '@/hooks/use-toast';
+import { UserBadge } from '@/components/user-badge';
 
 interface RaidShowDialogProps {
   open: boolean;
@@ -25,7 +26,7 @@ interface LiveShow {
   hostName?: string;
   hostId?: string | { _id: string; userName?: string; firstName?: string; profilePhoto?: string };
   userId?: string | { _id: string; userName?: string; firstName?: string; profilePhoto?: string };
-  owner?: { _id: string; userName?: string; firstName?: string; profilePhoto?: string };
+  owner?: { _id: string; userName?: string; firstName?: string; profilePhoto?: string; badge?: string; badgeTier?: string };
   viewers?: any[];
   roomImage?: string;
   started?: boolean;
@@ -83,9 +84,11 @@ export function RaidShowDialog({
       return {
         name: hostData.userName || hostData.firstName || 'Host',
         avatar: hostData.profilePhoto || '',
+        badge: (hostData as any).badge,
+        badgeTier: (hostData as any).badgeTier,
       };
     }
-    return { name: show.hostName || 'Host', avatar: '' };
+    return { name: show.hostName || 'Host', avatar: '', badge: undefined, badgeTier: undefined };
   };
 
   const getShowCategory = (show: LiveShow): string => {
@@ -127,7 +130,7 @@ export function RaidShowDialog({
       if (!room.started || room.ended) {
         toast({
           title: "Show No Longer Live",
-          description: "This show has ended. Please select another show to raid.",
+          description: "This show has ended. Please select another show to rally to.",
           variant: "destructive",
         });
         setShowConfirmDialog(false);
@@ -166,7 +169,7 @@ export function RaidShowDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-primary" />
-              Raid a Live Show
+              Rally to a Live Show
             </DialogTitle>
             <DialogDescription>
               Move your {viewerCount} viewer{viewerCount !== 1 ? 's' : ''} to another live show
@@ -208,7 +211,12 @@ export function RaidShowDialog({
 
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{show.title || 'Live Show'}</p>
-                      <p className="text-sm text-muted-foreground truncate">{showCategory || showHost.name}</p>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground truncate">
+                        <span>{showCategory || showHost.name}</span>
+                        {(showHost.badge || showHost.badgeTier) && (
+                          <UserBadge badge={showHost.badge} badgeTier={showHost.badgeTier} size="sm" />
+                        )}
+                      </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                         <Users className="h-3 w-3" />
                         <span>{showViewers} watching</span>
@@ -219,10 +227,10 @@ export function RaidShowDialog({
                       size="sm"
                       onClick={() => handleRaidClick(show)}
                       className="shrink-0"
-                      data-testid={`button-raid-${show._id}`}
+                      data-testid={`button-rally-${show._id}`}
                     >
                       <Zap className="h-4 w-4 mr-1" />
-                      Raid
+                      Rally
                     </Button>
                   </div>
                 );
@@ -237,13 +245,13 @@ export function RaidShowDialog({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-primary" />
-              Confirm Raid
+              Confirm Rally
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
-                  You are about to raid <strong>{selectedShowHost?.name}'s</strong> live show with{' '}
-                  <strong>{viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</strong>.
+                  You are about to rally <strong>{viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</strong> to{' '}
+                  <strong>{selectedShowHost?.name}'s</strong> live show.
                 </p>
                 <p className="text-sm">
                   Your viewers will be automatically moved to this show, and a message will appear in their chat.
@@ -252,14 +260,14 @@ export function RaidShowDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-raid" disabled={isValidating}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmRaid} disabled={isValidating} data-testid="button-confirm-raid">
+            <AlertDialogCancel data-testid="button-cancel-rally" disabled={isValidating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRaid} disabled={isValidating} data-testid="button-confirm-rally">
               {isValidating ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
                 <Zap className="h-4 w-4 mr-1" />
               )}
-              {isValidating ? 'Validating...' : 'Raid Now'}
+              {isValidating ? 'Validating...' : 'Rally Now'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { UserBadge } from '@/components/user-badge';
 
 interface ChatSidebarProps {
   showMobileChat: boolean;
@@ -290,9 +291,14 @@ export function ChatSidebar(props: ChatSidebarProps) {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">
-                                {suggestedUser.userName || suggestedUser.firstName}
-                              </p>
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm font-medium text-white truncate">
+                                  {suggestedUser.userName || suggestedUser.firstName}
+                                </p>
+                                {(suggestedUser.badge || suggestedUser.badgeTier) && (
+                                  <UserBadge badge={suggestedUser.badge} badgeTier={suggestedUser.badgeTier} size="sm" />
+                                )}
+                              </div>
                               {suggestedUser.firstName && suggestedUser.userName !== suggestedUser.firstName && (
                                 <p className="text-xs text-zinc-400 truncate">
                                   {suggestedUser.firstName} {suggestedUser.lastName || ''}

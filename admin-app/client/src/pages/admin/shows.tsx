@@ -79,7 +79,7 @@ export default function AdminShows() {
     featureMutation.mutate({
       roomId,
       featured: true,
-      featured_until: featuredUntilDate ? featuredUntilDate.toISOString() : null,
+      featured_until: featuredUntilDate ? featuredUntilDate.getTime() : null,
     });
   };
 
@@ -463,7 +463,7 @@ export default function AdminShows() {
                       {featuredUntilDate ? format(featuredUntilDate, "PPP") : "No expiration date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                     <CalendarComponent
                       mode="single"
                       selected={featuredUntilDate}

@@ -9,6 +9,7 @@ import { sendRoomMessage } from '@/lib/firebase-chat';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { CustomBidDialog } from '@/components/custom-bid-dialog';
 import { RaidShowDialog } from '@/components/raid-show-dialog';
+import { UserBadge } from '@/components/user-badge';
 
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
@@ -272,10 +273,13 @@ export function VideoCenter(props: any) {
                     href={`/profile/${hostId}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-sm font-bold text-white leading-tight hover:underline"
+                    className="text-sm font-bold text-white leading-tight hover:underline flex items-center gap-1"
                     data-testid="link-host-username"
                   >
                     {hostName}
+                    {(host?.badge || host?.badgeTier) && (
+                      <UserBadge badge={host.badge} badgeTier={host.badgeTier} size="sm" />
+                    )}
                   </a>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 text-white">
@@ -418,10 +422,10 @@ export function VideoCenter(props: any) {
                               setShowMoreOptionsSheet(false);
                               setShowRaidDialog(true);
                             }}
-                            data-testid="button-raid-show"
+                            data-testid="button-rally-show"
                           >
                             <Zap className="h-5 w-5 text-primary" />
-                            <span className="flex-1 text-left text-black font-semibold">Raid Another Show</span>
+                            <span className="flex-1 text-left text-black font-semibold">Rally to Another Show</span>
                             <Badge variant="secondary" className="text-xs">
                               {viewerCount} viewer{viewerCount !== 1 ? 's' : ''}
                             </Badge>
@@ -1562,7 +1566,7 @@ export function VideoCenter(props: any) {
             // CRITICAL: Capture the source show ID immediately before any async operations
             // The `id` from useParams is reactive and will change after navigation
             const sourceShowId = id;
-            console.log('🚀 Initiating raid from show:', sourceShowId, 'to show:', targetShowId);
+            console.log('🚀 Initiating rally from show:', sourceShowId, 'to show:', targetShowId);
             
             // Get current viewer count from state for accuracy
             const currentViewerCount = viewerCount || viewers?.length || 0;
@@ -1578,12 +1582,12 @@ export function VideoCenter(props: any) {
               });
               console.log('✅ Rally event emitted to move', currentViewerCount, 'viewers');
             } else {
-              console.warn('⚠️ Socket not connected, raid may not work properly');
+              console.warn('⚠️ Socket not connected, rally may not work properly');
             }
             
             // Show toast immediately
             toast({
-              title: "Raid Started!",
+              title: "Rally Started!",
               description: `Sending ${currentViewerCount} viewer${currentViewerCount !== 1 ? 's' : ''} to the other show`,
             });
             
