@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { UserBadge } from '@/components/user-badge';
+import { BadgeDescription } from '@/components/badge-description';
 
 interface ShowCardOwner {
   _id?: string;
@@ -163,9 +164,14 @@ export function ShowCard({ show, currentUserId, variant = 'grid', categoryName, 
             <AvatarImage src={hostAvatar} />
             <AvatarFallback className="text-xs">{getHostInitials()}</AvatarFallback>
           </Avatar>
-          <span className="text-xs font-medium text-foreground truncate">
-            {hostName}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-xs font-medium text-foreground truncate">
+              {hostName}
+            </span>
+            {show.owner?.badgeTier && (
+              <BadgeDescription badgeTier={show.owner.badgeTier} size={12} showText={false} />
+            )}
+          </div>
         </div>
 
         {/* Show Thumbnail Container */}

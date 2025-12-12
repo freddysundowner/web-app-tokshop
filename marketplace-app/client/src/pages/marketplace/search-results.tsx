@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShowCard } from '@/components/show-card';
+import { BadgeDescription } from '@/components/badge-description';
 import { cn } from '@/lib/utils';
 import { getImageUrl, useApiConfig } from '@/lib/use-api-config';
 
@@ -81,6 +82,7 @@ interface UserResult {
   profilePhoto?: string;
   bio?: string;
   seller?: boolean;
+  badgeTier?: string;
 }
 
 interface SearchResponse {
@@ -196,6 +198,16 @@ function UserCard({ user }: { user: UserResult }) {
             <p className="font-medium text-foreground truncate" data-testid={`text-username-${user._id}`}>
               {displayName}
             </p>
+            {user.userName && (
+              <p className="text-xs text-muted-foreground mb-0.5">
+                @{user.userName}
+              </p>
+            )}
+            {user.badgeTier && (
+              <div className="mb-1">
+                <BadgeDescription badgeTier={user.badgeTier} size={14} showText={true} />
+              </div>
+            )}
             {user.bio && (
               <p className="text-sm text-muted-foreground line-clamp-1">
                 {user.bio}

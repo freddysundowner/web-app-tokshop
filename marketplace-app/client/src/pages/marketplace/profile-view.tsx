@@ -24,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Share2, MessageCircle, Star, ShoppingBag, Calendar, MoreVertical, Ban, Flag, ChevronDown, ChevronUp, Waves } from "lucide-react";
 import { UserBadge } from "@/components/user-badge";
+import { BadgeDescription } from "@/components/badge-description";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -644,9 +645,14 @@ export default function ProfileView() {
                     <UserBadge badge={displayUser.badge} badgeTier={displayUser.badgeTier} size="lg" />
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-2">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1">
                   @{userUsername}
                 </p>
+                {displayUser?.badgeTier && (
+                  <div className="mb-2">
+                    <BadgeDescription badgeTier={displayUser.badgeTier} size={16} showText={true} />
+                  </div>
+                )}
                 <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground flex-wrap">
                   <div className="flex items-center gap-1">
                     <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-yellow-400 text-yellow-400" />

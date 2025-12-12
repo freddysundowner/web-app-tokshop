@@ -1867,6 +1867,69 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  // Upload theme resource image (POST to /themes/upload-resource)
+  app.post("/api/themes/upload-resource", requireAdmin, checkDemoMode, upload.single('file'), async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const { key } = req.body;
+
+      if (!key) {
+        return res.status(400).json({
+          success: false,
+          error: "Resource key is required",
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "No file uploaded",
+        });
+      }
+
+      const formData = new FormData();
+      formData.append('key', key);
+      formData.append('resource', req.file.buffer, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
+
+      const url = `${BASE_URL}/themes/upload-resource`;
+      console.log(`Uploading theme resource to: ${url}, key: ${key}`);
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      });
+
+      res.json({
+        success: true,
+        url: response.data.url,
+        key: response.data.key,
+        message: "Resource uploaded successfully",
+      });
+    } catch (error: any) {
+      console.error("Error uploading theme resource:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to upload resource",
+        details: error.response?.data || error.message,
+      });
+    }
+  });
+
   // Get admin profile data
   app.get("/api/admin/profile/:userId", requireAdmin, async (req, res) => {
     try {

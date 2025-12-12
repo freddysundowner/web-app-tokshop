@@ -1,7 +1,28 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { pageTypeEnum, type PageType } from "../../shared/schema";
 
 const BASE_URL = process.env.BASE_URL || "https://api.tokshoplive.com";
+
+// Admin authorization middleware for content routes
+function requireContentAdmin(req: Request, res: Response, next: NextFunction) {
+  const session = req.session as any;
+  
+  if (!session?.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required. Please log in again.",
+    });
+  }
+
+  if (!session.user.admin) {
+    return res.status(403).json({
+      success: false,
+      message: "Admin access required",
+    });
+  }
+
+  next();
+}
 
 export function registerContentRoutes(app: Express) {
   // Get page content (public endpoint) - /api/content/:pageType
@@ -41,23 +62,10 @@ export function registerContentRoutes(app: Express) {
 
   // Update page content (admin endpoint) - /api/admin/content/:pageType
   // Proxies to external API: PUT /content/:pageType
-  app.put("/api/admin/content/:pageType", async (req, res) => {
+  app.put("/api/admin/content/:pageType", requireContentAdmin, async (req, res) => {
     try {
-      // Check if user is authenticated and is an admin
-      if (!(req.session as any)?.user) {
-        return res.status(401).json({
-          success: false,
-          message: "Authentication required",
-        });
-      }
-
-      if (!(req.session as any).user.admin) {
-        return res.status(403).json({
-          success: false,
-          message: "Admin access required",
-        });
-      }
-
+      const session = req.session as any;
+      
       const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
       
       if (!pageTypeValidation.success) {
@@ -74,8 +82,8 @@ export function registerContentRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      // Forward authentication token from session or headers
-      const token = (req.session as any)?.accessToken || 
+      // Forward authentication token from session
+      const token = session?.accessToken || 
                    req.headers['x-access-token'] as string || 
                    (req.headers['authorization']?.startsWith('Bearer ') ? 
                      req.headers['authorization'].substring(7) : null);
@@ -105,23 +113,10 @@ export function registerContentRoutes(app: Express) {
 
   // Reset page content to defaults (admin endpoint) - /api/admin/content/:pageType/reset
   // Proxies to external API: POST /content/:pageType/reset
-  app.post("/api/admin/content/:pageType/reset", async (req, res) => {
+  app.post("/api/admin/content/:pageType/reset", requireContentAdmin, async (req, res) => {
     try {
-      // Check if user is authenticated and is an admin
-      if (!(req.session as any)?.user) {
-        return res.status(401).json({
-          success: false,
-          message: "Authentication required",
-        });
-      }
-
-      if (!(req.session as any).user.admin) {
-        return res.status(403).json({
-          success: false,
-          message: "Admin access required",
-        });
-      }
-
+      const session = req.session as any;
+      
       const pageTypeValidation = pageTypeEnum.safeParse(req.params.pageType);
       
       if (!pageTypeValidation.success) {
@@ -138,8 +133,8 @@ export function registerContentRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      // Forward authentication token from session or headers
-      const token = (req.session as any)?.accessToken || 
+      // Forward authentication token from session
+      const token = session?.accessToken || 
                    req.headers['x-access-token'] as string || 
                    (req.headers['authorization']?.startsWith('Bearer ') ? 
                      req.headers['authorization'].substring(7) : null);

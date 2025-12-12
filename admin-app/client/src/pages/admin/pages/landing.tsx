@@ -7,82 +7,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { FileText, Home, Shield, HelpCircle, Save, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SingleImageUpload } from "@/components/ui/single-image-upload";
 import { Separator } from "@/components/ui/separator";
 
-const ICON_OPTIONS = ['Play', 'Zap', 'Shield', 'Star', 'TrendingUp'];
-
+// New landing page structure matching landing-page-8.tsx
 const DEFAULT_LANDING_CONTENT = {
   hero: {
     title: 'The Live Shopping Marketplace',
-    subtitle: 'Shop, sell, and connect around the things you love. Join thousands of buyers and sellers in real-time.',
+    subtitle: 'Shop, sell, and connect around the things you love.',
     primaryButtonText: 'Get Started',
-    primaryButtonLink: '/login',
-    secondaryButtonText: 'Watch Demo',
-    heroImage: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=600&fit=crop',
-    heroImageAlt: 'Live shopping experience',
-    liveViewers: '12.5K watching'
-  },
-  howItWorks: {
-    title: 'How It Works',
-    subtitle: 'Join live shows, bid on items you love, and connect with passionate sellers',
-    steps: [
-      { icon: 'Play', title: 'Watch Live Shows', description: 'Browse live streams across 250+ categories and discover unique items from trusted sellers' },
-      { icon: 'Zap', title: 'Bid & Buy', description: 'Participate in fast-paced auctions, flash sales, and buy-it-now deals in real-time' },
-      { icon: 'Shield', title: 'Safe & Secure', description: 'Protected purchases with buyer protection and secure checkout for peace of mind' }
-    ]
+    primaryButtonLink: '/signup',
+    secondaryButtonText: 'Browse Shows',
+    secondaryButtonLink: '/marketplace',
+    downloadText: 'Download',
+    phoneImage1: '',
+    phoneImage2: '',
+    qrCodeImage: ''
   },
   joinFun: {
     title: 'Join In the Fun',
     subtitle: 'Take part in fast-paced auctions, incredible flash sales, live show giveaways, and so much more.',
-    image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop',
-    imageAlt: 'Auction excitement',
-    features: [
-      { icon: 'Star', title: 'Live Auctions', description: 'Bid in real-time and win amazing deals on items you love' },
-      { icon: 'Star', title: 'Flash Sales', description: 'Lightning-fast deals with limited quantities at unbeatable prices' },
-      { icon: 'Star', title: 'Giveaways', description: 'Win free items during live shows from generous sellers' }
-    ],
-    buttonText: 'Get Started',
-    buttonLink: '/login'
+    downloadText: 'Download',
+    phoneImage: '',
+    qrCodeImage: ''
   },
-  categories: {
-    title: 'We\'ve Got It All',
-    subtitle: 'Explore 250+ categories, including fashion, coins, sports & Pokémon cards, sneakers, and more.',
-    items: [
-      { name: 'Fashion', image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=500&fit=crop' },
-      { name: 'Collectibles', image: 'https://images.unsplash.com/photo-1611312449408-fcece27cdbb7?w=400&h=500&fit=crop' },
-      { name: 'Sports Cards', image: 'https://images.unsplash.com/photo-1611916656173-875e4277bea6?w=400&h=500&fit=crop' },
-      { name: 'Sneakers', image: 'https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=400&h=500&fit=crop' },
-      { name: 'Electronics', image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=500&fit=crop' },
-      { name: 'Jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop' }
-    ],
-    buttonText: 'Explore All Categories',
-    buttonLink: '/login'
+  gotItAll: {
+    title: "We've Got It All",
+    subtitle: 'Search our marketplace to find the exact product you\'re looking for',
+    downloadText: 'Download',
+    phoneImage: '',
+    qrCodeImage: ''
   },
-  brands: {
+  deals: {
     title: 'Find Incredible Deals on Name Brands',
-    subtitle: 'From the brands you love, to hard-to-find specialty products. There\'s a deal on whatever you\'re looking for.',
-    items: [
-      { name: 'Nike' },
-      { name: 'Adidas' },
-      { name: 'Supreme' },
-      { name: 'Pokémon' }
-    ],
-    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop',
-    imageAlt: 'Brand products',
+    subtitle: "From the brands you love, to hard-to-find specialty products. There's a deal on whatever you're looking for.",
     buttonText: 'Start Shopping',
-    buttonLink: '/login'
-  },
-  finalCTA: {
-    title: 'Ready to Start Shopping?',
-    subtitle: 'Join thousands of buyers and sellers discovering amazing deals every day',
-    buttonText: 'Get Started Now',
-    buttonLink: '/login'
+    buttonLink: '/signup',
+    downloadText: 'Download',
+    trustBadgeText: 'PEACE OF MIND',
+    phoneImage: '',
+    qrCodeImage: ''
   },
   footer: {
     copyrightText: '2025'
@@ -104,44 +73,29 @@ export default function AdminLandingPage() {
   // Initialize with default content
   const [content, setContent] = useState(DEFAULT_LANDING_CONTENT);
 
-  // Update form when data loads (only if it has properly structured content)
+  // Update form when data loads
   useEffect(() => {
     if (landingContent) {
-      // Verify the API data has the complete structure before loading it
-      const isValidStructure = 
-        landingContent.hero && 
-        landingContent.howItWorks && 
-        landingContent.joinFun && 
-        landingContent.categories && 
-        landingContent.brands && 
-        landingContent.finalCTA && 
-        landingContent.footer;
+      // Check if it has the new structure
+      const hasNewStructure = landingContent.hero && landingContent.joinFun && landingContent.gotItAll && landingContent.deals;
       
-      // Only load if structure is valid AND has actual content (not empty strings)
-      const hasRealContent = landingContent.hero?.title && landingContent.hero.title.trim() !== '';
-      
-      if (isValidStructure && hasRealContent) {
-        setContent(landingContent);
+      if (hasNewStructure && landingContent.hero?.title) {
+        setContent({
+          ...DEFAULT_LANDING_CONTENT,
+          ...landingContent,
+          hero: { ...DEFAULT_LANDING_CONTENT.hero, ...landingContent.hero },
+          joinFun: { ...DEFAULT_LANDING_CONTENT.joinFun, ...landingContent.joinFun },
+          gotItAll: { ...DEFAULT_LANDING_CONTENT.gotItAll, ...landingContent.gotItAll },
+          deals: { ...DEFAULT_LANDING_CONTENT.deals, ...landingContent.deals },
+          footer: { ...DEFAULT_LANDING_CONTENT.footer, ...landingContent.footer },
+        });
       }
     }
   }, [landingContent]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/admin/content/landing', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update landing page');
-      }
-      
+      const response = await apiRequest('PUT', '/api/admin/content/landing', data);
       return response.json();
     },
     onSuccess: () => {
@@ -178,28 +132,15 @@ export default function AdminLandingPage() {
 
   const resetToDefaultMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/admin/content/landing/reset', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to reset landing page');
-      }
-      
+      const response = await apiRequest('PUT', '/api/admin/content/landing', DEFAULT_LANDING_CONTENT);
       return response.json();
     },
     onSuccess: () => {
-      // Reset to hardcoded defaults
       setContent(DEFAULT_LANDING_CONTENT);
       queryClient.invalidateQueries({ queryKey: ['/api/content/landing'] });
       toast({
         title: "Success",
-        description: "Landing page reset to default content",
+        description: "Landing page reset to default",
       });
     },
     onError: (error: Error) => {
@@ -220,20 +161,14 @@ export default function AdminLandingPage() {
       });
       return;
     }
-
-    if (confirm('Are you sure you want to reset all landing page content to default? This cannot be undone.')) {
-      resetToDefaultMutation.mutate();
-    }
+    resetToDefaultMutation.mutate();
   };
 
   if (landingLoading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading content...</p>
-          </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </AdminLayout>
     );
@@ -242,11 +177,11 @@ export default function AdminLandingPage() {
   return (
     <AdminLayout>
       <div className="space-y-6 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold" data-testid="text-page-title">Landing Page Editor</h1>
             <p className="text-muted-foreground">
-              Customize all sections of the marketplace landing page
+              Customize the 4-section landing page with images and text
             </p>
           </div>
           <div className="flex gap-2">
@@ -279,13 +214,11 @@ export default function AdminLandingPage() {
         )}
 
         <Tabs defaultValue="hero" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="hero">Hero</TabsTrigger>
-            <TabsTrigger value="how-it-works">How It Works</TabsTrigger>
-            <TabsTrigger value="join-fun">Join Fun</TabsTrigger>
-            <TabsTrigger value="categories">Categories</TabsTrigger>
-            <TabsTrigger value="brands">Brands</TabsTrigger>
-            <TabsTrigger value="cta">Final CTA</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="hero">Section 1: Hero</TabsTrigger>
+            <TabsTrigger value="join-fun">Section 2: Join Fun</TabsTrigger>
+            <TabsTrigger value="got-it-all">Section 3: Got It All</TabsTrigger>
+            <TabsTrigger value="deals">Section 4: Deals</TabsTrigger>
             <TabsTrigger value="footer">Footer</TabsTrigger>
           </TabsList>
 
@@ -293,203 +226,138 @@ export default function AdminLandingPage() {
           <TabsContent value="hero" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Hero Section</CardTitle>
+                <CardTitle>Section 1: Hero (Gradient Background)</CardTitle>
                 <CardDescription>
-                  Main banner that appears at the top of the landing page
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="hero-title">Title</Label>
-                  <Input
-                    id="hero-title"
-                    value={content.hero.title}
-                    onChange={(e) => setContent({ ...content, hero: { ...content.hero, title: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-hero-title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="hero-subtitle">Subtitle</Label>
-                  <Textarea
-                    id="hero-subtitle"
-                    value={content.hero.subtitle}
-                    onChange={(e) => setContent({ ...content, hero: { ...content.hero, subtitle: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    rows={3}
-                    data-testid="input-hero-subtitle"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="hero-primary-btn-text">Primary Button Text</Label>
-                    <Input
-                      id="hero-primary-btn-text"
-                      value={content.hero.primaryButtonText}
-                      onChange={(e) => setContent({ ...content, hero: { ...content.hero, primaryButtonText: e.target.value } })}
-                      disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-hero-primary-btn-text"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="hero-primary-btn-link">Primary Button Link</Label>
-                    <Input
-                      id="hero-primary-btn-link"
-                      value={content.hero.primaryButtonLink}
-                      onChange={(e) => setContent({ ...content, hero: { ...content.hero, primaryButtonLink: e.target.value } })}
-                      disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-hero-primary-btn-link"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="hero-secondary-btn-text">Secondary Button Text</Label>
-                  <Input
-                    id="hero-secondary-btn-text"
-                    value={content.hero.secondaryButtonText}
-                    onChange={(e) => setContent({ ...content, hero: { ...content.hero, secondaryButtonText: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-hero-secondary-btn-text"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="hero-image">Hero Image URL</Label>
-                  <Input
-                    id="hero-image"
-                    value={content.hero.heroImage}
-                    onChange={(e) => setContent({ ...content, hero: { ...content.hero, heroImage: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    placeholder="https://..."
-                    data-testid="input-hero-image"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="hero-image-alt">Hero Image Alt Text</Label>
-                  <Input
-                    id="hero-image-alt"
-                    value={content.hero.heroImageAlt}
-                    onChange={(e) => setContent({ ...content, hero: { ...content.hero, heroImageAlt: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-hero-image-alt"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="hero-live-viewers">Live Viewers Text</Label>
-                  <Input
-                    id="hero-live-viewers"
-                    value={content.hero.liveViewers}
-                    onChange={(e) => setContent({ ...content, hero: { ...content.hero, liveViewers: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    placeholder="e.g., 12.5K watching"
-                    data-testid="input-hero-live-viewers"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* How It Works Section */}
-          <TabsContent value="how-it-works" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>How It Works Section</CardTitle>
-                <CardDescription>
-                  Explain the process in 3 simple steps
+                  Main banner with phone mockups and call-to-action buttons
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="hiw-title">Section Title</Label>
-                  <Input
-                    id="hiw-title"
-                    value={content.howItWorks.title}
-                    onChange={(e) => setContent({ ...content, howItWorks: { ...content.howItWorks, title: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-hiw-title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="hiw-subtitle">Section Subtitle</Label>
-                  <Textarea
-                    id="hiw-subtitle"
-                    value={content.howItWorks.subtitle}
-                    onChange={(e) => setContent({ ...content, howItWorks: { ...content.howItWorks, subtitle: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    rows={2}
-                    data-testid="input-hiw-subtitle"
-                  />
+                {/* Text Content */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Text Content</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="hero-title">Title</Label>
+                    <Input
+                      id="hero-title"
+                      value={content.hero.title}
+                      onChange={(e) => setContent({ ...content, hero: { ...content.hero, title: e.target.value } })}
+                      disabled={!canManageSettings || isDemoMode}
+                      placeholder="The Live Shopping Marketplace"
+                      data-testid="input-hero-title"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hero-subtitle">Subtitle</Label>
+                    <Textarea
+                      id="hero-subtitle"
+                      value={content.hero.subtitle}
+                      onChange={(e) => setContent({ ...content, hero: { ...content.hero, subtitle: e.target.value } })}
+                      disabled={!canManageSettings || isDemoMode}
+                      placeholder="Shop, sell, and connect around the things you love."
+                      data-testid="input-hero-subtitle"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="hero-primary-btn">Primary Button Text</Label>
+                      <Input
+                        id="hero-primary-btn"
+                        value={content.hero.primaryButtonText}
+                        onChange={(e) => setContent({ ...content, hero: { ...content.hero, primaryButtonText: e.target.value } })}
+                        disabled={!canManageSettings || isDemoMode}
+                        placeholder="Get Started"
+                        data-testid="input-hero-primary-btn"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hero-primary-link">Primary Button Link</Label>
+                      <Input
+                        id="hero-primary-link"
+                        value={content.hero.primaryButtonLink}
+                        onChange={(e) => setContent({ ...content, hero: { ...content.hero, primaryButtonLink: e.target.value } })}
+                        disabled={!canManageSettings || isDemoMode}
+                        placeholder="/signup"
+                        data-testid="input-hero-primary-link"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="hero-secondary-btn">Secondary Button Text</Label>
+                      <Input
+                        id="hero-secondary-btn"
+                        value={content.hero.secondaryButtonText}
+                        onChange={(e) => setContent({ ...content, hero: { ...content.hero, secondaryButtonText: e.target.value } })}
+                        disabled={!canManageSettings || isDemoMode}
+                        placeholder="Browse Shows"
+                        data-testid="input-hero-secondary-btn"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hero-secondary-link">Secondary Button Link</Label>
+                      <Input
+                        id="hero-secondary-link"
+                        value={content.hero.secondaryButtonLink}
+                        onChange={(e) => setContent({ ...content, hero: { ...content.hero, secondaryButtonLink: e.target.value } })}
+                        disabled={!canManageSettings || isDemoMode}
+                        placeholder="/marketplace"
+                        data-testid="input-hero-secondary-link"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hero-download">Download Label</Label>
+                    <Input
+                      id="hero-download"
+                      value={content.hero.downloadText}
+                      onChange={(e) => setContent({ ...content, hero: { ...content.hero, downloadText: e.target.value } })}
+                      disabled={!canManageSettings || isDemoMode}
+                      placeholder="Download"
+                      data-testid="input-hero-download"
+                    />
+                  </div>
                 </div>
 
                 <Separator />
 
+                {/* Images */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold">Steps (Must have exactly 3)</h3>
-                  {content.howItWorks.steps.map((step, index) => (
-                    <Card key={index} className="p-4">
-                      <div className="space-y-4">
-                        <h4 className="font-medium">Step {index + 1}</h4>
-
-                        <div className="space-y-2">
-                          <Label>Icon</Label>
-                          <Select
-                            value={step.icon}
-                            onValueChange={(value) => {
-                              const newSteps = [...content.howItWorks.steps];
-                              newSteps[index] = { ...newSteps[index], icon: value };
-                              setContent({ ...content, howItWorks: { ...content.howItWorks, steps: newSteps } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                          >
-                            <SelectTrigger data-testid={`select-hiw-step-${index}-icon`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ICON_OPTIONS.map((icon) => (
-                                <SelectItem key={icon} value={icon}>{icon}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Title</Label>
-                          <Input
-                            value={step.title}
-                            onChange={(e) => {
-                              const newSteps = [...content.howItWorks.steps];
-                              newSteps[index] = { ...newSteps[index], title: e.target.value };
-                              setContent({ ...content, howItWorks: { ...content.howItWorks, steps: newSteps } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            data-testid={`input-hiw-step-${index}-title`}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Description</Label>
-                          <Textarea
-                            value={step.description}
-                            onChange={(e) => {
-                              const newSteps = [...content.howItWorks.steps];
-                              newSteps[index] = { ...newSteps[index], description: e.target.value };
-                              setContent({ ...content, howItWorks: { ...content.howItWorks, steps: newSteps } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            rows={3}
-                            data-testid={`input-hiw-step-${index}-description`}
-                          />
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                  <h3 className="font-semibold">Images</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Main Phone Screenshot</Label>
+                      <SingleImageUpload
+                        value={content.hero.phoneImage1}
+                        onChange={(url) => setContent({ ...content, hero: { ...content.hero, phoneImage1: url } })}
+                        label="Upload Main Phone Image"
+                        resourceKey="landing-hero-phone1"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-[9/16]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Secondary Phone Screenshot</Label>
+                      <SingleImageUpload
+                        value={content.hero.phoneImage2}
+                        onChange={(url) => setContent({ ...content, hero: { ...content.hero, phoneImage2: url } })}
+                        label="Upload Secondary Phone Image"
+                        resourceKey="landing-hero-phone2"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-[9/16]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>QR Code Image</Label>
+                      <SingleImageUpload
+                        value={content.hero.qrCodeImage}
+                        onChange={(url) => setContent({ ...content, hero: { ...content.hero, qrCodeImage: url } })}
+                        label="Upload QR Code"
+                        resourceKey="landing-hero-qrcode"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-square"
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -499,541 +367,277 @@ export default function AdminLandingPage() {
           <TabsContent value="join-fun" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Join In the Fun Section</CardTitle>
+                <CardTitle>Section 2: Join In the Fun (Dark Background)</CardTitle>
                 <CardDescription>
-                  Highlight exciting features with an engaging image
+                  Features auctions, flash sales, and giveaways with phone mockup
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="jf-title">Section Title</Label>
-                  <Input
-                    id="jf-title"
-                    value={content.joinFun.title}
-                    onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, title: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-jf-title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="jf-subtitle">Section Subtitle</Label>
-                  <Textarea
-                    id="jf-subtitle"
-                    value={content.joinFun.subtitle}
-                    onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, subtitle: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    rows={2}
-                    data-testid="input-jf-subtitle"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="jf-image">Section Image URL</Label>
-                  <Input
-                    id="jf-image"
-                    value={content.joinFun.image}
-                    onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, image: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    placeholder="https://..."
-                    data-testid="input-jf-image"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="jf-image-alt">Image Alt Text</Label>
-                  <Input
-                    id="jf-image-alt"
-                    value={content.joinFun.imageAlt}
-                    onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, imageAlt: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-jf-image-alt"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                {/* Text Content */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Text Content</h3>
                   <div className="space-y-2">
-                    <Label htmlFor="jf-btn-text">Button Text</Label>
+                    <Label htmlFor="join-title">Title</Label>
                     <Input
-                      id="jf-btn-text"
-                      value={content.joinFun.buttonText}
-                      onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, buttonText: e.target.value } })}
+                      id="join-title"
+                      value={content.joinFun.title}
+                      onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, title: e.target.value } })}
                       disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-jf-btn-text"
+                      placeholder="Join In the Fun"
+                      data-testid="input-join-title"
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="jf-btn-link">Button Link</Label>
-                    <Input
-                      id="jf-btn-link"
-                      value={content.joinFun.buttonLink}
-                      onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, buttonLink: e.target.value } })}
+                    <Label htmlFor="join-subtitle">Subtitle</Label>
+                    <Textarea
+                      id="join-subtitle"
+                      value={content.joinFun.subtitle}
+                      onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, subtitle: e.target.value } })}
                       disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-jf-btn-link"
+                      placeholder="Take part in fast-paced auctions, incredible flash sales..."
+                      data-testid="input-join-subtitle"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="join-download">Download Label</Label>
+                    <Input
+                      id="join-download"
+                      value={content.joinFun.downloadText}
+                      onChange={(e) => setContent({ ...content, joinFun: { ...content.joinFun, downloadText: e.target.value } })}
+                      disabled={!canManageSettings || isDemoMode}
+                      placeholder="Download"
+                      data-testid="input-join-download"
                     />
                   </div>
                 </div>
 
                 <Separator />
 
+                {/* Images */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Features</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setContent({
-                          ...content,
-                          joinFun: {
-                            ...content.joinFun,
-                            features: [...content.joinFun.features, { icon: 'Star', title: '', description: '' }]
-                          }
-                        });
-                      }}
-                      disabled={!canManageSettings || isDemoMode}
-                      data-testid="button-add-jf-feature"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Feature
-                    </Button>
+                  <h3 className="font-semibold">Images</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Phone Screenshot</Label>
+                      <SingleImageUpload
+                        value={content.joinFun.phoneImage}
+                        onChange={(url) => setContent({ ...content, joinFun: { ...content.joinFun, phoneImage: url } })}
+                        label="Upload Phone Image"
+                        resourceKey="landing-joinfun-phone"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-[9/16]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>QR Code Image</Label>
+                      <SingleImageUpload
+                        value={content.joinFun.qrCodeImage}
+                        onChange={(url) => setContent({ ...content, joinFun: { ...content.joinFun, qrCodeImage: url } })}
+                        label="Upload QR Code"
+                        resourceKey="landing-joinfun-qrcode"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-square"
+                      />
+                    </div>
                   </div>
-
-                  {content.joinFun.features.map((feature, index) => (
-                    <Card key={index} className="p-4">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">Feature {index + 1}</h4>
-                          {content.joinFun.features.length > 1 && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                const newFeatures = content.joinFun.features.filter((_, i) => i !== index);
-                                setContent({ ...content, joinFun: { ...content.joinFun, features: newFeatures } });
-                              }}
-                              disabled={!canManageSettings || isDemoMode}
-                              data-testid={`button-remove-jf-feature-${index}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Icon</Label>
-                          <Select
-                            value={feature.icon}
-                            onValueChange={(value) => {
-                              const newFeatures = [...content.joinFun.features];
-                              newFeatures[index] = { ...newFeatures[index], icon: value };
-                              setContent({ ...content, joinFun: { ...content.joinFun, features: newFeatures } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                          >
-                            <SelectTrigger data-testid={`select-jf-feature-${index}-icon`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ICON_OPTIONS.map((icon) => (
-                                <SelectItem key={icon} value={icon}>{icon}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Title</Label>
-                          <Input
-                            value={feature.title}
-                            onChange={(e) => {
-                              const newFeatures = [...content.joinFun.features];
-                              newFeatures[index] = { ...newFeatures[index], title: e.target.value };
-                              setContent({ ...content, joinFun: { ...content.joinFun, features: newFeatures } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            data-testid={`input-jf-feature-${index}-title`}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Description</Label>
-                          <Textarea
-                            value={feature.description}
-                            onChange={(e) => {
-                              const newFeatures = [...content.joinFun.features];
-                              newFeatures[index] = { ...newFeatures[index], description: e.target.value };
-                              setContent({ ...content, joinFun: { ...content.joinFun, features: newFeatures } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            rows={2}
-                            data-testid={`input-jf-feature-${index}-description`}
-                          />
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Categories Section */}
-          <TabsContent value="categories" className="space-y-6">
+          {/* Got It All Section */}
+          <TabsContent value="got-it-all" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Categories Section</CardTitle>
+                <CardTitle>Section 3: We've Got It All (Dark Background)</CardTitle>
                 <CardDescription>
-                  Showcase your product categories
+                  Marketplace search and product discovery with phone mockup
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="cat-title">Section Title</Label>
-                  <Input
-                    id="cat-title"
-                    value={content.categories.title}
-                    onChange={(e) => setContent({ ...content, categories: { ...content.categories, title: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-cat-title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cat-subtitle">Section Subtitle</Label>
-                  <Textarea
-                    id="cat-subtitle"
-                    value={content.categories.subtitle}
-                    onChange={(e) => setContent({ ...content, categories: { ...content.categories, subtitle: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    rows={2}
-                    data-testid="input-cat-subtitle"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                {/* Text Content */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Text Content</h3>
                   <div className="space-y-2">
-                    <Label htmlFor="cat-btn-text">Button Text</Label>
+                    <Label htmlFor="got-title">Title</Label>
                     <Input
-                      id="cat-btn-text"
-                      value={content.categories.buttonText}
-                      onChange={(e) => setContent({ ...content, categories: { ...content.categories, buttonText: e.target.value } })}
+                      id="got-title"
+                      value={content.gotItAll.title}
+                      onChange={(e) => setContent({ ...content, gotItAll: { ...content.gotItAll, title: e.target.value } })}
                       disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-cat-btn-text"
+                      placeholder="We've Got It All"
+                      data-testid="input-got-title"
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="cat-btn-link">Button Link</Label>
-                    <Input
-                      id="cat-btn-link"
-                      value={content.categories.buttonLink}
-                      onChange={(e) => setContent({ ...content, categories: { ...content.categories, buttonLink: e.target.value } })}
+                    <Label htmlFor="got-subtitle">Subtitle</Label>
+                    <Textarea
+                      id="got-subtitle"
+                      value={content.gotItAll.subtitle}
+                      onChange={(e) => setContent({ ...content, gotItAll: { ...content.gotItAll, subtitle: e.target.value } })}
                       disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-cat-btn-link"
+                      placeholder="Search our marketplace to find the exact product..."
+                      data-testid="input-got-subtitle"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="got-download">Download Label</Label>
+                    <Input
+                      id="got-download"
+                      value={content.gotItAll.downloadText}
+                      onChange={(e) => setContent({ ...content, gotItAll: { ...content.gotItAll, downloadText: e.target.value } })}
+                      disabled={!canManageSettings || isDemoMode}
+                      placeholder="Download"
+                      data-testid="input-got-download"
                     />
                   </div>
                 </div>
 
                 <Separator />
 
+                {/* Images */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Category Items</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setContent({
-                          ...content,
-                          categories: {
-                            ...content.categories,
-                            items: [...content.categories.items, { name: '', image: '' }]
-                          }
-                        });
-                      }}
-                      disabled={!canManageSettings || isDemoMode}
-                      data-testid="button-add-category"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Category
-                    </Button>
+                  <h3 className="font-semibold">Images</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Phone Screenshot</Label>
+                      <SingleImageUpload
+                        value={content.gotItAll.phoneImage}
+                        onChange={(url) => setContent({ ...content, gotItAll: { ...content.gotItAll, phoneImage: url } })}
+                        label="Upload Phone Image"
+                        resourceKey="landing-gotitall-phone"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-[9/16]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>QR Code Image</Label>
+                      <SingleImageUpload
+                        value={content.gotItAll.qrCodeImage}
+                        onChange={(url) => setContent({ ...content, gotItAll: { ...content.gotItAll, qrCodeImage: url } })}
+                        label="Upload QR Code"
+                        resourceKey="landing-gotitall-qrcode"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-square"
+                      />
+                    </div>
                   </div>
-
-                  {content.categories.items.map((item, index) => (
-                    <Card key={index} className="p-4">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">Category {index + 1}</h4>
-                          {content.categories.items.length > 1 && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                const newItems = content.categories.items.filter((_, i) => i !== index);
-                                setContent({ ...content, categories: { ...content.categories, items: newItems } });
-                              }}
-                              disabled={!canManageSettings || isDemoMode}
-                              data-testid={`button-remove-category-${index}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Name</Label>
-                          <Input
-                            value={item.name}
-                            onChange={(e) => {
-                              const newItems = [...content.categories.items];
-                              newItems[index] = { ...newItems[index], name: e.target.value };
-                              setContent({ ...content, categories: { ...content.categories, items: newItems } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            data-testid={`input-category-${index}-name`}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Image URL</Label>
-                          <Input
-                            value={item.image}
-                            onChange={(e) => {
-                              const newItems = [...content.categories.items];
-                              newItems[index] = { ...newItems[index], image: e.target.value };
-                              setContent({ ...content, categories: { ...content.categories, items: newItems } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            placeholder="https://..."
-                            data-testid={`input-category-${index}-image`}
-                          />
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Brands Section */}
-          <TabsContent value="brands" className="space-y-6">
+          {/* Deals Section */}
+          <TabsContent value="deals" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Brands Section</CardTitle>
+                <CardTitle>Section 4: Find Incredible Deals (Gradient Background)</CardTitle>
                 <CardDescription>
-                  Feature trusted brands on your platform
+                  Final call-to-action with trust badge and phone mockup
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="brands-title">Section Title</Label>
-                  <Input
-                    id="brands-title"
-                    value={content.brands.title}
-                    onChange={(e) => setContent({ ...content, brands: { ...content.brands, title: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-brands-title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="brands-subtitle">Section Subtitle</Label>
-                  <Textarea
-                    id="brands-subtitle"
-                    value={content.brands.subtitle}
-                    onChange={(e) => setContent({ ...content, brands: { ...content.brands, subtitle: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    rows={2}
-                    data-testid="input-brands-subtitle"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="brands-image">Section Image URL</Label>
-                  <Input
-                    id="brands-image"
-                    value={content.brands.image}
-                    onChange={(e) => setContent({ ...content, brands: { ...content.brands, image: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    placeholder="https://..."
-                    data-testid="input-brands-image"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="brands-image-alt">Image Alt Text</Label>
-                  <Input
-                    id="brands-image-alt"
-                    value={content.brands.imageAlt}
-                    onChange={(e) => setContent({ ...content, brands: { ...content.brands, imageAlt: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-brands-image-alt"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                {/* Text Content */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Text Content</h3>
                   <div className="space-y-2">
-                    <Label htmlFor="brands-btn-text">Button Text</Label>
+                    <Label htmlFor="deals-title">Title</Label>
                     <Input
-                      id="brands-btn-text"
-                      value={content.brands.buttonText}
-                      onChange={(e) => setContent({ ...content, brands: { ...content.brands, buttonText: e.target.value } })}
+                      id="deals-title"
+                      value={content.deals.title}
+                      onChange={(e) => setContent({ ...content, deals: { ...content.deals, title: e.target.value } })}
                       disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-brands-btn-text"
+                      placeholder="Find Incredible Deals on Name Brands"
+                      data-testid="input-deals-title"
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="brands-btn-link">Button Link</Label>
-                    <Input
-                      id="brands-btn-link"
-                      value={content.brands.buttonLink}
-                      onChange={(e) => setContent({ ...content, brands: { ...content.brands, buttonLink: e.target.value } })}
+                    <Label htmlFor="deals-subtitle">Subtitle</Label>
+                    <Textarea
+                      id="deals-subtitle"
+                      value={content.deals.subtitle}
+                      onChange={(e) => setContent({ ...content, deals: { ...content.deals, subtitle: e.target.value } })}
                       disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-brands-btn-link"
+                      placeholder="From the brands you love, to hard-to-find specialty products..."
+                      data-testid="input-deals-subtitle"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="deals-btn">Button Text</Label>
+                      <Input
+                        id="deals-btn"
+                        value={content.deals.buttonText}
+                        onChange={(e) => setContent({ ...content, deals: { ...content.deals, buttonText: e.target.value } })}
+                        disabled={!canManageSettings || isDemoMode}
+                        placeholder="Start Shopping"
+                        data-testid="input-deals-btn"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="deals-link">Button Link</Label>
+                      <Input
+                        id="deals-link"
+                        value={content.deals.buttonLink}
+                        onChange={(e) => setContent({ ...content, deals: { ...content.deals, buttonLink: e.target.value } })}
+                        disabled={!canManageSettings || isDemoMode}
+                        placeholder="/signup"
+                        data-testid="input-deals-link"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="deals-trust">Trust Badge Text</Label>
+                    <Input
+                      id="deals-trust"
+                      value={content.deals.trustBadgeText}
+                      onChange={(e) => setContent({ ...content, deals: { ...content.deals, trustBadgeText: e.target.value } })}
+                      disabled={!canManageSettings || isDemoMode}
+                      placeholder="PEACE OF MIND"
+                      data-testid="input-deals-trust"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="deals-download">Download Label</Label>
+                    <Input
+                      id="deals-download"
+                      value={content.deals.downloadText}
+                      onChange={(e) => setContent({ ...content, deals: { ...content.deals, downloadText: e.target.value } })}
+                      disabled={!canManageSettings || isDemoMode}
+                      placeholder="Download"
+                      data-testid="input-deals-download"
                     />
                   </div>
                 </div>
 
                 <Separator />
 
+                {/* Images */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Brand Items</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setContent({
-                          ...content,
-                          brands: {
-                            ...content.brands,
-                            items: [...content.brands.items, { name: '', logo: '' }]
-                          }
-                        });
-                      }}
-                      disabled={!canManageSettings || isDemoMode}
-                      data-testid="button-add-brand"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Brand
-                    </Button>
-                  </div>
-
-                  {content.brands.items.map((item, index) => (
-                    <Card key={index} className="p-4">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">Brand {index + 1}</h4>
-                          {content.brands.items.length > 1 && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                const newItems = content.brands.items.filter((_, i) => i !== index);
-                                setContent({ ...content, brands: { ...content.brands, items: newItems } });
-                              }}
-                              disabled={!canManageSettings || isDemoMode}
-                              data-testid={`button-remove-brand-${index}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Name</Label>
-                          <Input
-                            value={item.name}
-                            onChange={(e) => {
-                              const newItems = [...content.brands.items];
-                              newItems[index] = { ...newItems[index], name: e.target.value };
-                              setContent({ ...content, brands: { ...content.brands, items: newItems } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            data-testid={`input-brand-${index}-name`}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Logo URL (optional)</Label>
-                          <Input
-                            value={item.logo || ''}
-                            onChange={(e) => {
-                              const newItems = [...content.brands.items];
-                              newItems[index] = { ...newItems[index], logo: e.target.value };
-                              setContent({ ...content, brands: { ...content.brands, items: newItems } });
-                            }}
-                            disabled={!canManageSettings || isDemoMode}
-                            placeholder="https://..."
-                            data-testid={`input-brand-${index}-logo`}
-                          />
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Final CTA Section */}
-          <TabsContent value="cta" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Final Call-to-Action Section</CardTitle>
-                <CardDescription>
-                  Encourage visitors to take action before leaving
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cta-title">Title</Label>
-                  <Input
-                    id="cta-title"
-                    value={content.finalCTA.title}
-                    onChange={(e) => setContent({ ...content, finalCTA: { ...content.finalCTA, title: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    data-testid="input-cta-title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cta-subtitle">Subtitle</Label>
-                  <Textarea
-                    id="cta-subtitle"
-                    value={content.finalCTA.subtitle}
-                    onChange={(e) => setContent({ ...content, finalCTA: { ...content.finalCTA, subtitle: e.target.value } })}
-                    disabled={!canManageSettings || isDemoMode}
-                    rows={2}
-                    data-testid="input-cta-subtitle"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cta-btn-text">Button Text</Label>
-                    <Input
-                      id="cta-btn-text"
-                      value={content.finalCTA.buttonText}
-                      onChange={(e) => setContent({ ...content, finalCTA: { ...content.finalCTA, buttonText: e.target.value } })}
-                      disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-cta-btn-text"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cta-btn-link">Button Link</Label>
-                    <Input
-                      id="cta-btn-link"
-                      value={content.finalCTA.buttonLink}
-                      onChange={(e) => setContent({ ...content, finalCTA: { ...content.finalCTA, buttonLink: e.target.value } })}
-                      disabled={!canManageSettings || isDemoMode}
-                      data-testid="input-cta-btn-link"
-                    />
+                  <h3 className="font-semibold">Images</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Phone Screenshot</Label>
+                      <SingleImageUpload
+                        value={content.deals.phoneImage}
+                        onChange={(url) => setContent({ ...content, deals: { ...content.deals, phoneImage: url } })}
+                        label="Upload Phone Image"
+                        resourceKey="landing-deals-phone"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-[9/16]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>QR Code Image</Label>
+                      <SingleImageUpload
+                        value={content.deals.qrCodeImage}
+                        onChange={(url) => setContent({ ...content, deals: { ...content.deals, qrCodeImage: url } })}
+                        label="Upload QR Code"
+                        resourceKey="landing-deals-qrcode"
+                        disabled={!canManageSettings || isDemoMode}
+                        aspectRatio="aspect-square"
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1044,20 +648,20 @@ export default function AdminLandingPage() {
           <TabsContent value="footer" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Footer Section</CardTitle>
+                <CardTitle>Footer</CardTitle>
                 <CardDescription>
-                  Footer content and copyright information
+                  Bottom section with links and copyright
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="footer-copyright">Copyright Text</Label>
+                  <Label htmlFor="footer-copyright">Copyright Year</Label>
                   <Input
                     id="footer-copyright"
                     value={content.footer.copyrightText}
                     onChange={(e) => setContent({ ...content, footer: { ...content.footer, copyrightText: e.target.value } })}
                     disabled={!canManageSettings || isDemoMode}
-                    placeholder="e.g., 2025"
+                    placeholder="2025"
                     data-testid="input-footer-copyright"
                   />
                 </div>

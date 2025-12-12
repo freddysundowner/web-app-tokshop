@@ -56,6 +56,7 @@ const LandingPage4 = lazy(() => import("@/pages/marketplace/landing-page-4"));
 const LandingPage5 = lazy(() => import("@/pages/marketplace/landing-page-5"));
 const LandingPage6 = lazy(() => import("@/pages/marketplace/landing-page-6"));
 const LandingPage7 = lazy(() => import("@/pages/marketplace/landing-page-7"));
+const LandingPage8 = lazy(() => import("@/pages/marketplace/landing-page-8"));
 const SellerLogin = lazy(() => import("@/pages/auth/seller-login"));
 const ShowView = lazy(() => import("@/pages/marketplace/show-view").then(module => ({ default: module.default })));
 const PrivacyPolicy = lazy(() => import("@/pages/marketplace/privacy-policy"));
@@ -161,12 +162,14 @@ function Router() {
   // Public pages that don't require authentication
   const publicPages = [
     '/',
+    '/landing-1',
     '/landing-2',
     '/landing-3',
     '/landing-4',
     '/landing-5',
     '/landing-6',
     '/landing-7',
+    '/landing-8',
     '/login',
     '/signup',
     '/seller/login',
@@ -213,37 +216,47 @@ function Router() {
     );
   }
 
+  // Check if we're on a landing page that has its own header
+  const isLandingPageWithCustomHeader = location === '/' || location === '/landing-8';
+
   // Show public pages for unauthenticated users
   if (!isAuthenticated) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <div className="flex flex-col h-screen bg-background">
-          <AppHeader 
-            hideLogo={false}
-            onMobileMenuToggle={toggleMobileMenu}
-            mobileMenuOpen={mobileMenuOpen}
-            onMobileMenuClose={closeMobileMenu}
-          />
+          {/* Hide default header on landing pages with custom headers */}
+          {!isLandingPageWithCustomHeader && (
+            <>
+              <AppHeader 
+                hideLogo={false}
+                onMobileMenuToggle={toggleMobileMenu}
+                mobileMenuOpen={mobileMenuOpen}
+                onMobileMenuClose={closeMobileMenu}
+              />
+              
+              {/* Mobile Sidebar Sheet for unauthenticated users - hide desktop version */}
+              <div className="lg:hidden">
+                <Sidebar 
+                  isCollapsed={false}
+                  onToggle={toggleSidebar}
+                  isMobileOpen={mobileMenuOpen}
+                  onMobileClose={closeMobileMenu}
+                />
+              </div>
+            </>
+          )}
           
-          {/* Mobile Sidebar Sheet for unauthenticated users - hide desktop version */}
-          <div className="lg:hidden">
-            <Sidebar 
-              isCollapsed={false}
-              onToggle={toggleSidebar}
-              isMobileOpen={mobileMenuOpen}
-              onMobileClose={closeMobileMenu}
-            />
-          </div>
-          
-          <main className="flex-1 overflow-y-auto">
+          <main className={isLandingPageWithCustomHeader ? "flex-1" : "flex-1 overflow-y-auto"}>
             <Switch>
-              <Route path="/" component={LandingPage} />
+              <Route path="/" component={LandingPage8} />
+              <Route path="/landing-1" component={LandingPage} />
               <Route path="/landing-2" component={LandingPage2} />
               <Route path="/landing-3" component={LandingPage3} />
               <Route path="/landing-4" component={LandingPage4} />
               <Route path="/landing-5" component={LandingPage5} />
               <Route path="/landing-6" component={LandingPage6} />
               <Route path="/landing-7" component={LandingPage7} />
+              <Route path="/landing-8" component={LandingPage8} />
               <Route path="/seller/login" component={SellerLogin} />
               <Route path="/login" component={Login} />
               <Route path="/signup" component={Signup} />
@@ -255,7 +268,7 @@ function Router() {
               <Route path="/knowledge-base" component={KnowledgeBase} />
               <Route path="/help-center/:slug" component={HelpArticle} />
               <Route path="/help-center" component={HelpCenter} />
-              <Route component={LandingPage} />
+              <Route component={LandingPage8} />
             </Switch>
           </main>
         </div>
