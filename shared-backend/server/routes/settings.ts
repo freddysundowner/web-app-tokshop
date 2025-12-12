@@ -143,6 +143,8 @@ export function registerSettingsRoutes(app: Express) {
         firebase_app_id: settings?.firebase_app_id || "",
         // Demo mode flag
         demoMode: settings?.demoMode || false,
+        // Age restriction flag
+        agerestricted: settings?.agerestricted || false,
       };
       
       res.json({

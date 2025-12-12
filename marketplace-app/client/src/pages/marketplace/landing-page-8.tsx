@@ -7,11 +7,25 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-// Import fallback app screenshots (used when no custom images uploaded)
-import loginScreenImg from '@assets/WhatsApp_Image_2025-12-12_at_11.30.47_1765528388738.jpeg';
-import accountScreenImg from '@assets/WhatsApp_Image_2025-12-12_at_11.30.48_(1)_1765528388738.jpeg';
-import sellerHubScreenImg from '@assets/WhatsApp_Image_2025-12-12_at_11.30.48_(2)_1765528388739.jpeg';
-import splashScreenImg from '@assets/WhatsApp_Image_2025-12-12_at_11.30.48_1765528388739.jpeg';
+// Fallback placeholder for phone screenshots (gray gradient placeholder)
+const PHONE_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(`
+  <svg width="300" height="600" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#1f2937;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grad)" rx="20"/>
+    <text x="50%" y="50%" fill="#9ca3af" font-family="system-ui" font-size="16" text-anchor="middle" dy=".3em">App Screenshot</text>
+  </svg>
+`);
+
+// Use placeholder for all fallback images
+const loginScreenImg = PHONE_PLACEHOLDER;
+const accountScreenImg = PHONE_PLACEHOLDER;
+const sellerHubScreenImg = PHONE_PLACEHOLDER;
+const splashScreenImg = PHONE_PLACEHOLDER;
 
 // Default content matching admin editor defaults
 const DEFAULT_CONTENT = {
@@ -78,16 +92,16 @@ export default function LandingPage8() {
     footer: { ...DEFAULT_CONTENT.footer, ...(landingData?.data?.footer || {}) },
   };
 
-  // Use uploaded images or fallbacks
-  const heroPhoneImage1 = content.hero.phoneImage1 || loginScreenImg;
-  const heroPhoneImage2 = content.hero.phoneImage2 || splashScreenImg;
-  const heroQrCode = content.hero.qrCodeImage;
-  const joinFunPhoneImage = content.joinFun.phoneImage || sellerHubScreenImg;
-  const joinFunQrCode = content.joinFun.qrCodeImage;
-  const gotItAllPhoneImage = content.gotItAll.phoneImage || accountScreenImg;
-  const gotItAllQrCode = content.gotItAll.qrCodeImage;
-  const dealsPhoneImage = content.deals.phoneImage || loginScreenImg;
-  const dealsQrCode = content.deals.qrCodeImage;
+  // Use uploaded images (with API base URL) or fallbacks
+  const heroPhoneImage1 = content.hero.phoneImage1 ? getImageUrl(content.hero.phoneImage1, externalApiUrl) : loginScreenImg;
+  const heroPhoneImage2 = content.hero.phoneImage2 ? getImageUrl(content.hero.phoneImage2, externalApiUrl) : splashScreenImg;
+  const heroQrCode = content.hero.qrCodeImage ? getImageUrl(content.hero.qrCodeImage, externalApiUrl) : '';
+  const joinFunPhoneImage = content.joinFun.phoneImage ? getImageUrl(content.joinFun.phoneImage, externalApiUrl) : sellerHubScreenImg;
+  const joinFunQrCode = content.joinFun.qrCodeImage ? getImageUrl(content.joinFun.qrCodeImage, externalApiUrl) : '';
+  const gotItAllPhoneImage = content.gotItAll.phoneImage ? getImageUrl(content.gotItAll.phoneImage, externalApiUrl) : accountScreenImg;
+  const gotItAllQrCode = content.gotItAll.qrCodeImage ? getImageUrl(content.gotItAll.qrCodeImage, externalApiUrl) : '';
+  const dealsPhoneImage = content.deals.phoneImage ? getImageUrl(content.deals.phoneImage, externalApiUrl) : loginScreenImg;
+  const dealsQrCode = content.deals.qrCodeImage ? getImageUrl(content.deals.qrCodeImage, externalApiUrl) : '';
 
   // Convert theme colors from AARRGGBB to #RRGGBB format
   const primaryColor = theme.primary_color ? `#${theme.primary_color.slice(2)}` : '#F43F5E';
@@ -279,7 +293,7 @@ export default function LandingPage8() {
                   <Button 
                     size="lg" 
                     variant="outline" 
-                    className="border-white text-white hover:bg-white/10 rounded-full px-8"
+                    className="border-black/50 bg-black/20 text-white hover:bg-black/30 rounded-full px-8 backdrop-blur-sm"
                     data-testid="button-browse"
                   >
                     {content.hero.secondaryButtonText}

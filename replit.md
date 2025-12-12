@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Monorepo Structure
 
-The project is structured as a monorepo containing `/client` (Admin App), `/marketplace-app` (Marketplace App), and a `/shared-backend`. This separation allows for independent development and deployment while facilitating code sharing.
+The project is structured as a monorepo containing `/admin-app` (Admin App), `/marketplace-app` (Marketplace App), and a `/shared-backend`. The Marketplace App is the default application that runs on port 5000. To switch to the Admin App, edit `server/index.ts` and change `marketplaceAppDir` to `adminAppDir`. This separation allows for independent development and deployment while facilitating code sharing.
 
 ### Frontend Architecture
 

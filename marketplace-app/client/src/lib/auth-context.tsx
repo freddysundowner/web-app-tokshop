@@ -21,6 +21,7 @@ interface User {
   authProvider?: 'email' | 'google' | 'apple'; // Track how user signed up
   address?: any; // Shipping address from Tokshop API
   defaultpaymentmethod?: any; // Default payment method from Tokshop API
+  above_age?: boolean; // User has confirmed they are over 18
 }
 
 interface AuthContextType {
@@ -30,6 +31,7 @@ interface AuthContextType {
   pendingSocialAuth: boolean;
   pendingSocialAuthEmail: string | null;
   pendingSocialAuthData: FirebaseUser | null;
+  showAgeVerification: boolean;
   login: (email: string, password: string) => Promise<void>;
   emailLogin: (email: string, password: string) => Promise<void>;
   emailSignup: (email: string, password: string, firstname: string, lastname: string, username: string, phone: string, country: string) => Promise<void>;
@@ -39,6 +41,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshUserData: () => Promise<{ address: any; defaultpaymentmethod: any } | null>;
+  confirmAge: () => Promise<void>;
+  declineAge: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -50,12 +54,13 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   console.log('[AuthProvider] Initializing AuthProvider');
   
-  const { isFirebaseReady } = useSettings();
+  const { isFirebaseReady, settings } = useSettings();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingSocialAuth, setPendingSocialAuth] = useState(false);
   const [pendingSocialAuthEmail, setPendingSocialAuthEmail] = useState<string | null>(null);
   const [pendingSocialAuthData, setPendingSocialAuthData] = useState<FirebaseUser | null>(null);
+  const [showAgeVerification, setShowAgeVerification] = useState(false);
   const isProcessingRef = useRef(false);
   const hasCheckedAuth = useRef(false);
   const lastRefreshTime = useRef<number>(0);
@@ -172,7 +177,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           admin: tokshopResponse.data.admin || false,
           authProvider: authType as 'google' | 'apple',
           address: tokshopResponse.data.address,
-          defaultpaymentmethod: tokshopResponse.data.defaultpaymentmethod
+          defaultpaymentmethod: tokshopResponse.data.defaultpaymentmethod,
+          above_age: tokshopResponse.data.above_age || false
         };
         
         setUser(userData);
@@ -233,7 +239,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           admin: loginResponse.data.admin || false,
           authProvider: 'email' as const,
           address: loginResponse.data.address,
-          defaultpaymentmethod: loginResponse.data.defaultpaymentmethod
+          defaultpaymentmethod: loginResponse.data.defaultpaymentmethod,
+          above_age: loginResponse.data.above_age || false
         };
         
         setUser(userData);
@@ -282,7 +289,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           admin: signupResponse.data.admin || false,
           authProvider: 'email' as const,
           address: signupResponse.data.address,
-          defaultpaymentmethod: signupResponse.data.defaultpaymentmethod
+          defaultpaymentmethod: signupResponse.data.defaultpaymentmethod,
+          above_age: signupResponse.data.above_age || false
         };
         
         setUser(userData);
@@ -411,7 +419,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           admin: completeResponse.data.admin || false,
           authProvider: authType as 'google' | 'apple',
           address: completeResponse.data.address,
-          defaultpaymentmethod: completeResponse.data.defaultpaymentmethod
+          defaultpaymentmethod: completeResponse.data.defaultpaymentmethod,
+          above_age: completeResponse.data.above_age || false
         };
         
         setUser(userData);
@@ -504,13 +513,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const userData = JSON.parse(storedUser);
           console.log('[checkAuth] Setting user from localStorage:', userData.id);
           
-          // Ensure address and defaultpaymentmethod fields always exist (even if null)
+          // Ensure address, defaultpaymentmethod, and above_age fields always exist (even if null)
           // This prevents unnecessary API calls when these fields weren't in old localStorage data
           if (!('address' in userData)) {
             userData.address = null;
           }
           if (!('defaultpaymentmethod' in userData)) {
             userData.defaultpaymentmethod = null;
+          }
+          if (!('above_age' in userData)) {
+            userData.above_age = false;
           }
           
           // Save updated user data back to localStorage with the new fields
@@ -582,7 +594,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 shipping_settings: profileData.shipping_settings || userData.shipping_settings,
                 notification_settings: profileData.notification_settings || userData.notification_settings,
                 address: defaultAddress,
-                defaultpaymentmethod: defaultPaymentMethod
+                defaultpaymentmethod: defaultPaymentMethod,
+                // Preserve above_age: if local is true, keep it (user confirmed), otherwise use API value
+                above_age: userData.above_age === true ? true : (profileData.above_age ?? false)
               };
               
               setUser(updatedUser);
@@ -616,12 +630,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (storedUser) {
         try {
           const userData = JSON.parse(storedUser);
-          // Ensure address and defaultpaymentmethod fields always exist
+          // Ensure address, defaultpaymentmethod, and above_age fields always exist
           if (!('address' in userData)) {
             userData.address = null;
           }
           if (!('defaultpaymentmethod' in userData)) {
             userData.defaultpaymentmethod = null;
+          }
+          if (!('above_age' in userData)) {
+            userData.above_age = false;
           }
           // Save updated user data back to localStorage with the new fields
           localStorage.setItem('user', JSON.stringify(userData));
@@ -748,6 +765,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => unsubscribe();
   }, [isFirebaseReady]);
 
+  // Check if age verification is needed when user is authenticated
+  const checkAgeVerification = useCallback(() => {
+    if (user && settings.agerestricted && !user.above_age) {
+      console.log('[AgeVerification] Age restricted content, user has not confirmed age');
+      setShowAgeVerification(true);
+    } else {
+      setShowAgeVerification(false);
+    }
+  }, [user, settings.agerestricted]);
+
+  // Run age verification check when user changes
+  useEffect(() => {
+    checkAgeVerification();
+  }, [checkAgeVerification]);
+
+  // Confirm user is over 18
+  const confirmAge = async () => {
+    if (!user) return;
+    
+    try {
+      // Call existing user profile update endpoint
+      const response = await apiRequest('PATCH', '/api/users/profile', { above_age: true });
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update local user state
+        const updatedUser = { ...user, above_age: true };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setShowAgeVerification(false);
+        console.log('[AgeVerification] User confirmed they are over 18');
+      } else {
+        throw new Error(data.message || 'Failed to confirm age');
+      }
+    } catch (error) {
+      console.error('[AgeVerification] Error confirming age:', error);
+      throw error;
+    }
+  };
+
+  // Decline age verification - log user out
+  const declineAge = async () => {
+    console.log('[AgeVerification] User declined age verification, logging out');
+    setShowAgeVerification(false);
+    await logout();
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -755,6 +819,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     pendingSocialAuth,
     pendingSocialAuthEmail,
     pendingSocialAuthData,
+    showAgeVerification,
     login,
     emailLogin,
     emailSignup,
@@ -764,6 +829,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     checkAuth,
     refreshUserData,
+    confirmAge,
+    declineAge,
   };
 
   return (

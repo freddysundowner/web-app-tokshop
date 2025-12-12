@@ -1,230 +1,100 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 export function AgeVerificationDialog() {
-  const { user, logout, refreshUserData } = useAuth();
+  const { showAgeVerification, confirmAge, declineAge } = useAuth();
   const { settings } = useSettings();
   const { toast } = useToast();
-  const [showDialog, setShowDialog] = useState(false);
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // Only perform age verification if agerestricted is enabled in settings
-    if (!settings.agerestricted) {
-      console.log('[AgeVerification] Age restriction disabled in settings');
-      return;
-    }
-
-    if (!user) {
-      console.log('[AgeVerification] No user logged in');
-      return;
-    }
-
-    console.log('[AgeVerification] User data:', {
-      userId: user.id,
-      date_of_birth: user.date_of_birth,
-      hasDateOfBirth: !!user.date_of_birth
-    });
-
-    // Check if user has set date_of_birth
-    if (!user.date_of_birth) {
-      console.log('[AgeVerification] No date_of_birth found - showing dialog');
-      setShowDialog(true);
-      return;
-    }
-
-    // Calculate age
-    const birthDate = new Date(user.date_of_birth);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    // Adjust age if birthday hasn't occurred this year yet
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-
-    console.log('[AgeVerification] Age calculated:', {
-      birthDate: user.date_of_birth,
-      age,
-      isOver18: age >= 18
-    });
-
-    // If under 18, log them out immediately
-    if (age < 18) {
-      console.log('[AgeVerification] User is under 18 - logging out');
-      toast({
-        title: "Age Requirement Not Met",
-        description: "You must be at least 18 years old to use this platform.",
-        variant: "destructive",
-      });
-      
-      setTimeout(() => {
-        logout();
-      }, 2000);
-    } else {
-      console.log('[AgeVerification] User is 18+ - no action needed');
-    }
-  }, [user, logout, toast, settings.agerestricted]);
-
-  const handleSubmit = async () => {
-    if (!dateOfBirth) {
-      toast({
-        title: "Date Required",
-        description: "Please enter your date of birth to continue.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate date format and that it's not in the future
-    const birthDate = new Date(dateOfBirth);
-    const today = new Date();
-    
-    if (isNaN(birthDate.getTime())) {
-      toast({
-        title: "Invalid Date",
-        description: "Please enter a valid date.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (birthDate > today) {
-      toast({
-        title: "Invalid Date",
-        description: "Date of birth cannot be in the future.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Calculate age
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-
-    // Check if under 18
-    if (age < 18) {
-      toast({
-        title: "Age Requirement Not Met",
-        description: "You must be at least 18 years old to use this platform.",
-        variant: "destructive",
-      });
-      
-      setTimeout(() => {
-        logout();
-      }, 2000);
-      return;
-    }
-
-    // Update user profile with date of birth
+  const handleConfirm = async () => {
+    setIsLoading(true);
     try {
-      setIsSubmitting(true);
-      
-      const userId = user?.id;
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-
-      const response = await apiRequest('PUT', `/api/users/${userId}`, {
-        date_of_birth: dateOfBirth,
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update date of birth');
-      }
-
-      // Update localStorage with new user data
-      if (result.data) {
-        const currentUser = localStorage.getItem('user');
-        if (currentUser) {
-          const updatedUser = {
-            ...JSON.parse(currentUser),
-            date_of_birth: dateOfBirth,
-          };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-      }
-
-      // Refresh user data
-      await refreshUserData();
-
+      await confirmAge();
       toast({
-        title: "Date of Birth Set",
-        description: "Your date of birth has been recorded.",
+        title: "Age Verified",
+        description: "Thank you for confirming your age.",
       });
-
-      setShowDialog(false);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update';
+      console.error('Failed to confirm age:', error);
       toast({
-        title: "Update Failed",
-        description: errorMessage,
+        title: "Verification Failed",
+        description: "Failed to verify your age. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    setIsLoading(true);
+    try {
+      toast({
+        title: "Age Requirement Not Met",
+        description: "You must be at least 18 years old to use this platform.",
+        variant: "destructive",
+      });
+      await declineAge();
+    } catch (error) {
+      console.error('Failed to decline age:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <AlertDialog open={showDialog}>
-      <AlertDialogContent className="max-w-md">
+    <AlertDialog open={showAgeVerification}>
+      <AlertDialogContent className="max-w-md" data-testid="dialog-age-verification">
         <AlertDialogHeader>
-          <AlertDialogTitle>Age Verification Required</AlertDialogTitle>
-          <AlertDialogDescription>
-            To continue using this platform, please provide your date of birth. You must be at least 18 years old.
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-500" />
+            </div>
+            <AlertDialogTitle className="text-xl">Age Verification Required</AlertDialogTitle>
+          </div>
+          <AlertDialogDescription className="text-base">
+            {settings.app_name || 'This platform'} contains age-restricted content. By continuing, you confirm that you are 18 years of age or older.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
-        <div className="space-y-2 py-4">
-          <Label htmlFor="date-of-birth">Date of Birth</Label>
-          <Input
-            id="date-of-birth"
-            type="date"
-            value={dateOfBirth}
-            onChange={(e) => setDateOfBirth(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
-            disabled={isSubmitting}
-            data-testid="input-date-of-birth"
-          />
+        <div className="py-4">
+          <p className="text-sm text-muted-foreground">
+            If you are under 18, you will be logged out and unable to access this content.
+          </p>
         </div>
-
         <AlertDialogFooter>
-          <AlertDialogAction
-            onClick={handleSubmit}
-            disabled={isSubmitting || !dateOfBirth}
-            data-testid="button-submit-dob"
+          <AlertDialogCancel 
+            onClick={handleDecline} 
+            disabled={isLoading}
+            data-testid="button-age-decline"
           >
-            {isSubmitting ? (
+            I am under 18
+          </AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleConfirm} 
+            disabled={isLoading}
+            data-testid="button-age-confirm"
+          >
+            {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting...
+                Confirming...
               </>
             ) : (
-              'Continue'
+              'I am 18 or older'
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
