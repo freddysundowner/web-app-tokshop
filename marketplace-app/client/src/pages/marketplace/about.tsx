@@ -45,7 +45,7 @@ export default function AboutUs() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main className="w-full px-6 py-12">
         <h1 className="text-4xl font-bold mb-4" data-testid="text-about-title">
           {content.title}
         </h1>

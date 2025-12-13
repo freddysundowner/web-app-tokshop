@@ -10,6 +10,28 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Admin authorization middleware
 function requireAdmin(req: any, res: any, next: any) {
+  // Try to restore session from headers if session is empty
+  if (!req.session?.user) {
+    const accessToken = req.headers['x-admin-token'] as string ||
+                       req.headers['x-access-token'] as string ||
+                       (req.headers['authorization']?.startsWith('Bearer ') ? 
+                        req.headers['authorization'].substring(7) : null);
+    
+    const userDataHeader = req.headers['x-user-data'];
+    
+    if (accessToken && userDataHeader) {
+      try {
+        const decoded = decodeURIComponent(userDataHeader as string);
+        const userData = JSON.parse(decoded);
+        // Restore session from headers
+        req.session.user = userData;
+        req.session.accessToken = accessToken;
+      } catch (e) {
+        // Failed to parse user data, continue with regular check
+      }
+    }
+  }
+
   // Only rely on server-side session data, never trust client headers
   if (!req.session?.user) {
     return res.status(401).json({
@@ -65,7 +87,7 @@ async function checkDemoMode(req: any, res: any, next: any) {
       return next();
     }
 
-    const url = `${BASE_URL}/admin/app/settings`;
+    const url = `${BASE_URL}/settings`;
     
     const response = await fetch(url, {
       method: "GET",
@@ -915,7 +937,7 @@ export function registerAdminRoutes(app: Express) {
       // Send approval email to the seller
       try {
         // Fetch app settings for email configuration
-        const settingsUrl = `${BASE_URL}/admin/app/settings`;
+        const settingsUrl = `${BASE_URL}/settings`;
         const settingsResponse = await fetch(settingsUrl, {
           method: "GET",
           headers: {
@@ -1540,7 +1562,7 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const url = `${BASE_URL}/admin/app/settings`;
+      const url = `${BASE_URL}/settings`;
       
       const response = await fetch(url, {
         method: "GET",
@@ -1583,7 +1605,7 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const url = `${BASE_URL}/admin/app/settings`;
+      const url = `${BASE_URL}/settings`;
       console.log(`Fetching app settings from: ${url}`);
       
       const response = await fetch(url, {
@@ -1629,7 +1651,7 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const url = `${BASE_URL}/admin/app/settings`;
+      const url = `${BASE_URL}/settings`;
       console.log(`Updating app settings at: ${url}`);
       
       const response = await fetch(url, {
@@ -1867,10 +1889,73 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  // Upload header logo for landing page (uses /themes/upload-resource with key "header_logo")
+  app.post("/api/themes/upload-header-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
+    try {
+      // Accept token from multiple sources: headers or session
+      const accessToken = req.headers['x-admin-token'] as string ||
+                         req.headers['x-access-token'] as string ||
+                         req.session.accessToken || 
+                         (req.headers['authorization']?.startsWith('Bearer ') ? 
+                          req.headers['authorization'].substring(7) : null);
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "No logo file uploaded",
+        });
+      }
+
+      const formData = new FormData();
+      formData.append('key', 'header_logo');
+      formData.append('resource', req.file.buffer, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
+
+      const url = `${BASE_URL}/themes/upload-resource`;
+      console.log(`Uploading header logo to resources: ${url}`);
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      });
+
+      res.json({
+        success: true,
+        data: { header_logo: response.data.url || response.data.key },
+        message: "Header logo uploaded successfully",
+      });
+    } catch (error: any) {
+      console.error("Error uploading header logo:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to upload header logo",
+        details: error.response?.data || error.message,
+      });
+    }
+  });
+
   // Upload theme resource image (POST to /themes/upload-resource)
   app.post("/api/themes/upload-resource", requireAdmin, checkDemoMode, upload.single('file'), async (req, res) => {
     try {
-      const accessToken = req.session.accessToken;
+      // Accept token from multiple sources: headers or session
+      const accessToken = req.headers['x-admin-token'] as string ||
+                         req.headers['x-access-token'] as string ||
+                         req.session.accessToken || 
+                         (req.headers['authorization']?.startsWith('Bearer ') ? 
+                          req.headers['authorization'].substring(7) : null);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -3308,7 +3393,7 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       // Fetch email settings
-      const settingsUrl = `${BASE_URL}/admin/app/settings`;
+      const settingsUrl = `${BASE_URL}/settings`;
       const settingsResponse = await fetch(settingsUrl, {
         method: "GET",
         headers: {
@@ -3544,7 +3629,7 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       // Fetch email settings
-      const settingsUrl = `${BASE_URL}/admin/app/settings`;
+      const settingsUrl = `${BASE_URL}/settings`;
       const settingsResponse = await fetch(settingsUrl, {
         method: "GET",
         headers: {
@@ -4064,7 +4149,7 @@ Thank you for using ${appName}!
 
   app.get("/api/theme-colors", async (req, res) => {
     try {
-      const url = `${BASE_URL}/admin/app/settings`;
+      const url = `${BASE_URL}/settings`;
       
       const response = await fetch(url, {
         method: "GET",

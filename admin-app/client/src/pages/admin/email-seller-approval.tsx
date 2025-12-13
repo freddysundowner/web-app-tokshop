@@ -18,7 +18,7 @@ export default function EmailSellerApproval() {
   const [sellerApprovalBody, setSellerApprovalBody] = useState("");
 
   const { data: settingsData } = useQuery<any>({
-    queryKey: ['/api/admin/settings'],
+    queryKey: ['/api/settings'],
   });
 
   const settings = settingsData?.data || settingsData;
@@ -41,10 +41,10 @@ export default function EmailSellerApproval() {
 
   const saveTemplatesMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/admin/settings", data);
+      return apiRequest("POST", "/api/settings", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/settings'] });
       toast({
         title: "Email template saved",
         description: "Seller approval email has been updated successfully",

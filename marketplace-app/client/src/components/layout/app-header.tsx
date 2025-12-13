@@ -28,7 +28,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobileMenuClose, hideLogo = false, hideNavigation = false, hideSearch = false, isDashboard = false }: AppHeaderProps) {
-  const { settings } = useSettings();
+  const { settings, theme } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
   const [, setLocation] = useLocation();
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
@@ -188,12 +188,22 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
             {!hideLogo && (
               <Link href="/" data-testid="link-home">
                 <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 sm:h-7 sm:w-7 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-xs sm:text-sm">
-                      {settings.app_name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className={`text-base sm:text-lg font-bold hidden sm:inline ${isShowPage ? 'text-white' : 'text-foreground'}`}>{settings.app_name}</span>
+                  {theme.app_logo ? (
+                    <img 
+                      src={theme.app_logo.startsWith('http') ? theme.app_logo : `https://api.iconaapp.com${theme.app_logo}`}
+                      alt={settings.app_name || 'Logo'}
+                      className="h-7 sm:h-8 w-auto object-contain"
+                    />
+                  ) : (
+                    <>
+                      <div className="h-6 w-6 sm:h-7 sm:w-7 bg-primary rounded-full flex items-center justify-center">
+                        <span className="text-primary-foreground font-bold text-xs sm:text-sm">
+                          {settings.app_name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className={`text-base sm:text-lg font-bold hidden sm:inline ${isShowPage ? 'text-white' : 'text-foreground'}`}>{settings.app_name}</span>
+                    </>
+                  )}
                 </div>
               </Link>
             )}

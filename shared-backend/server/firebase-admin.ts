@@ -46,7 +46,7 @@ async function initializeFirebaseAdmin(): Promise<App> {
       }
     };
 
-    const response = await fetchWithTimeout(`${BASE_URL}/admin/app/settings`, 5000);
+    const response = await fetchWithTimeout(`${BASE_URL}/settings`, 5000);
     
     if (!response.ok) {
       throw new Error('Failed to fetch Firebase config from settings API');

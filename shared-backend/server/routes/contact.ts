@@ -24,7 +24,7 @@ export function registerContactRoutes(app: Express): void {
 
       console.log(`[Contact Form] Received submission from: ${email}`);
 
-      const settingsUrl = `${BASE_URL}/admin/app/settings`;
+      const settingsUrl = `${BASE_URL}/settings`;
       console.log(`[Contact Form] Fetching settings from: ${settingsUrl}`);
       
       const settingsResponse = await fetch(settingsUrl, {

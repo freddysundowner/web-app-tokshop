@@ -37,12 +37,16 @@ export function registerSettingsRoutes(app: Express) {
             button_color: "FF000000",
             button_text_color: "FFFFFFFF",
             app_logo: "",
+            header_logo: "",
           },
         });
       }
 
       const data = await response.json();
       const themes = Array.isArray(data) ? data[0] : data;
+      
+      // Log raw theme data to see what fields are available
+      console.log('Raw theme data from API:', JSON.stringify(themes, null, 2));
       
       res.json({
         success: true,
@@ -54,6 +58,10 @@ export function registerSettingsRoutes(app: Express) {
           button_color: themes?.button_color || "FF000000",
           button_text_color: themes?.button_text_color || "FFFFFFFF",
           app_logo: themes?.app_logo || "",
+          header_logo: themes?.header_logo || "",
+          // Legal URLs from themes
+          privacy_url: themes?.privacy_url || themes?.privacyUrl || "",
+          terms_url: themes?.terms_url || themes?.termsUrl || "",
         },
       });
     } catch (error: any) {
@@ -69,6 +77,7 @@ export function registerSettingsRoutes(app: Express) {
           button_color: "FF000000",
           button_text_color: "FFFFFFFF",
           app_logo: "",
+          header_logo: "",
         },
       });
     }
@@ -79,7 +88,7 @@ export function registerSettingsRoutes(app: Express) {
     try {
       // For public settings, we need to fetch without requiring user authentication
       // We'll use a system-level access if available, or make it public on the API
-      const url = `${BASE_URL}/admin/app/settings`;
+      const url = `${BASE_URL}/settings`;
       console.log(`Fetching public app settings from: ${url}`);
       
       // Try to get access token from session if available
@@ -100,7 +109,8 @@ export function registerSettingsRoutes(app: Express) {
 
       if (!response.ok) {
         // Return default values if API fails
-        console.warn(`Failed to fetch settings from API, using defaults`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.warn(`Failed to fetch settings from API (${response.status}): ${errorText}, using defaults`);
         return res.json({
           success: true,
           data: {
@@ -145,6 +155,9 @@ export function registerSettingsRoutes(app: Express) {
         demoMode: settings?.demoMode || false,
         // Age restriction flag
         agerestricted: settings?.agerestricted || false,
+        // Legal page URLs
+        privacy_url: settings?.privacy_url || "",
+        terms_url: settings?.terms_url || "",
       };
       
       res.json({
@@ -172,6 +185,102 @@ export function registerSettingsRoutes(app: Express) {
           firebase_app_id: "1:167886286942:web:f13314bc30af1005e384cf",
           demoMode: false,
         },
+      });
+    }
+  });
+
+  // Get full app settings (requires auth via session)
+  app.get("/api/settings/full", async (req, res) => {
+    try {
+      const accessToken = req.session?.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/settings`;
+      console.log(`Fetching full app settings from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: "Failed to fetch app settings",
+        });
+      }
+
+      const data = await response.json();
+      
+      res.json({
+        success: true,
+        data: Array.isArray(data) ? data[0] : data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching full app settings:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch app settings",
+        details: error.message,
+      });
+    }
+  });
+
+  // Update app settings (requires auth via session)
+  app.post("/api/settings", async (req, res) => {
+    try {
+      const accessToken = req.session?.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/settings`;
+      console.log(`Updating app settings at: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Settings update error:", errorData);
+        return res.status(response.status).json({
+          success: false,
+          error: "Failed to update app settings",
+          details: errorData,
+        });
+      }
+
+      const data = await response.json();
+      
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error updating app settings:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update app settings",
+        details: error.message,
       });
     }
   });

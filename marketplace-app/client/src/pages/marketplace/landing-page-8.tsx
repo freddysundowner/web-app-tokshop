@@ -30,8 +30,8 @@ const splashScreenImg = PHONE_PLACEHOLDER;
 // Default content matching admin editor defaults
 const DEFAULT_CONTENT = {
   hero: {
-    title: 'The Live Shopping Marketplace',
-    subtitle: 'Shop, sell, and connect around the things you love.',
+    title: 'Your Live Commerce Destination',
+    subtitle: 'Discover, trade, and engage with communities you care about.',
     primaryButtonText: 'Get Started',
     primaryButtonLink: '/signup',
     secondaryButtonText: 'Browse Shows',
@@ -42,26 +42,26 @@ const DEFAULT_CONTENT = {
     qrCodeImage: ''
   },
   joinFun: {
-    title: 'Join In the Fun',
-    subtitle: 'Take part in fast-paced auctions, incredible flash sales, live show giveaways, and so much more.',
+    title: 'Experience the Thrill',
+    subtitle: 'Dive into exciting bidding wars, exclusive drops, special promotions, and countless other surprises.',
     downloadText: 'Download',
     phoneImage: '',
     qrCodeImage: ''
   },
   gotItAll: {
-    title: "We've Got It All",
-    subtitle: 'Search our marketplace to find the exact product you\'re looking for',
+    title: "Everything You Need",
+    subtitle: 'Browse our collection to discover precisely what you have been searching for',
     downloadText: 'Download',
     phoneImage: '',
     qrCodeImage: ''
   },
   deals: {
-    title: 'Find Incredible Deals on Name Brands',
-    subtitle: "From the brands you love, to hard-to-find specialty products. There's a deal on whatever you're looking for.",
+    title: 'Score Amazing Prices on Top Brands',
+    subtitle: "From popular favorites to rare collector items. Great savings await on anything you desire.",
     buttonText: 'Start Shopping',
     buttonLink: '/signup',
     downloadText: 'Download',
-    trustBadgeText: 'PEACE OF MIND',
+    trustBadgeText: 'SHOP CONFIDENTLY',
     phoneImage: '',
     qrCodeImage: ''
   },
@@ -83,7 +83,7 @@ export default function LandingPage8() {
     queryKey: ['/api/content/landing'],
   });
 
-  // Merge API content with defaults
+  // Merge API content with defaults - API always takes precedence
   const content = {
     hero: { ...DEFAULT_CONTENT.hero, ...(landingData?.data?.hero || {}) },
     joinFun: { ...DEFAULT_CONTENT.joinFun, ...(landingData?.data?.joinFun || {}) },
@@ -106,7 +106,8 @@ export default function LandingPage8() {
   // Convert theme colors from AARRGGBB to #RRGGBB format
   const primaryColor = theme.primary_color ? `#${theme.primary_color.slice(2)}` : '#F43F5E';
   const secondaryColor = theme.secondary_color ? `#${theme.secondary_color.slice(2)}` : '#0D9488';
-  const appLogo = getImageUrl(theme.app_logo, externalApiUrl);
+  // Use header_logo for landing page header if available, fall back to app_logo
+  const headerLogo = theme.header_logo ? getImageUrl(theme.header_logo, externalApiUrl) : getImageUrl(theme.app_logo, externalApiUrl);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -174,8 +175,8 @@ export default function LandingPage8() {
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <Link href="/">
             <div className="flex items-center cursor-pointer" data-testid="link-logo">
-              {appLogo ? (
-                <img src={appLogo} alt={settings.app_name} className="h-20 sm:h-24 object-contain" />
+              {headerLogo ? (
+                <img src={headerLogo} alt={settings.app_name} className="h-20 sm:h-24 object-contain" />
               ) : (
                 <div 
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center"
@@ -188,7 +189,7 @@ export default function LandingPage8() {
           </Link>
           
           <nav className="flex items-center gap-3 sm:gap-4">
-            <Link href="/seller/login">
+            <Link href="/signup">
               <span className="text-sm font-medium text-black dark:text-white hover:opacity-70 transition-opacity cursor-pointer hidden sm:inline" data-testid="link-become-seller">
                 Become a Seller
               </span>
@@ -573,8 +574,20 @@ export default function LandingPage8() {
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-white/60">
-                <li><Link href="/privacy"><span className="hover:text-white cursor-pointer">Privacy Policy</span></Link></li>
-                <li><Link href="/terms"><span className="hover:text-white cursor-pointer">Terms of Service</span></Link></li>
+                <li>
+                  {theme.privacy_url ? (
+                    <a href={theme.privacy_url} target="_blank" rel="noopener noreferrer" className="hover:text-white cursor-pointer">Privacy Policy</a>
+                  ) : (
+                    <Link href="/privacy"><span className="hover:text-white cursor-pointer">Privacy Policy</span></Link>
+                  )}
+                </li>
+                <li>
+                  {theme.terms_url ? (
+                    <a href={theme.terms_url} target="_blank" rel="noopener noreferrer" className="hover:text-white cursor-pointer">Terms of Service</a>
+                  ) : (
+                    <Link href="/terms"><span className="hover:text-white cursor-pointer">Terms of Service</span></Link>
+                  )}
+                </li>
               </ul>
             </div>
           </div>

@@ -19,6 +19,8 @@ interface AppSettings {
   commission_rate: number;
   firebase_config?: FirebaseConfig;
   agerestricted?: boolean;
+  privacy_url?: string;
+  terms_url?: string;
 }
 
 interface ThemeSettings {
@@ -29,6 +31,9 @@ interface ThemeSettings {
   button_color: string;
   button_text_color: string;
   app_logo: string;
+  header_logo: string;
+  privacy_url?: string;
+  terms_url?: string;
 }
 
 interface SettingsContextType {
@@ -57,6 +62,7 @@ const defaultTheme: ThemeSettings = {
   button_color: 'FF000000',
   button_text_color: 'FFFFFFFF',
   app_logo: '',
+  header_logo: '',
 };
 
 const SettingsContext = createContext<SettingsContextType>({

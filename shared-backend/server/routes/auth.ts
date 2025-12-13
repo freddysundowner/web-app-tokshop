@@ -1829,7 +1829,7 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      const url = `${BASE_URL}/admin/app/settings`;
+      const url = `${BASE_URL}/settings`;
       console.log(`Fetching public settings from: ${url}`);
       
       const response = await fetch(url, {

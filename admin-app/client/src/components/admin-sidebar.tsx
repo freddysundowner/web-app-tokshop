@@ -273,7 +273,7 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
 
   // Fetch settings to get the app name
   const { data: settingsData } = useQuery<any>({
-    queryKey: ['/api/admin/settings'],
+    queryKey: ['/api/settings'],
   });
 
   const settings = settingsData?.data || settingsData;

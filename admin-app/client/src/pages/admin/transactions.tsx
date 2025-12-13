@@ -88,7 +88,7 @@ export default function AdminTransactions() {
   const { data: settingsData } = useQuery<any>({
     queryKey: ['admin-settings'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/settings', {
+      const response = await fetch('/api/settings', {
         credentials: 'include',
         headers: getAuthHeaders(),
       });

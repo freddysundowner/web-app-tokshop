@@ -20,7 +20,7 @@ export default function EmailUpdate() {
   const [updateRecipientEmail, setUpdateRecipientEmail] = useState("");
 
   const { data: settingsData } = useQuery<any>({
-    queryKey: ['/api/admin/settings'],
+    queryKey: ['/api/settings'],
   });
 
   const settings = settingsData?.data || settingsData;

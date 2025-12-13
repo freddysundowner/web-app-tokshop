@@ -24,7 +24,7 @@ export default function AdminSettings() {
   const { externalApiUrl } = useApiConfig();
 
   const { data: settingsData, isLoading } = useQuery<any>({
-    queryKey: ['/api/admin/settings'],
+    queryKey: ['/api/settings/full'],
   });
 
   const settings = settingsData?.data || settingsData;
@@ -45,19 +45,20 @@ export default function AdminSettings() {
   const [formData, setFormData] = useState({
     app_name: '',
     seo_title: '',
+    website_url: '',
+    privacy_url: '',
+    terms_url: '',
+    demoMode: false,
     commission: '',
     stripe_fee: '',
     extra_charges: '',
     currency: '$',
     support_email: '',
     forceUpdate: false,
-    demoMode: false,
     seller_auto_approve: true,
     appVersion: '',
     androidVersion: '',
     iosVersion: '',
-    privacy_url: '',
-    terms_url: '',
     FIREBASE_API_KEY: '',
     firebase_auth_domain: '',
     firebase_project_id: '',
@@ -77,12 +78,12 @@ export default function AdminSettings() {
   const [themeFormData, setThemeFormData] = useState({
     app_name: '',
     slogan: '',
-    website_url: '',
     primary_color: '',
     secondary_color: '',
     button_color: '',
     button_text_color: '',
     app_logo: '',
+    header_logo: '',
   });
   const [isSavingTheme, setIsSavingTheme] = useState(false);
 
@@ -91,19 +92,20 @@ export default function AdminSettings() {
     setFormData({
       app_name: settings?.app_name || '',
       seo_title: settings?.seo_title || '',
+      website_url: settings?.website_url || '',
+      privacy_url: settings?.privacy_url || '',
+      terms_url: settings?.terms_url || '',
+      demoMode: settings?.demoMode || false,
       commission: settings?.commission || '',
       stripe_fee: settings?.stripe_fee || '',
       extra_charges: settings?.extra_charges || '',
       currency: settings?.currency || '$',
       support_email: settings?.support_email || '',
       forceUpdate: settings?.forceUpdate || false,
-      demoMode: settings?.demoMode || false,
       seller_auto_approve: settings?.seller_auto_approve !== undefined ? settings.seller_auto_approve : true,
       appVersion: settings?.appVersion || '',
       androidVersion: settings?.androidVersion || '',
       iosVersion: settings?.iosVersion || '',
-      privacy_url: settings?.privacy_url || '',
-      terms_url: settings?.terms_url || '',
       FIREBASE_API_KEY: settings?.FIREBASE_API_KEY || '',
       firebase_auth_domain: settings?.firebase_config?.authDomain || settings?.firebase_auth_domain || '',
       firebase_project_id: settings?.firebase_config?.projectId || settings?.firebase_project_id || '',
@@ -125,18 +127,18 @@ export default function AdminSettings() {
     setThemeFormData({
       app_name: themes?.app_name || '',
       slogan: themes?.slogan || '',
-      website_url: themes?.website_url || '',
       primary_color: themes?.primary_color || 'FFFACC15',
       secondary_color: themes?.secondary_color || 'FF0D9488',
       button_color: themes?.button_color || 'FF000000',
       button_text_color: themes?.button_text_color || 'FFFFFFFF',
       app_logo: themes?.app_logo || '',
+      header_logo: themes?.header_logo || '',
     });
   }, [themes]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/admin/settings', {
+      const response = await fetch('/api/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +154,7 @@ export default function AdminSettings() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/settings/full'] });
       toast({
         title: "Settings updated",
         description: "Platform settings have been saved successfully.",
@@ -373,20 +375,6 @@ export default function AdminSettings() {
                 <CardDescription>Basic platform configuration</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="seo_title">SEO Title</Label>
-                  <Input
-                    id="seo_title"
-                    value={formData.seo_title}
-                    onChange={(e) => handleInputChange('seo_title', e.target.value)}
-                    placeholder="Browser title (defaults to App Name if empty)"
-                    data-testid="input-seo-title"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    This will appear in the browser tab. If empty, the app name will be used.
-                  </p>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="support_email">Support Email</Label>
@@ -464,37 +452,6 @@ export default function AdminSettings() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Legal Links</CardTitle>
-                <CardDescription>Privacy policy and terms of service URLs</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="privacy_url">Privacy Policy URL</Label>
-                  <Input
-                    id="privacy_url"
-                    type="url"
-                    value={formData.privacy_url}
-                    onChange={(e) => handleInputChange('privacy_url', e.target.value)}
-                    placeholder="https://example.com/privacy"
-                    data-testid="input-privacy-url"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="terms_url">Terms of Service URL</Label>
-                  <Input
-                    id="terms_url"
-                    type="url"
-                    value={formData.terms_url}
-                    onChange={(e) => handleInputChange('terms_url', e.target.value)}
-                    placeholder="https://example.com/terms"
-                    data-testid="input-terms-url"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
                 <CardTitle>Seller Approval Workflow</CardTitle>
                 <CardDescription>Control how users become sellers on your platform</CardDescription>
               </CardHeader>
@@ -529,39 +486,6 @@ export default function AdminSettings() {
                 </Alert>
               </CardContent>
             </Card>
-
-            {!formData.demoMode && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Demo Mode</CardTitle>
-                  <CardDescription>Control whether CRUD operations are allowed on the platform</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5 flex-1">
-                      <Label htmlFor="demo-mode">Enable Demo Mode</Label>
-                      <p className="text-sm text-muted-foreground">
-                        When enabled, all create, update, and delete operations will be disabled for everyone (including super admins). Perfect for protecting demo environments from modifications.
-                      </p>
-                    </div>
-                    <Switch
-                      id="demo-mode"
-                      checked={formData.demoMode}
-                      onCheckedChange={(checked) => handleInputChange('demoMode', checked)}
-                      data-testid="switch-demo-mode"
-                    />
-                  </div>
-                  {formData.demoMode && (
-                    <Alert>
-                      <ShieldX className="h-4 w-4" />
-                      <AlertDescription>
-                        Demo mode is currently <strong>enabled</strong>. All CRUD operations are disabled across the platform.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
 
           {/* Payment Settings */}
@@ -576,33 +500,33 @@ export default function AdminSettings() {
                   <Label htmlFor="stripepublickey">Stripe Publishable Key</Label>
                   <Input
                     id="stripepublickey"
-                    value={formData.demoMode ? maskKey(formData.stripepublickey) : formData.stripepublickey}
+                    value={themeFormData.demoMode ? maskKey(formData.stripepublickey) : formData.stripepublickey}
                     onChange={(e) => handleInputChange('stripepublickey', e.target.value)}
                     placeholder="pk_test_..."
                     data-testid="input-stripe-public-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="stripeSecretKey">Stripe Secret Key</Label>
                   <Input
                     id="stripeSecretKey"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.stripeSecretKey) : formData.stripeSecretKey}
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.stripeSecretKey) : formData.stripeSecretKey}
                     onChange={(e) => handleInputChange('stripeSecretKey', e.target.value)}
                     placeholder="sk_test_..."
                     data-testid="input-stripe-secret-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Keep this key secret and secure
@@ -612,17 +536,17 @@ export default function AdminSettings() {
                   <Label htmlFor="stripe_webhook_key">Stripe Webhook Secret</Label>
                   <Input
                     id="stripe_webhook_key"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.stripe_webhook_key) : formData.stripe_webhook_key}
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.stripe_webhook_key) : formData.stripe_webhook_key}
                     onChange={(e) => handleInputChange('stripe_webhook_key', e.target.value)}
                     placeholder="whsec_..."
                     data-testid="input-stripe-webhook-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Used for verifying webhook events from Stripe
@@ -636,8 +560,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('stripe_connect_account', e.target.value)}
                     placeholder="acct_..."
                     data-testid="input-stripe-connect-account"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
                   />
                   <p className="text-xs text-muted-foreground">
                     Stripe Connect account ID to receive shipping fees
@@ -664,6 +588,20 @@ export default function AdminSettings() {
                     placeholder="Your App Name"
                     data-testid="input-app-name"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="seo_title">SEO Title</Label>
+                  <Input
+                    id="seo_title"
+                    value={formData.seo_title}
+                    onChange={(e) => handleInputChange('seo_title', e.target.value)}
+                    placeholder="Browser title (defaults to App Name if empty)"
+                    data-testid="input-seo-title"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This will appear in the browser tab. If empty, the app name will be used.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -750,8 +688,8 @@ export default function AdminSettings() {
                   <Input
                     id="website_url"
                     type="url"
-                    value={themeFormData.website_url}
-                    onChange={(e) => handleThemeInputChange('website_url', e.target.value)}
+                    value={formData.website_url}
+                    onChange={(e) => handleInputChange('website_url', e.target.value)}
                     placeholder="https://yourwebsite.com"
                     data-testid="input-website-url"
                   />
@@ -856,6 +794,70 @@ export default function AdminSettings() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle>Legal Links</CardTitle>
+                <CardDescription>Privacy policy and terms of service URLs</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="privacy_url">Privacy Policy URL</Label>
+                  <Input
+                    id="privacy_url"
+                    type="url"
+                    value={formData.privacy_url}
+                    onChange={(e) => handleInputChange('privacy_url', e.target.value)}
+                    placeholder="https://example.com/privacy"
+                    data-testid="input-privacy-url"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="terms_url">Terms of Service URL</Label>
+                  <Input
+                    id="terms_url"
+                    type="url"
+                    value={formData.terms_url}
+                    onChange={(e) => handleInputChange('terms_url', e.target.value)}
+                    placeholder="https://example.com/terms"
+                    data-testid="input-terms-url"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {!formData.demoMode && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Demo Mode</CardTitle>
+                  <CardDescription>Control whether CRUD operations are allowed on the platform</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 flex-1">
+                      <Label htmlFor="demo-mode">Enable Demo Mode</Label>
+                      <p className="text-sm text-muted-foreground">
+                        When enabled, all create, update, and delete operations will be disabled for everyone (including super admins). Perfect for protecting demo environments from modifications.
+                      </p>
+                    </div>
+                    <Switch
+                      id="demo-mode"
+                      checked={formData.demoMode}
+                      onCheckedChange={(checked) => handleInputChange('demoMode', checked)}
+                      data-testid="switch-demo-mode"
+                    />
+                  </div>
+                  {formData.demoMode && (
+                    <Alert>
+                      <ShieldX className="h-4 w-4" />
+                      <AlertDescription>
+                        Demo mode is currently <strong>enabled</strong>. All CRUD operations are disabled across the platform.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex justify-end">
               <Button
                 onClick={handleSaveTheme}
@@ -890,8 +892,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('firebase_auth_domain', e.target.value)}
                     placeholder="your-project.firebaseapp.com"
                     data-testid="input-firebase-auth-domain"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
                   />
                 </div>
 
@@ -903,8 +905,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('firebase_project_id', e.target.value)}
                     placeholder="your-project-id"
                     data-testid="input-firebase-project-id"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
                   />
                 </div>
 
@@ -916,8 +918,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('firebase_storage_bucket', e.target.value)}
                     placeholder="your-project.appspot.com"
                     data-testid="input-firebase-storage-bucket"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
                   />
                 </div>
 
@@ -925,17 +927,17 @@ export default function AdminSettings() {
                   <Label htmlFor="firebase_app_id">Firebase App ID</Label>
                   <Input
                     id="firebase_app_id"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.firebase_app_id) : formData.firebase_app_id}
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.firebase_app_id) : formData.firebase_app_id}
                     onChange={(e) => handleInputChange('firebase_app_id', e.target.value)}
                     placeholder="1:123456789:web:abc123def456"
                     data-testid="input-firebase-app-id"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Keep this App ID secure
@@ -946,17 +948,17 @@ export default function AdminSettings() {
                   <Label htmlFor="FIREBASE_API_KEY">Firebase API Key</Label>
                   <Input
                     id="FIREBASE_API_KEY"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
                     onChange={(e) => handleInputChange('FIREBASE_API_KEY', e.target.value)}
                     placeholder="AIza..."
                     data-testid="input-firebase-api-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     API key for Firebase authentication and storage
@@ -985,34 +987,34 @@ export default function AdminSettings() {
                   <Label htmlFor="livekit_api_key">LiveKit API Key</Label>
                   <Input
                     id="livekit_api_key"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.livekit_api_key) : formData.livekit_api_key}
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.livekit_api_key) : formData.livekit_api_key}
                     onChange={(e) => handleInputChange('livekit_api_key', e.target.value)}
                     placeholder="API..."
                     data-testid="input-livekit-api-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="livekit_api_secret">LiveKit API Secret</Label>
                   <Input
                     id="livekit_api_secret"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.livekit_api_secret) : formData.livekit_api_secret}
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.livekit_api_secret) : formData.livekit_api_secret}
                     onChange={(e) => handleInputChange('livekit_api_secret', e.target.value)}
                     placeholder="Secret..."
                     data-testid="input-livekit-api-secret"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     LiveKit credentials for video streaming
@@ -1031,17 +1033,17 @@ export default function AdminSettings() {
                   <Label htmlFor="shippo_api_key">Shippo API Key</Label>
                   <Input
                     id="shippo_api_key"
-                    type={formData.demoMode ? 'text' : 'password'}
-                    value={formData.demoMode ? maskKey(formData.shippo_api_key) : formData.shippo_api_key}
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.shippo_api_key) : formData.shippo_api_key}
                     onChange={(e) => handleInputChange('shippo_api_key', e.target.value)}
                     placeholder="shippo_..."
                     data-testid="input-shippo-api-key"
-                    readOnly={formData.demoMode}
-                    disabled={formData.demoMode}
-                    onCopy={(e) => formData.demoMode && e.preventDefault()}
-                    onCut={(e) => formData.demoMode && e.preventDefault()}
-                    onPaste={(e) => formData.demoMode && e.preventDefault()}
-                    className={formData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Used for shipping label generation

@@ -49,14 +49,7 @@ const FeaturedShows = lazy(() => import("@/pages/marketplace/featured-shows"));
 const Deals = lazy(() => import("@/pages/marketplace/deals"));
 const DealsAuctions = lazy(() => import("@/pages/marketplace/deals-auctions"));
 const DealsTrending = lazy(() => import("@/pages/marketplace/deals-trending"));
-const LandingPage = lazy(() => import("@/pages/marketplace/landing-page"));
-const LandingPage2 = lazy(() => import("@/pages/marketplace/landing-page-2"));
-const LandingPage3 = lazy(() => import("@/pages/marketplace/landing-page-3"));
-const LandingPage4 = lazy(() => import("@/pages/marketplace/landing-page-4"));
-const LandingPage5 = lazy(() => import("@/pages/marketplace/landing-page-5"));
-const LandingPage6 = lazy(() => import("@/pages/marketplace/landing-page-6"));
-const LandingPage7 = lazy(() => import("@/pages/marketplace/landing-page-7"));
-const LandingPage8 = lazy(() => import("@/pages/marketplace/landing-page-8"));
+const LandingPage = lazy(() => import("@/pages/marketplace/landing-page-8"));
 const SellerLogin = lazy(() => import("@/pages/auth/seller-login"));
 const ShowView = lazy(() => import("@/pages/marketplace/show-view").then(module => ({ default: module.default })));
 const PrivacyPolicy = lazy(() => import("@/pages/marketplace/privacy-policy"));
@@ -177,6 +170,7 @@ function Router() {
     '/terms-of-service',
     '/contact',
     '/faq',
+    '/about',
     '/knowledge-base',
     '/help-center'
   ];
@@ -217,7 +211,7 @@ function Router() {
   }
 
   // Check if we're on a landing page that has its own header
-  const isLandingPageWithCustomHeader = location === '/' || location === '/landing-8';
+  const isLandingPageWithCustomHeader = location === '/' || location === '/landing-8' || location === '/seller/login';
 
   // Show public pages for unauthenticated users
   if (!isAuthenticated) {
@@ -248,15 +242,8 @@ function Router() {
           
           <main className={isLandingPageWithCustomHeader ? "flex-1" : "flex-1 overflow-y-auto"}>
             <Switch>
-              <Route path="/" component={LandingPage8} />
-              <Route path="/landing-1" component={LandingPage} />
-              <Route path="/landing-2" component={LandingPage2} />
-              <Route path="/landing-3" component={LandingPage3} />
-              <Route path="/landing-4" component={LandingPage4} />
-              <Route path="/landing-5" component={LandingPage5} />
-              <Route path="/landing-6" component={LandingPage6} />
-              <Route path="/landing-7" component={LandingPage7} />
-              <Route path="/landing-8" component={LandingPage8} />
+              <Route path="/" component={LandingPage} />
+              <Route path="/landing-8" component={LandingPage} />
               <Route path="/seller/login" component={SellerLogin} />
               <Route path="/login" component={Login} />
               <Route path="/signup" component={Signup} />
@@ -268,7 +255,7 @@ function Router() {
               <Route path="/knowledge-base" component={KnowledgeBase} />
               <Route path="/help-center/:slug" component={HelpArticle} />
               <Route path="/help-center" component={HelpCenter} />
-              <Route component={LandingPage8} />
+              <Route component={LandingPage} />
             </Switch>
           </main>
         </div>

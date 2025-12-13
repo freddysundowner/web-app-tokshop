@@ -86,11 +86,16 @@ export async function apiRequest(
   // Send admin token if available (for admin routes)
   if (adminToken) {
     headers['x-admin-token'] = adminToken;
+    headers['Authorization'] = `Bearer ${adminToken}`;
   }
   
   // Send regular user token if available (for all routes)
   if (userToken) {
     headers['x-access-token'] = userToken;
+    // Also send as Bearer token if no admin token
+    if (!adminToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    }
   }
   
   // Send user data for session restoration (base64 encoded to handle UTF-8 characters)
@@ -174,11 +179,16 @@ export const getQueryFn: <T>(options: {
     // Send admin token if available (for admin routes)
     if (adminToken) {
       headers['x-admin-token'] = adminToken;
+      headers['Authorization'] = `Bearer ${adminToken}`;
     }
     
     // Send regular user token if available (for all routes)
     if (userToken) {
       headers['x-access-token'] = userToken;
+      // Also send as Bearer token if no admin token
+      if (!adminToken) {
+        headers['Authorization'] = `Bearer ${userToken}`;
+      }
     }
     
     // Send user data for session restoration (base64 encoded to handle UTF-8 characters)
