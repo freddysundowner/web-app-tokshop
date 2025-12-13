@@ -1,7 +1,7 @@
 /**
  * Marketplace App server entry point
  *
- * This runs the Marketplace App by default.
+ * This runs the Marketplace App.
  * For the admin app, change marketplaceAppDir to adminAppDir
  * To run both apps, use: ./run-both.sh
  */
