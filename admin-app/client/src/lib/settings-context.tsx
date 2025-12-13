@@ -160,6 +160,25 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function fetchSettings() {
       try {
+        // First, fetch public themes for colors (works without auth - for login page)
+        try {
+          const themesResponse = await fetch('/api/public/themes');
+          if (themesResponse.ok) {
+            const themesData = await themesResponse.json();
+            console.log('🎨 Themes fetched:', themesData);
+            if (themesData.success && themesData.data) {
+              const themes = themesData.data;
+              // Apply theme colors immediately
+              if (themes.primary_color) {
+                applyThemeColors(themes.primary_color, themes.secondary_color || defaultSettings.secondary_color);
+              }
+            }
+          }
+        } catch (themesError) {
+          console.warn('Failed to fetch public themes:', themesError);
+        }
+
+        // Then fetch full settings (may require auth)
         const response = await fetch('/api/settings');
         if (response.ok) {
           const data = await response.json();
