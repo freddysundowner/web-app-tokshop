@@ -8,12 +8,35 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Folder, ArrowLeft, Upload, Trash2, Plus, ArrowUpFromLine, MoreVertical } from "lucide-react";
+import { Folder, ArrowLeft, Upload, Trash2, Plus, ArrowUpFromLine, MoreVertical, Edit } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
+import { Switch } from "@/components/ui/switch";
+
+function SubcategoryIcon({ icon, name, externalApiUrl }: { icon?: string; name: string; externalApiUrl: string }) {
+  const [imageError, setImageError] = useState(false);
+  const imageUrl = icon && externalApiUrl ? getImageUrl(icon, externalApiUrl) : null;
+  
+  if (!imageUrl || imageError) {
+    return (
+      <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+        <Folder className="h-6 w-6 text-muted-foreground" />
+      </div>
+    );
+  }
+  
+  return (
+    <img
+      src={imageUrl}
+      alt={name}
+      className="w-16 h-16 object-cover rounded-md"
+      onError={() => setImageError(true)}
+    />
+  );
+}
 
 interface SubCategory {
   _id: string;
@@ -21,6 +44,8 @@ interface SubCategory {
   icon?: string;
   followersCount?: number;
   viewersCount?: number;
+  commission?: number;
+  commission_enabled?: boolean;
 }
 
 interface Category {
@@ -41,6 +66,12 @@ export default function AdminSubCategories() {
   const [subcategoryName, setSubcategoryName] = useState("");
   const [subcategoryIcon, setSubcategoryIcon] = useState<File | null>(null);
   const [subcategoryToDelete, setSubcategoryToDelete] = useState<string | null>(null);
+  const [editSubcategoryDialogOpen, setEditSubcategoryDialogOpen] = useState(false);
+  const [subcategoryToEdit, setSubcategoryToEdit] = useState<SubCategory | null>(null);
+  const [editSubcategoryName, setEditSubcategoryName] = useState("");
+  const [editSubcategoryIcon, setEditSubcategoryIcon] = useState<File | null>(null);
+  const [editSubcategoryCommission, setEditSubcategoryCommission] = useState("");
+  const [editSubcategoryCommissionEnabled, setEditSubcategoryCommissionEnabled] = useState(false);
   const { toast } = useToast();
   const { externalApiUrl } = useApiConfig();
 
@@ -221,6 +252,98 @@ export default function AdminSubCategories() {
     convertToParentMutation.mutate(subcategoryId);
   };
 
+  const editSubcategoryMutation = useMutation({
+    mutationFn: async ({ id, name, icon, commission, commission_enabled }: { id: string; name: string; icon: File | null; commission: string; commission_enabled: boolean }) => {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('commission', commission);
+      formData.append('commission_enabled', String(commission_enabled));
+      if (icon) {
+        formData.append('images', icon);
+      }
+
+      const adminToken = localStorage.getItem('adminAccessToken');
+      const userToken = localStorage.getItem('accessToken');
+      const userData = localStorage.getItem('user');
+      
+      const headers: Record<string, string> = {};
+      
+      if (adminToken) {
+        headers['x-admin-token'] = adminToken;
+      }
+      if (userToken) {
+        headers['x-access-token'] = userToken;
+        headers['Authorization'] = `Bearer ${userToken}`;
+      }
+      if (userData) {
+        headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+      }
+
+      const response = await fetch(`/api/admin/subcategories/${id}`, {
+        method: 'PUT',
+        headers,
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update subcategory');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/categories', categoryId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/categories'] });
+      toast({
+        title: "Success",
+        description: "Subcategory updated successfully",
+      });
+      setEditSubcategoryDialogOpen(false);
+      setSubcategoryToEdit(null);
+      setEditSubcategoryName("");
+      setEditSubcategoryIcon(null);
+      setEditSubcategoryCommission("");
+      setEditSubcategoryCommissionEnabled(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update subcategory",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditSubcategory = () => {
+    if (!subcategoryToEdit || !editSubcategoryName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a subcategory name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    editSubcategoryMutation.mutate({
+      id: subcategoryToEdit._id,
+      name: editSubcategoryName,
+      icon: editSubcategoryIcon,
+      commission: editSubcategoryCommission,
+      commission_enabled: editSubcategoryCommissionEnabled,
+    });
+  };
+
+  const openEditDialog = (subcategory: SubCategory) => {
+    setSubcategoryToEdit(subcategory);
+    setEditSubcategoryName(subcategory.name);
+    setEditSubcategoryIcon(null);
+    setEditSubcategoryCommission(subcategory.commission?.toString() || "");
+    setEditSubcategoryCommissionEnabled(subcategory.commission_enabled || false);
+    setEditSubcategoryDialogOpen(true);
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -391,6 +514,9 @@ export default function AdminSubCategories() {
                         Name
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
+                        Commission
+                      </th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
                         Followers
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
@@ -408,19 +534,8 @@ export default function AdminSubCategories() {
                         className="border-b border-border hover:bg-muted/50 transition-colors"
                         data-testid={`row-subcategory-${sub._id}`}
                       >
-                        <td className="py-3 px-4">
-                          {sub.icon ? (
-                            <img
-                              src={getImageUrl(sub.icon, externalApiUrl)}
-                              alt={sub.name}
-                              className="w-16 h-16 object-cover rounded-md"
-                              data-testid={`img-subcategory-${sub._id}`}
-                            />
-                          ) : (
-                            <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
-                              <Folder className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                          )}
+                        <td className="py-3 px-4" data-testid={`img-subcategory-${sub._id}`}>
+                          <SubcategoryIcon icon={sub.icon} name={sub.name} externalApiUrl={externalApiUrl} />
                         </td>
                         <td className="py-3 px-4">
                           <span 
@@ -429,6 +544,22 @@ export default function AdminSubCategories() {
                           >
                             {sub.name}
                           </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          {sub.commission_enabled ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-green-600">
+                                {sub.commission}%
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                (Enabled)
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              Disabled
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4">
                           <span className="text-sm text-muted-foreground">
@@ -453,6 +584,13 @@ export default function AdminSubCategories() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => openEditDialog(sub)}
+                                  data-testid={`button-edit-subcategory-${sub._id}`}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => handleConvertToParent(sub._id)}
                                   data-testid={`button-convert-to-parent-${sub._id}`}
@@ -503,6 +641,96 @@ export default function AdminSubCategories() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit Subcategory Dialog */}
+        <Dialog open={editSubcategoryDialogOpen} onOpenChange={setEditSubcategoryDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Subcategory</DialogTitle>
+              <DialogDescription>
+                Update the subcategory details.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-subcategory-name">Subcategory Name</Label>
+                <Input
+                  id="edit-subcategory-name"
+                  placeholder="Enter subcategory name"
+                  value={editSubcategoryName}
+                  onChange={(e) => setEditSubcategoryName(e.target.value)}
+                  data-testid="input-edit-subcategory-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-subcategory-commission">Commission Rate (%)</Label>
+                <Input
+                  id="edit-subcategory-commission"
+                  type="number"
+                  placeholder="Enter commission rate (e.g., 5 for 5%)"
+                  value={editSubcategoryCommission}
+                  onChange={(e) => setEditSubcategoryCommission(e.target.value)}
+                  data-testid="input-edit-subcategory-commission"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="edit-subcategory-commission-enabled">Enable Commission</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Apply commission to products in this subcategory
+                  </p>
+                </div>
+                <Switch
+                  id="edit-subcategory-commission-enabled"
+                  checked={editSubcategoryCommissionEnabled}
+                  onCheckedChange={setEditSubcategoryCommissionEnabled}
+                  data-testid="switch-edit-subcategory-commission-enabled"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-subcategory-icon">Subcategory Icon (Optional)</Label>
+                <Input
+                  id="edit-subcategory-icon"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setEditSubcategoryIcon(e.target.files?.[0] || null)}
+                  data-testid="input-edit-subcategory-icon"
+                />
+                {subcategoryToEdit?.icon && !editSubcategoryIcon && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Current icon will be kept if no new file is selected
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditSubcategoryDialogOpen(false);
+                  setSubcategoryToEdit(null);
+                  setEditSubcategoryName("");
+                  setEditSubcategoryIcon(null);
+                  setEditSubcategoryCommission("");
+                  setEditSubcategoryCommissionEnabled(false);
+                }}
+                data-testid="button-cancel-edit-subcategory"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEditSubcategory}
+                disabled={editSubcategoryMutation.isPending}
+                data-testid="button-submit-edit-subcategory"
+              >
+                {editSubcategoryMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

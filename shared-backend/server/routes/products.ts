@@ -206,11 +206,18 @@ export function registerProductRoutes(app: Express) {
 
       console.log("Final API URL being called:", url);
 
+      // Include authentication token from session
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (req.session?.accessToken) {
+        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      }
+
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
       });
 
       if (!response.ok) {

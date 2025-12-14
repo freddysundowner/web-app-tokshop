@@ -278,7 +278,13 @@ export function registerShippingRoutes(app: Express) {
         buying_label: req.body.buying_label ?? true,
       };
 
-      const estimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
+      // Build auth headers
+      const headers: Record<string, string> = {};
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const estimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody, headers);
       console.log('Shipping estimate response:', estimate);
       
       // Check if Tokshop API returned an error for identical addresses
@@ -357,7 +363,13 @@ export function registerShippingRoutes(app: Express) {
         buying_label: validatedData.buying_label ?? true,
       };
 
-      const rawEstimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody);
+      // Build auth headers
+      const headers: Record<string, string> = {};
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const rawEstimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody, headers);
       console.log('External API shipping estimates:', rawEstimate);
       
       // Transform single estimate object into array format expected by frontend

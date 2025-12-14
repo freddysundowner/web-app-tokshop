@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 
-interface ApiConfig {
-  externalApiUrl: string;
+interface ApiConfigResponse {
+  success: boolean;
+  data: {
+    externalApiUrl: string;
+  };
 }
 
 export function useApiConfig() {
-  const { data, isLoading, error } = useQuery<ApiConfig>({
+  const { data, isLoading, error } = useQuery<ApiConfigResponse>({
     queryKey: ['/api/config'],
     staleTime: Infinity,
     gcTime: Infinity,
@@ -13,7 +16,7 @@ export function useApiConfig() {
   });
 
   return {
-    externalApiUrl: data?.externalApiUrl || '',
+    externalApiUrl: data?.data?.externalApiUrl || '',
     isLoading,
     error,
   };
@@ -30,5 +33,12 @@ export function getImageUrl(imagePath: string | undefined | null, externalApiUrl
   if (!externalApiUrl) return '';
   
   const cleanPath = imagePath.replace(/^\//, '');
-  return `${externalApiUrl}/${cleanPath}`;
+  
+  // If the path already includes 'images/', don't add it again
+  if (cleanPath.startsWith('images/')) {
+    return `${externalApiUrl}/${cleanPath}`;
+  }
+  
+  // Add images/category/ prefix for category icons
+  return `${externalApiUrl}/images/category/${cleanPath}`;
 }

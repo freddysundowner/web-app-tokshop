@@ -2327,9 +2327,14 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       console.log('Categories API response structure:', Object.keys(data));
       console.log('Categories API response data type:', Array.isArray(data) ? 'Array' : typeof data);
+      
+      // Log sample category record for debugging
+      if (data?.categories && data.categories.length > 0) {
+        console.log('Sample category record:', JSON.stringify(data.categories[0], null, 2));
+      }
       
       res.json({
         success: true,
@@ -2638,8 +2643,10 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const { name, category } = req.body;
+      const { name, category, commission, commission_enabled } = req.body;
       const files = req.files as Express.Multer.File[];
+
+      console.log('Update subcategory - Request body:', req.body);
 
       if (!name) {
         return res.status(400).json({
@@ -2654,6 +2661,12 @@ If you have any questions, feel free to reach out to our support team.
       formData.append('type', 'child');
       if (category) {
         formData.append('category', category);
+      }
+      if (commission !== undefined && commission !== '') {
+        formData.append('commission', commission);
+      }
+      if (commission_enabled !== undefined) {
+        formData.append('commission_enabled', commission_enabled);
       }
       
       if (files && files.length > 0) {

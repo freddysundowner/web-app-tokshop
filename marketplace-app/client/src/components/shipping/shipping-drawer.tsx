@@ -229,11 +229,24 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         height: parseFloat(dimensions.height),
       };
 
+      // Get auth headers
+      const userToken = localStorage.getItem('accessToken');
+      const userData = localStorage.getItem('user');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (userToken) {
+        headers['x-access-token'] = userToken;
+        headers['Authorization'] = `Bearer ${userToken}`;
+      }
+      if (userData) {
+        headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+      }
+
       const response = await fetch(`/api/shipping/profiles/estimate/rates`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
+        credentials: 'include',
         body: JSON.stringify(requestData)
       });
       

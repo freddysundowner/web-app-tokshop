@@ -1,3 +1,4 @@
+
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST before any other imports
@@ -28,13 +29,17 @@ app.use(cookieParser());
 // Session configuration with header-based restoration
 // Sessions are primarily restored from client headers (x-access-token, x-user-data)
 // The default MemoryStore is used as temporary storage during request lifecycle
+const isProduction = process.env.NODE_ENV === 'production';
+console.log(`[Session Config] isProduction: ${isProduction}, NODE_ENV: ${process.env.NODE_ENV}`);
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-for-development-only',
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: false, // Set to false for now until SSL is properly configured
+    // In production with HTTPS, use secure cookies
+    // Set FORCE_SECURE_COOKIES=true in env if behind HTTPS proxy
+    secure: isProduction || process.env.FORCE_SECURE_COOKIES === 'true',
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   },
