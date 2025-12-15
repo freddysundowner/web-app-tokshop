@@ -30,8 +30,7 @@ export function MarketplaceFooter() {
               Help Center
             </Link>
           </div>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center">
+          <div className="flex items-center justify-center">
               {logoUrl ? (
                 <img src={logoUrl} alt={appName} className="h-8 w-auto object-contain" data-testid="img-footer-logo" />
               ) : (
@@ -41,10 +40,6 @@ export function MarketplaceFooter() {
                   </svg>
                 </div>
               )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              © 2025 {appName}. All rights reserved.
-            </p>
           </div>
         </div>
       </div>

@@ -77,6 +77,7 @@ export default function AdminSettings() {
   // Separate state for theme data
   const [themeFormData, setThemeFormData] = useState({
     app_name: '',
+    seo_title: '',
     slogan: '',
     primary_color: '',
     secondary_color: '',
@@ -126,6 +127,7 @@ export default function AdminSettings() {
   useEffect(() => {
     setThemeFormData({
       app_name: themes?.app_name || '',
+      seo_title: themes?.seo_title || '',
       slogan: themes?.slogan || '',
       primary_color: themes?.primary_color || 'FFFACC15',
       secondary_color: themes?.secondary_color || 'FF0D9488',
@@ -594,8 +596,8 @@ export default function AdminSettings() {
                   <Label htmlFor="seo_title">SEO Title</Label>
                   <Input
                     id="seo_title"
-                    value={formData.seo_title}
-                    onChange={(e) => handleInputChange('seo_title', e.target.value)}
+                    value={themeFormData.seo_title}
+                    onChange={(e) => handleThemeInputChange('seo_title', e.target.value)}
                     placeholder="Browser title (defaults to App Name if empty)"
                     data-testid="input-seo-title"
                   />

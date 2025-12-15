@@ -600,7 +600,7 @@ export default function LandingPage8() {
           </div>
           
           <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               {getImageUrl(theme.app_logo, externalApiUrl) ? (
                 <img src={getImageUrl(theme.app_logo, externalApiUrl)} alt={appName} className="h-8 w-auto object-contain" />
               ) : (
@@ -608,7 +608,6 @@ export default function LandingPage8() {
                   <Check className="h-4 w-4 text-[#FFE600]" />
                 </div>
               )}
-              <span className="font-semibold">{appName}</span>
             </div>
             <p className="text-sm text-white/60">
               {content.footer.copyrightText || `© ${new Date().getFullYear()} ${appName}. All rights reserved.`}
