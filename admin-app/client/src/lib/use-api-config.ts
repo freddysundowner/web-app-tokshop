@@ -39,6 +39,11 @@ export function getImageUrl(imagePath: string | undefined | null, externalApiUrl
     return `${externalApiUrl}/${cleanPath}`;
   }
   
+  // If the path is an uploads path (landing page images, etc.), use it directly
+  if (cleanPath.startsWith('uploads/')) {
+    return `${externalApiUrl}/${cleanPath}`;
+  }
+  
   // Add images/category/ prefix for category icons
   return `${externalApiUrl}/images/category/${cleanPath}`;
 }
