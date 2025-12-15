@@ -3,7 +3,9 @@ import Login from './login';
 import { useSettings } from '@/lib/settings-context';
 
 export default function SellerLogin() {
-  const { settings } = useSettings();
+  const { theme } = useSettings();
+  const appName = theme.seo_title || theme.app_name || 'App';
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Simple header */}
@@ -13,9 +15,9 @@ export default function SellerLogin() {
             <Link href="/" data-testid="link-home">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 bg-foreground rounded-full flex items-center justify-center">
-                  <span className="text-background text-sm font-bold">{settings.app_name.charAt(0).toUpperCase()}</span>
+                  <span className="text-background text-sm font-bold">{appName.charAt(0).toUpperCase()}</span>
                 </div>
-                <span className="text-xl font-bold">{settings.app_name}</span>
+                <span className="text-xl font-bold">{appName}</span>
               </div>
             </Link>
             <Link href="/">

@@ -272,14 +272,21 @@ export function registerAuthRoutes(app: Express) {
         gender: socialAuthData.gender,
       };
 
+      // Build auth payload with provider token for backend decoding
+      const authPayload = {
+        ...verifiedSocialAuthData,
+        // Include provider token if available (Google accessToken or Apple identityToken)
+        providerToken: socialAuthData.providerToken,
+      };
+
       const { response, data: responseData } = await resilientFetch(
-        `${BASE_URL}/auth/social`,
+        `${BASE_URL}/auth`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(verifiedSocialAuthData),
+          body: JSON.stringify(authPayload),
         },
       );
 
@@ -373,9 +380,10 @@ export function registerAuthRoutes(app: Express) {
         email: req.body.email,
         type: req.body.type,
         profilePhoto: req.body.profilePhoto,
+        providerToken: req.body.providerToken,
       };
 
-      // Call auth endpoint with all user data
+      // Call auth endpoint with all user data including providerToken
       const apiEndpoint = `${BASE_URL}/auth`;
       const { response, data: responseData } = await resilientFetch(apiEndpoint, {
         method: "POST",
@@ -391,7 +399,8 @@ export function registerAuthRoutes(app: Express) {
           phone: socialAuthData.phone,
           gender: socialAuthData.gender,
           type: socialAuthData.type,
-          profilePhoto: socialAuthData.profilePhoto
+          profilePhoto: socialAuthData.profilePhoto,
+          providerToken: socialAuthData.providerToken,
         }),
       });
 
@@ -1526,7 +1535,8 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // Check if user exists by email
+  // Check if user exists by email - removed login workaround
+  // The social auth flow handles new vs existing users via the `newuser` response field
   app.get("/api/users/userexists/email", async (req, res) => {
     try {
       const { email } = req.query;
@@ -1538,83 +1548,15 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      console.log("Checking if user exists with email:", email);
-
-      // Use login attempt with dummy password to check user existence
-      const checkPayload = {
-        email: email,
-        password: "dummy-password-for-existence-check-12345",
-      };
-
-      const { response, data } = await resilientFetch(`${BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(checkPayload),
+      console.log("User existence check requested for:", email);
+      
+      // Return unknown - let the social auth flow handle new user detection
+      // via the `newuser` field in the auth response
+      res.json({
+        success: true,
+        exists: null,
+        message: "User existence unknown - will be determined during auth",
       });
-
-      console.log("User existence check response status:", response.status);
-      console.log("User existence check response data:", data);
-
-      if (response.ok) {
-        // User exists (successful login would mean user exists)
-        res.json({
-          success: true,
-          exists: true,
-          message: "User exists",
-        });
-      } else if (response.status === 400 || response.status === 401 || response.status === 422) {
-        // Check the error message to determine if user exists but password is wrong
-        const errorMessage = (data as any)?.message || (data as any)?.error || "";
-        console.log("User existence check error message:", errorMessage);
-
-        // User not found messages
-        if (errorMessage.toLowerCase().includes("user not found") || 
-            errorMessage.toLowerCase().includes("user does not exist") ||
-            errorMessage.toLowerCase().includes("no user found")) {
-          // User definitely doesn't exist
-          res.json({
-            success: true,
-            exists: false,
-            message: "User does not exist",
-          });
-        } else {
-          // User exists but password is wrong (or other validation error)
-          // Common messages: "invalid password", "incorrect password", "wrong password"
-          res.json({
-            success: true,
-            exists: true,
-            message: "User exists",
-          });
-        }
-      } else if (response.status === 500) {
-        // Server error - check error message more carefully
-        const errorMessage = (data as any)?.message || (data as any)?.error || "";
-        console.log("500 error message:", errorMessage);
-        
-        if (errorMessage.toLowerCase().includes("user not found") || 
-            errorMessage.toLowerCase().includes("user does not exist")) {
-          res.json({
-            success: true,
-            exists: false,
-            message: "User does not exist",
-          });
-        } else {
-          // For other 500 errors, assume user exists to be safe
-          // (avoid creating duplicate accounts)
-          res.json({
-            success: true,
-            exists: true,
-            message: "User exists (unable to verify)",
-          });
-        }
-      } else {
-        // Other error - assume user exists for safety to avoid duplicate accounts
-        res.json({
-          success: true,
-          exists: true,
-          message: "User exists (unable to verify)",
-        });
-      }
     } catch (error) {
       console.error("User existence check error:", error);
       

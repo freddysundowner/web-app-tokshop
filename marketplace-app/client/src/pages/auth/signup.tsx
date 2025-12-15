@@ -11,6 +11,7 @@ import { Eye, EyeOff, Mail, Apple, Chrome, User, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
+import { initializeFirebase } from "@/lib/firebase";
 import { Link, useLocation } from "wouter";
 import type { SignupData } from "@shared/schema";
 import { signupSchema } from "@shared/schema";
@@ -23,10 +24,39 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupError, setSignupError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
   const { toast } = useToast();
   const { emailSignup, loginWithGoogle, loginWithApple } = useAuth();
   const [, setLocation] = useLocation();
+
+  // Fetch Firebase keys on mount to initialize Firebase for auth (no token required)
+  useEffect(() => {
+    const fetchFirebaseKeys = async () => {
+      try {
+        const response = await fetch('/api/settings/keys');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            const { firebase_api_key, firebase_auth_domain, firebase_project_id } = data.data;
+            if (firebase_api_key && firebase_project_id) {
+              initializeFirebase({
+                apiKey: firebase_api_key,
+                authDomain: firebase_auth_domain,
+                projectId: firebase_project_id,
+                storageBucket: '',
+                appId: '',
+              });
+              setIsFirebaseReady(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch Firebase keys:', error);
+      }
+    };
+    fetchFirebaseKeys();
+  }, []);
 
   // Set default country to United States
   useEffect(() => {

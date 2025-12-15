@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
+import { useQuery } from "@tanstack/react-query";
 import { Globe } from "lucide-react";
 
 interface MarketplaceSidebarProps {
@@ -16,10 +17,22 @@ interface MarketplaceSidebarProps {
 
 export function MarketplaceSidebar({ selectedCategory, onCategoryChange, categories = [] }: MarketplaceSidebarProps) {
   const { user } = useAuth();
-  const { settings } = useSettings();
+  const { settings, theme } = useSettings();
   
-  const userName = user?.userName || user?.firstName || 'User';
+  const userId = (user as any)?._id || user?.id;
+  
+  // Fetch fresh user data to ensure username is up-to-date
+  const { data: freshUserData } = useQuery<any>({
+    queryKey: [`/api/profile/${userId}`],
+    enabled: !!userId,
+    staleTime: 0, // Always fetch fresh data
+  });
+  
+  // Use fresh user data if available, otherwise fall back to cached user
+  const currentUser = freshUserData || user;
+  const userName = currentUser?.userName || currentUser?.firstName || 'User';
   const currentYear = new Date().getFullYear();
+  const appName = theme.seo_title || theme.app_name || settings.app_name || 'App';
 
   return (
     <aside 
@@ -28,7 +41,7 @@ export function MarketplaceSidebar({ selectedCategory, onCategoryChange, categor
     >
       {/* User Greeting */}
       <div className="px-4 pt-8 pb-6">
-        <h2 className="text-[28px] leading-tight font-bold text-foreground" data-testid="text-greeting">
+        <h2 className="text-[28px] leading-tight font-bold text-foreground break-words" data-testid="text-greeting">
           Hello {userName}!
         </h2>
       </div>
@@ -83,7 +96,7 @@ export function MarketplaceSidebar({ selectedCategory, onCategoryChange, categor
         </div>
         
         <div className="text-[13px] text-muted-foreground pt-1">
-          © {currentYear} {settings.app_name} Inc.
+          © {currentYear} {appName} Inc.
         </div>
       </div>
     </aside>

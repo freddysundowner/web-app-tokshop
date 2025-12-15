@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -6,19 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Save, Camera, User, Mail, Phone, MapPin, Edit, Loader2 } from "lucide-react";
+import { Save, Camera, User, Mail, Phone, MapPin, Edit, Loader2, ImageIcon, Store, Shield, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { z } from "zod";
 import { getFirebaseStorage } from "@/lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
-// Profile update schema
 const profileUpdateSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -30,11 +31,6 @@ const profileUpdateSchema = z.object({
     return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
   }, "Please enter a valid phone number"),
   country: z.string().min(1, "Country is required"),
-  date_of_birth: z.string().optional().refine((date) => {
-    if (!date || date === '') return true;
-    const birthDate = new Date(date);
-    return !isNaN(birthDate.getTime()) && birthDate <= new Date();
-  }, "Please enter a valid date"),
 });
 
 type ProfileUpdateData = z.infer<typeof profileUpdateSchema>;
@@ -44,51 +40,79 @@ export default function Profile() {
   const [updateError, setUpdateError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [coverUploadProgress, setCoverUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, refreshUserData } = useAuth();
+  const { isFirebaseReady, fetchSettings } = useSettings();
+  
+  // Fetch settings to ensure Firebase is initialized for image uploads
+  useEffect(() => {
+    if (!isFirebaseReady) {
+      fetchSettings();
+    }
+  }, [isFirebaseReady, fetchSettings]);
   
   const userId = (user as any)?._id || user?.id;
   
-  // Fetch fresh user data to always show latest profile photo
   const { data: freshUserData } = useQuery<any>({
     queryKey: [`/api/profile/${userId}`],
     enabled: !!userId,
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 0,
   });
   
-  // Use fresh data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
 
   const form = useForm<ProfileUpdateData>({
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      userName: user?.userName || "",
-      email: user?.email || "",
-      phone: user?.phone || "",
-      country: user?.country || "",
-      date_of_birth: user?.date_of_birth || "",
+      firstName: currentUser?.firstName || "",
+      lastName: currentUser?.lastName || "",
+      userName: currentUser?.userName || "",
+      email: currentUser?.email || "",
+      phone: currentUser?.phonenumber || currentUser?.phone || "",
+      country: currentUser?.country || "",
     },
   });
 
-  const isSocialLogin = user?.authProvider === 'google' || user?.authProvider === 'apple';
+  // Reset form when fresh user data is loaded
+  useEffect(() => {
+    if (freshUserData && !isEditing) {
+      form.reset({
+        firstName: freshUserData.firstName || "",
+        lastName: freshUserData.lastName || "",
+        userName: freshUserData.userName || "",
+        email: freshUserData.email || "",
+        phone: freshUserData.phonenumber || freshUserData.phone || "",
+        country: freshUserData.country || "",
+      });
+    }
+  }, [freshUserData, isEditing, form]);
+
+  const isSocialLogin = currentUser?.authProvider === 'google' || currentUser?.authProvider === 'apple';
 
   const onSubmit = async (data: ProfileUpdateData) => {
     try {
       setIsLoading(true);
       setUpdateError("");
       
-      // Call profile update API
+      // Transform phone to phonenumber for the API
+      const { phone, ...rest } = data;
+      const payload = {
+        ...rest,
+        phonenumber: phone,
+      };
+      
       const response = await fetch('/api/users/profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
@@ -97,16 +121,27 @@ export default function Profile() {
         throw new Error(result.error || 'Failed to update profile');
       }
 
-      // Update localStorage with new user data
       if (result.data) {
-        const currentUser = localStorage.getItem('user');
-        if (currentUser) {
-          const updatedUser = {
-            ...JSON.parse(currentUser),
-            ...result.data,
-          };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
+        const accessToken = localStorage.getItem('accessToken');
+        localStorage.setItem('user', JSON.stringify(result.data));
+        if (accessToken) {
+          localStorage.setItem('accessToken', accessToken);
         }
+        
+        form.reset({
+          firstName: result.data.firstName || "",
+          lastName: result.data.lastName || "",
+          userName: result.data.userName || "",
+          email: result.data.email || "",
+          phone: result.data.phonenumber || result.data.phone || "",
+          country: result.data.country || "",
+        });
+      }
+      
+      queryClient.invalidateQueries({ queryKey: [`/api/profile/${userId}`] });
+      
+      if (refreshUserData) {
+        await refreshUserData();
       }
       
       toast({ 
@@ -115,9 +150,6 @@ export default function Profile() {
       });
       
       setIsEditing(false);
-      
-      // Reload to reflect changes
-      window.location.reload();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Profile update failed';
       setUpdateError(errorMessage);
@@ -137,11 +169,19 @@ export default function Profile() {
     setUpdateError("");
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
+    if (!isFirebaseReady) {
+      toast({
+        title: "Upload not ready",
+        description: "Please wait for the app to fully load before uploading images.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       toast({
@@ -152,8 +192,7 @@ export default function Profile() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       toast({
         title: "File too large",
@@ -164,96 +203,106 @@ export default function Profile() {
     }
 
     try {
-      setIsUploadingImage(true);
-      setUploadProgress(0);
+      if (type === 'profile') {
+        setIsUploadingImage(true);
+        setUploadProgress(0);
+      } else {
+        setIsUploadingCover(true);
+        setCoverUploadProgress(0);
+      }
 
-      // Get Firebase Storage instance
       const storage = getFirebaseStorage();
       
-      // Create a unique filename
       const timestamp = Date.now();
-      const fileName = `profile-images/${user?.id || 'unknown'}_${timestamp}_${file.name}`;
+      const folder = type === 'profile' ? 'profile-images' : 'cover-images';
+      const fileName = `${folder}/${user?.id || 'unknown'}_${timestamp}_${file.name}`;
       const storageRef = ref(storage, fileName);
 
-      // Upload file with progress tracking
       const uploadTask = uploadBytesResumable(storageRef, file);
 
       uploadTask.on(
         'state_changed',
         (snapshot) => {
-          // Track upload progress
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(Math.round(progress));
+          if (type === 'profile') {
+            setUploadProgress(Math.round(progress));
+          } else {
+            setCoverUploadProgress(Math.round(progress));
+          }
         },
         (error) => {
-          // Handle upload errors
           console.error('Upload error:', error);
           toast({
             title: "Upload failed",
             description: error.message || "Failed to upload image",
             variant: "destructive"
           });
-          setIsUploadingImage(false);
-          setUploadProgress(0);
+          if (type === 'profile') {
+            setIsUploadingImage(false);
+            setUploadProgress(0);
+          } else {
+            setIsUploadingCover(false);
+            setCoverUploadProgress(0);
+          }
         },
         async () => {
-          // Upload completed successfully, get download URL
           try {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log('Image uploaded successfully:', downloadURL);
 
-            // Update user profile with new image URL
+            const updateField = type === 'profile' ? 'profilePhoto' : 'coverPhoto';
             const response = await fetch('/api/users/profile', {
               method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',
               },
               credentials: 'include',
-              body: JSON.stringify({ profilePhoto: downloadURL }),
+              body: JSON.stringify({ [updateField]: downloadURL }),
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-              throw new Error(result.error || 'Failed to update profile photo');
+              throw new Error(result.error || `Failed to update ${type} photo`);
             }
 
-            // Update localStorage with new user data
             if (result.data) {
-              const currentUser = localStorage.getItem('user');
-              if (currentUser) {
+              const currentUserData = localStorage.getItem('user');
+              if (currentUserData) {
                 const updatedUser = {
-                  ...JSON.parse(currentUser),
+                  ...JSON.parse(currentUserData),
                   ...result.data,
                 };
                 localStorage.setItem('user', JSON.stringify(updatedUser));
               }
             }
 
-            // Invalidate all profile-related queries to refresh the UI
             const userId = (user as any)?._id || user?.id;
             queryClient.invalidateQueries({ queryKey: ['/api/profile', userId] });
             queryClient.invalidateQueries({ queryKey: [`/api/profile/${userId}`] });
             
-            // Refresh auth context to update user data everywhere
             if (refreshUserData) {
               await refreshUserData();
             }
 
             toast({
-              title: "Profile photo updated",
-              description: "Your profile photo has been successfully updated."
+              title: `${type === 'profile' ? 'Profile' : 'Cover'} photo updated`,
+              description: `Your ${type} photo has been successfully updated.`
             });
           } catch (error) {
             console.error('Profile update error:', error);
             toast({
               title: "Update failed",
-              description: error instanceof Error ? error.message : "Failed to update profile photo",
+              description: error instanceof Error ? error.message : `Failed to update ${type} photo`,
               variant: "destructive"
             });
           } finally {
-            setIsUploadingImage(false);
-            setUploadProgress(0);
+            if (type === 'profile') {
+              setIsUploadingImage(false);
+              setUploadProgress(0);
+            } else {
+              setIsUploadingCover(false);
+              setCoverUploadProgress(0);
+            }
           }
         }
       );
@@ -264,15 +313,19 @@ export default function Profile() {
         description: error instanceof Error ? error.message : "Failed to upload image",
         variant: "destructive"
       });
-      setIsUploadingImage(false);
-      setUploadProgress(0);
+      if (type === 'profile') {
+        setIsUploadingImage(false);
+        setUploadProgress(0);
+      } else {
+        setIsUploadingCover(false);
+        setCoverUploadProgress(0);
+      }
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profile</h1>
@@ -289,65 +342,180 @@ export default function Profile() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Profile Picture Card */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center text-base sm:text-lg">
-                <Camera className="h-5 w-5 mr-2" />
-                Profile Picture
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col items-center space-y-4">
-                <Avatar className="h-24 w-24" data-testid="avatar-profile">
+        <Card className="overflow-hidden">
+          <div className="relative h-32 sm:h-48 bg-gradient-to-r from-primary/20 to-primary/5">
+            {currentUser?.coverPhoto ? (
+              <img 
+                src={currentUser.coverPhoto} 
+                alt="Cover" 
+                className="w-full h-full object-cover"
+                data-testid="img-cover-photo"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+              </div>
+            )}
+            {isEditing && (
+              <>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  onChange={(e) => handleImageUpload(e, 'cover')}
+                  className="hidden"
+                  data-testid="input-cover-upload"
+                />
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="absolute bottom-3 right-3"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={isUploadingCover}
+                  data-testid="button-upload-cover"
+                >
+                  {isUploadingCover ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {coverUploadProgress}%
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Change Cover
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+            <div className="absolute -bottom-12 left-4 sm:left-6">
+              <div className="relative">
+                <Avatar className="h-24 w-24 border-4 border-background" data-testid="avatar-profile">
                   <AvatarImage src={currentUser?.profilePhoto} />
-                  <AvatarFallback className="text-lg">
+                  <AvatarFallback className="text-lg bg-muted">
                     {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
                   </AvatarFallback>
                 </Avatar>
-                
                 {isEditing && (
                   <>
                     <input
                       ref={fileInputRef}
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                      onChange={handleImageUpload}
+                      onChange={(e) => handleImageUpload(e, 'profile')}
                       className="hidden"
                       data-testid="input-file-upload"
                     />
                     <Button 
-                      variant="outline" 
-                      size="sm" 
+                      variant="secondary"
+                      size="icon"
+                      className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploadingImage}
                       data-testid="button-upload-photo"
                     >
                       {isUploadingImage ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading {uploadProgress}%
-                        </>
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <>
-                          <Camera className="h-4 w-4 mr-2" />
-                          Change Photo
-                        </>
+                        <Camera className="h-4 w-4" />
                       )}
                     </Button>
                   </>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+          
+          <CardContent className="pt-16 pb-6">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <h2 className="text-xl font-semibold" data-testid="text-display-name">
+                {currentUser?.firstName} {currentUser?.lastName}
+              </h2>
+              {currentUser?.seller && (
+                <Badge variant="secondary" className="gap-1">
+                  <Store className="h-3 w-3" />
+                  Seller
+                </Badge>
+              )}
+              {currentUser?.admin && (
+                <Badge variant="default" className="gap-1">
+                  <Shield className="h-3 w-3" />
+                  Admin
+                </Badge>
+              )}
+              {currentUser?.above_age && (
+                <Badge variant="outline" className="gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Verified
+                </Badge>
+              )}
+            </div>
+            <p className="text-muted-foreground" data-testid="text-username-display">
+              @{currentUser?.userName || "username"}
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* Profile Information Card */}
-          <Card className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <Card className="lg:col-span-1">
             <CardHeader>
               <CardTitle className="flex items-center text-base sm:text-lg">
                 <User className="h-5 w-5 mr-2" />
-                Profile Information
+                Quick Info
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10">
+                  <Mail className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium truncate" data-testid="text-email-quick">
+                    {currentUser?.email || "Not provided"}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10">
+                  <Phone className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Phone</p>
+                  <p className="text-sm font-medium" data-testid="text-phone-quick">
+                    {currentUser?.phonenumber || currentUser?.phone || "Not provided"}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10">
+                  <MapPin className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Country</p>
+                  <p className="text-sm font-medium" data-testid="text-country-quick">
+                    {currentUser?.country || "Not provided"}
+                  </p>
+                </div>
+              </div>
+
+              {isSocialLogin && (
+                <div className="pt-2">
+                  <Badge variant="outline" className="w-full justify-center gap-1">
+                    {currentUser?.authProvider === 'google' ? 'Google' : 'Apple'} Account
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center text-base sm:text-lg">
+                <Edit className="h-5 w-5 mr-2" />
+                {isEditing ? "Edit Information" : "Profile Details"}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -433,7 +601,7 @@ export default function Profile() {
                           </FormControl>
                           {isSocialLogin && (
                             <p className="text-xs text-muted-foreground">
-                              Email cannot be changed for {user?.authProvider === 'google' ? 'Google' : 'Apple'} accounts
+                              Email cannot be changed for {currentUser?.authProvider === 'google' ? 'Google' : 'Apple'} accounts
                             </p>
                           )}
                           <FormMessage />
@@ -479,32 +647,9 @@ export default function Profile() {
                       />
                     </div>
 
-                    <FormField
-                      control={form.control}
-                      name="date_of_birth"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Date of Birth</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="date"
-                              placeholder="Select your date of birth"
-                              data-testid="input-date-of-birth"
-                              max={new Date().toISOString().split('T')[0]}
-                              {...field} 
-                            />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground">
-                            You must be at least 18 years old to use this platform
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     <Separator className="my-6" />
 
-                    <div className="flex justify-end space-x-4">
+                    <div className="flex justify-end gap-4">
                       <Button 
                         type="button"
                         variant="outline"
@@ -521,7 +666,7 @@ export default function Profile() {
                       >
                         {isLoading ? (
                           <>
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
                             Saving...
                           </>
                         ) : (
@@ -540,14 +685,14 @@ export default function Profile() {
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-muted-foreground">First Name</Label>
                       <p className="text-foreground" data-testid="text-first-name">
-                        {user?.firstName || "Not provided"}
+                        {currentUser?.firstName || "Not provided"}
                       </p>
                     </div>
                     
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-muted-foreground">Last Name</Label>
                       <p className="text-foreground" data-testid="text-last-name">
-                        {user?.lastName || "Not provided"}
+                        {currentUser?.lastName || "Not provided"}
                       </p>
                     </div>
                   </div>
@@ -555,57 +700,76 @@ export default function Profile() {
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-muted-foreground">Username</Label>
                     <p className="text-foreground" data-testid="text-username">
-                      {user?.userName || "Not provided"}
+                      @{currentUser?.userName || "Not provided"}
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground flex items-center">
-                      <Mail className="h-4 w-4 mr-2" />
+                    <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
                       Email Address
                       {isSocialLogin && (
-                        <span className="ml-2 px-2 py-1 text-xs bg-primary/10 text-primary rounded">
-                          {user?.authProvider === 'google' ? 'Google' : 'Apple'} Account
-                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {currentUser?.authProvider === 'google' ? 'Google' : 'Apple'}
+                        </Badge>
                       )}
                     </Label>
                     <p className="text-foreground" data-testid="text-email">
-                      {user?.email || "Not provided"}
+                      {currentUser?.email || "Not provided"}
                     </p>
-                    {isSocialLogin && (
-                      <p className="text-xs text-muted-foreground">
-                        Email is managed by your {user?.authProvider === 'google' ? 'Google' : 'Apple'} account
-                      </p>
-                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-muted-foreground flex items-center">
-                        <Phone className="h-4 w-4 mr-2" />
+                      <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
                         Phone Number
                       </Label>
                       <p className="text-foreground" data-testid="text-phone">
-                        {user?.phone || "Not provided"}
+                        {currentUser?.phonenumber || currentUser?.phone || "Not provided"}
                       </p>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-muted-foreground flex items-center">
-                        <MapPin className="h-4 w-4 mr-2" />
+                      <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
                         Country
                       </Label>
                       <p className="text-foreground" data-testid="text-country">
-                        {user?.country || "Not provided"}
+                        {currentUser?.country || "Not provided"}
                       </p>
                     </div>
                   </div>
 
+                  <Separator />
+
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Date of Birth</Label>
-                    <p className="text-foreground" data-testid="text-date-of-birth">
-                      {user?.date_of_birth ? new Date(user.date_of_birth).toLocaleDateString() : "Not provided"}
-                    </p>
+                    <Label className="text-sm font-medium text-muted-foreground">Account Status</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {currentUser?.seller ? (
+                        <Badge variant="secondary" className="gap-1">
+                          <Store className="h-3 w-3" />
+                          Seller Account
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1">
+                          <User className="h-3 w-3" />
+                          Buyer Account
+                        </Badge>
+                      )}
+                      {currentUser?.admin && (
+                        <Badge variant="default" className="gap-1">
+                          <Shield className="h-3 w-3" />
+                          Administrator
+                        </Badge>
+                      )}
+                      {currentUser?.above_age && (
+                        <Badge variant="outline" className="gap-1 text-green-600 border-green-600">
+                          <CheckCircle className="h-3 w-3" />
+                          Age Verified
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

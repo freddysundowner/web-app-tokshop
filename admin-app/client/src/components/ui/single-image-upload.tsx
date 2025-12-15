@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { X, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
+import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 
 interface SingleImageUploadProps {
   value: string;
@@ -26,6 +27,7 @@ export function SingleImageUpload({
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { externalApiUrl } = useApiConfig();
 
   const handleFileUpload = async (file: File) => {
     if (disabled || uploading) return;
@@ -119,16 +121,7 @@ export function SingleImageUpload({
     onChange("");
   };
 
-  // Build full image URL with API base
-  const getFullImageUrl = (url: string) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    // Prepend API base URL for relative paths
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.iconaapp.com';
-    return `${apiBase}${url}`;
-  };
-
-  const displayUrl = getFullImageUrl(value);
+  const displayUrl = getImageUrl(value, externalApiUrl);
 
   return (
     <div className="space-y-2">

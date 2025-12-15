@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Mail, Apple, Chrome, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
+import { initializeFirebase } from "@/lib/firebase";
 import { Link } from "wouter";
 import type { LoginData } from "@shared/schema";
 import { loginSchema } from "@shared/schema";
@@ -18,8 +19,37 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const { toast } = useToast();
   const { emailLogin, loginWithGoogle, loginWithApple, isLoading: authLoading } = useAuth();
+  
+  // Fetch Firebase keys on mount to initialize Firebase for auth (no token required)
+  useEffect(() => {
+    const fetchFirebaseKeys = async () => {
+      try {
+        const response = await fetch('/api/settings/keys');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            const { firebase_api_key, firebase_auth_domain, firebase_project_id } = data.data;
+            if (firebase_api_key && firebase_project_id) {
+              initializeFirebase({
+                apiKey: firebase_api_key,
+                authDomain: firebase_auth_domain,
+                projectId: firebase_project_id,
+                storageBucket: '',
+                appId: '',
+              });
+              setIsFirebaseReady(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch Firebase keys:', error);
+      }
+    };
+    fetchFirebaseKeys();
+  }, []);
 
   const form = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
@@ -30,6 +60,10 @@ export default function Login() {
   });
 
   const handleGoogleLogin = async () => {
+    if (!isFirebaseReady) {
+      toast({ title: "Please wait", description: "Initializing authentication...", variant: "default" });
+      return;
+    }
     try {
       setIsLoading(true);
       setLoginError("");
@@ -59,6 +93,10 @@ export default function Login() {
   };
 
   const handleAppleLogin = async () => {
+    if (!isFirebaseReady) {
+      toast({ title: "Please wait", description: "Initializing authentication...", variant: "default" });
+      return;
+    }
     try {
       setIsLoading(true);
       setLoginError("");

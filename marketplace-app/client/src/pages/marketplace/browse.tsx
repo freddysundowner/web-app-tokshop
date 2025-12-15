@@ -127,17 +127,17 @@ export default function Browse() {
               
               return (
                 <Link key={category._id} href={`/category/${category._id}`} data-testid={`link-category-${category._id}`}>
-                  <div className="group cursor-pointer rounded-lg overflow-hidden bg-muted hover-elevate active-elevate-2">
+                  <div className="group cursor-pointer rounded-lg overflow-hidden bg-primary hover-elevate active-elevate-2">
                     {/* Category Name at Top */}
                     <div className="p-3 pb-2">
-                      <h3 className="font-semibold text-sm md:text-base text-foreground line-clamp-1" data-testid={`text-category-name-${category._id}`}>
+                      <h3 className="font-semibold text-sm md:text-base text-primary-foreground line-clamp-1" data-testid={`text-category-name-${category._id}`}>
                         {category.name}
                       </h3>
                     </div>
 
                     {/* Category Image */}
                     <div className="flex justify-center items-center py-4 px-6">
-                      <div className="w-20 h-20 md:w-24 md:h-24 flex items-center justify-center">
+                      <div className="w-20 h-20 md:w-24 md:h-24 flex items-center justify-center bg-background/90 rounded-lg">
                         {imageUrl ? (
                           <img 
                             src={imageUrl} 
@@ -154,8 +154,8 @@ export default function Browse() {
 
                     {/* Viewer Count at Bottom */}
                     <div className="px-3 pb-3 pt-1">
-                      <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1" data-testid={`text-viewers-${category._id}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
+                      <p className="text-xs md:text-sm text-primary-foreground/80 flex items-center gap-1" data-testid={`text-viewers-${category._id}`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground flex-shrink-0"></span>
                         {formatViewers(category.viewers)} viewers
                       </p>
                     </div>

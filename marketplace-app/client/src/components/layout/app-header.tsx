@@ -10,6 +10,7 @@ import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ interface AppHeaderProps {
 export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobileMenuClose, hideLogo = false, hideNavigation = false, hideSearch = false, isDashboard = false }: AppHeaderProps) {
   const { settings, theme } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
+  const { externalApiUrl } = useApiConfig();
   const [, setLocation] = useLocation();
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,7 +192,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                 <div className="flex items-center gap-2">
                   {theme.app_logo ? (
                     <img 
-                      src={theme.app_logo.startsWith('http') ? theme.app_logo : `https://api.iconaapp.com${theme.app_logo}`}
+                      src={getImageUrl(theme.app_logo, externalApiUrl)}
                       alt={settings.app_name || 'Logo'}
                       className="h-7 sm:h-8 w-auto object-contain"
                     />

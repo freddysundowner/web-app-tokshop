@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
 import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
 import { useQuery } from '@tanstack/react-query';
@@ -71,17 +70,25 @@ const DEFAULT_CONTENT = {
 };
 
 export default function LandingPage8() {
-  const { settings, theme } = useSettings();
   const { isAuthenticated, user } = useAuth();
   const { externalApiUrl } = useApiConfig();
   const [, setLocation] = useLocation();
   const [currentSection, setCurrentSection] = useState(0);
   const sectionsRef = useRef<(HTMLElement | null)[]>([]);
 
+  // Fetch theme directly - no settings API call needed
+  const { data: themeData } = useQuery<any>({
+    queryKey: ['/api/public/themes'],
+  });
+  const theme = themeData?.data || {};
+  
   // Fetch landing page content from API
   const { data: landingData } = useQuery<any>({
     queryKey: ['/api/content/landing'],
   });
+  
+  // Use theme for app name
+  const appName = theme.seo_title || theme.app_name || 'App';
 
   // Merge API content with defaults - API always takes precedence
   const content = {
@@ -176,7 +183,7 @@ export default function LandingPage8() {
           <Link href="/">
             <div className="flex items-center cursor-pointer" data-testid="link-logo">
               {headerLogo ? (
-                <img src={headerLogo} alt={settings.app_name} className="h-20 sm:h-24 object-contain" />
+                <img src={headerLogo} alt={appName} className="h-20 sm:h-24 object-contain" />
               ) : (
                 <div 
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center"
@@ -275,7 +282,7 @@ export default function LandingPage8() {
               </p>
               
               <div className="mb-8">
-                <p className="text-sm font-semibold text-white mb-3">{content.hero.downloadText} {settings.app_name}</p>
+                <p className="text-sm font-semibold text-white mb-3">{content.hero.downloadText} {appName}</p>
                 <QRCodeDisplay imageUrl={heroQrCode} gradientStyle={{ backgroundColor: 'white' }} />
               </div>
 
@@ -334,7 +341,7 @@ export default function LandingPage8() {
               </p>
               
               <div className="mb-8">
-                <p className="text-sm font-semibold text-white mb-3">{content.joinFun.downloadText} {settings.app_name}</p>
+                <p className="text-sm font-semibold text-white mb-3">{content.joinFun.downloadText} {appName}</p>
                 <QRCodeDisplay 
                   imageUrl={joinFunQrCode} 
                   gradientStyle={{ background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)` }} 
@@ -408,7 +415,7 @@ export default function LandingPage8() {
               </p>
               
               <div className="mb-8">
-                <p className="text-sm font-semibold text-white mb-3">{content.gotItAll.downloadText} {settings.app_name}</p>
+                <p className="text-sm font-semibold text-white mb-3">{content.gotItAll.downloadText} {appName}</p>
                 <QRCodeDisplay 
                   imageUrl={gotItAllQrCode} 
                   gradientStyle={{ background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)` }} 
@@ -462,7 +469,7 @@ export default function LandingPage8() {
               </p>
               
               <div className="mb-8">
-                <p className="text-sm font-semibold text-white mb-3">{content.deals.downloadText} {settings.app_name}</p>
+                <p className="text-sm font-semibold text-white mb-3">{content.deals.downloadText} {appName}</p>
                 <QRCodeDisplay imageUrl={dealsQrCode} gradientStyle={{ backgroundColor: 'white' }} />
               </div>
 
@@ -594,13 +601,17 @@ export default function LandingPage8() {
           
           <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
-                <Check className="h-4 w-4 text-[#FFE600]" />
-              </div>
-              <span className="font-semibold">{settings.app_name}</span>
+              {getImageUrl(theme.app_logo, externalApiUrl) ? (
+                <img src={getImageUrl(theme.app_logo, externalApiUrl)} alt={appName} className="h-8 w-auto object-contain" />
+              ) : (
+                <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
+                  <Check className="h-4 w-4 text-[#FFE600]" />
+                </div>
+              )}
+              <span className="font-semibold">{appName}</span>
             </div>
             <p className="text-sm text-white/60">
-              © {content.footer.copyrightText} {settings.app_name}. All rights reserved.
+              {content.footer.copyrightText || `© ${new Date().getFullYear()} ${appName}. All rights reserved.`}
             </p>
           </div>
         </div>

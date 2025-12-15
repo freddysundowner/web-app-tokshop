@@ -2,6 +2,56 @@ import type { Express } from "express";
 import { BASE_URL } from "../utils";
 
 export function registerSettingsRoutes(app: Express) {
+  // Get Firebase auth keys only (no auth required) - for login page
+  app.get("/api/settings/keys", async (req, res) => {
+    try {
+      const url = `${BASE_URL}/settings/keys`;
+      console.log(`Fetching Firebase keys from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch settings from API for keys, using empty defaults`);
+        return res.json({
+          success: true,
+          data: {
+            firebase_api_key: "",
+            firebase_auth_domain: "",
+            firebase_project_id: "",
+          },
+        });
+      }
+
+      const data = await response.json();
+      const settings = Array.isArray(data) ? data[0] : data;
+      
+      // Return only Firebase auth keys needed for login
+      res.json({
+        success: true,
+        data: {
+          firebase_api_key: settings?.firebase_api_key || settings?.FIREBASE_API_KEY || "",
+          firebase_auth_domain: settings?.firebase_auth_domain || "",
+          firebase_project_id: settings?.firebase_project_id || "",
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching Firebase keys:", error);
+      res.json({
+        success: true,
+        data: {
+          firebase_api_key: "",
+          firebase_auth_domain: "",
+          firebase_project_id: "",
+        },
+      });
+    }
+  });
+
   // Get public theme settings (no auth required)
   app.get("/api/public/themes", async (req, res) => {
     try {
@@ -52,6 +102,7 @@ export function registerSettingsRoutes(app: Express) {
         success: true,
         data: {
           app_name: themes?.app_name || "",
+          seo_title: themes?.seo_title || "",
           slogan: themes?.slogan || "",
           primary_color: themes?.primary_color || "FFFACC15",
           secondary_color: themes?.secondary_color || "FF0D9488",
@@ -121,12 +172,12 @@ export function registerSettingsRoutes(app: Express) {
             secondary_color: "#1A1A1A",
             stripe_publishable_key: "",
             commission_rate: 0,
-            // Firebase configuration
-            firebase_api_key: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
-            firebase_auth_domain: "icona-e7769.firebaseapp.com",
-            firebase_project_id: "icona-e7769",
-            firebase_storage_bucket: "icona-e7769.firebasestorage.app",
-            firebase_app_id: "1:167886286942:web:f13314bc30af1005e384cf",
+            // Firebase configuration - must come from API, no hardcoded defaults
+            firebase_api_key: "",
+            firebase_auth_domain: "",
+            firebase_project_id: "",
+            firebase_storage_bucket: "",
+            firebase_app_id: "",
             demoMode: false,
           },
         });
@@ -177,12 +228,12 @@ export function registerSettingsRoutes(app: Express) {
           secondary_color: "#1A1A1A",
           stripe_publishable_key: "",
           commission_rate: 0,
-          // Firebase configuration
-          firebase_api_key: "AIzaSyAq_pNPbTOSvA1X6K2jOCsiVUQyVdqcqBA",
-          firebase_auth_domain: "icona-e7769.firebaseapp.com",
-          firebase_project_id: "icona-e7769",
-          firebase_storage_bucket: "icona-e7769.firebasestorage.app",
-          firebase_app_id: "1:167886286942:web:f13314bc30af1005e384cf",
+          // Firebase configuration - must come from API, no hardcoded defaults
+          firebase_api_key: "",
+          firebase_auth_domain: "",
+          firebase_project_id: "",
+          firebase_storage_bucket: "",
+          firebase_app_id: "",
           demoMode: false,
         },
       });

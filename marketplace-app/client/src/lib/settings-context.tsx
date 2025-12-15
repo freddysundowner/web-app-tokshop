@@ -25,6 +25,7 @@ interface AppSettings {
 
 interface ThemeSettings {
   app_name: string;
+  seo_title?: string;
   slogan: string;
   primary_color: string;
   secondary_color: string;
@@ -42,6 +43,8 @@ interface SettingsContextType {
   isLoading: boolean;
   isFirebaseReady: boolean;
   appName: string;
+  fetchSettings: () => Promise<void>;
+  settingsFetched: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -56,6 +59,7 @@ const defaultSettings: AppSettings = {
 
 const defaultTheme: ThemeSettings = {
   app_name: '',
+  seo_title: '',
   slogan: '',
   primary_color: 'FFFACC15',
   secondary_color: 'FF0D9488',
@@ -71,6 +75,8 @@ const SettingsContext = createContext<SettingsContextType>({
   isLoading: true,
   isFirebaseReady: false,
   appName: 'TokshopLive',
+  fetchSettings: async () => {},
+  settingsFetched: false,
 });
 
 // Helper function to convert hex to HSL
@@ -202,56 +208,60 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<ThemeSettings>(defaultTheme);
   const [isLoading, setIsLoading] = useState(true);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+  const [settingsFetched, setSettingsFetched] = useState(false);
 
-  useEffect(() => {
-    async function fetchSettings() {
-      try {
-        const response = await fetch('/api/settings');
-        if (response.ok) {
-          const data = await response.json();
-          console.log('⚙️ Settings fetched:', data);
-          if (data.success && data.data) {
-            console.log('⚙️ Settings data:', data.data);
-            setSettings(data.data);
-            
-            // Build Firebase config from either nested object or individual fields
-            let firebaseConfig: FirebaseConfig | undefined;
-            
-            if (data.data.firebase_config) {
-              // Use nested firebase_config object if available
-              firebaseConfig = data.data.firebase_config;
-              console.log('🔥 Using nested firebase_config from API');
-            } else if (data.data.firebase_auth_domain || data.data.firebase_project_id) {
-              // Build from individual fields (from admin panel settings)
-              firebaseConfig = {
-                apiKey: data.data.firebase_api_key || data.data.FIREBASE_API_KEY || '',
-                authDomain: data.data.firebase_auth_domain || '',
-                projectId: data.data.firebase_project_id || '',
-                storageBucket: data.data.firebase_storage_bucket || '',
-                appId: data.data.firebase_app_id || '',
-              };
-              console.log('🔥 Built firebase_config from individual fields');
-            }
-            
-            // Initialize Firebase with dynamic config if available
-            if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
-              console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
-              initializeFirebase(firebaseConfig);
-              setIsFirebaseReady(true);
-            } else {
-              console.warn('⚠️ No valid Firebase config found in settings');
-            }
+  // Lazy fetch settings - only called when needed (e.g., login page)
+  const fetchSettingsOnDemand = async () => {
+    if (settingsFetched) return; // Already fetched
+    
+    try {
+      const response = await fetch('/api/settings');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('⚙️ Settings fetched:', data);
+        if (data.success && data.data) {
+          console.log('⚙️ Settings data:', data.data);
+          setSettings(data.data);
+          setSettingsFetched(true);
+          
+          // Build Firebase config from either nested object or individual fields
+          let firebaseConfig: FirebaseConfig | undefined;
+          
+          if (data.data.firebase_config) {
+            // Use nested firebase_config object if available
+            firebaseConfig = data.data.firebase_config;
+            console.log('🔥 Using nested firebase_config from API');
+          } else if (data.data.firebase_auth_domain || data.data.firebase_project_id) {
+            // Build from individual fields (from admin panel settings)
+            firebaseConfig = {
+              apiKey: data.data.firebase_api_key || data.data.FIREBASE_API_KEY || '',
+              authDomain: data.data.firebase_auth_domain || '',
+              projectId: data.data.firebase_project_id || '',
+              storageBucket: data.data.firebase_storage_bucket || '',
+              appId: data.data.firebase_app_id || '',
+            };
+            console.log('🔥 Built firebase_config from individual fields');
+          }
+          
+          // Initialize Firebase with dynamic config if available
+          if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
+            console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
+            initializeFirebase(firebaseConfig);
+            setIsFirebaseReady(true);
+          } else {
+            console.warn('⚠️ No valid Firebase config found in settings');
           }
         }
-      } catch (error) {
-        console.error('Failed to fetch app settings:', error);
-        console.warn('⚠️ Cannot initialize Firebase without settings');
-      } finally {
-        setIsLoading(false);
       }
+    } catch (error) {
+      console.error('Failed to fetch app settings:', error);
+      console.warn('⚠️ Cannot initialize Firebase without settings');
     }
+  };
 
-    fetchSettings();
+  // Only fetch themes on mount - settings are lazy loaded
+  useEffect(() => {
+    setIsLoading(false);
   }, []);
 
   // Fetch theme settings separately
@@ -287,7 +297,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, theme.primary_color, theme.secondary_color, theme.button_color, theme.button_text_color]);
 
-  const appName = settings.app_name || 'TokshopLive';
+  const appName = theme.seo_title || theme.app_name || settings.app_name || 'TokshopLive';
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
@@ -295,8 +305,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     theme,
     isLoading,
     isFirebaseReady,
-    appName
-  }), [settings, theme, isLoading, isFirebaseReady, appName]);
+    appName,
+    fetchSettings: fetchSettingsOnDemand,
+    settingsFetched,
+  }), [settings, theme, isLoading, isFirebaseReady, appName, settingsFetched]);
 
   return (
     <SettingsContext.Provider value={value}>

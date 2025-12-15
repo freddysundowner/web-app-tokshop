@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Upload, X, ChevronDown, ChevronUp, Video, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { uploadShowThumbnail, uploadShowPreviewVideo } from "@/lib/upload-images";
 
 const scheduleShowSchema = z.object({
@@ -49,12 +50,20 @@ export default function ScheduleShow() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isFirebaseReady, fetchSettings } = useSettings();
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [domesticShipmentsExpanded, setDomesticShipmentsExpanded] = useState(false);
   const [shippingCostsExpanded, setShippingCostsExpanded] = useState(false);
+
+  // Initialize Firebase for image uploads
+  useEffect(() => {
+    if (!isFirebaseReady) {
+      fetchSettings();
+    }
+  }, [isFirebaseReady, fetchSettings]);
 
   // Get edit ID from URL query params
   const editShowId = new URLSearchParams(window.location.search).get('edit');

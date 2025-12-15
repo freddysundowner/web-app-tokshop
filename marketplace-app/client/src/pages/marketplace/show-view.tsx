@@ -25,8 +25,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { useSettings } from '@/lib/settings-context';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import { useSocket } from '@/lib/socket-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -79,8 +79,15 @@ function normalizeAuctionEndTime(auction: any): any {
 
 export default function ShowViewNew() {
   usePageTitle('Live Show');
-  const { settings } = useSettings();
+  const { settings, isFirebaseReady, fetchSettings } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
+  
+  // Initialize Firebase for chat messages
+  useEffect(() => {
+    if (!isFirebaseReady) {
+      fetchSettings();
+    }
+  }, [isFirebaseReady, fetchSettings]);
   const { socket, isConnected, joinRoom, leaveRoom, setLeavingRoom, connect, disconnect } = useSocket();
   const { toast } = useToast();
   const { id } = useParams();
@@ -210,6 +217,13 @@ export default function ShowViewNew() {
   // Join room immediately when socket is connected
   const hasJoinedRoomRef = useRef(false);
   const hasSentJoinMessageRef = useRef(false);
+  
+  // Reset flags when room ID changes
+  useEffect(() => {
+    hasJoinedRoomRef.current = false;
+    hasSentJoinMessageRef.current = false;
+  }, [id]);
+  
   useEffect(() => {
     if (!id) return;
     
@@ -219,43 +233,32 @@ export default function ShowViewNew() {
       willJoin: isConnected && !hasJoinedRoomRef.current
     });
     
+    // Join the socket room (only once per room)
     if (isConnected && !hasJoinedRoomRef.current) {
       console.log('✅ Socket connected - joining room immediately:', id);
       joinRoom(id);
       hasJoinedRoomRef.current = true;
+    }
+    
+    // Send join message to Firebase (only once per room, when user and firebase are ready)
+    if (isConnected && user && isFirebaseReady && !hasSentJoinMessageRef.current) {
+      const userId = (user as any)?._id || user?.id;
+      const userName = (user as any)?.userName || (user as any)?.firstName?.trim() || 'User';
+      const userPhoto = (user as any)?.profilePhoto?.trim() || '';
       
-      // Send join message to Firebase immediately (don't wait for backend socket event)
-      // This ensures join messages work regardless of show status (live or not)
-      if (user && !hasSentJoinMessageRef.current) {
-        const userId = (user as any)?._id || user?.id;
-        const userName = user?.userName || user?.firstName?.trim() || 'User';
-        const userPhoto = user?.profilePhoto?.trim() || '';
-        
-        if (userId) {
-          sendRoomMessage(
-            id,
-            'joined 👋',
-            userId,
-            userName,
-            userPhoto,
-            [] // no mentions
-          ).then(() => {
-            console.log('📨 Join message sent to Firebase');
-            hasSentJoinMessageRef.current = true;
-          }).catch((error) => {
-            console.error('Failed to send join message to Firebase:', error);
+      if (userId) {
+        hasSentJoinMessageRef.current = true;
+        console.log('📨 Sending join message to Firebase');
+        sendRoomMessage(id, 'joined 👋', userId, userName, userPhoto, [])
+          .then(() => console.log('✅ Join message sent to Firebase'))
+          .catch((err) => {
+            console.error('❌ Failed to send join message:', err);
+            hasSentJoinMessageRef.current = false; // Allow retry on error
           });
-        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isConnected, user]);
-  
-  // Reset join flags when room ID changes
-  useEffect(() => {
-    hasJoinedRoomRef.current = false;
-    hasSentJoinMessageRef.current = false;
-  }, [id]);
+  }, [id, isConnected, user, isFirebaseReady]);
   
   // Set mobile viewport height accounting for browser chrome
   useEffect(() => {
@@ -1014,9 +1017,9 @@ export default function ShowViewNew() {
   });
 
 
-  // Subscribe to Firebase room messages
+  // Subscribe to Firebase room messages - wait for Firebase to be ready
   useEffect(() => {
-    if (!id) return;
+    if (!id || !isFirebaseReady) return;
     
     console.log(`📨 Subscribing to Firebase room messages for show: ${id}`);
     
@@ -1044,7 +1047,7 @@ export default function ShowViewNew() {
       console.log(`📨 Unsubscribing from Firebase room messages for show: ${id}`);
       unsubscribe();
     };
-  }, [id]);
+  }, [id, isFirebaseReady]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

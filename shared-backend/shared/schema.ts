@@ -33,6 +33,7 @@ export const socialAuthSchema = z.object({
   gender: z.string().optional(),
   uid: z.string().optional(), // Firebase UID (will be overridden by verified UID)
   idToken: z.string().min(1, "Firebase ID token is required for authentication"), // Required for verification
+  providerToken: z.string().optional(), // OAuth provider token (Google accessToken or Apple identityToken) for backend decoding
   provider: z.string().optional(), // Firebase provider info
   profilePicture: z.string().optional(), // Profile picture URL
 }).refine((data) => {

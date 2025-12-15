@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
-import { sendRoomMessage } from '@/lib/firebase-chat';
 import { timeSync } from '@/lib/time-sync';
 
 interface UseShowSocketEventsProps {
@@ -151,12 +150,9 @@ export function useShowSocketEvents({
   }, [setViewers]);
 
   // Memoized handler: Current user successfully joined room
-  const handleCurrentUserJoined = useCallback(async (data: any) => {
+  // Note: Join message is now sent directly in show-view.tsx to avoid race conditions
+  const handleCurrentUserJoined = useCallback((data: any) => {
     console.log('✅ Current user joined room:', data);
-    
-    // NOTE: Join message is now sent directly in show-view.tsx when the socket connects
-    // This ensures join messages work regardless of show status (live or not)
-    // We don't send it here to avoid duplicates
   }, []);
 
   // Memoized handler: Room started

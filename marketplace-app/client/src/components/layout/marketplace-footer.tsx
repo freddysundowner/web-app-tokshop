@@ -1,8 +1,13 @@
 import { Link } from 'wouter';
 import { useSettings } from '@/lib/settings-context';
+import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
 
 export function MarketplaceFooter() {
-  const { settings } = useSettings();
+  const { theme } = useSettings();
+  const { externalApiUrl } = useApiConfig();
+  
+  const appName = theme.seo_title || theme.app_name || 'App';
+  const logoUrl = getImageUrl(theme.app_logo || theme.header_logo, externalApiUrl);
 
   return (
     <footer className="border-t border-border py-12 bg-muted/20">
@@ -27,15 +32,19 @@ export function MarketplaceFooter() {
           </div>
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 bg-black rounded-full flex items-center justify-center p-1">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="text-primary">
-                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-                </svg>
-              </div>
-              <span className="font-semibold text-foreground">{settings.app_name}</span>
+              {logoUrl ? (
+                <img src={logoUrl} alt={appName} className="h-8 w-auto object-contain" data-testid="img-footer-logo" />
+              ) : (
+                <div className="h-6 w-6 bg-black rounded-full flex items-center justify-center p-1">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="text-primary">
+                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+                  </svg>
+                </div>
+              )}
+              <span className="font-semibold text-foreground">{appName}</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 {settings.app_name}. All rights reserved.
+              © 2025 {appName}. All rights reserved.
             </p>
           </div>
         </div>

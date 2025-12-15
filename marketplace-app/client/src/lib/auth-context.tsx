@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef, useC
 import { onAuthStateChange, signInWithGoogle, signInWithApple, firebaseSignOut, handleAuthRedirect } from "./firebase";
 import type { User as FirebaseUser } from "firebase/auth";
 import { loginSchema, signupSchema, socialAuthSchema, socialAuthCompleteSchema, type LoginData, type SignupData, type SocialAuthData, type SocialAuthCompleteData } from "@shared/schema";
-import { apiRequest } from "./queryClient";
+import { apiRequest, queryClient } from "./queryClient";
 import { useSettings } from "./settings-context";
 
 interface User {
@@ -11,6 +11,7 @@ interface User {
   firstName?: string;
   lastName?: string;
   profilePhoto?: string;
+  coverPhoto?: string;
   userName?: string;
   country?: string;
   phone?: string;
@@ -54,7 +55,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   console.log('[AuthProvider] Initializing AuthProvider');
   
-  const { isFirebaseReady, settings } = useSettings();
+  const { isFirebaseReady, settings, isLoading: settingsLoading } = useSettings();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingSocialAuth, setPendingSocialAuth] = useState(false);
@@ -71,9 +72,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isAuthenticated = !!user;
 
   // Call backend social auth API after successful Firebase auth  
-  const authenticateWithTokshopRef = useRef<(firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck?: boolean) => Promise<any>>();
+  const authenticateWithTokshopRef = useRef<(firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck?: boolean, providerToken?: string | null) => Promise<any>>();
   
-  authenticateWithTokshopRef.current = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false) => {
+  authenticateWithTokshopRef.current = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false, providerToken?: string | null) => {
     try {
       // Get Firebase ID token for server-side verification
       const idToken = await firebaseUser.getIdToken(true);
@@ -129,13 +130,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Firebase verification data (server will use this for identity)
         idToken: idToken,
         uid: firebaseUser.uid,
+        // OAuth provider token for backend decoding (Google accessToken or Apple identityToken)
+        providerToken: providerToken || undefined,
         // Profile data (server will use verified Firebase data as primary source)
         email: email,
         firstName: firstName,
         lastName: lastName,
         type: authType,
         profilePhoto: firebaseUser.photoURL || '',
-        userName: authType === 'apple' ? '' : (email || firebaseUser.uid), // For Apple, don't set userName as email
+        userName: '', // Leave empty so new users are redirected to completion page to enter their own username
         country: '',
         phone: '',
         gender: ''
@@ -203,9 +206,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
   
-  const authenticateWithTokshop = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false) => {
+  const authenticateWithTokshop = async (firebaseUser: FirebaseUser, additionalUserInfo?: any, skipNewUserCheck: boolean = false, providerToken?: string | null) => {
     if (authenticateWithTokshopRef.current) {
-      return await authenticateWithTokshopRef.current(firebaseUser, additionalUserInfo, skipNewUserCheck);
+      return await authenticateWithTokshopRef.current(firebaseUser, additionalUserInfo, skipNewUserCheck, providerToken);
     }
   };
 
@@ -319,28 +322,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const result = await signInWithGoogle();
       
       if (result?.user) {
-        const userEmail = result.user.email;
+        // Extract provider token from result (Google accessToken)
+        const providerToken = (result as any)?.providerToken || null;
         
-        if (!userEmail) {
-          throw new Error('No email found in Google account');
+        // Store providerToken for use if this is a new user requiring completion
+        if (providerToken) {
+          localStorage.setItem('pendingProviderToken', providerToken);
         }
         
-        // Check if user exists in the system
-        const checkResponse = await apiRequest('GET', `/api/users/userexists/email?email=${encodeURIComponent(userEmail)}`);
-        const checkData = await checkResponse.json();
-        
-        console.log('[loginWithGoogle] User existence check:', checkData);
-        
-        if (checkData.exists) {
-          // User exists - proceed with normal authentication
-          await authenticateWithTokshop(result.user, (result as any)?.additionalUserInfo, true);
-        } else {
-          // User doesn't exist - set pending auth state for data collection
-          setPendingSocialAuth(true);
-          setPendingSocialAuthEmail(userEmail);
-          setPendingSocialAuthData(result.user);
-          console.log('[loginWithGoogle] New user detected, redirecting to data collection');
-        }
+        // Let authenticateWithTokshop handle new user detection via `newuser` response field
+        await authenticateWithTokshop(result.user, (result as any)?.additionalUserInfo, false, providerToken);
       }
     } catch (error) {
       console.error('Google login failed:', error);
@@ -356,7 +347,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const result = await signInWithApple();
       // Handle authentication directly to capture additionalUserInfo for Apple
       if (result?.user) {
-        await authenticateWithTokshop(result.user, (result as any)?.additionalUserInfo);
+        // Extract provider token from result (Apple identityToken)
+        const providerToken = (result as any)?.providerToken || null;
+        
+        // Store providerToken for use if this is a new user requiring completion
+        if (providerToken) {
+          localStorage.setItem('pendingProviderToken', providerToken);
+        }
+        
+        await authenticateWithTokshop(result.user, (result as any)?.additionalUserInfo, false, providerToken);
       }
     } catch (error) {
       console.error('Apple login failed:', error);
@@ -387,6 +386,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
+      // Get stored provider token from pending auth
+      const storedProviderToken = localStorage.getItem('pendingProviderToken') || undefined;
+      
       // Combine the original Firebase data with the completion data
       const fullSocialAuthData = {
         email: pendingSocialAuthData.email || '',
@@ -397,7 +399,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         profilePhoto: pendingSocialAuthData.photoURL || '',
         country: validatedData.country || '',
         phone: validatedData.phone || '',
-        gender: validatedData.gender || ''
+        gender: validatedData.gender || '',
+        providerToken: storedProviderToken // Include provider token for backend decoding
       };
 
       const response = await apiRequest('POST', '/api/auth/social/complete', fullSocialAuthData);
@@ -435,6 +438,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setPendingSocialAuth(false);
         setPendingSocialAuthEmail(null);
         setPendingSocialAuthData(null);
+        // Clear stored provider token
+        localStorage.removeItem('pendingProviderToken');
       } else {
         throw new Error(completeResponse.error || 'Failed to complete social authentication');
       }
@@ -456,10 +461,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem('userId');
       localStorage.removeItem('user');
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('pendingProviderToken');
       // Clear pending auth state
       setPendingSocialAuth(false);
       setPendingSocialAuthEmail(null);
       setPendingSocialAuthData(null);
+      // Clear React Query cache to prevent stale user data from showing for new user
+      queryClient.clear();
     } catch (error) {
       console.error('Logout failed:', error);
       // Clear user state on error
@@ -468,10 +476,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem('userId');
       localStorage.removeItem('user');
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('pendingProviderToken');
       // Clear pending auth state
       setPendingSocialAuth(false);
       setPendingSocialAuthEmail(null);
       setPendingSocialAuthData(null);
+      // Clear React Query cache to prevent stale user data
+      queryClient.clear();
     }
   };
 
@@ -666,39 +677,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUserData = async (): Promise<{ address: any; defaultpaymentmethod: any } | null> => {
     try {
-      if (!user?.id) {
+      // First, sync from localStorage which may have been updated by profile page
+      const storedUser = localStorage.getItem('user');
+      let currentUserData = user;
+      
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          // Update state with localStorage data (includes profile updates like userName)
+          currentUserData = { ...user, ...parsedUser };
+          setUser(currentUserData);
+          console.log('[refreshUserData] Synced user from localStorage:', parsedUser.userName);
+        } catch (e) {
+          console.error('[refreshUserData] Failed to parse stored user');
+        }
+      }
+
+      if (!currentUserData?.id) {
         console.log('[refreshUserData] No user logged in');
         return null;
       }
 
-      // Prevent multiple simultaneous calls
+      // Prevent multiple simultaneous calls for address/payment fetch
       if (isRefreshing.current) {
-        console.log('[refreshUserData] Already refreshing, skipping...');
-        return null;
+        console.log('[refreshUserData] Already refreshing, skipping address/payment fetch...');
+        return { address: currentUserData.address, defaultpaymentmethod: currentUserData.defaultpaymentmethod };
       }
 
-      // Debounce: Don't refresh if we refreshed less than 2 seconds ago
+      // Debounce: Don't refresh address/payment if we refreshed less than 2 seconds ago
       const now = Date.now();
       if (now - lastRefreshTime.current < 2000) {
-        console.log('[refreshUserData] Refreshed recently, skipping...');
-        // Return current user data for the check
-        return { address: user.address, defaultpaymentmethod: user.defaultpaymentmethod };
+        console.log('[refreshUserData] Refreshed recently, skipping address/payment fetch...');
+        return { address: currentUserData.address, defaultpaymentmethod: currentUserData.defaultpaymentmethod };
       }
 
       isRefreshing.current = true;
       lastRefreshTime.current = now;
 
-      console.log('[refreshUserData] Fetching latest user data for:', user.id);
+      console.log('[refreshUserData] Fetching latest address/payment data for:', currentUserData.id);
 
       // Fetch default address from the correct endpoint
-      const addressResponse = await apiRequest('GET', `/api/address/default/address/${user.id}`);
+      const addressResponse = await apiRequest('GET', `/api/address/default/address/${currentUserData.id}`);
       const addressResponseData = await addressResponse.json();
       
       // Unwrap the address from the proxy response: { address: {...} }
       const defaultAddress = addressResponseData?.address || null;
 
       // Fetch payment methods (returns an array)
-      const paymentResponse = await apiRequest('GET', `/api/users/paymentmethod/${user.id}`);
+      const paymentResponse = await apiRequest('GET', `/api/users/paymentmethod/${currentUserData.id}`);
       const paymentMethods = await paymentResponse.json();
       
       // Check if there are any payment methods
@@ -706,9 +732,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const hasPaymentMethod = Array.isArray(paymentMethods) && paymentMethods.length > 0;
       const defaultPaymentMethod = hasPaymentMethod ? paymentMethods[0] : null;
 
-      // Update user context with fresh data
+      // Update user context with fresh data (merge with current user data)
       const updatedUser = {
-        ...user,
+        ...currentUserData,
         address: defaultAddress || null,
         defaultpaymentmethod: defaultPaymentMethod || null
       };
@@ -717,6 +743,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
       console.log('[refreshUserData] User data updated:', {
+        userName: updatedUser.userName,
         hasAddress: !!updatedUser.address,
         hasPayment: !!updatedUser.defaultpaymentmethod
       });
@@ -730,6 +757,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isRefreshing.current = false;
     }
   };
+
+  // Handle case where Firebase config is not available - still allow app to load
+  useEffect(() => {
+    if (!settingsLoading && !isFirebaseReady) {
+      console.log('[AuthProvider] Settings loaded but Firebase not available - checking localStorage');
+      // Try to restore user from localStorage even without Firebase
+      const storedUser = localStorage.getItem('user');
+      const storedToken = localStorage.getItem('accessToken');
+      if (storedUser && storedToken) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          console.log('[AuthProvider] Restored user from localStorage:', parsedUser.id);
+          setUser(parsedUser);
+        } catch (e) {
+          console.error('[AuthProvider] Failed to parse stored user');
+        }
+      }
+      // Stop loading so app can render
+      setIsLoading(false);
+      hasCheckedAuth.current = true;
+    }
+  }, [settingsLoading, isFirebaseReady]);
 
   useEffect(() => {
     // Only set up Firebase listener after Firebase is initialized

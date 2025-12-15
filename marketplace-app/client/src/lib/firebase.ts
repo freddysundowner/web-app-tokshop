@@ -119,7 +119,18 @@ appleProvider.addScope("name");
 // Google Sign In with popup (better UX than redirect)
 export const signInWithGoogle = async () => {
   try {
-    return await signInWithPopup(getFirebaseAuth(), googleProvider);
+    const result = await signInWithPopup(getFirebaseAuth(), googleProvider);
+    
+    // Extract Google OAuth credential to get access token
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const providerToken = credential?.accessToken || null;
+    
+    // Return result with provider token attached
+    return {
+      ...result,
+      providerToken,
+      providerId: 'google.com'
+    };
   } catch (error: any) {
     // If popup is blocked, fall back to redirect
     if (error.code === "auth/popup-blocked") {
@@ -148,7 +159,18 @@ export const firebaseSignOut = () => {
 // Apple Sign In with popup (better UX than redirect)
 export const signInWithApple = async () => {
   try {
-    return await signInWithPopup(getFirebaseAuth(), appleProvider);
+    const result = await signInWithPopup(getFirebaseAuth(), appleProvider);
+    
+    // Extract Apple OAuth credential to get identity token
+    const credential = OAuthProvider.credentialFromResult(result);
+    const providerToken = credential?.idToken || credential?.accessToken || null;
+    
+    // Return result with provider token attached
+    return {
+      ...result,
+      providerToken,
+      providerId: 'apple.com'
+    };
   } catch (error: any) {
     // If popup is blocked, fall back to redirect
     if (error.code === "auth/popup-blocked") {
