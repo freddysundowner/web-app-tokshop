@@ -186,6 +186,9 @@ export function registerSettingsRoutes(app: Express) {
       const data = await response.json();
       const settings = Array.isArray(data) ? data[0] : data;
       
+      // Log raw settings to debug Firebase config
+      console.log('Raw settings from API:', JSON.stringify(settings, null, 2));
+      
       // Extract public branding information, Stripe publishable key, and Firebase config
       const publicSettings = {
         app_name: settings?.app_name || "App",
@@ -196,12 +199,12 @@ export function registerSettingsRoutes(app: Express) {
         // API returns 'stripepublickey' not 'stripe_publishable_key'
         stripe_publishable_key: settings?.stripepublickey || settings?.stripe_publishable_key || "",
         commission_rate: parseFloat(settings?.commission || "0"), // API returns 'commission' as string
-        // Firebase configuration (individual fields)
-        firebase_api_key: settings?.firebase_api_key || settings?.FIREBASE_API_KEY || "",
-        firebase_auth_domain: settings?.firebase_auth_domain || "",
-        firebase_project_id: settings?.firebase_project_id || "",
-        firebase_storage_bucket: settings?.firebase_storage_bucket || "",
-        firebase_app_id: settings?.firebase_app_id || "",
+        // Firebase configuration (individual fields) - check multiple possible field names
+        firebase_api_key: settings?.firebase_api_key || settings?.FIREBASE_API_KEY || settings?.firebaseApiKey || settings?.apiKey || "",
+        firebase_auth_domain: settings?.firebase_auth_domain || settings?.FIREBASE_AUTH_DOMAIN || settings?.firebaseAuthDomain || settings?.authDomain || "",
+        firebase_project_id: settings?.firebase_project_id || settings?.FIREBASE_PROJECT_ID || settings?.firebaseProjectId || settings?.projectId || "",
+        firebase_storage_bucket: settings?.firebase_storage_bucket || settings?.FIREBASE_STORAGE_BUCKET || settings?.firebaseStorageBucket || settings?.storageBucket || "",
+        firebase_app_id: settings?.firebase_app_id || settings?.FIREBASE_APP_ID || settings?.firebaseAppId || settings?.appId || "",
         // Demo mode flag
         demoMode: settings?.demoMode || false,
         // Age restriction flag

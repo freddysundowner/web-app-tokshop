@@ -9,10 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical, Clock, CalendarIcon, Loader2, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
 
 export default function AdminUsers() {
   const [, setLocation] = useLocation();
@@ -21,6 +27,10 @@ export default function AdminUsers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [selectedUserForSuspend, setSelectedUserForSuspend] = useState<any>(null);
+  const [suspendEndDate, setSuspendEndDate] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -52,7 +62,14 @@ export default function AdminUsers() {
     },
   });
 
-  const users = usersData?.data?.users || [];
+  const allUsers = usersData?.data?.users || [];
+  
+  const users = allUsers.filter((u: any) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "suspended") return u.suspended === true;
+    if (statusFilter === "blocked") return u.system_blocked === true;
+    return true;
+  });
   
   const pagination = usersData?.data ? {
     currentPage: page,
@@ -82,6 +99,53 @@ export default function AdminUsers() {
       });
     },
   });
+
+  // Suspend user mutation
+  const suspendUserMutation = useMutation({
+    mutationFn: async ({ userId, suspended, suspend_end }: { userId: string; suspended: boolean; suspend_end: string }) => {
+      return apiRequest("PATCH", `/api/admin/users/${userId}/suspend`, { suspended, suspend_end });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setSuspendDialogOpen(false);
+      setSelectedUserForSuspend(null);
+      setSuspendEndDate(undefined);
+      toast({
+        title: "Success",
+        description: variables.suspended ? "User suspended successfully" : "User unsuspended successfully",
+      });
+    },
+    onError: (error: any, variables) => {
+      toast({
+        title: "Error",
+        description: error.message || `Failed to ${variables.suspended ? 'suspend' : 'unsuspend'} user`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleOpenSuspendDialog = (userToSuspend: any) => {
+    setSelectedUserForSuspend(userToSuspend);
+    setSuspendEndDate(undefined);
+    setSuspendDialogOpen(true);
+  };
+
+  const handleSuspendUser = () => {
+    if (!selectedUserForSuspend || !suspendEndDate) return;
+    suspendUserMutation.mutate({
+      userId: selectedUserForSuspend._id || selectedUserForSuspend.id,
+      suspended: true,
+      suspend_end: suspendEndDate.toISOString(),
+    });
+  };
+
+  const handleUnsuspendUser = (userToUnsuspend: any) => {
+    suspendUserMutation.mutate({
+      userId: userToUnsuspend._id || userToUnsuspend.id,
+      suspended: false,
+      suspend_end: new Date().toISOString(),
+    });
+  };
 
   // Reset to page 1 when search query changes
   useEffect(() => {
@@ -139,15 +203,28 @@ export default function AdminUsers() {
                 <CardTitle>All Users</CardTitle>
                 <CardDescription>View and manage all registered users</CardDescription>
               </div>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  data-testid="input-search-users"
-                />
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-users"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -207,22 +284,35 @@ export default function AdminUsers() {
                             </Badge>
                           </TableCell>
                           <TableCell className="hidden sm:table-cell">
-                            <Badge 
-                              variant={user.system_blocked ? "destructive" : "secondary"}
-                              data-testid={`badge-status-${user._id || user.id}`}
-                            >
-                              {user.system_blocked ? (
-                                <>
-                                  <ShieldBan className="h-3 w-3 mr-1" />
-                                  Blocked
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Active
-                                </>
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge 
+                                variant={user.suspended ? "outline" : user.system_blocked ? "destructive" : "secondary"}
+                                data-testid={`badge-status-${user._id || user.id}`}
+                                className={user.suspended ? "border-orange-500 text-orange-600" : ""}
+                              >
+                                {user.suspended ? (
+                                  <>
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Suspended
+                                  </>
+                                ) : user.system_blocked ? (
+                                  <>
+                                    <ShieldBan className="h-3 w-3 mr-1" />
+                                    Blocked
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Active
+                                  </>
+                                )}
+                              </Badge>
+                              {user.suspended && user.suspend_end && (
+                                <span className="text-xs text-muted-foreground">
+                                  {Math.max(0, Math.ceil((new Date(user.suspend_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))} days left
+                                </span>
                               )}
-                            </Badge>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right" data-testid={`text-wallet-${user._id || user.id}`}>
                             <div className="flex items-center justify-end gap-1 font-medium">
@@ -253,6 +343,24 @@ export default function AdminUsers() {
                                   View Details
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
+                                {user.suspended ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleUnsuspendUser(user)}
+                                    disabled={suspendUserMutation.isPending}
+                                    data-testid={`menu-unsuspend-user-${user._id || user.id}`}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Unsuspend User
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleOpenSuspendDialog(user)}
+                                    data-testid={`menu-suspend-user-${user._id || user.id}`}
+                                  >
+                                    <Clock className="h-4 w-4 mr-2" />
+                                    Suspend User
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   onClick={() => {
                                     blockUserMutation.mutate({
@@ -321,6 +429,65 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Suspend User Dialog */}
+      <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Suspend User</DialogTitle>
+            <DialogDescription>
+              Schedule a suspension period for {selectedUserForSuspend?.firstName} {selectedUserForSuspend?.lastName}. 
+              The user will be blocked during this time period.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Suspension End Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {suspendEndDate ? format(suspendEndDate, "PPP") : "Select end date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={suspendEndDate}
+                    onSelect={setSuspendEndDate}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSuspendDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSuspendUser}
+              disabled={!suspendEndDate || suspendUserMutation.isPending}
+            >
+              {suspendUserMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Suspending...
+                </>
+              ) : (
+                <>
+                  <Clock className="h-4 w-4 mr-2" />
+                  Suspend User
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

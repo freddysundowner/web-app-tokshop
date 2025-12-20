@@ -1,8 +1,4 @@
-
-import dotenv from 'dotenv';
-
-// Load environment variables FIRST before any other imports
-dotenv.config();
+// Note: dotenv is loaded by the entry point (marketplace-app/server.ts or admin-app/server.ts)
 
 // Validate required environment variables
 if (!process.env.BASE_URL) {

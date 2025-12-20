@@ -117,6 +117,10 @@ export function registerOrderRoutes(app: Express) {
       if (req.query.endDate) {
         queryParams.set('endDate', req.query.endDate as string);
       }
+      // Add platform_order filter for giveaway orders
+      if (req.query.platform_order) {
+        queryParams.set('platform_order', req.query.platform_order as string);
+      }
       
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? '?' + queryString : ''}`;

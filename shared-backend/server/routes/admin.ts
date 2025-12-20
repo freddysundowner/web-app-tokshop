@@ -3247,6 +3247,73 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  // Suspend a user for a period of time
+  app.patch("/api/admin/users/:userId/suspend", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      const { userId } = req.params;
+      const { suspended, suspend_end } = req.body;
+      
+      console.log(`[Suspend User] Request to suspend user: ${userId}, suspended: ${suspended}, suspend_end: ${suspend_end}`);
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      if (suspended === undefined || !suspend_end) {
+        return res.status(400).json({
+          success: false,
+          error: "Suspended status and suspend end date are required",
+        });
+      }
+
+      const url = `${BASE_URL}/users/${userId}`;
+      console.log(`[Suspend User] Calling ICONA API: ${url}`);
+      console.log(`[Suspend User] Payload:`, { suspended, suspend_end });
+      
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          suspended, 
+          suspend_end 
+        }),
+      });
+
+      console.log(`[Suspend User] API response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[Suspend User] API error:`, errorData);
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || "Failed to suspend user",
+        });
+      }
+
+      const data = await response.json();
+      console.log('[Suspend User] Success:', data);
+      
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error(`Error suspending user:`, error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to suspend user",
+        details: error.message,
+      });
+    }
+  });
+
   // Refund order or transaction
   app.put("/api/admin/refund/:id", requireAdmin, checkDemoMode, async (req, res) => {
     try {
