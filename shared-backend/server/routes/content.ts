@@ -1,7 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { pageTypeEnum, type PageType } from "../../shared/schema";
-
-const BASE_URL = process.env.BASE_URL || "https://api.tokshoplive.com";
+import { BASE_URL } from "../utils";
 
 // Admin authorization middleware for content routes
 function requireContentAdmin(req: Request, res: Response, next: NextFunction) {

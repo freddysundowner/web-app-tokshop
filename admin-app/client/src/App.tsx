@@ -34,6 +34,9 @@ import AdminEmailSellerApproval from "@/pages/admin/email-seller-approval";
 import AdminEmailUpdate from "@/pages/admin/email-update";
 import AdminEmailSettings from "@/pages/admin/email-settings";
 import AdminEmailBrevoCampaign from "@/pages/admin/email-brevo-campaign";
+import AdminGiveaways from "@/pages/admin/giveaways";
+import AdminShippingProfiles from "@/pages/admin/shipping-profiles";
+import AdminAddress from "@/pages/admin/address";
 import AdminLandingPage from "@/pages/admin/pages/landing";
 import AdminGeneralPage from "@/pages/admin/pages/general";
 import AdminGeneralArticlePage from "@/pages/admin/pages/general-article";
@@ -208,6 +211,9 @@ function Router() {
             <Route path="/admin/categories" component={AdminCategories} />
             <Route path="/admin/shows/:showId" component={AdminShowDetail} />
             <Route path="/admin/shows" component={AdminShows} />
+            <Route path="/admin/giveaways" component={AdminGiveaways} />
+            <Route path="/admin/shipping-profiles" component={AdminShippingProfiles} />
+            <Route path="/admin/address" component={AdminAddress} />
             <Route path="/admin/email-seller-approval" component={AdminEmailSellerApproval} />
             <Route path="/admin/email-update" component={AdminEmailUpdate} />
             <Route path="/admin/email-settings" component={AdminEmailSettings} />

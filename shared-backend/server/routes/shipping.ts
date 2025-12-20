@@ -75,6 +75,71 @@ function makeGetWithBody(url: string, payload: any, headers: Record<string, stri
 }
 
 export function registerShippingRoutes(app: Express) {
+  // Get all general shipping profiles (admin)
+  app.get("/api/shipping/profiles", async (req, res) => {
+    try {
+      console.log('Fetching general shipping profiles');
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const url = `${BASE_URL}/shipping/general/profiles`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('General shipping profiles fetch error:', error);
+      res.status(500).json({ error: "Failed to fetch shipping profiles" });
+    }
+  });
+
+  // Create general shipping profile (admin)
+  app.post("/api/shipping/profiles", async (req, res) => {
+    try {
+      const payload = { ...req.body, type: "general" };
+      console.log('Creating general shipping profile:', payload);
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/shipping/general/profiles`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Create shipping profile error:', errorData);
+        return res.status(response.status).json(errorData);
+      }
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Create general shipping profile error:', error);
+      res.status(500).json({ error: "Failed to create shipping profile" });
+    }
+  });
+
   // Shipping profiles for user
   app.get("/api/shipping/profiles/:userId", async (req, res) => {
     try {
@@ -1056,17 +1121,18 @@ export function registerShippingRoutes(app: Express) {
   // Generate scan form (USPS manifest)
   app.post("/api/shipping/generate/manifest", async (req, res) => {
     try {
-      const { tokshow, carrierAccount, ownerId } = req.body;
+      const { tokshow, carrierAccount, ownerId, type, platform_order } = req.body;
 
-      // Allow null for marketplace orders, but reject undefined or missing
-      if (tokshow === undefined) {
+      // For giveaway type, tokshow is not required
+      // Allow null for marketplace orders, but reject undefined or missing for non-giveaway types
+      if (type !== 'giveaway' && tokshow === undefined) {
         return res.status(400).json({ 
           success: false,
           message: "tokshow parameter is required" 
         });
       }
 
-      console.log('Generating scan form for tokshow:', tokshow, 'with carrierAccount:', carrierAccount, 'and ownerId:', ownerId);
+      console.log('Generating scan form for type:', type, 'tokshow:', tokshow, 'with carrierAccount:', carrierAccount, 'ownerId:', ownerId, 'platform_order:', platform_order);
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -1076,10 +1142,21 @@ export function registerShippingRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
+      // Build request body - for giveaway type, pass type instead of tokshow
+      const requestBody: Record<string, any> = { carrierAccount, ownerId };
+      if (type === 'giveaway') {
+        requestBody.type = 'giveaway';
+      } else {
+        requestBody.tokshow = tokshow;
+      }
+      if (platform_order) {
+        requestBody.platform_order = true;
+      }
+
       const response = await fetch(`${BASE_URL}/shipping/generate/manifest`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ tokshow, carrierAccount, ownerId }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -1120,6 +1197,8 @@ export function registerShippingRoutes(app: Express) {
       
       if (type === 'marketplace') {
         params.set('type', 'marketplace');
+      } else if (type === 'giveaway') {
+        params.set('type', 'giveaway');
       } else if (tokshow) {
         params.set('tokshow', tokshow);
       }
@@ -1156,7 +1235,7 @@ export function registerShippingRoutes(app: Express) {
   app.get("/api/shipping/generate/manifest/:manifestId", async (req, res) => {
     try {
       const { manifestId } = req.params;
-      const { tokshow } = req.query;
+      const { tokshow, type } = req.query;
 
       if (!manifestId) {
         return res.status(400).json({ 
@@ -1165,15 +1244,15 @@ export function registerShippingRoutes(app: Express) {
         });
       }
 
-      // Allow null for marketplace orders, but reject undefined or missing
-      if (tokshow === undefined) {
+      // For giveaway type, tokshow is not required
+      if (type !== 'giveaway' && tokshow === undefined) {
         return res.status(400).json({ 
           success: false,
           message: "tokshow parameter is required" 
         });
       }
 
-      console.log('Fetching scan form for manifest_id:', manifestId, 'tokshow:', tokshow);
+      console.log('Fetching scan form for manifest_id:', manifestId, 'type:', type, 'tokshow:', tokshow);
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -1183,9 +1262,13 @@ export function registerShippingRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Pass tokshow as query parameter to external API
+      // Build query params - for giveaway type, pass type instead of tokshow
       const params = new URLSearchParams();
-      params.set('tokshow', tokshow as string);
+      if (type === 'giveaway') {
+        params.set('type', 'giveaway');
+      } else {
+        params.set('tokshow', tokshow as string);
+      }
 
       const response = await fetch(`${BASE_URL}/shipping/generate/manifest/${manifestId}?${params.toString()}`, {
         method: 'GET',

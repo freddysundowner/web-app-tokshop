@@ -4,7 +4,7 @@ import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, Store } from "lucide-react";
+import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, Store, Gift } from "lucide-react";
 
 export default function AdminOrderDetail() {
   const [, setLocation] = useLocation();
@@ -137,52 +137,94 @@ export default function AdminOrderDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Order Items */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Package className="h-5 w-5 mr-2" />
-                  Order Items
-                </CardTitle>
-                <CardDescription>{order.items?.length || 0} items</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {order.items && order.items.length > 0 ? (
-                  <div className="space-y-4">
-                    {order.items.map((item: any, index: number) => {
-                      // Product info is under item.productId.name
-                      const productName = item.productId?.name || item.productId?.title || item.name || item.title || 'Unknown Product';
-                      const productImage = item.productId?.image || item.productId?.images?.[0] || item.image || item.images?.[0];
-                      const quantity = item.quantity || 1;
-                      const price = item.price || 0;
-
-                      return (
-                        <div key={index} className="flex items-center gap-4 p-4 border rounded-lg" data-testid={`order-item-${index}`}>
-                          {productImage && (
-                            <img
-                              src={productImage}
-                              alt={productName}
-                              className="w-16 h-16 object-cover rounded"
-                              data-testid={`img-product-${index}`}
-                            />
-                          )}
-                          <div className="flex-1">
-                            <p className="font-medium" data-testid={`text-product-name-${index}`}>{productName}</p>
-                            <p className="text-sm text-muted-foreground">Quantity: {quantity}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold">${(price * quantity).toFixed(2)}</p>
-                            <p className="text-sm text-muted-foreground">${price.toFixed(2)} each</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+            {/* Giveaway Info - Show for giveaway orders */}
+            {order.platform_order && order.giveaway && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Gift className="h-5 w-5 mr-2" />
+                    Giveaway Details
+                  </CardTitle>
+                  <CardDescription>This is a giveaway order</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-start gap-4 p-4 border rounded-lg bg-muted/50">
+                    {order.giveaway.image && (
+                      <img
+                        src={order.giveaway.image}
+                        alt={order.giveaway.title || 'Giveaway'}
+                        className="w-20 h-20 object-cover rounded"
+                        data-testid="img-giveaway"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-semibold text-lg" data-testid="text-giveaway-title">
+                        {order.giveaway.title || order.giveaway.name || 'Giveaway'}
+                      </p>
+                      {order.giveaway.description && (
+                        <p className="text-sm text-muted-foreground mt-1">{order.giveaway.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {order.giveaway.status && (
+                          <Badge variant="outline">{order.giveaway.status}</Badge>
+                        )}
+                        {order.giveaway.type && (
+                          <Badge variant="secondary">{order.giveaway.type}</Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-4">No items found</p>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Order Items - Hide for giveaway orders */}
+            {!order.platform_order && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Package className="h-5 w-5 mr-2" />
+                    Order Items
+                  </CardTitle>
+                  <CardDescription>{order.items?.length || 0} items</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {order.items && order.items.length > 0 ? (
+                    <div className="space-y-4">
+                      {order.items.map((item: any, index: number) => {
+                        const productName = item.productId?.name || item.productId?.title || item.name || item.title || 'Unknown Product';
+                        const productImage = item.productId?.image || item.productId?.images?.[0] || item.image || item.images?.[0];
+                        const quantity = item.quantity || 1;
+                        const price = item.price || 0;
+
+                        return (
+                          <div key={index} className="flex items-center gap-4 p-4 border rounded-lg" data-testid={`order-item-${index}`}>
+                            {productImage && (
+                              <img
+                                src={productImage}
+                                alt={productName}
+                                className="w-16 h-16 object-cover rounded"
+                                data-testid={`img-product-${index}`}
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium" data-testid={`text-product-name-${index}`}>{productName}</p>
+                              <p className="text-sm text-muted-foreground">Quantity: {quantity}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold">${(price * quantity).toFixed(2)}</p>
+                              <p className="text-sm text-muted-foreground">${price.toFixed(2)} each</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">No items found</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Order Summary - Moved below Order Items */}
             <Card>
@@ -210,6 +252,32 @@ export default function AdminOrderDetail() {
                     <span>Total</span>
                     <span data-testid="text-order-total">${total.toFixed(2)}</span>
                   </div>
+
+                  {/* Seller Shipping Info */}
+                  {order.seller_shipping && (
+                    <div className="pt-3 border-t">
+                      <p className="text-sm font-medium text-muted-foreground mb-2">Seller Shipping</p>
+                      <div className="text-sm space-y-1">
+                        {order.seller_shipping.name && <p className="font-medium">{order.seller_shipping.name}</p>}
+                        {order.seller_shipping.addrress1 && <p>{order.seller_shipping.addrress1}</p>}
+                        {order.seller_shipping.addrress2 && <p>{order.seller_shipping.addrress2}</p>}
+                        {(order.seller_shipping.city || order.seller_shipping.state || order.seller_shipping.zipcode) && (
+                          <p>
+                            {order.seller_shipping.city}
+                            {order.seller_shipping.state && `, ${order.seller_shipping.state}`}
+                            {order.seller_shipping.zipcode && ` ${order.seller_shipping.zipcode}`}
+                          </p>
+                        )}
+                        {order.seller_shipping.country && <p>{order.seller_shipping.country}</p>}
+                        {order.seller_shipping.phone && (
+                          <p className="text-muted-foreground">{order.seller_shipping.phone}</p>
+                        )}
+                        {order.seller_shipping.email && (
+                          <p className="text-muted-foreground">{order.seller_shipping.email}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

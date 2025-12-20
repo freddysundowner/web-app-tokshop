@@ -28,6 +28,9 @@ import {
   Smartphone,
   BookOpen,
   Clock,
+  Gift,
+  Truck,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -127,6 +130,24 @@ const navigationItems: NavSection[] = [
         name: "Shows",
         href: "/admin/shows",
         icon: Video,
+      },
+      {
+        id: "giveaways",
+        name: "Giveaways",
+        href: "/admin/giveaways",
+        icon: Gift,
+      },
+      {
+        id: "shipping-profiles",
+        name: "Shipping Profiles",
+        href: "/admin/shipping-profiles",
+        icon: Truck,
+      },
+      {
+        id: "address",
+        name: "Business Address",
+        href: "/admin/address",
+        icon: MapPin,
       },
       {
         id: "emails",
