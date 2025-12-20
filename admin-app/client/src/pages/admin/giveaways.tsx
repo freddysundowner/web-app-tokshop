@@ -559,7 +559,7 @@ export default function AdminGiveaways() {
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {format(new Date(giveaway.startedtime), 'MMM d, yyyy h:mm a')}
-                              {giveaway.endedtime && ` - ${format(new Date(giveaway.endedtime), 'h:mm a')}`}
+                              {giveaway.endedtime && ` - ${format(new Date(giveaway.endedtime), 'MMM d, yyyy h:mm a')}`}
                             </span>
                           )}
                           {giveaway.participants && (
