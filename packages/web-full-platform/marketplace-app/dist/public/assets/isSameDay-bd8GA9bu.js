@@ -1,1 +1,0 @@
-import{t as o,c as f}from"./en-US-Cc-9gH5A.js";import{a as e}from"./format-Crz72tIO.js";function c(r,a){const t=o(r);return isNaN(a)?f(r,NaN):(a&&t.setDate(t.getDate()+a),t)}function D(r,a){const t=e(r),s=e(a);return+t==+s}export{c as a,D as i};

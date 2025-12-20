@@ -1,1 +1,0 @@
-import{t as o}from"./en-US-Cc-9gH5A.js";function u(e,t){const n=o(e),a=o(t),r=n.getFullYear()-a.getFullYear(),s=n.getMonth()-a.getMonth();return r*12+s}function c(e){const t=o(e);return t.setHours(23,59,59,999),t}function d(e){const t=o(e),n=t.getMonth();return t.setFullYear(t.getFullYear(),n+1,0),t.setHours(23,59,59,999),t}export{c as a,u as d,d as e};
