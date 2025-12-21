@@ -252,6 +252,19 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     Deals
                   </Button>
                 </Link>
+                <Link href="/giveaways">
+                  <Button 
+                    className={
+                      location === '/giveaways' 
+                        ? "bg-primary text-primary-foreground font-semibold px-5 rounded-full h-9 text-sm" 
+                        : `font-medium text-sm h-9 px-4 ${isShowPage ? 'text-white hover:text-white' : ''}`
+                    }
+                    variant={location === '/giveaways' ? undefined : 'ghost'}
+                    data-testid="button-giveaways"
+                  >
+                    Giveaways
+                  </Button>
+                </Link>
               </div>
             )}
             

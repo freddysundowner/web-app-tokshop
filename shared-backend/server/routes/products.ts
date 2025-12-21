@@ -837,4 +837,107 @@ export function registerProductRoutes(app: Express) {
     }
   });
 
+  // Bulk delete products - proxy to external API
+  app.delete("/api/products/deletemany", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      console.log("Bulk deleting products:", ids);
+
+      if (!req.session?.accessToken) {
+        return res.status(401).json({ error: "Unauthorized - no access token" });
+      }
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "No product IDs provided" });
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${req.session.accessToken}`,
+      };
+
+      const url = `${BASE_URL}/products/deletemany`;
+      console.log("DELETE request to:", url, "with ids:", ids);
+
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify({ ids }),
+      });
+
+      console.log(`Tokshop API response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || "Failed to delete products" };
+        }
+        console.error("Tokshop API error:", errorData);
+        return res.status(response.status).json(errorData);
+      }
+
+      const data = await response.json();
+      console.log("Products deleted successfully:", data);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Bulk delete error:", error);
+      res.status(500).json({
+        error: "Failed to delete products",
+        message: error.message || "Unknown error occurred",
+      });
+    }
+  });
+
+  // Delete product by ID - proxy to external API
+  app.delete("/api/products/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log("Deleting product:", id);
+
+      if (!req.session?.accessToken) {
+        return res.status(401).json({ error: "Unauthorized - no access token" });
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${req.session.accessToken}`,
+      };
+
+      const url = `${BASE_URL}/products/products/${id}`;
+      console.log("DELETE request to:", url);
+
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers,
+      });
+
+      console.log(`Tokshop API response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || "Failed to delete product" };
+        }
+        console.error("Tokshop API error:", errorData);
+        return res.status(response.status).json(errorData);
+      }
+
+      const data = await response.json();
+      console.log("Product deleted successfully:", data);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Delete product error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        message: error.message || "Unknown error occurred",
+      });
+    }
+  });
+
 }

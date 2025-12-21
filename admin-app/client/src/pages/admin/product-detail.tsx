@@ -1,17 +1,31 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Package, DollarSign, Box, Tag, User, Image as ImageIcon, Truck } from "lucide-react";
-import { useEffect } from "react";
+import { ArrowLeft, Package, DollarSign, Box, Tag, User, Image as ImageIcon, Truck, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminProductDetail() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/admin/products/:productId");
   const { user } = useAuth();
+  const { toast } = useToast();
   const productId = params?.productId;
 
   // Redirect if not admin
@@ -25,6 +39,28 @@ export default function AdminProductDetail() {
   const { data: product, isLoading } = useQuery<any>({
     queryKey: [`/api/products/${productId}`],
     enabled: !!productId,
+  });
+
+  // Delete product mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/products/products/${productId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Product deleted",
+        description: "The product has been successfully deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setLocation("/admin/inventory");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete product",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -65,15 +101,42 @@ export default function AdminProductDetail() {
   return (
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8">
-        <Button
-          variant="ghost"
-          onClick={() => setLocation("/admin/inventory")}
-          className="mb-6"
-          data-testid="button-back-to-inventory"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Inventory
-        </Button>
+        <div className="flex items-center justify-between mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => setLocation("/admin/inventory")}
+            data-testid="button-back-to-inventory"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Inventory
+          </Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Product
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{product?.name}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteMutation.mutate()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Product Info */}

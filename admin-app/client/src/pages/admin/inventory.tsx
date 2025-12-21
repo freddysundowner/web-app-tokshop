@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Search, Eye, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Package, Search, Eye, ChevronLeft, ChevronRight, Filter, X, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminInventory() {
   const [, setLocation] = useLocation();
@@ -19,6 +33,8 @@ export default function AdminInventory() {
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { toast } = useToast();
 
   // Build query string with pagination, search, and filters
   let queryString = `/api/admin/products?page=${page}&limit=${limit}`;
@@ -83,6 +99,45 @@ export default function AdminInventory() {
   };
 
   const hasActiveFilters = searchQuery || (categoryFilter && categoryFilter !== "all") || (statusFilter && statusFilter !== "all") || (priceFilter && priceFilter !== "all");
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return apiRequest("DELETE", "/api/products/deletemany", { ids });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Products deleted",
+        description: `${selectedIds.length} product(s) have been deleted.`,
+      });
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: [queryString] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete products",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle selection for a single product
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  // Toggle select all
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredProducts.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredProducts.map((p: any) => p._id || p.id));
+    }
+  };
 
   return (
     <AdminLayout>
@@ -239,10 +294,49 @@ export default function AdminInventory() {
               </div>
             ) : (
               <>
+                {selectedIds.length > 0 && (
+                  <div className="flex items-center gap-4 mb-4 p-3 bg-muted rounded-lg">
+                    <span className="text-sm font-medium">{selectedIds.length} selected</span>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Selected
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Products</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete {selectedIds.length} product(s)? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => bulkDeleteMutation.mutate(selectedIds)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {bulkDeleteMutation.isPending ? "Deleting..." : "Delete"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                      Clear selection
+                    </Button>
+                  </div>
+                )}
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[50px]">
+                          <Checkbox
+                            checked={selectedIds.length === filteredProducts.length && filteredProducts.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </TableHead>
                         <TableHead className="min-w-[250px]">Product</TableHead>
                         <TableHead className="hidden sm:table-cell">Owner</TableHead>
                         <TableHead className="hidden md:table-cell">Category</TableHead>
@@ -262,6 +356,17 @@ export default function AdminInventory() {
                           onClick={() => setLocation(`/admin/products/${product._id || product.id}`)}
                           className="cursor-pointer hover-elevate"
                         >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.includes(product._id || product.id)}
+                              onCheckedChange={() => {
+                                const id = product._id || product.id;
+                                setSelectedIds(prev => 
+                                  prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+                                );
+                              }}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             <div className="flex items-center space-x-3">
                               {product.images?.[0] ? (

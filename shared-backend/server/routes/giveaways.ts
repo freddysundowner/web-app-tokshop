@@ -77,6 +77,7 @@ export function registerGiveawayRoutes(app: Express) {
       if (req.query.limit) queryParams.set('limit', req.query.limit as string);
       if (req.query.room) queryParams.set('room', req.query.room as string);
       if (req.query.type) queryParams.set('type', req.query.type as string);
+      if (req.query.status) queryParams.set('status', req.query.status as string);
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -121,18 +122,41 @@ export function registerGiveawayRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      const url = `${BASE_URL}/giveaways/${id}`;
-      const response = await fetch(url, {
+      // First try direct fetch
+      let url = `${BASE_URL}/giveaways/${id}`;
+      let response = await fetch(url, {
         method: 'GET',
         headers
       });
       
-      if (!response.ok) {
-        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
-        return res.status(response.status).json({ error: 'Giveaway not found' });
+      let data = null;
+      if (response.ok) {
+        data = await response.json();
+      }
+      
+      // If direct fetch returns null, try fetching from list
+      if (!data) {
+        console.log('Direct fetch returned null, trying list fetch with _id filter');
+        url = `${BASE_URL}/giveaways?_id=${id}&type=icona`;
+        response = await fetch(url, {
+          method: 'GET',
+          headers
+        });
+        
+        if (response.ok) {
+          const listData = await response.json();
+          if (listData.giveaways && listData.giveaways.length > 0) {
+            data = listData.giveaways[0];
+          }
+        }
+      }
+      
+      if (!data) {
+        console.error('Giveaway not found');
+        return res.status(404).json({ error: 'Giveaway not found' });
       }
 
-      const data = await response.json();
+      console.log('Single giveaway found:', data._id || data.id);
       res.json(data);
     } catch (error) {
       console.error("Error fetching giveaway from Tokshop API:", error);
@@ -261,6 +285,100 @@ export function registerGiveawayRoutes(app: Express) {
     } catch (error) {
       console.error("Error updating giveaway:", error);
       res.status(500).json({ error: "Failed to update giveaway" });
+    }
+  });
+
+  // Enter giveaway - proxy to external API
+  app.post("/api/giveaways/:id/enter", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session?.user?._id || req.session?.user?.id;
+      console.log('Entering giveaway:', id, 'for user:', userId);
+      
+      if (!req.session?.accessToken) {
+        return res.status(401).json({ error: 'Please sign in to enter giveaways' });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID not found in session' });
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${req.session.accessToken}`,
+      };
+
+      const url = `${BASE_URL}/giveaways/${id}/join`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ userId })
+      });
+      
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Failed to enter giveaway' };
+        }
+        return res.status(response.status).json(errorData);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error entering giveaway:", error);
+      res.status(500).json({ error: "Failed to enter giveaway" });
+    }
+  });
+
+  // Bookmark giveaway - proxy to external API
+  app.post("/api/giveaways/:id/bookmark", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session?.user?._id || req.session?.user?.id;
+      console.log('Bookmarking giveaway:', id, 'for user:', userId);
+      
+      if (!req.session?.accessToken) {
+        return res.status(401).json({ error: 'Please sign in to bookmark giveaways' });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID not found in session' });
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${req.session.accessToken}`,
+      };
+
+      const url = `${BASE_URL}/giveaways/${id}/bookmark`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ userId })
+      });
+      
+      if (!response.ok) {
+        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Failed to bookmark giveaway' };
+        }
+        return res.status(response.status).json(errorData);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error bookmarking giveaway:", error);
+      res.status(500).json({ error: "Failed to bookmark giveaway" });
     }
   });
 

@@ -12,7 +12,8 @@ import { MarketplaceFooter } from '@/components/layout/marketplace-footer';
 import { ShowCard } from '@/components/show-card';
 import { ProductCard } from '@/components/product-card';
 import { AuctionCard } from '@/components/auction-card';
-import { ChevronRight } from 'lucide-react';
+import { GiveawayCard } from '@/components/giveaway-card';
+import { ChevronRight, Gift } from 'lucide-react';
 
 export default function MarketplaceHome() {
   const { settings } = useSettings();
@@ -84,6 +85,28 @@ export default function MarketplaceHome() {
 
   const trendingProducts = trendingProductsData?.products || [];
   const trendingAuctions = trendingAuctionsData?.products || [];
+
+  // Fetch public giveaways
+  const { data: giveawaysData } = useQuery({
+    queryKey: ['/api/giveaways', 'public'],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        limit: '10',
+        type: 'icona',
+        status: 'active',
+      });
+      const response = await fetch(`/api/giveaways?${params.toString()}`);
+      return response.json();
+    }
+  });
+
+  const giveaways = Array.isArray(giveawaysData?.giveaways) 
+    ? giveawaysData.giveaways 
+    : Array.isArray(giveawaysData?.data) 
+      ? giveawaysData.data 
+      : Array.isArray(giveawaysData) 
+        ? giveawaysData 
+        : [];
 
   // Fetch featured shows (same filters as homepage shows but with featured=true)
   const { data: featuredShowsData } = useQuery({
@@ -351,6 +374,28 @@ export default function MarketplaceHome() {
                       <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
                         {trendingAuctions.map((auction: any) => (
                           <AuctionCard key={auction._id || auction.id} auction={auction} layout="carousel" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Giveaways Section */}
+                  {giveaways.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold flex items-center gap-2">
+                          <Gift className="h-5 w-5 text-purple-600" />
+                          Giveaways
+                        </h2>
+                        <Link href="/giveaways">
+                          <Button variant="ghost" size="sm" className="text-primary">
+                            See all <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </Link>
+                      </div>
+                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                        {giveaways.map((giveaway: any) => (
+                          <GiveawayCard key={giveaway._id || giveaway.id} giveaway={giveaway} layout="carousel" />
                         ))}
                       </div>
                     </div>
