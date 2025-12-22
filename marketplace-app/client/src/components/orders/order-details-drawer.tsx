@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MessageSquare, HelpCircle, Package, X, Truck, Info } from "lucide-react";
 import type { TokshopOrder } from "@shared/schema";
 import { formatCurrency, calculateOrderSubtotal } from "@shared/pricing";
@@ -522,16 +523,22 @@ export function OrderDetailsDrawer({
                   <span className="text-foreground">{formatCurrency(price)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Commission</p>
-                    <p className="text-xs text-muted-foreground">({commissionRate.toFixed(1)}% of sale price)</p>
-                  </div>
+                  <span className="text-muted-foreground">Commission</span>
                   <span className="text-foreground">-{formatCurrency(serviceFee)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <div className="flex items-center gap-1">
                     <p className="text-muted-foreground">Payment Processing Fee</p>
-                    <Info className="w-3 h-3 text-muted-foreground" />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p>This fee covers payment processing costs (2.9% + $0.30 per transaction).</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <span className="text-foreground">-{formatCurrency(processingFee)}</span>
                 </div>

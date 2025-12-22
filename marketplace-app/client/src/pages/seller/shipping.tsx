@@ -1694,16 +1694,6 @@ export default function Shipping() {
                         </p>
 
                         <div className="space-y-2">
-                          {/* Export shipping labels/slips */}
-                          <Button
-                            variant="default"
-                            className="w-full justify-start"
-                            data-testid="button-export-labels"
-                          >
-                            <Download size={16} className="mr-2" />
-                            Export shipping labels/slips
-                          </Button>
-
                           {/* View USPS SCAN Form - shown when scan form exists or marketplace is selected */}
                           {shouldShowViewButton && (
                             <Button
@@ -1717,28 +1707,16 @@ export default function Shipping() {
                             </Button>
                           )}
 
-                          {/* Generate/Regenerate USPS SCAN Form - always shown */}
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start"
-                            onClick={handleOpenScanFormDialog}
-                            data-testid="button-generate-scan"
-                          >
-                            <RotateCw size={16} className="mr-2" />
-                            {(hasScanForm || hasManifestId || generatedManifestId) ? 'Regenerate USPS SCAN Form' : 'Generate USPS SCAN Form'}
-                          </Button>
-
-                          {/* Check Status - only if manifest exists but no URL yet */}
-                          {!hasScanForm && (hasManifestId || generatedManifestId) && (
+                          {/* Generate USPS SCAN Form - shown when no scan form exists */}
+                          {!hasScanForm && !hasManifestId && !generatedManifestId && (
                             <Button
                               variant="outline"
                               className="w-full justify-start"
-                              onClick={handleCheckScanFormStatus}
-                              disabled={fetchScanFormMutation.isPending}
-                              data-testid="button-check-scan-status"
+                              onClick={handleOpenScanFormDialog}
+                              data-testid="button-generate-scan"
                             >
-                              <Info size={16} className="mr-2" />
-                              {fetchScanFormMutation.isPending ? 'Checking...' : 'Check Status'}
+                              <RotateCw size={16} className="mr-2" />
+                              Generate USPS SCAN Form
                             </Button>
                           )}
 
