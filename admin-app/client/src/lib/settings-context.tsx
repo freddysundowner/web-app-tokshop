@@ -172,6 +172,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
               if (themes.primary_color) {
                 applyThemeColors(themes.primary_color, themes.secondary_color || defaultSettings.secondary_color);
               }
+              // Set demoMode from themes (for login page before auth)
+              if (themes.demoMode !== undefined) {
+                setSettings(prev => ({ ...prev, demoMode: themes.demoMode }));
+              }
             }
           }
         } catch (themesError) {

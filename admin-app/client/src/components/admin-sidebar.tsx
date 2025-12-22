@@ -160,6 +160,12 @@ const navigationItems: NavSection[] = [
           //   href: "/admin/email-brevo-campaign",
           //   icon: Send,
           // },
+          // {
+          //   id: "emails-templates",
+          //   name: "Templates",
+          //   href: "/admin/email-templates",
+          //   icon: FileText,
+          // },
           {
             id: "emails-seller-approval",
             name: "Seller Approval",

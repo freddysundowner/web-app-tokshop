@@ -13,6 +13,7 @@ import { registerAddressRoutes } from "./routes/addresses";
 import { registerPaymentMethodRoutes } from "./routes/payment-methods";
 import { registerAdminRoutes } from "./routes/admin";
 import { registerSettingsRoutes } from "./routes/settings";
+import { registerTemplateRoutes } from "./routes/templates";
 import { registerGiveawayRoutes } from "./routes/giveaways";
 import { registerStripeRoutes } from "./routes/stripe";
 import { registerContentRoutes } from "./routes/content";
@@ -35,6 +36,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register all route modules
   registerContentRoutes(app);
   registerSettingsRoutes(app);
+  registerTemplateRoutes(app);
   registerAuthRoutes(app);
   registerAdminRoutes(app);
   registerStripeRoutes(app);

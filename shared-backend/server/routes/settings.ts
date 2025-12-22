@@ -113,6 +113,8 @@ export function registerSettingsRoutes(app: Express) {
           // Legal URLs from themes
           privacy_url: themes?.privacy_url || themes?.privacyUrl || "",
           terms_url: themes?.terms_url || themes?.termsUrl || "",
+          // Demo mode flag from themes
+          demoMode: themes?.demoMode || themes?.demo_mode || false,
         },
       });
     } catch (error: any) {
