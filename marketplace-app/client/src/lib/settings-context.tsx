@@ -33,6 +33,7 @@ interface ThemeSettings {
   button_text_color: string;
   app_logo: string;
   header_logo: string;
+  landing_page_logo: string;
   privacy_url?: string;
   terms_url?: string;
   demoMode?: boolean;
@@ -68,6 +69,7 @@ const defaultTheme: ThemeSettings = {
   button_text_color: 'FFFFFFFF',
   app_logo: '',
   header_logo: '',
+  landing_page_logo: '',
 };
 
 const SettingsContext = createContext<SettingsContextType>({

@@ -21,6 +21,8 @@ export default function AdminSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [selectedLandingLogoFile, setSelectedLandingLogoFile] = useState<File | null>(null);
+  const [isUploadingLandingLogo, setIsUploadingLandingLogo] = useState(false);
   const { externalApiUrl } = useApiConfig();
 
   const { data: settingsData, isLoading } = useQuery<any>({
@@ -85,6 +87,7 @@ export default function AdminSettings() {
     button_text_color: '',
     app_logo: '',
     header_logo: '',
+    landing_page_logo: '',
   });
   const [isSavingTheme, setIsSavingTheme] = useState(false);
 
@@ -135,6 +138,7 @@ export default function AdminSettings() {
       button_text_color: themes?.button_text_color || 'FFFFFFFF',
       app_logo: themes?.app_logo || '',
       header_logo: themes?.header_logo || '',
+      landing_page_logo: themes?.landing_page_logo || '',
     });
   }, [themes]);
 
@@ -297,6 +301,52 @@ export default function AdminSettings() {
       });
     } finally {
       setIsUploadingLogo(false);
+    }
+  };
+
+  const handleLandingLogoUpload = async (file: File) => {
+    setIsUploadingLandingLogo(true);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('logo', file);
+
+      const response = await fetch('/api/themes/upload-landing-logo', {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      const result = await response.json();
+      console.log('Landing logo upload response:', result);
+
+      if (result.success) {
+        const logoUrl = result.data?.logo_url || result.data?.landing_page_logo || (typeof result.data === 'string' ? result.data : null);
+        console.log('Extracted landing logo URL:', logoUrl);
+        
+        if (logoUrl) {
+          setThemeFormData(prev => ({
+            ...prev,
+            landing_page_logo: logoUrl,
+          }));
+        }
+        setSelectedLandingLogoFile(null);
+        const fileInput = document.getElementById('landing_page_logo') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+        
+        toast({
+          title: "Logo uploaded",
+          description: "Landing page logo has been uploaded. Click 'Save Theme Settings' to apply the change.",
+        });
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload landing page logo. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingLandingLogo(false);
     }
   };
 
@@ -666,6 +716,69 @@ export default function AdminSettings() {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Select a logo file and click Upload (PNG, JPG, or SVG recommended)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="landing_page_logo">Landing Page Logo</Label>
+                  <div className="flex items-start gap-4">
+                    {themeFormData.landing_page_logo && (
+                      <div className="flex-shrink-0">
+                        {(() => {
+                          const logoSrc = themeFormData.landing_page_logo.startsWith('http') 
+                            ? themeFormData.landing_page_logo 
+                            : `${externalApiUrl}/${themeFormData.landing_page_logo.replace(/^\//, '')}`;
+                          return (
+                            <img 
+                              src={logoSrc} 
+                              alt="Landing Page Logo" 
+                              className="h-20 w-20 object-contain rounded border border-border bg-muted p-2"
+                              onError={(e) => {
+                                e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23666">Logo</text></svg>';
+                              }}
+                            />
+                          );
+                        })()}
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          id="landing_page_logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setSelectedLandingLogoFile(file);
+                            }
+                          }}
+                          data-testid="input-landing-page-logo"
+                          className="cursor-pointer flex-1"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            if (selectedLandingLogoFile) {
+                              handleLandingLogoUpload(selectedLandingLogoFile);
+                            } else {
+                              toast({
+                                title: "No file selected",
+                                description: "Please select a logo file first.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          disabled={!selectedLandingLogoFile || isUploadingLandingLogo}
+                          data-testid="button-upload-landing-logo"
+                        >
+                          {isUploadingLandingLogo ? "Uploading..." : "Upload"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Logo displayed on the landing page (PNG, JPG, or SVG recommended)
                       </p>
                     </div>
                   </div>

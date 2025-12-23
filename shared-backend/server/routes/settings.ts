@@ -88,6 +88,7 @@ export function registerSettingsRoutes(app: Express) {
             button_text_color: "FFFFFFFF",
             app_logo: "",
             header_logo: "",
+            landing_page_logo: "",
           },
         });
       }
@@ -97,6 +98,15 @@ export function registerSettingsRoutes(app: Express) {
       
       // Log raw theme data to see what fields are available
       console.log('Raw theme data from API:', JSON.stringify(themes, null, 2));
+      
+      // Extract landing_page_logo from resources array if present
+      let landingPageLogo = themes?.landing_page_logo || "";
+      if (!landingPageLogo && themes?.resources && Array.isArray(themes.resources)) {
+        const landingLogoResource = themes.resources.find((r: any) => r.key === 'landing_page_logo');
+        if (landingLogoResource) {
+          landingPageLogo = landingLogoResource.url;
+        }
+      }
       
       res.json({
         success: true,
@@ -110,6 +120,7 @@ export function registerSettingsRoutes(app: Express) {
           button_text_color: themes?.button_text_color || "FFFFFFFF",
           app_logo: themes?.app_logo || "",
           header_logo: themes?.header_logo || "",
+          landing_page_logo: landingPageLogo,
           // Legal URLs from themes
           privacy_url: themes?.privacy_url || themes?.privacyUrl || "",
           terms_url: themes?.terms_url || themes?.termsUrl || "",
@@ -131,6 +142,7 @@ export function registerSettingsRoutes(app: Express) {
           button_text_color: "FFFFFFFF",
           app_logo: "",
           header_logo: "",
+          landing_page_logo: "",
         },
       });
     }

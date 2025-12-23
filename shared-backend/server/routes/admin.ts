@@ -1720,10 +1720,19 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const data = await response.json();
+      const themeData = Array.isArray(data) ? data[0] : data;
+      
+      // Extract landing_page_logo from resources array if present
+      if (themeData.resources && Array.isArray(themeData.resources)) {
+        const landingLogoResource = themeData.resources.find((r: any) => r.key === 'landing_page_logo');
+        if (landingLogoResource) {
+          themeData.landing_page_logo = landingLogoResource.url;
+        }
+      }
       
       res.json({
         success: true,
-        data: Array.isArray(data) ? data[0] : data,
+        data: themeData,
       });
     } catch (error: any) {
       console.error("Error fetching themes:", error);
@@ -1942,6 +1951,63 @@ If you have any questions, feel free to reach out to our support team.
       res.status(500).json({
         success: false,
         error: "Failed to upload header logo",
+        details: error.response?.data || error.message,
+      });
+    }
+  });
+
+  // Upload landing page logo (uses /themes/upload-resource with key "landing_page_logo")
+  app.post("/api/themes/upload-landing-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
+    try {
+      const accessToken = req.headers['x-admin-token'] as string ||
+                         req.headers['x-access-token'] as string ||
+                         req.session.accessToken || 
+                         (req.headers['authorization']?.startsWith('Bearer ') ? 
+                          req.headers['authorization'].substring(7) : null);
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "No logo file uploaded",
+        });
+      }
+
+      const formData = new FormData();
+      formData.append('key', 'landing_page_logo');
+      formData.append('resource', req.file.buffer, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
+
+      const url = `${BASE_URL}/themes/upload-resource`;
+      console.log(`Uploading landing page logo to resources: ${url}`);
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      });
+
+      res.json({
+        success: true,
+        data: { landing_page_logo: response.data.url || response.data.key },
+        message: "Landing page logo uploaded successfully",
+      });
+    } catch (error: any) {
+      console.error("Error uploading landing page logo:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to upload landing page logo",
         details: error.response?.data || error.message,
       });
     }

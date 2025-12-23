@@ -190,11 +190,11 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
             {!hideLogo && (
               <Link href="/" data-testid="link-home">
                 <div className="flex items-center gap-2">
-                  {theme.app_logo ? (
+                  {(theme.landing_page_logo || theme.app_logo) ? (
                     <img 
-                      src={getImageUrl(theme.app_logo, externalApiUrl)}
+                      src={getImageUrl(theme.landing_page_logo || theme.app_logo, externalApiUrl)}
                       alt={settings.app_name || 'Logo'}
-                      className="h-7 sm:h-8 w-auto object-contain"
+                      className="h-16 sm:h-20 lg:h-24 w-auto object-contain"
                     />
                   ) : (
                     <>
