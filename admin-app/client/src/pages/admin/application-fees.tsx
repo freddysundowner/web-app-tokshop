@@ -9,11 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function AdminApplicationFees() {
-  const [showFilters, setShowFilters] = useState(false);
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [filters, setFilters] = useState({
@@ -21,49 +20,45 @@ export default function AdminApplicationFees() {
     to: '',
     limit: '50',
   });
-  const [pagination, setPagination] = useState({
-    starting_after: '',
-    ending_before: '',
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Build query string
-  const buildQueryString = () => {
+  // Build query string for revenue
+  const buildRevenueQueryString = () => {
     const params = new URLSearchParams();
     if (filters.limit) params.append('limit', filters.limit);
     if (filters.from) params.append('from', filters.from);
     if (filters.to) params.append('to', filters.to);
-    if (pagination.starting_after) params.append('starting_after', pagination.starting_after);
-    if (pagination.ending_before) params.append('ending_before', pagination.ending_before);
+    if (currentPage > 1) params.append('page', currentPage.toString());
     return params.toString();
   };
 
-  const queryString = buildQueryString();
-  const { data: feesData, isLoading } = useQuery<any>({
-    queryKey: ['/api/admin/application-fees', queryString],
+  const revenueQueryString = buildRevenueQueryString();
+
+  // Fetch revenue data from /stripe/revenue
+  const { data: revenueData, isLoading: revenueLoading } = useQuery<any>({
+    queryKey: ['/api/admin/revenue', revenueQueryString],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/application-fees?${queryString}`);
-      if (!response.ok) throw new Error('Failed to fetch fees');
+      const response = await fetch(`/api/admin/revenue?${revenueQueryString}`);
+      if (!response.ok) throw new Error('Failed to fetch revenue');
       return response.json();
     },
   });
 
-  const fees = feesData?.data || [];
-  const hasMore = feesData?.has_more || false;
+  const revenue = revenueData?.data || {};
+  const revenueTransactions = revenue.transactions || [];
+  const paginationData = revenue.pagination || {};
+  const totalPages = paginationData.pages || 1;
+  const totalCount = paginationData.total || 0;
+  const isLoading = revenueLoading;
 
-  // Calculate total fees from current results
-  const totalFees = fees.reduce((sum: number, fee: any) => {
-    return sum + (fee.amount || 0);
-  }, 0);
+  const formatCurrency = (amount: number, fromCents = false) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
 
-  // Calculate this month's fees from current results
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlyFees = fees.filter((fee: any) => {
-    const feeDate = new Date(fee.created * 1000);
-    return feeDate.getMonth() === currentMonth && feeDate.getFullYear() === currentYear;
-  }).reduce((sum: number, fee: any) => sum + (fee.amount || 0), 0);
-
-  const formatCurrency = (amount: number) => {
+  const formatCurrencyFromCents = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -86,7 +81,7 @@ export default function AdminApplicationFees() {
       from: fromDate ? format(fromDate, 'yyyy-MM-dd') : '',
       to: toDate ? format(toDate, 'yyyy-MM-dd') : '',
     });
-    setPagination({ starting_after: '', ending_before: '' });
+    setCurrentPage(1);
   };
 
   const handleClearFilters = () => {
@@ -97,18 +92,18 @@ export default function AdminApplicationFees() {
       to: '',
       limit: '50',
     });
-    setPagination({ starting_after: '', ending_before: '' });
+    setCurrentPage(1);
   };
 
   const handleNextPage = () => {
-    if (fees.length > 0) {
-      setPagination({ starting_after: fees[fees.length - 1].id, ending_before: '' });
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
     }
   };
 
   const handlePrevPage = () => {
-    if (fees.length > 0) {
-      setPagination({ starting_after: '', ending_before: fees[0].id });
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
     }
   };
 
@@ -132,49 +127,79 @@ export default function AdminApplicationFees() {
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6">
           <h2 className="text-3xl font-bold text-foreground">Revenue</h2>
-          <p className="text-muted-foreground">Platform revenue from client transactions</p>
+          <p className="text-muted-foreground">Platform revenue and financial overview</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {/* Revenue Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Fees (Current View)</CardTitle>
+              <CardTitle className="text-sm font-medium">Stripe Available Balance</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-fees">
-                {formatCurrency(totalFees)}
+              <div className="text-2xl font-bold text-green-600" data-testid="text-available-balance">
+                {formatCurrency(revenue.balance?.stripe_available_balance || 0)}
               </div>
-              <p className="text-xs text-muted-foreground">From current filter results</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">This Month (Current View)</CardTitle>
+              <CardTitle className="text-sm font-medium">Stripe Pending Balance</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600" data-testid="text-pending-balance">
+                {formatCurrency(revenue.balance?.stripe_pending_balance || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">Processing payments</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Service Fees</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-monthly-fees">
-                {formatCurrency(monthlyFees)}
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-muted-foreground">Available</p>
+                  <div className="text-lg font-bold text-green-600" data-testid="text-available-service-fee">
+                    {formatCurrency(revenue.serviceFees?.available || 0)}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <div className="text-lg font-bold text-orange-600" data-testid="text-pending-service-fee">
+                    {formatCurrency(revenue.serviceFees?.pending || 0)}
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Payouts</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-transactions">
-                {fees.length}
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-muted-foreground">Available</p>
+                  <div className="text-lg font-bold text-green-600" data-testid="text-available-payouts">
+                    {formatCurrency(revenue.payouts?.available || 0)}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <div className="text-lg font-bold text-orange-600" data-testid="text-pending-payouts">
+                    {formatCurrency(revenue.payouts?.pending || 0)}
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">Fee transactions in current view</p>
             </CardContent>
           </Card>
         </div>
@@ -182,28 +207,16 @@ export default function AdminApplicationFees() {
         {/* Filters Section */}
         <Card className="mb-6">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                <CardTitle>Filters</CardTitle>
-                {activeFiltersCount > 0 && (
-                  <Badge variant="secondary">{activeFiltersCount} active</Badge>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                data-testid="button-toggle-filters"
-              >
-                {showFilters ? 'Hide' : 'Show'} Filters
-              </Button>
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              <CardTitle>Transaction Filters</CardTitle>
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary">{activeFiltersCount} active</Badge>
+              )}
             </div>
           </CardHeader>
-          {showFilters && (
-            <CardContent>
+          <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Date From */}
                 <div className="space-y-2">
                   <Label>From Date</Label>
                   <Popover>
@@ -231,7 +244,6 @@ export default function AdminApplicationFees() {
                   </Popover>
                 </div>
 
-                {/* Date To */}
                 <div className="space-y-2">
                   <Label>To Date</Label>
                   <Popover>
@@ -259,7 +271,6 @@ export default function AdminApplicationFees() {
                   </Popover>
                 </div>
 
-                {/* Limit */}
                 <div className="space-y-2">
                   <Label htmlFor="limit-filter">Results per page</Label>
                   <Select
@@ -292,107 +303,125 @@ export default function AdminApplicationFees() {
                   Clear Filters
                 </Button>
               </div>
-            </CardContent>
-          )}
-        </Card>
-
-        {/* Fees Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue</CardTitle>
-            <CardDescription>List of platform fees collected from transactions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {fees.length === 0 ? (
-              <div className="text-center py-12">
-                <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No revenue found</p>
-                {activeFiltersCount > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={handleClearFilters}
-                    className="mt-4"
-                    data-testid="button-clear-filters-empty"
-                  >
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Date</th>
-                        <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Amount</th>
-                        <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fees.map((fee: any) => (
-                        <tr 
-                          key={fee.id} 
-                          className="border-b border-border hover:bg-muted/50 transition-colors"
-                          data-testid={`row-fee-${fee.id}`}
-                        >
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{formatDate(fee.created)}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="font-semibold text-green-600 dark:text-green-400">
-                              {formatCurrency(fee.amount)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge 
-                              variant={fee.refunded ? "destructive" : "default"}
-                              className="text-xs"
-                            >
-                              {fee.refunded ? 'Refunded' : 'Collected'}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination Controls */}
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {fees.length} {fees.length === 1 ? 'fee' : 'fees'}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handlePrevPage}
-                      disabled={!pagination.starting_after && !pagination.ending_before}
-                      data-testid="button-prev-page"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNextPage}
-                      disabled={!hasMore}
-                      data-testid="button-next-page"
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
           </CardContent>
         </Card>
+
+        {/* Revenue Transactions Table */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Transactions</CardTitle>
+            <CardDescription>Revenue from platform transactions</CardDescription>
+          </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Date</th>
+                      <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Type</th>
+                      <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">From</th>
+                      <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">To</th>
+                      <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Service Fee</th>
+                      <th className="text-left py-3 px-4 font-medium text-sm text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revenueTransactions.map((transaction: any) => (
+                      <tr 
+                        key={transaction._id} 
+                        className="border-b border-border hover:bg-muted/50 transition-colors"
+                      >
+                        <td className="py-3 px-4">
+                          <span className="text-sm">
+                            {new Date(transaction.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col">
+                            <span className="capitalize text-sm">{transaction.type?.replace(/_/g, ' ') || 'N/A'}</span>
+                            {transaction.type === 'order' && (
+                              <>
+                                {transaction.orderId && (
+                                  <span className="text-xs text-muted-foreground">{transaction.orderId}</span>
+                                )}
+                                {(transaction.invoiceNumber || transaction.invoice_number) && (
+                                  <span className="text-xs text-muted-foreground">Invoice: {transaction.invoiceNumber || transaction.invoice_number}</span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-sm">{transaction.from?.userName || 'Unknown'}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-sm">{transaction.to?.userName || 'Unknown'}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-semibold text-green-600 text-sm">
+                            {formatCurrency(transaction.serviceFee || 0)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col">
+                            <Badge 
+                              variant={transaction.status === 'Pending' ? 'secondary' : 'default'}
+                              className="text-xs"
+                            >
+                              {transaction.status || 'Unknown'}
+                            </Badge>
+                            {transaction.status === 'Pending' && (transaction.availableOn || transaction.available_on) && (
+                              <span className="text-xs text-muted-foreground mt-1">
+                                Available {new Date(transaction.availableOn || transaction.available_on).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <div className="text-sm text-muted-foreground">
+                  Showing {revenueTransactions.length} of {totalCount} transaction{totalCount !== 1 ? 's' : ''}
+                  {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevPage}
+                    disabled={currentPage <= 1}
+                    data-testid="button-prev-page"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage >= totalPages}
+                    data-testid="button-next-page"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
       </div>
     </AdminLayout>
   );

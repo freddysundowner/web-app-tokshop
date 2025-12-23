@@ -248,6 +248,7 @@ export default function AdminUsers() {
                         <TableHead className="hidden md:table-cell">Email</TableHead>
                         <TableHead className="hidden lg:table-cell">Username</TableHead>
                         <TableHead className="hidden xl:table-cell">Country</TableHead>
+                        <TableHead className="hidden lg:table-cell">Joined</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead className="hidden sm:table-cell">Status</TableHead>
                         <TableHead className="text-right">Wallet</TableHead>
@@ -278,6 +279,9 @@ export default function AdminUsers() {
                           </TableCell>
                           <TableCell className="hidden lg:table-cell" data-testid={`text-username-${user._id || user.id}`}>{user.userName || 'N/A'}</TableCell>
                           <TableCell className="hidden xl:table-cell">{user.country || 'N/A'}</TableCell>
+                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                            {(user.createdAt || user.created_at) ? new Date(user.createdAt || user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={user.seller ? "default" : "secondary"}>
                               {user.seller ? "Seller" : "Customer"}

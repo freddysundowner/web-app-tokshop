@@ -70,6 +70,7 @@ const HelpCenter = lazy(() => import("@/pages/marketplace/help-center"));
 const HelpArticle = lazy(() => import("@/pages/marketplace/help-article"));
 const SellerSetup = lazy(() => import("@/pages/seller/setup"));
 const ScheduleShow = lazy(() => import("@/pages/seller/schedule-show"));
+const Payouts = lazy(() => import("@/pages/seller/payouts"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 // Loading component
@@ -275,7 +276,8 @@ function Router() {
     '/analytics',
     '/live-shows',
     '/schedule-show',
-    '/seller/hub'
+    '/seller/hub',
+    '/payouts'
   ];
 
   const isSellerOnlyRoute = sellerOnlyRoutes.some(route => location.startsWith(route));
@@ -308,7 +310,8 @@ function Router() {
                           location.startsWith('/live-shows') ||
                           location.startsWith('/schedule-show') ||
                           location.startsWith('/offers') ||
-                          location.startsWith('/my-offers');
+                          location.startsWith('/my-offers') ||
+                          location.startsWith('/payouts');
 
   if (isDashboardRoute) {
     return (
@@ -365,6 +368,7 @@ function Router() {
                 <Route path="/schedule-show" component={ScheduleShow} />
                 <Route path="/seller/hub" component={SellerHub} />
                 <Route path="/friends" component={Friends} />
+                <Route path="/payouts" component={Payouts} />
                 <Route component={NotFound} />
               </Switch>
             </main>

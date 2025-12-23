@@ -2178,6 +2178,62 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  // Get Stripe revenue data
+  app.get("/api/admin/revenue", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      // Extract filters from query params
+      const { from, to, limit, page } = req.query;
+
+      // Build query params for the external API
+      const queryParams = new URLSearchParams();
+      if (from) queryParams.append('from', from as string);
+      if (to) queryParams.append('to', to as string);
+      if (limit) queryParams.append('limit', limit as string);
+      if (page) queryParams.append('page', page as string);
+
+      const url = `${BASE_URL}/stripe/revenue${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      console.log(`Fetching revenue from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: "Failed to fetch revenue data",
+        });
+      }
+
+      const data = await response.json();
+      
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching revenue:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch revenue",
+        details: error.message,
+      });
+    }
+  });
+
   // Get Stripe transactions/payouts for a specific user
   app.get("/api/admin/stripe-payouts", requireAdmin, async (req, res) => {
     try {

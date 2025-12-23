@@ -13,6 +13,7 @@ import {
   Truck,
   Package2,
   Receipt,
+  Banknote,
   ChevronLeft,
   ChevronRight,
   Video,
@@ -78,6 +79,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
     { name: "Offers", href: "/offers", icon: Tag },
     { name: "Inventory", href: "/inventory", icon: Box },
     { name: "Shipments", href: "/shipping", icon: Truck },
+    { name: "Payouts", href: "/payouts", icon: Banknote },
     { name: "Shipping Profiles", href: "/shipping-profiles", icon: Package2 },
   ];
 

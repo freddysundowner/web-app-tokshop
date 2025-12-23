@@ -561,6 +561,12 @@ export default function Shipping() {
 
   const handleShowFilterChange = (newShowId: string) => {
     setSelectedShowId(newShowId);
+    // When marketplace is selected, set date filters to current day
+    if (newShowId === 'marketplace') {
+      const today = new Date();
+      setDateFrom(startOfDay(today));
+      setDateTo(endOfDay(today));
+    }
     resetPaginationOnFilterChange();
   };
 
@@ -783,12 +789,12 @@ export default function Shipping() {
         if (user?.id) {
           params.set("userId", user.id);
         }
-        // Add date filter parameters
+        // Add date filter parameters (use YYYY-MM-DD format to avoid timezone issues)
         if (dateFrom) {
-          params.set("startDate", startOfDay(dateFrom).toISOString());
+          params.set("startDate", format(dateFrom, "yyyy-MM-dd"));
         }
         if (dateTo) {
-          params.set("endDate", endOfDay(dateTo).toISOString());
+          params.set("endDate", format(dateTo, "yyyy-MM-dd"));
         }
         // Add show filter parameters
         if (selectedShowId && selectedShowId !== "all") {
@@ -834,12 +840,12 @@ export default function Shipping() {
             params.set("tokshow", selectedShowId);
           }
         }
-        // Add date filter parameters
+        // Add date filter parameters (use YYYY-MM-DD format to avoid timezone issues)
         if (dateFrom) {
-          params.set("startDate", startOfDay(dateFrom).toISOString());
+          params.set("startDate", format(dateFrom, "yyyy-MM-dd"));
         }
         if (dateTo) {
-          params.set("endDate", endOfDay(dateTo).toISOString());
+          params.set("endDate", format(dateTo, "yyyy-MM-dd"));
         }
         // Add pagination parameters
         params.set("page", currentPage.toString());
@@ -1449,90 +1455,92 @@ export default function Shipping() {
           </div>
         </div>
 
-        {/* Metrics Cards */}
-        <div className="mb-6 sm:mb-8">
-          <div className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-            <Card className="border-2 border-accent bg-accent/10">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <div
-                  className="text-lg font-bold text-foreground"
-                  data-testid="metric-total-sold"
-                >
-                  ${metrics?.totalSold || "0"}
-                </div>
-                <div className="text-xs text-muted-foreground">Total Sold</div>
-              </CardContent>
-            </Card>
+        {/* Metrics Cards - Hidden when all filters are at default (all shows & all status) */}
+        {!(selectedShowId === "all" && statusFilter === "all") && (
+          <div className="mb-6 sm:mb-8">
+            <div className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+              <Card className="border-2 border-accent bg-accent/10">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <div
+                    className="text-lg font-bold text-foreground"
+                    data-testid="metric-total-sold"
+                  >
+                    ${metrics?.totalSold || "0"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Total Sold</div>
+                </CardContent>
+              </Card>
 
-            <Card className="border border-border">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <div
-                  className="text-lg font-bold text-foreground"
-                  data-testid="metric-total-earned"
-                >
-                  ${metrics?.totalEarned || "0"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Total Earned (Paid Out)
-                </div>
-              </CardContent>
-            </Card>
+              <Card className="border border-border">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <div
+                    className="text-lg font-bold text-foreground"
+                    data-testid="metric-total-earned"
+                  >
+                    ${metrics?.totalEarned || "0"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Total Earned (Paid Out)
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className="border border-border">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <div
-                  className="text-lg font-bold text-foreground"
-                  data-testid="metric-shipping-spend"
-                >
-                  ${metrics?.totalShippingSpend || "0"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Total Shipping Spend
-                </div>
-              </CardContent>
-            </Card>
+              <Card className="border border-border">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <div
+                    className="text-lg font-bold text-foreground"
+                    data-testid="metric-shipping-spend"
+                  >
+                    ${metrics?.totalShippingSpend || "0"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Total Shipping Spend
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className="border border-border">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <div
-                  className="text-lg font-bold text-foreground"
-                  data-testid="metric-items-sold"
-                >
-                  {metrics?.itemsSold || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">Items sold</div>
-              </CardContent>
-            </Card>
+              <Card className="border border-border">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <div
+                    className="text-lg font-bold text-foreground"
+                    data-testid="metric-items-sold"
+                  >
+                    {metrics?.itemsSold || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Items sold</div>
+                </CardContent>
+              </Card>
 
-            <Card className="border border-border">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <div
-                  className="text-lg font-bold text-foreground"
-                  data-testid="metric-total-delivered"
-                >
-                  {metrics?.totalDelivered || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Total Delivered
-                </div>
-              </CardContent>
-            </Card>
+              <Card className="border border-border">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <div
+                    className="text-lg font-bold text-foreground"
+                    data-testid="metric-total-delivered"
+                  >
+                    {metrics?.totalDelivered || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Total Delivered
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className="border border-border">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <div
-                  className="text-lg font-bold text-foreground"
-                  data-testid="metric-pending-delivery"
-                >
-                  {metrics?.pendingDelivery || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Pending Delivery
-                </div>
-              </CardContent>
-            </Card>
+              <Card className="border border-border">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <div
+                    className="text-lg font-bold text-foreground"
+                    data-testid="metric-pending-delivery"
+                  >
+                    {metrics?.pendingDelivery || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Pending Delivery
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Filters */}
         <div className="mb-6">

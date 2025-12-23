@@ -1759,6 +1759,234 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
+  // Get user's bank accounts for withdrawals
+  app.get("/api/user/banks", async (req, res) => {
+    try {
+      const accessToken = req.session?.accessToken;
+      
+      if (!accessToken || !req.session.user) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const userId = req.session.user._id || req.session.user.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const url = `${BASE_URL}/stripe/banks/${userId}`;
+      console.log(`Fetching user banks from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log(`User banks API response status: ${response.status}`);
+      const contentType = response.headers.get("content-type");
+
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.error(`Non-JSON response from banks API: ${textResponse.substring(0, 500)}`);
+        return res.status(500).json({
+          success: false,
+          error: "Banks API returned non-JSON response",
+          details: `Status: ${response.status}`,
+        });
+      }
+
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        console.error(`User banks API error:`, data);
+        return res.status(response.status).json({
+          success: false,
+          error: data.message || "Failed to fetch banks",
+          details: data,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching user banks:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch banks",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get user payouts
+  app.get("/api/user/payouts", async (req, res) => {
+    try {
+      const accessToken = req.session?.accessToken;
+      
+      if (!accessToken || !req.session.user) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const userId = req.session.user._id || req.session.user.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const queryParams = new URLSearchParams();
+      if (req.query.page) queryParams.append("page", req.query.page as string);
+      if (req.query.limit) queryParams.append("limit", req.query.limit as string);
+      if (req.query.status) queryParams.append("status", req.query.status as string);
+      if (req.query.from) queryParams.append("from", req.query.from as string);
+      if (req.query.to) queryParams.append("to", req.query.to as string);
+
+      const queryString = queryParams.toString();
+      const url = `${BASE_URL}/stripe/transactions/${userId}${queryString ? `?${queryString}` : ''}`;
+      console.log(`Fetching user payouts from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log(`User payouts API response status: ${response.status}`);
+      const contentType = response.headers.get("content-type");
+
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.error(`Non-JSON response from payouts API: ${textResponse.substring(0, 500)}`);
+        return res.status(500).json({
+          success: false,
+          error: "Payouts API returned non-JSON response",
+          details: `Status: ${response.status}`,
+        });
+      }
+
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        console.error(`User payouts API error:`, data);
+        return res.status(response.status).json({
+          success: false,
+          error: data.message || "Failed to fetch payouts",
+          details: data,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching user payouts:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch payouts",
+        details: error.message,
+      });
+    }
+  });
+
+  // Create a payout/withdrawal
+  app.post("/api/user/payouts", async (req, res) => {
+    try {
+      const accessToken = req.session?.accessToken;
+      
+      if (!accessToken || !req.session.user) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const userId = req.session.user._id || req.session.user.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "User not authenticated",
+        });
+      }
+
+      const { amount } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Valid amount is required",
+        });
+      }
+
+      const url = `${BASE_URL}/stripe/payouts/${userId}`;
+      console.log(`Creating payout to: ${url} with amount: ${amount}`);
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount }),
+      });
+
+      console.log(`Create payout API response status: ${response.status}`);
+      const contentType = response.headers.get("content-type");
+
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.error(`Non-JSON response from create payout API: ${textResponse.substring(0, 500)}`);
+        return res.status(500).json({
+          success: false,
+          error: "Payout API returned non-JSON response",
+          details: `Status: ${response.status}`,
+        });
+      }
+
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        console.error(`Create payout API error:`, data);
+        return res.status(response.status).json({
+          success: false,
+          error: data.message || data.error || "Failed to create payout",
+          details: data,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error creating payout:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create payout",
+        details: error.message,
+      });
+    }
+  });
+
   // Public settings endpoint for fee percentages (requires authentication)
   app.get("/api/public/settings", async (req, res) => {
     try {

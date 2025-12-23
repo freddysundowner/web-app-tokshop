@@ -323,7 +323,7 @@ export default function AdminTransactions() {
                         ? `${transaction.to.firstName || ''} ${transaction.to.lastName || ''}`.trim() || transaction.to.userName || transaction.to.email || 'Unknown'
                         : 'Unknown';
                       
-                      const amount = transaction.amount || 0;
+                      const amount = Math.round((Number(transaction.amount) || 0) * 100) / 100;
                       const type = transaction.type || 'N/A';
                       const status = transaction.status || 'pending';
 
@@ -339,17 +339,26 @@ export default function AdminTransactions() {
                             {toName}
                           </TableCell>
                           <TableCell data-testid={`text-type-${transactionId}`}>
-                            <span className="capitalize">{type}</span>
+                            <span className="capitalize">{type.replace(/_/g, ' ')}</span>
                           </TableCell>
                           <TableCell data-testid={`text-amount-${transactionId}`}>
-                            ${amount.toFixed(2)}
+                            <div>
+                              <span className={transaction.deducting ? "text-red-600" : ""}>
+                                {transaction.deducting ? `-$${amount.toFixed(2)}` : `$${amount.toFixed(2)}`}
+                              </span>
+                              {(transaction.available_on || transaction.availableOn) && (
+                                <div className="text-xs text-teal-600">
+                                  Available on {formatDate(transaction.available_on || transaction.availableOn)}
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell data-testid={`text-date-${transactionId}`}>
                             {formatDate(transaction.createdAt || transaction.date)}
                           </TableCell>
                           <TableCell>
                             <Badge variant={getStatusColor(status)} data-testid={`badge-status-${transactionId}`}>
-                              {status}
+                              {status.replace(/_/g, ' ')}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
@@ -461,7 +470,7 @@ export default function AdminTransactions() {
                             </TableCell>
                             <TableCell>
                               <Badge variant={getStatusColor(refund.status)} data-testid={`badge-status-${refundId}`}>
-                                {refund.status}
+                                {refund.status?.replace(/_/g, ' ')}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -501,12 +510,12 @@ export default function AdminTransactions() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type:</span>
-                  <span className="capitalize">{selectedTransaction.type || 'N/A'}</span>
+                  <span className="capitalize">{(selectedTransaction.type || 'N/A').replace(/_/g, ' ')}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status:</span>
                   <Badge variant={getStatusColor(selectedTransaction.status || 'pending')}>
-                    {selectedTransaction.status || 'pending'}
+                    {(selectedTransaction.status || 'pending').replace(/_/g, ' ')}
                   </Badge>
                 </div>
               </div>
