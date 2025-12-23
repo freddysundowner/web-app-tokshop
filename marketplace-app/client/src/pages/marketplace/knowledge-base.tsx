@@ -10,7 +10,7 @@ import { getKnowledgeBaseSections } from "@/data/knowledge-base";
 import { useSettings } from "@/lib/settings-context";
 
 export default function KnowledgeBase() {
-  const { appName } = useSettings();
+  const { appName, theme } = useSettings();
   const knowledgeBaseSections = useMemo(() => getKnowledgeBaseSections(appName), [appName]);
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [searchQuery, setSearchQuery] = useState("");
@@ -99,6 +99,18 @@ export default function KnowledgeBase() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Demo Mode Banner */}
+      {theme.demoMode && (
+        <div className="bg-primary text-primary-foreground py-2 px-4 text-center">
+          <a 
+            href="/knowledge-base" 
+            className="text-sm font-medium hover:underline"
+          >
+            You are viewing this app in demo mode. Visit our Knowledge Base to learn more.
+          </a>
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="bg-gradient-to-b from-primary/5 to-background border-b">
         <div className="container max-w-7xl mx-auto px-4 py-16">

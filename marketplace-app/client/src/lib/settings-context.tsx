@@ -35,6 +35,7 @@ interface ThemeSettings {
   header_logo: string;
   privacy_url?: string;
   terms_url?: string;
+  demoMode?: boolean;
 }
 
 interface SettingsContextType {
