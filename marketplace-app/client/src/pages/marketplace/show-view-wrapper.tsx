@@ -1,5 +1,5 @@
 import { useParams, useLocation } from "wouter";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { MobileAppRedirect } from "@/components/mobile-app-redirect";
 import { Loader2 } from "lucide-react";
 
@@ -15,19 +15,17 @@ function LoadingSpinner() {
 
 export default function ShowViewWrapper() {
   const params = useParams<{ id: string }>();
-  const [location, setLocation] = useLocation();
-  const [showId, setShowId] = useState<string>('');
+  const [, setLocation] = useLocation();
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryId = urlParams.get('id');
+  const showId = params.id || queryId || '';
   
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const queryId = urlParams.get('id');
-    const id = params.id || queryId || '';
-    setShowId(id);
-    
     if (queryId && !params.id) {
       setLocation(`/show/${queryId}`, { replace: true });
     }
-  }, [params.id, location, setLocation]);
+  }, [queryId, params.id, setLocation]);
   
   if (!showId) {
     return <LoadingSpinner />;

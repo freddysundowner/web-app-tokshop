@@ -1,5 +1,5 @@
-import { useParams, useLocation } from "wouter";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { useParams } from "wouter";
+import { lazy, Suspense } from "react";
 import { MobileAppRedirect } from "@/components/mobile-app-redirect";
 import { Loader2 } from "lucide-react";
 
@@ -15,15 +15,10 @@ function LoadingSpinner() {
 
 export default function ProfileViewWrapper() {
   const params = useParams<{ userId: string }>();
-  const [location] = useLocation();
-  const [userId, setUserId] = useState<string>('');
   
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const queryId = urlParams.get('id');
-    const id = params.userId || queryId || '';
-    setUserId(id);
-  }, [params.userId, location]);
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryId = urlParams.get('id');
+  const userId = params.userId || queryId || '';
   
   if (!userId) {
     return <LoadingSpinner />;

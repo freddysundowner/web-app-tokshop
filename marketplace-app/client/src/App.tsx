@@ -180,7 +180,11 @@ function Router() {
     '/help-center'
   ];
 
-  const isPublicPage = publicPages.includes(location) || location.startsWith('/help-center/') || location.startsWith('/link/');
+  // Extract pathname without query parameters for route matching
+  // Use window.location.pathname and decode it (handles URL-encoded characters)
+  const rawPathname = typeof window !== 'undefined' ? window.location.pathname : location;
+  const currentPathname = decodeURIComponent(rawPathname).split('?')[0];
+  const isPublicPage = publicPages.includes(currentPathname) || currentPathname.startsWith('/help-center/') || currentPathname.startsWith('/link/') || currentPathname.startsWith('/show') || currentPathname.startsWith('/user') || currentPathname.startsWith('/profile/');
 
   // Redirect to login if trying to access protected pages without authentication
   if (!isAuthenticated && !isPublicPage) {
@@ -216,7 +220,7 @@ function Router() {
   }
 
   // Check if we're on a landing page that has its own header
-  const isLandingPageWithCustomHeader = location === '/' || location === '/landing-8' || location === '/seller/login';
+  const isLandingPageWithCustomHeader = currentPathname === '/' || currentPathname === '/landing-8' || currentPathname === '/seller/login';
 
   // Show public pages for unauthenticated users
   if (!isAuthenticated) {
@@ -253,6 +257,9 @@ function Router() {
               <Route path="/login" component={Login} />
               <Route path="/signup" component={Signup} />
               <Route path="/link/:type/:id" component={DeepLink} />
+              <Route path="/show/:id" component={ShowViewWrapper} />
+              <Route path="/show" component={ShowViewWrapper} />
+              <Route path="/user" component={ProfileViewWrapper} />
               <Route path="/privacy-policy" component={PrivacyPolicy} />
               <Route path="/terms-of-service" component={TermsOfService} />
               <Route path="/contact" component={ContactUs} />
