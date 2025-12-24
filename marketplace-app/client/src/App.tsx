@@ -53,7 +53,8 @@ const Giveaways = lazy(() => import("@/pages/marketplace/giveaways"));
 const GiveawayDetail = lazy(() => import("@/pages/marketplace/giveaway-detail"));
 const LandingPage = lazy(() => import("@/pages/marketplace/landing-page-8"));
 const SellerLogin = lazy(() => import("@/pages/auth/seller-login"));
-const ShowView = lazy(() => import("@/pages/marketplace/show-view").then(module => ({ default: module.default })));
+const ShowViewWrapper = lazy(() => import("@/pages/marketplace/show-view-wrapper"));
+const ProfileViewWrapper = lazy(() => import("@/pages/marketplace/profile-view-wrapper"));
 const PrivacyPolicy = lazy(() => import("@/pages/marketplace/privacy-policy"));
 const TermsOfService = lazy(() => import("@/pages/marketplace/terms-of-service"));
 const ContactUs = lazy(() => import("@/pages/marketplace/contact"));
@@ -72,6 +73,7 @@ const SellerSetup = lazy(() => import("@/pages/seller/setup"));
 const ScheduleShow = lazy(() => import("@/pages/seller/schedule-show"));
 const Payouts = lazy(() => import("@/pages/seller/payouts"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const DeepLink = lazy(() => import("@/pages/deep-link"));
 
 // Loading component
 function LoadingSpinner() {
@@ -178,7 +180,7 @@ function Router() {
     '/help-center'
   ];
 
-  const isPublicPage = publicPages.includes(location) || location.startsWith('/help-center/');
+  const isPublicPage = publicPages.includes(location) || location.startsWith('/help-center/') || location.startsWith('/link/');
 
   // Redirect to login if trying to access protected pages without authentication
   if (!isAuthenticated && !isPublicPage) {
@@ -250,6 +252,7 @@ function Router() {
               <Route path="/seller/login" component={SellerLogin} />
               <Route path="/login" component={Login} />
               <Route path="/signup" component={Signup} />
+              <Route path="/link/:type/:id" component={DeepLink} />
               <Route path="/privacy-policy" component={PrivacyPolicy} />
               <Route path="/terms-of-service" component={TermsOfService} />
               <Route path="/contact" component={ContactUs} />
@@ -378,7 +381,7 @@ function Router() {
     );
   }
 
-  const isShowViewPage = location.startsWith('/show/');
+  const isShowViewPage = location.startsWith('/show/') || location.startsWith('/show?');
   
   // Hide search on detail/inner pages, keep it on marketplace browsing pages
   // Extract pathname without query parameters
@@ -429,16 +432,18 @@ function Router() {
             <Route path="/trending/products" component={TrendingProducts} />
             <Route path="/trending/auctions" component={TrendingAuctions} />
             <Route path="/featured/shows" component={FeaturedShows} />
-            <Route path="/show/:id" component={ShowView} />
+            <Route path="/show/:id" component={ShowViewWrapper} />
+            <Route path="/show" component={ShowViewWrapper} />
             <Route path="/product/:productId" component={ProductDetail} />
             <Route path="/auction/:auctionId" component={AuctionDetail} />
-            <Route path="/user" component={ProfileView} />
-            <Route path="/profile/:userId" component={ProfileView} />
+            <Route path="/user" component={ProfileViewWrapper} />
+            <Route path="/profile/:userId" component={ProfileViewWrapper} />
             <Route path="/inbox/:userId?" component={Inbox} />
             <Route path="/seller/setup" component={SellerSetup} />
             <Route path="/login" component={MarketplaceHome} />
             <Route path="/signup" component={MarketplaceHome} />
             <Route path="/seller/login" component={MarketplaceHome} />
+            <Route path="/link/:type/:id" component={DeepLink} />
             <Route path="/privacy-policy" component={PrivacyPolicy} />
             <Route path="/terms-of-service" component={TermsOfService} />
             <Route path="/contact" component={ContactUs} />
