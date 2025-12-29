@@ -74,6 +74,77 @@ export function clearEmailLog(): void {
   }
 }
 
+// Convert ARGB hex (FFRRGGBB) or RGB hex to proper CSS hex color
+function formatColor(color?: string): string {
+  if (!color) return '#6366f1';
+  // Remove # if present
+  let hex = color.replace('#', '');
+  // If 8 characters (ARGB format like FFFF5644), remove first 2 (alpha)
+  if (hex.length === 8) {
+    hex = hex.substring(2);
+  }
+  return `#${hex}`;
+}
+
+// Wrap custom email content with professional header/footer template (matching template style)
+export function wrapEmailContent(content: string, settings: {
+  app_name?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  support_email?: string;
+  logo_url?: string;
+}): string {
+  const appName = settings.app_name || 'App';
+  const primaryColor = formatColor(settings.primary_color);
+  const secondaryColor = formatColor(settings.secondary_color || settings.primary_color);
+  const supportEmail = settings.support_email || '';
+  const logoUrl = settings.logo_url || '';
+  const year = new Date().getFullYear();
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${appName}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+          <!-- Header with gradient -->
+          <tr>
+            <td style="background: linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%); padding: 32px 40px; text-align: center;">
+              ${logoUrl ? `<img src="${logoUrl}" alt="${appName}" style="max-height: 60px; max-width: 200px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">${appName}</h1>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <div style="color: #333333; font-size: 16px; line-height: 1.6;">
+                ${content}
+              </div>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; padding: 24px 40px; text-align: center; border-top: 1px solid #eee;">
+              ${supportEmail ? `<p style="margin: 0 0 8px; color: #666666; font-size: 14px;">Questions? Contact us at <a href="mailto:${supportEmail}" style="color: ${primaryColor}; text-decoration: none; font-weight: 500;">${supportEmail}</a></p>` : ''}
+              <p style="margin: 0; color: #999999; font-size: 12px;">&copy; ${year} ${appName}. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
 interface EmailSettings {
   email_service_provider?: string;
   email_api_key?: string;

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Mail, Save, DollarSign, Package, Truck, Eye, RotateCcw, KeyRound, BarChart3 } from "lucide-react";
+import { Mail, Save, DollarSign, Package, Truck, Eye, RotateCcw, KeyRound, BarChart3, UserCheck, Smartphone, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -644,6 +644,204 @@ const defaultTemplates: EmailTemplate[] = [
       { name: "secondary_color", description: "Brand secondary color" },
     ],
   },
+  {
+    id: "seller_approval",
+    name: "Seller Approval",
+    description: "Sent to user when their seller application is approved",
+    subject: "Congratulations! You're Approved to Sell on {{app_name}}",
+    body: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, {{primary_color}} 0%, {{secondary_color}} 100%); padding: 32px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">{{app_name}}</h1>
+            </td>
+          </tr>
+          <!-- Icon -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center;">
+              <div style="width: 80px; height: 80px; background-color: #10b981; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 40px; line-height: 80px;">&#10004;</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 20px 40px;">
+              <h2 style="color: #18181b; margin: 0 0 16px; font-size: 22px; text-align: center;">You're Approved!</h2>
+              <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+                Hi {{name}}, congratulations! Your seller application has been approved. You now have access to the Seller Hub where you can list products, host live shows, and start selling!
+              </p>
+            </td>
+          </tr>
+          <!-- What's Next Box -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0fdf4; border: 2px solid #10b981; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px;">
+                    <p style="color: #166534; font-size: 14px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">What's Next?</p>
+                    <ul style="color: #15803d; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                      <li>Set up your seller profile</li>
+                      <li>Add your first products</li>
+                      <li>Configure shipping options</li>
+                      <li>Schedule your first live show</li>
+                    </ul>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding: 0 40px 32px; text-align: center;">
+              <a href="{{seller_hub_url}}" style="display: inline-block; background-color: {{primary_color}}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">Go to Seller Hub</a>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #fafafa; padding: 24px 40px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; margin: 0 0 8px;">Welcome to the {{app_name}} seller community!</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0 0 8px;">{{app_name}} Team</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">Need help? Contact us at <a href="mailto:{{support_email}}" style="color: {{primary_color}};">{{support_email}}</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+    recipients: ["User"],
+    icon: UserCheck,
+    variables: [
+      { name: "name", description: "User's name" },
+      { name: "app_name", description: "Application name" },
+      { name: "support_email", description: "Support email address" },
+      { name: "primary_color", description: "Brand primary color" },
+      { name: "secondary_color", description: "Brand secondary color" },
+      { name: "seller_hub_url", description: "Link to seller hub/dashboard" },
+    ],
+  },
+  {
+    id: "app_update",
+    name: "App Update",
+    description: "Notify users about a new app version available",
+    subject: "New Update Available - {{app_name}} v{{version}}",
+    body: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, {{primary_color}} 0%, {{secondary_color}} 100%); padding: 32px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">{{app_name}}</h1>
+            </td>
+          </tr>
+          <!-- Icon -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center;">
+              <div style="width: 80px; height: 80px; background-color: #3b82f6; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 40px; line-height: 80px;">&#128241;</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 20px 40px;">
+              <h2 style="color: #18181b; margin: 0 0 16px; font-size: 22px; text-align: center;">New Version Available!</h2>
+              <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+                Hi {{name}}, a new version of {{app_name}} is now available! Update to version {{version}} to enjoy the latest features and improvements.
+              </p>
+            </td>
+          </tr>
+          <!-- Version Info -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px; text-align: center;">
+                    <p style="color: #1e40af; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Latest Version</p>
+                    <p style="color: #1d4ed8; font-size: 36px; font-weight: 700; margin: 0;">v{{version}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- What's New -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fafafa; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #71717a; font-size: 12px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 1px;">What's New</p>
+                    <p style="color: #18181b; font-size: 14px; line-height: 1.8; margin: 0; white-space: pre-line;">{{whats_new}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Download Buttons -->
+          <tr>
+            <td style="padding: 0 40px 32px; text-align: center;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 8px; text-align: center;">
+                    <a href="{{android_link}}" style="display: inline-block; background-color: #10b981; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; margin: 4px;">Update on Android</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; text-align: center;">
+                    <a href="{{ios_link}}" style="display: inline-block; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; margin: 4px;">Update on iOS</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #fafafa; padding: 24px 40px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; margin: 0 0 8px;">Thank you for using {{app_name}}!</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0 0 8px;">{{app_name}} Team</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">Need help? Contact us at <a href="mailto:{{support_email}}" style="color: {{primary_color}};">{{support_email}}</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+    recipients: ["All Users"],
+    icon: Smartphone,
+    variables: [
+      { name: "name", description: "User's name" },
+      { name: "version", description: "New app version number" },
+      { name: "whats_new", description: "List of new features/changes" },
+      { name: "android_link", description: "Google Play Store link" },
+      { name: "ios_link", description: "Apple App Store link" },
+      { name: "app_name", description: "Application name" },
+      { name: "support_email", description: "Support email address" },
+      { name: "primary_color", description: "Brand primary color" },
+      { name: "secondary_color", description: "Brand secondary color" },
+    ],
+  },
 ];
 
 export default function EmailTemplates() {
@@ -726,6 +924,39 @@ export default function EmailTemplates() {
       });
     },
   });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      return apiRequest("DELETE", `/api/templates/${templateId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
+      toast({
+        title: "Template deleted",
+        description: "Email template has been deleted successfully",
+      });
+      // Switch to first available template
+      if (templates.length > 1) {
+        const remaining = templates.filter(t => t.id !== activeTab);
+        if (remaining.length > 0) {
+          setActiveTab(remaining[0].id);
+        }
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error deleting template",
+        description: error.message || "Failed to delete email template",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteTemplate = (templateId: string) => {
+    if (confirm("Are you sure you want to delete this template? This action cannot be undone.")) {
+      deleteTemplateMutation.mutate(templateId);
+    }
+  };
 
   const handleTemplateChange = (templateId: string, field: 'subject' | 'body', value: string) => {
     setTemplates(prev => prev.map(t => 
@@ -895,6 +1126,15 @@ export default function EmailTemplates() {
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
                           Reset to Default
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => handleDeleteTemplate(template.id)}
+                          disabled={deleteTemplateMutation.isPending}
+                          data-testid={`button-delete-${template.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {deleteTemplateMutation.isPending ? "Deleting..." : "Delete"}
                         </Button>
                         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
                           <DialogTrigger asChild>

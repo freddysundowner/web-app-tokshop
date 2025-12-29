@@ -167,18 +167,6 @@ const navigationItems: NavSection[] = [
             icon: FileText,
           },
           {
-            id: "emails-seller-approval",
-            name: "Seller Approval",
-            href: "/admin/email-seller-approval",
-            icon: FileText,
-          },
-          {
-            id: "emails-app-update",
-            name: "App Update",
-            href: "/admin/email-update",
-            icon: Smartphone,
-          },
-          {
             id: "emails-bulk",
             name: "Bulk Emails",
             href: "/admin/email-bulk",

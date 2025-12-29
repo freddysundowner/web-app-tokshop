@@ -3,7 +3,7 @@ import { BASE_URL } from "../utils";
 import multer from "multer";
 import FormData from "form-data";
 import axios from "axios";
-import { sendEmail, sendBulkWithBrevo } from "../utils/email";
+import { sendEmail, sendBulkWithBrevo, wrapEmailContent } from "../utils/email";
 
 // Multer configuration for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
@@ -5438,7 +5438,7 @@ Thank you for using ${appName}!
   // Send bulk emails directly from server
   app.post("/api/admin/email/send-bulk", requireAdmin, async (req, res) => {
     try {
-      const { recipients, subject, html } = req.body;
+      const { recipients, subject, html, fromEmail, useWrapper } = req.body;
       const accessToken = req.session.accessToken;
 
       if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
@@ -5481,6 +5481,61 @@ Thank you for using ${appName}!
 
       const settingsData = await settingsResponse.json();
       const settings = Array.isArray(settingsData) ? settingsData[0] : settingsData;
+      console.log('[Bulk Email] Settings data keys:', Object.keys(settings));
+      console.log('[Bulk Email] Version fields:', { 
+        appVersion: settings.appVersion, 
+        androidVersion: settings.androidVersion, 
+        iosVersion: settings.iosVersion 
+      });
+
+      // Fetch themes for app branding
+      let themes: any = {};
+      try {
+        const themesResponse = await fetch(`${BASE_URL}/themes`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (themesResponse.ok) {
+          const themesData = await themesResponse.json();
+          themes = Array.isArray(themesData) ? themesData[0] : themesData;
+          
+          // Extract landing_page_logo from resources array if present
+          if (themes.resources && Array.isArray(themes.resources)) {
+            const landingLogoResource = themes.resources.find((r: any) => r.key === 'landing_page_logo');
+            if (landingLogoResource) {
+              themes.landing_page_logo = landingLogoResource.url;
+            }
+          }
+          console.log('[Bulk Email] Themes landing_page_logo:', themes.landing_page_logo);
+        }
+      } catch (e) {
+        console.log('Could not fetch themes, using settings only');
+      }
+
+      // Helper to convert ARGB color to CSS hex
+      const formatColor = (color: string) => {
+        if (!color) return '#000000';
+        if (color.startsWith('#')) return color;
+        if (color.length === 8) return '#' + color.substring(2);
+        return '#' + color;
+      };
+
+      // Auto-populated values from settings and themes (check both for version fields)
+      const autoPopulated = {
+        app_name: themes.app_name || settings.app_name || 'App',
+        support_email: settings.support_email || settings.email_from_address || '',
+        primary_color: formatColor(themes.primary_color || settings.primary_color || ''),
+        secondary_color: formatColor(themes.secondary_color || settings.secondary_color || ''),
+        version: themes.appVersion || settings.appVersion || themes.app_version || settings.app_version || '',
+        android_version: themes.androidVersion || settings.androidVersion || themes.appVersion || settings.appVersion || '',
+        ios_version: themes.iosVersion || settings.iosVersion || themes.appVersion || settings.appVersion || '',
+        android_link: themes.androidLink || settings.androidLink || themes.play_store_url || settings.play_store_url || '',
+        ios_link: themes.iosLink || settings.iosLink || themes.app_store_url || settings.app_store_url || '',
+      };
+      console.log('[Bulk Email] Auto-populated values:', autoPopulated);
 
       if (!settings?.email_from_address || !settings?.email_service_provider) {
         return res.status(500).json({
@@ -5492,20 +5547,34 @@ Thank you for using ${appName}!
       const emailSettings = {
         email_service_provider: settings.email_service_provider,
         email_api_key: settings.email_api_key,
-        email_from_address: settings.email_from_address,
+        email_from_address: fromEmail || settings.email_from_address,
         email_from_name: settings.email_from_name || settings.app_name,
         email_mailgun_domain: settings.email_mailgun_domain,
       };
 
       const provider = settings.email_service_provider?.toLowerCase();
 
+      // Wrap custom email content with header/footer if requested
+      // Build full logo URL for email
+      const logoPath = themes.landing_page_logo || themes.app_logo || settings.logo_url || '';
+      const logoUrl = logoPath && !logoPath.startsWith('http') ? `${BASE_URL}${logoPath}` : logoPath;
+      
+      const finalHtml = useWrapper ? wrapEmailContent(html, {
+        app_name: themes.app_name || settings.app_name,
+        primary_color: themes.primary_color || settings.primary_color,
+        secondary_color: themes.secondary_color || settings.secondary_color,
+        support_email: settings.support_email,
+        logo_url: logoUrl,
+      }) : html;
+
       // For Brevo, use bulk send (batches of 50) - more efficient
       if (provider === 'brevo') {
-        // Personalize each recipient's content
+        // Personalize each recipient's content with auto-populated values
         const personalizedRecipients = recipients.map(recipient => {
-          let personalizedHtml = html;
+          const recipientData = { ...autoPopulated, ...recipient };
+          let personalizedHtml = finalHtml;
           let personalizedSubject = subject;
-          for (const [key, value] of Object.entries(recipient)) {
+          for (const [key, value] of Object.entries(recipientData)) {
             const placeholder = new RegExp(`{{${key}}}`, 'g');
             personalizedSubject = personalizedSubject.replace(placeholder, String(value || ''));
             personalizedHtml = personalizedHtml.replace(placeholder, String(value || ''));
@@ -5553,10 +5622,11 @@ Thank you for using ${appName}!
 
       for (const recipient of recipients) {
         try {
+          const recipientData = { ...autoPopulated, ...recipient };
           let personalizedSubject = subject;
-          let personalizedHtml = html;
+          let personalizedHtml = finalHtml;
           
-          for (const [key, value] of Object.entries(recipient)) {
+          for (const [key, value] of Object.entries(recipientData)) {
             const placeholder = new RegExp(`{{${key}}}`, 'g');
             personalizedSubject = personalizedSubject.replace(placeholder, String(value || ''));
             personalizedHtml = personalizedHtml.replace(placeholder, String(value || ''));

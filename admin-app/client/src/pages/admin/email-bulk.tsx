@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Send, FileText, Users, AlertCircle, CheckCircle2, X, Eye, Search, Mail } from "lucide-react";
+import { Upload, Send, FileText, Users, AlertCircle, CheckCircle2, X, Eye, Search, Mail, Save, UserPlus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import ReactQuill from "react-quill-new";
@@ -31,6 +31,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -51,8 +52,9 @@ interface EmailTemplate {
   _id: string;
   slug: string;
   name: string;
-  subject: string;
-  htmlContent: string;
+  subject?: string;
+  htmlContent?: string;
+  body?: string;
   placeholders: string[];
 }
 
@@ -89,8 +91,17 @@ export default function AdminEmailBulk() {
 
   const [customSubject, setCustomSubject] = useState("");
   const [customHtml, setCustomHtml] = useState("");
+  const [fromEmail, setFromEmail] = useState("");
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateSlug, setTemplateSlug] = useState("");
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [isLoadingAllUsers, setIsLoadingAllUsers] = useState(false);
+  const [allUsersProgress, setAllUsersProgress] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
 
-  const { data: templatesData, isLoading: templatesLoading } = useQuery<any>({
+  const { data: templatesData, isLoading: templatesLoading, refetch: refetchTemplates } = useQuery<any>({
     queryKey: ['/api/templates'],
   });
 
@@ -102,6 +113,8 @@ export default function AdminEmailBulk() {
   const templates: EmailTemplate[] = templatesData?.data || templatesData || [];
   const selectedTemplateData = templates.find(t => t._id === selectedTemplate);
   const searchResults: User[] = usersData?.data || [];
+
+  const autoPopulatedPlaceholders = ['app_name', 'support_email', 'primary_color', 'secondary_color', 'firstname', 'lastname', 'username', 'email', 'name', 'recipient_name', 'version', 'android_version', 'ios_version', 'android_link', 'ios_link'];
 
   const quillModules = useMemo(() => ({
     toolbar: [
@@ -153,6 +166,72 @@ export default function AdminEmailBulk() {
 
   const clearSelectedUsers = () => {
     setSelectedUsers([]);
+  };
+
+  const loadAllUsers = async () => {
+    setIsLoadingAllUsers(true);
+    setAllUsersProgress("Loading users...");
+    
+    try {
+      const allUsers: User[] = [];
+      let page = 1;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        setAllUsersProgress(`Loading page ${page}...`);
+        
+        const response = await fetch(`/api/admin/users?page=${page}&limit=${limit}`, {
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        
+        const data = await response.json();
+        // API returns { data: { users: [...], totalDoc, limits, pages } }
+        const responseData = data.data || data;
+        const users = responseData.users || responseData.data || responseData || [];
+        const totalDoc = responseData.totalDoc || 0;
+        
+        if (!Array.isArray(users) || users.length === 0) {
+          hasMore = false;
+        } else {
+          allUsers.push(...users);
+          
+          // Check if we've loaded all users based on totalDoc
+          if (allUsers.length >= totalDoc || users.length < limit) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        }
+        
+        setAllUsersProgress(`Loaded ${allUsers.length} users...`);
+      }
+
+      // Add all users that aren't already selected
+      const newUsers = allUsers.filter(
+        u => u.email && !selectedUsers.some(s => s._id === u._id)
+      );
+      
+      setSelectedUsers([...selectedUsers, ...newUsers]);
+      
+      toast({
+        title: "Users loaded",
+        description: `Added ${newUsers.length} users (${allUsers.length} total found)`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to load users",
+        description: error.message || "Error fetching users",
+        variant: "destructive",
+      });
+    }
+    
+    setIsLoadingAllUsers(false);
+    setAllUsersProgress("");
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,11 +350,16 @@ export default function AdminEmailBulk() {
     
     for (const user of selectedUsers) {
       if (!recipients.some(r => r.email === user.email)) {
+        const firstName = user.firstName || '';
+        const lastName = user.lastName || '';
+        const displayName = user.userName || 'there';
         recipients.push({
           email: user.email,
-          firstname: user.firstName || '',
-          lastname: user.lastName || '',
+          firstname: firstName,
+          lastname: lastName,
           username: user.userName || '',
+          name: displayName,
+          recipient_name: displayName,
         });
       }
     }
@@ -285,10 +369,9 @@ export default function AdminEmailBulk() {
 
   const getEmailContent = () => {
     if (emailMode === "template" && selectedTemplateData) {
-      return {
-        subject: selectedTemplateData.subject,
-        html: selectedTemplateData.htmlContent,
-      };
+      const html = selectedTemplateData.htmlContent || selectedTemplateData.body || '';
+      const subject = selectedTemplateData.subject || selectedTemplateData.name || 'Notification';
+      return { subject, html };
     } else if (emailMode === "custom") {
       return {
         subject: customSubject,
@@ -331,6 +414,8 @@ export default function AdminEmailBulk() {
         recipients: allRecipients,
         subject: emailContent.subject,
         html: emailContent.html,
+        fromEmail: fromEmail || undefined,
+        useWrapper: emailMode === "custom",
       });
 
       const result = await response.json();
@@ -360,7 +445,7 @@ export default function AdminEmailBulk() {
   };
 
   const missingPlaceholders = selectedTemplateData?.placeholders.filter(
-    p => !csvHeaders.includes(p) && !['app_name', 'support_email', 'primary_color', 'secondary_color', 'firstname', 'lastname', 'username', 'email'].includes(p)
+    p => !csvHeaders.includes(p) && !autoPopulatedPlaceholders.includes(p)
   ) || [];
 
   const totalRecipients = getAllRecipients().length;
@@ -382,6 +467,127 @@ export default function AdminEmailBulk() {
     }
   };
 
+  const extractPlaceholders = (text: string): string[] => {
+    const matches = text.match(/\{\{(\w+)\}\}/g) || [];
+    return [...new Set(matches.map(m => m.replace(/\{\{|\}\}/g, '')))];
+  };
+
+  // Wrap custom HTML content in full email template structure
+  const wrapInEmailTemplate = (content: string, subject: string): string => {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, {{primary_color}} 0%, {{secondary_color}} 100%); padding: 32px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">{{app_name}}</h1>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="color: #18181b; margin: 0 0 16px; font-size: 22px; text-align: center;">${subject}</h2>
+              <div style="color: #52525b; font-size: 16px; line-height: 1.6;">
+                ${content}
+              </div>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f4f4f5; padding: 24px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; margin: 0 0 8px;">Questions? Contact us at <a href="mailto:{{support_email}}" style="color: {{primary_color}}; text-decoration: none;">{{support_email}}</a></p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} {{app_name}}. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+  };
+
+  const saveAsTemplate = async () => {
+    if (!templateName.trim() || !templateSlug.trim()) {
+      toast({
+        title: "Missing fields",
+        description: "Please enter both template name and slug",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    try {
+      // Wrap the custom HTML in full email template structure
+      const fullHtml = wrapInEmailTemplate(customHtml, customSubject);
+      const placeholders = extractPlaceholders(fullHtml);
+      
+      const response = await apiRequest('POST', '/api/templates', {
+        name: templateName,
+        slug: templateSlug,
+        htmlContent: fullHtml,
+        placeholders,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save template');
+      }
+
+      toast({
+        title: "Template saved",
+        description: `"${templateName}" has been saved successfully`,
+      });
+      
+      setSaveTemplateOpen(false);
+      setTemplateName("");
+      setTemplateSlug("");
+    } catch (error: any) {
+      toast({
+        title: "Save failed",
+        description: error.message || "Failed to save template",
+        variant: "destructive",
+      });
+    }
+    setIsSavingTemplate(false);
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!selectedTemplate) return;
+    
+    setIsDeletingTemplate(true);
+    try {
+      const response = await apiRequest('DELETE', `/api/templates/${selectedTemplate}`);
+      if (!response.ok) {
+        throw new Error('Failed to delete template');
+      }
+      
+      toast({
+        title: "Template deleted",
+        description: "The template has been deleted successfully",
+      });
+      
+      setSelectedTemplate("");
+      setDeleteConfirmOpen(false);
+      refetchTemplates();
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete template",
+        variant: "destructive",
+      });
+    }
+    setIsDeletingTemplate(false);
+  };
+
   return (
     <AdminLayout title="Bulk Emails" description="Search users or upload CSV to send bulk emails">
       <div className="space-y-6">
@@ -396,6 +602,18 @@ export default function AdminEmailBulk() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 space-y-2">
+              <Label htmlFor="from-email">From Email (optional - uses default from settings if empty)</Label>
+              <Input
+                id="from-email"
+                type="email"
+                placeholder="Leave empty to use default from settings"
+                value={fromEmail}
+                onChange={(e) => setFromEmail(e.target.value)}
+                data-testid="input-from-email"
+              />
+            </div>
+
             <Tabs value={emailMode} onValueChange={(v) => setEmailMode(v as "template" | "custom")}>
               <TabsList className="mb-4">
                 <TabsTrigger value="template" data-testid="tab-template">Use Template</TabsTrigger>
@@ -403,25 +621,37 @@ export default function AdminEmailBulk() {
               </TabsList>
 
               <TabsContent value="template" className="space-y-4">
-                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger data-testid="select-template">
-                    <SelectValue placeholder="Select a template..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template._id} value={template._id}>
-                        {template.name} ({template.slug})
-                      </SelectItem>
+                <div className="flex gap-2 items-center">
+                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                    <SelectTrigger data-testid="select-template" className="flex-1">
+                      <SelectValue placeholder="Select a template..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((template) => (
+                        <SelectItem key={template._id} value={template._id}>
+                          {template.name} ({template.slug})
+                        </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedTemplate && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    data-testid="button-delete-template"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
+                </div>
 
                 {selectedTemplateData && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm font-medium mb-2">Required placeholders:</p>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-2">Placeholders (auto-populated from settings and user data):</p>
                     <div className="flex flex-wrap gap-2">
                       {selectedTemplateData.placeholders.map((p) => (
-                        <Badge key={p} variant="secondary" size="sm">
+                        <Badge key={p} variant="outline" size="sm">
                           {`{{${p}}}`}
                         </Badge>
                       ))}
@@ -459,6 +689,17 @@ export default function AdminEmailBulk() {
                     Available placeholders: {"{{username}}"}, {"{{firstname}}"}, {"{{lastname}}"}, {"{{email}}"}
                   </p>
                 </div>
+
+                {customSubject && customHtml && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setSaveTemplateOpen(true)}
+                    data-testid="button-save-template"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Save as Template
+                  </Button>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -468,14 +709,14 @@ export default function AdminEmailBulk() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Search Users
+              Select Recipients
             </CardTitle>
             <CardDescription>
-              Search for users by name or email to add as recipients
+              Search for users, or load all users from the database
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Input
                 placeholder="Search by name or email..."
                 value={userSearch}
@@ -487,6 +728,15 @@ export default function AdminEmailBulk() {
               <Button onClick={handleSearch} disabled={userSearch.length < 1} data-testid="button-search-users">
                 <Search className="h-4 w-4 mr-2" />
                 Search
+              </Button>
+              <Button 
+                variant="secondary" 
+                onClick={loadAllUsers} 
+                disabled={isLoadingAllUsers}
+                data-testid="button-load-all-users"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                {isLoadingAllUsers ? allUsersProgress : "Load All Users"}
               </Button>
             </div>
 
@@ -531,16 +781,24 @@ export default function AdminEmailBulk() {
                     Clear All
                   </Button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedUsers.map((user) => (
-                    <Badge key={user._id} variant="secondary" size="sm" className="flex items-center gap-1">
-                      {user.email}
-                      <button onClick={() => removeSelectedUser(user._id)} className="ml-1" data-testid={`button-remove-user-${user._id}`}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
+                {selectedUsers.length <= 10 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUsers.map((user) => (
+                      <Badge key={user._id} variant="secondary" size="sm" className="flex items-center gap-1">
+                        {user.email}
+                        <button onClick={() => removeSelectedUser(user._id)} className="ml-1" data-testid={`button-remove-user-${user._id}`}>
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      {selectedUsers.length} users selected for bulk email
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -700,6 +958,74 @@ export default function AdminEmailBulk() {
             className="border rounded-lg p-4 bg-white"
             dangerouslySetInnerHTML={{ __html: previewHtml }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save as Template</DialogTitle>
+            <DialogDescription>
+              Save this email as a reusable template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name">Template Name</Label>
+              <Input
+                id="template-name"
+                placeholder="e.g., Welcome Email"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                data-testid="input-template-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-slug">Template Slug</Label>
+              <Input
+                id="template-slug"
+                placeholder="e.g., welcome-email"
+                value={templateSlug}
+                onChange={(e) => setTemplateSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                data-testid="input-template-slug"
+              />
+              <p className="text-sm text-muted-foreground">
+                Unique identifier for the template (lowercase, no spaces)
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSaveTemplateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveAsTemplate} disabled={isSavingTemplate} data-testid="button-confirm-save-template">
+              {isSavingTemplate ? "Saving..." : "Save Template"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Template</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{selectedTemplateData?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteTemplate} 
+              disabled={isDeletingTemplate}
+              data-testid="button-confirm-delete-template"
+            >
+              {isDeletingTemplate ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AdminLayout>

@@ -458,7 +458,7 @@ export default function ShippingProfiles() {
                   <SelectTrigger data-testid="select-profile-scale">
                     <SelectValue placeholder="Select unit" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[9999]">
                     {WEIGHT_UNIT_OPTIONS.map((option) => (
                       <SelectItem key={option.key} value={option.key}>
                         {option.label}

@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getOrCreateChat } from "@/lib/firebase-chat";
 import { useSettings } from "@/lib/settings-context";
+import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 
 interface OrderDetailsDrawerProps {
   order: TokshopOrder | null;
@@ -37,6 +38,7 @@ export function OrderDetailsDrawer({
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const { settings } = useSettings();
+  const { externalApiUrl } = useApiConfig();
   const [messagingLoading, setMessagingLoading] = useState(false);
 
   if (!order) return null;
@@ -287,7 +289,7 @@ export function OrderDetailsDrawer({
                   {order.items && order.items.length > 0 ? (
                     order.items.map((item, idx) => {
                       const itemProduct = item.productId;
-                      const itemImage = itemProduct?.images?.[0] || "";
+                      const itemImage = getImageUrl(itemProduct?.images?.[0], externalApiUrl);
                       const itemName = itemProduct?.name || "Product";
                       const itemTotal = (item.quantity || 1) * (item.price || 0);
                       
@@ -331,7 +333,7 @@ export function OrderDetailsDrawer({
                           <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
                             {order.giveaway.images?.[0] ? (
                               <img 
-                                src={order.giveaway.images[0]} 
+                                src={getImageUrl(order.giveaway.images[0], externalApiUrl)} 
                                 alt={order.giveaway.name}
                                 className="w-full h-full object-cover"
                                 data-testid="img-product-giveaway"

@@ -82,10 +82,41 @@ export default function Orders() {
   const [relistOption, setRelistOption] = useState(false);
 
   // Build query key with parameters for proper caching
-  const ordersQueryKey = ['/api/orders', user?.id, statusFilter, currentPage, itemsPerPage];
+  const ordersQueryKey = ['/api/orders', user?.id, statusFilter, selectedShowId, currentPage, itemsPerPage];
   
   const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
     queryKey: ordersQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (user?.id) {
+        params.set("userId", user.id);
+      }
+      if (statusFilter && statusFilter !== "all") {
+        params.set("status", statusFilter);
+      }
+      if (selectedShowId && selectedShowId !== "all") {
+        if (selectedShowId === "marketplace") {
+          params.set("marketplace", "true");
+        } else {
+          params.set("tokshow", selectedShowId);
+        }
+      }
+      // Add pagination parameters
+      params.set("page", currentPage.toString());
+      params.set("limit", itemsPerPage.toString());
+
+      const response = await fetch(`/api/orders?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      return response.json();
+    },
     enabled: !!user?.id, // Only run query when user ID is available
     staleTime: 0, // Always fetch fresh data
     refetchOnMount: true, // Refetch when component mounts
@@ -310,30 +341,12 @@ export default function Orders() {
     return price - serviceFee - processingFee - sellerShippingCost;
   };
 
-  // Apply client-side filtering by show/marketplace
-  const filteredOrders = orders?.filter((order: TokshopOrder) => {
-    // Filter by show
-    if (selectedShowId !== "all") {
-      if (selectedShowId === "marketplace") {
-        // Show only marketplace orders (ordertype === 'marketplace' or no tokshow)
-        if (order.ordertype !== 'marketplace' && order.tokshow) {
-          return false;
-        }
-      } else {
-        // Show only orders from specific show
-        if (order.tokshow !== selectedShowId) {
-          return false;
-        }
-      }
-    }
-    
-    return true;
-  }).sort((a: TokshopOrder, b: TokshopOrder) => {
-    // Sort by newest first (default)
+  // Orders are now filtered server-side, just sort by newest first
+  const filteredOrders = [...orders].sort((a: TokshopOrder, b: TokshopOrder) => {
     const aDate = a.date ? new Date(a.date) : new Date(a.createdAt || 0);
     const bDate = b.date ? new Date(b.date) : new Date(b.createdAt || 0);
     return bDate.getTime() - aDate.getTime();
-  }) || [];
+  });
 
   // Calculate pagination data
   const totalOrders = orderResponse?.total || 0;
