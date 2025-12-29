@@ -55,7 +55,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   console.log('[AuthProvider] Initializing AuthProvider');
   
-  const { isFirebaseReady, settings, isLoading: settingsLoading } = useSettings();
+  const { isFirebaseReady, settings, theme, isLoading: settingsLoading, fetchSettings, settingsFetched } = useSettings();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingSocialAuth, setPendingSocialAuth] = useState(false);
@@ -794,7 +794,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('[Firebase Listener] Auth state changed, user:', firebaseUser ? 'EXISTS' : 'NONE', 'hasCheckedAuth:', hasCheckedAuth.current);
       
       if (!firebaseUser) {
-        setUser(null);
+        // Only clear user if there's no backend session token
+        // This prevents email/password users from being logged out when Firebase reports no user
+        const storedToken = localStorage.getItem('accessToken');
+        if (!storedToken) {
+          console.log('[Firebase Listener] No Firebase user and no stored token - clearing user');
+          setUser(null);
+        } else {
+          console.log('[Firebase Listener] No Firebase user but backend session exists - keeping user logged in');
+        }
       }
       // Note: Sign-in authentication now handled directly in login functions
       // to properly capture additionalUserInfo
@@ -814,17 +822,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => unsubscribe();
   }, [isFirebaseReady]);
 
+  // Fetch settings when user is authenticated (to get agerestricted with auth token)
+  useEffect(() => {
+    if (user && !settingsFetched) {
+      console.log('[AuthProvider] User authenticated, fetching settings for age restriction check');
+      fetchSettings();
+    }
+  }, [user, settingsFetched, fetchSettings]);
+
   // Check if age verification is needed when user is authenticated
   const checkAgeVerification = useCallback(() => {
-    if (user && settings.agerestricted && !user.above_age) {
+    // Check both theme.agerestricted (public) and settings.agerestricted (authenticated)
+    const isAgeRestricted = theme.agerestricted || settings.agerestricted;
+    if (user && isAgeRestricted && !user.above_age) {
       console.log('[AgeVerification] Age restricted content, user has not confirmed age');
       setShowAgeVerification(true);
     } else {
       setShowAgeVerification(false);
     }
-  }, [user, settings.agerestricted]);
+  }, [user, theme.agerestricted, settings.agerestricted]);
 
-  // Run age verification check when user changes
+  // Run age verification check when user or settings change
   useEffect(() => {
     checkAgeVerification();
   }, [checkAgeVerification]);

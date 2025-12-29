@@ -160,12 +160,12 @@ const navigationItems: NavSection[] = [
           //   href: "/admin/email-brevo-campaign",
           //   icon: Send,
           // },
-          // {
-          //   id: "emails-templates",
-          //   name: "Templates",
-          //   href: "/admin/email-templates",
-          //   icon: FileText,
-          // },
+          {
+            id: "emails-templates",
+            name: "Templates",
+            href: "/admin/email-templates",
+            icon: FileText,
+          },
           {
             id: "emails-seller-approval",
             name: "Seller Approval",
@@ -177,6 +177,12 @@ const navigationItems: NavSection[] = [
             name: "App Update",
             href: "/admin/email-update",
             icon: Smartphone,
+          },
+          {
+            id: "emails-bulk",
+            name: "Bulk Emails",
+            href: "/admin/email-bulk",
+            icon: Send,
           },
           {
             id: "emails-settings",

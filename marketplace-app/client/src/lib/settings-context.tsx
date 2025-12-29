@@ -37,6 +37,7 @@ interface ThemeSettings {
   privacy_url?: string;
   terms_url?: string;
   demoMode?: boolean;
+  agerestricted?: boolean;
 }
 
 interface SettingsContextType {

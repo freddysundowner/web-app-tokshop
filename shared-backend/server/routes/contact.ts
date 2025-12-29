@@ -22,10 +22,7 @@ export function registerContactRoutes(app: Express): void {
         });
       }
 
-      console.log(`[Contact Form] Received submission from: ${email}`);
-
       const settingsUrl = `${BASE_URL}/settings`;
-      console.log(`[Contact Form] Fetching settings from: ${settingsUrl}`);
       
       const settingsResponse = await fetch(settingsUrl, {
         method: "GET",
@@ -51,9 +48,6 @@ export function registerContactRoutes(app: Express): void {
         settings = settingsData.data;
       }
 
-      console.log(`[Contact Form] Raw API response keys:`, Object.keys(settingsData));
-      console.log(`[Contact Form] Settings received - support_email: "${settings?.support_email}", email_from_address: "${settings?.email_from_address}"`);
-
       if (!settings?.email_from_address || !settings?.email_service_provider) {
         console.error("[Contact Form] Email service not configured in settings");
         return res.status(500).json({
@@ -67,8 +61,6 @@ export function registerContactRoutes(app: Express): void {
                            ? settings.support_email 
                            : settings.email_from_address;
       const appName = settings.app_name || "Our Platform";
-      
-      console.log(`[Contact Form] Will send to: ${supportEmail}`);
 
       const emailHtml = `
 <!DOCTYPE html>

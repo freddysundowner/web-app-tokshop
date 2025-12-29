@@ -623,7 +623,7 @@ export default function Purchases() {
                   const productName = order.items?.[0]?.productId?.name || 'N/A';
                   const orderReference = order.items?.[0]?.order_reference || '';
                   const orderId = order.invoice || order._id.slice(-8);
-                  const sellerName = `${order.seller?.firstName || ''} ${order.seller?.lastName || ''}`.trim() || 'Unknown';
+                  const sellerName = order.seller?.userName || `${order.seller?.firstName || ''} ${order.seller?.lastName || ''}`.trim() || 'Unknown';
                   const itemQuantity = order.items?.length || 0;
                   const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
                   const orderStatus = order.status || 'processing';

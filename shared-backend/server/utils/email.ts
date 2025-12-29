@@ -1,5 +1,3 @@
-import nodemailer from "nodemailer";
-import sgMail from "@sendgrid/mail";
 import fs from "fs";
 import path from "path";
 
@@ -111,53 +109,14 @@ export async function sendEmail(settings: EmailSettings, emailData: EmailData): 
     : settings.email_from_address;
 
   switch (provider) {
-    case "sendgrid":
-      return sendWithSendGrid(settings, emailData, fromEmail);
-    
     case "mailgun":
       return sendWithMailgun(settings, emailData, fromEmail);
     
-    case "resend":
-      return sendWithResend(settings, emailData, fromEmail);
-    
-    case "smtp":
-      return sendWithSMTP(settings, emailData, fromEmail);
+    case "brevo":
+      return sendWithBrevo(settings, emailData, fromEmail);
     
     default:
-      throw new Error(`Unsupported email provider: ${provider || 'not configured'}`);
-  }
-}
-
-async function sendWithSendGrid(settings: EmailSettings, emailData: EmailData, fromEmail: string): Promise<void> {
-  if (!settings.email_api_key) {
-    throw new Error("SendGrid API key not configured");
-  }
-
-  sgMail.setApiKey(settings.email_api_key);
-
-  const msg = {
-    to: emailData.to,
-    from: fromEmail,
-    subject: emailData.subject,
-    text: emailData.text || emailData.html.replace(/<[^>]*>/g, ''),
-    html: emailData.html,
-  };
-
-  try {
-    await sgMail.send(msg);
-  } catch (error: any) {
-    // Log detailed SendGrid error for debugging
-    console.error('SendGrid error details:', {
-      message: error.message,
-      code: error.code,
-      response: error.response?.body,
-    });
-    
-    // Throw a more helpful error message
-    if (error.response?.body?.errors?.[0]?.message) {
-      throw new Error(`SendGrid: ${error.response.body.errors[0].message}`);
-    }
-    throw error;
+      throw new Error(`Unsupported email provider: ${provider || 'not configured'}. Supported providers: mailgun, brevo`);
   }
 }
 
@@ -234,6 +193,106 @@ async function sendWithMailgun(settings: EmailSettings, emailData: EmailData, fr
   logSentEmail(emailData.to, messageId);
   
   console.log(`[Mailgun] Email sent successfully! ID: ${messageId}`);
+}
+
+async function sendWithBrevo(settings: EmailSettings, emailData: EmailData, fromEmail: string): Promise<void> {
+  if (!settings.email_api_key) {
+    throw new Error("Brevo API key not configured");
+  }
+
+  console.log(`[Brevo] Sending email to: ${emailData.to}`);
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': settings.email_api_key,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: {
+        name: settings.email_from_name || 'Support',
+        email: settings.email_from_address,
+      },
+      to: [{ email: emailData.to }],
+      subject: emailData.subject,
+      htmlContent: emailData.html,
+    }),
+  });
+
+  console.log(`[Brevo] Response status: ${response.status} ${response.statusText}`);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[Brevo] Error response:`, errorText);
+    throw new Error(`Brevo error (${response.status}): ${errorText}`);
+  }
+
+  const result = await response.json() as { messageId?: string };
+  logSentEmail(emailData.to, result.messageId);
+  console.log(`[Brevo] Email sent successfully! ID: ${result.messageId}`);
+}
+
+// Bulk send using Brevo's batch API (up to 50 recipients per call)
+export async function sendBulkWithBrevo(
+  settings: EmailSettings, 
+  recipients: Array<{ email: string; params?: Record<string, string> }>,
+  subject: string,
+  htmlContent: string
+): Promise<{ success: number; failed: number; errors: string[] }> {
+  if (!settings.email_api_key) {
+    throw new Error("Brevo API key not configured");
+  }
+
+  const BATCH_SIZE = 50; // Brevo's limit per request
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  // Process in batches
+  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BATCH_SIZE);
+    console.log(`[Brevo Bulk] Sending batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} recipients)`);
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': settings.email_api_key,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: {
+            name: settings.email_from_name || 'Support',
+            email: settings.email_from_address,
+          },
+          to: batch.map(r => ({ email: r.email })),
+          subject,
+          htmlContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Brevo Bulk] Batch error:`, errorText);
+        failed += batch.length;
+        errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${errorText}`);
+      } else {
+        success += batch.length;
+        batch.forEach(r => logSentEmail(r.email));
+        console.log(`[Brevo Bulk] Batch sent successfully (${batch.length} emails)`);
+      }
+    } catch (error: any) {
+      failed += batch.length;
+      errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`);
+    }
+
+    // Small delay between batches to avoid rate limiting
+    if (i + BATCH_SIZE < recipients.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
+  return { success, failed, errors };
 }
 
 async function sendWithResend(settings: EmailSettings, emailData: EmailData, fromEmail: string): Promise<void> {

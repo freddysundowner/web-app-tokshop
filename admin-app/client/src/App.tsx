@@ -35,6 +35,7 @@ import AdminEmailUpdate from "@/pages/admin/email-update";
 import AdminEmailSettings from "@/pages/admin/email-settings";
 import AdminEmailBrevoCampaign from "@/pages/admin/email-brevo-campaign";
 import AdminEmailTemplates from "@/pages/admin/email-templates";
+import AdminEmailBulk from "@/pages/admin/email-bulk";
 import AdminGiveaways from "@/pages/admin/giveaways";
 import AdminShippingProfiles from "@/pages/admin/shipping-profiles";
 import AdminAddress from "@/pages/admin/address";
@@ -220,6 +221,7 @@ function Router() {
             <Route path="/admin/email-update" component={AdminEmailUpdate} />
             <Route path="/admin/email-settings" component={AdminEmailSettings} />
             <Route path="/admin/email-brevo-campaign" component={AdminEmailBrevoCampaign} />
+            <Route path="/admin/email-bulk" component={AdminEmailBulk} />
             <Route path="/admin/pages/landing" component={AdminLandingPage} />
             <Route path="/admin/pages/general/:id" component={AdminGeneralArticlePage} />
             <Route path="/admin/pages/general" component={AdminGeneralPage} />

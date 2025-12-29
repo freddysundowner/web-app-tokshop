@@ -233,6 +233,104 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
+  // Forgot password - request password reset email
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      console.log("Proxying forgot password request to Tokshop API");
+      
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: "Email is required",
+        });
+      }
+
+      const { response, data: responseData } = await resilientFetch(
+        `${BASE_URL}/auth/forgot-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = responseData as TokshopApiErrorResponse;
+        console.error("Tokshop API forgot password error:", errorData);
+        return res.status(response.status).json({
+          success: false,
+          message: errorData.message || "Failed to process password reset request",
+          error: errorData.message,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: responseData.message || "Password reset email sent successfully",
+      });
+    } catch (error) {
+      console.error("Forgot password proxy error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to process password reset request",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  // Reset password - set new password with token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      console.log("Proxying reset password request to Tokshop API");
+      
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({
+          success: false,
+          error: "Token and password are required",
+        });
+      }
+
+      const { response, data: responseData } = await resilientFetch(
+        `${BASE_URL}/auth/reset-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ token, password }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = responseData as TokshopApiErrorResponse;
+        console.error("Tokshop API reset password error:", errorData);
+        return res.status(response.status).json({
+          success: false,
+          message: errorData.message || "Failed to reset password",
+          error: errorData.message,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: responseData.message || "Password reset successfully",
+      });
+    } catch (error) {
+      console.error("Reset password proxy error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to reset password",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
   // Social authentication proxy (Google/Apple)
   app.post("/api/auth/social", async (req, res) => {
     try {
@@ -1410,11 +1508,26 @@ export function registerAuthRoutes(app: Express) {
       const url = `${BASE_URL}/users/review/${userId}`;
       console.log(`Reviews API URL: ${url}`);
       
+      // Get auth token from session or headers
+      const sessionToken = (req.session as any)?.accessToken;
+      const headerToken = req.headers["x-access-token"] as string;
+      const authToken = sessionToken || headerToken;
+      
+      console.log(`[Reviews] Session accessToken: ${sessionToken ? 'present' : 'missing'}`);
+      console.log(`[Reviews] Header x-access-token: ${headerToken ? 'present' : 'missing'}`);
+      
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+        console.log(`[Reviews] Adding Authorization header to external API request`);
+      }
+      
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
       });
 
       console.log(`Reviews API response status: ${response.status}`);

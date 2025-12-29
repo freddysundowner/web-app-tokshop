@@ -36,6 +36,7 @@ import {
   FileText,
   CheckCircle,
   XCircle,
+  Video,
 } from "lucide-react";
 import type {
   TokshopOrder,
@@ -173,6 +174,8 @@ export default function Shipping() {
   const [cancelAlertOpen, setCancelAlertOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [videoReceiptUrl, setVideoReceiptUrl] = useState<string | null>(null);
+  const [videoReceiptDialogOpen, setVideoReceiptDialogOpen] = useState(false);
   const { user } = useAuth();
 
   const { toast } = useToast();
@@ -703,83 +706,10 @@ export default function Shipping() {
     }
   };
 
-  // Handler to check status when manifest exists but URL not ready
-  const handleCheckScanFormStatus = () => {
-    // Use manifest ID from orders first, then fall back to recently generated
-    const manifestId = manifestIdFromOrder || generatedManifestId;
-    if (manifestId) {
-      fetchScanFormMutation.mutate({ manifestId, tokshow: selectedShowId });
-    } else {
-      toast({
-        title: "No manifest found",
-        description: "Unable to check status",
-        variant: "destructive",
-      });
-    }
-  };
-
   // Reset generated manifest ID when show changes
   useEffect(() => {
     setGeneratedManifestId(null);
   }, [selectedShowId]);
-
-  // Fetch all orders for the selected show or marketplace (for scan form validation)
-  const { 
-    data: showOrdersResponse, 
-    isLoading: isLoadingShowOrders, 
-    isError: isErrorShowOrders,
-    error: showOrdersError,
-    refetch: refetchShowOrders
-  } = useQuery<TokshopOrdersResponse>({
-    queryKey: ["show-orders-all", user?.id, selectedShowId],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (user?.id) {
-        params.set("userId", user.id);
-      }
-      if (selectedShowId && selectedShowId !== "all") {
-        if (selectedShowId === "marketplace") {
-          params.set("marketplace", "true");
-        } else {
-          params.set("tokshow", selectedShowId);
-        }
-      }
-
-      const response = await fetch(`/api/orders?${params.toString()}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`External API error: ${response.status}`);
-      }
-      return response.json();
-    },
-    enabled: !!user?.id && !!selectedShowId && selectedShowId !== "all",
-    staleTime: 0,
-  });
-
-  // Check if all orders in the selected show have shipment_id (use complete show orders, not filtered/paged)
-  const allShowOrders = showOrdersResponse?.orders || [];
-  const showTotalOrders = showOrdersResponse?.total || 0;
-  const ordersWithoutShipmentId = allShowOrders.filter((order: any) => !(order as any).shipment_id);
-  const allOrdersHaveShipmentId = showOrdersResponse && !isLoadingShowOrders && !isErrorShowOrders 
-    ? ordersWithoutShipmentId.length === 0 
-    : false;
-
-  // Check if any order has manifest_id (scan form was generated)
-  const orderWithManifestId = allShowOrders.find((order: any) => order.manifest_id && order.manifest_id.trim() !== '');
-  const hasManifestId = !!orderWithManifestId;
-  const manifestIdFromOrder = orderWithManifestId?.manifest_id || null;
-  
-  // Check for scan_form_url on orders
-  const orderWithScanForm = allShowOrders.find((order: any) => order.scan_form_url && order.scan_form_url.trim() !== '');
-  const hasScanForm = !!orderWithScanForm;
-  
-  // Show view button if marketplace selected, or if any order has manifest_id/scan_form, or if just generated
-  const shouldShowViewButton = isMarketplaceSelected || hasScanForm || hasManifestId || generatedManifestId;
 
   const { data: metrics, isLoading: metricsLoading, error: metricsError, isError: metricsIsError, refetch: refetchMetrics } =
     useQuery<ShipmentMetrics>({
@@ -874,41 +804,40 @@ export default function Shipping() {
   // Extract orders array from the response
   const orders = orderResponse?.orders || [];
   
-  // Extract pagination data from response
+  // Extract pagination data from response (backend calculates totalPages)
   const totalOrders = orderResponse?.total || 0;
-  const totalPages = orderResponse?.pages || 0;
+  const totalPages = orderResponse?.pages || 1;
 
-  // Separate unfiltered query for bundle status calculation
-  const { data: allOrdersResponse, refetch: refetchAllOrders } = useQuery<TokshopOrdersResponse>({
-    queryKey: ["external-orders", user?.id, "all", "all"],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (user?.id) {
-        params.set("userId", user.id);
-      }
+  // Check if all orders on current page have shipment_id (for scan form validation)
+  const ordersWithoutShipmentId = orders.filter((order: any) => !(order as any).shipment_id);
+  const allOrdersHaveShipmentId = orders.length > 0 && ordersWithoutShipmentId.length === 0;
 
-      const response = await fetch(
-        `/api/orders?${params.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
+  // Check if any order has manifest_id (scan form was generated)
+  const orderWithManifestId = orders.find((order: any) => (order as any).manifest_id && (order as any).manifest_id.trim() !== '');
+  const hasManifestId = !!orderWithManifestId;
+  const manifestIdFromOrder = (orderWithManifestId as any)?.manifest_id || null;
+  
+  // Check for scan_form_url on orders
+  const orderWithScanForm = orders.find((order: any) => (order as any).scan_form_url && (order as any).scan_form_url.trim() !== '');
+  const hasScanForm = !!orderWithScanForm;
+  
+  // Show view button if marketplace selected, or if any order has manifest_id/scan_form, or if just generated
+  const shouldShowViewButton = isMarketplaceSelected || hasScanForm || hasManifestId || generatedManifestId;
 
-      if (!response.ok) {
-        throw new Error(`External API error: ${response.status}`);
-      }
-      return response.json();
-    },
-    enabled: !!user?.id,
-    staleTime: 0, // Always fetch fresh data
-    refetchOnMount: true, // Refetch when component mounts
-  });
-
-  // Extract unfiltered orders for bundle status calculation
-  const allOrders = allOrdersResponse?.orders || [];
+  // Handler to check status when manifest exists but URL not ready
+  const handleCheckScanFormStatus = () => {
+    // Use manifest ID from orders first, then fall back to recently generated
+    const manifestId = manifestIdFromOrder || generatedManifestId;
+    if (manifestId) {
+      fetchScanFormMutation.mutate({ manifestId, tokshow: selectedShowId });
+    } else {
+      toast({
+        title: "No manifest found",
+        description: "Unable to check status",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data: bundles, isLoading: bundlesLoading, error: bundlesError, isError: bundlesIsError, refetch: refetchBundles } = useQuery<
     ShipmentBundle[]
@@ -949,10 +878,10 @@ export default function Shipping() {
       
       if (sortColumn === 'customer') {
         const nameA = typeof a.customer === 'object'
-          ? `${a.customer?.firstName || ''} ${a.customer?.lastName || ''}`.trim()
+          ? a.customer?.userName || `${a.customer?.firstName || ''} ${a.customer?.lastName || ''}`.trim()
           : '';
         const nameB = typeof b.customer === 'object'
-          ? `${b.customer?.firstName || ''} ${b.customer?.lastName || ''}`.trim()
+          ? b.customer?.userName || `${b.customer?.firstName || ''} ${b.customer?.lastName || ''}`.trim()
           : '';
         compareValue = nameA.localeCompare(nameB);
       } else if (sortColumn === 'orderDate') {
@@ -1105,9 +1034,9 @@ export default function Shipping() {
     }) => {
       if (!user?.id) throw new Error("User ID required");
 
-      // Get all orders in the bundle (use unfiltered orders)
+      // Get all orders in the bundle from current page
       const bundleOrders =
-        allOrders?.filter((order) => order.bundleId === bundleId) || [];
+        orders?.filter((order) => order.bundleId === bundleId) || [];
 
       // Cancel each order in the bundle with relist option
       const cancelPromises = bundleOrders.map((order) =>
@@ -1760,7 +1689,7 @@ export default function Shipping() {
                           </p>
                         </div>
 
-                        {isLoadingShowOrders && (
+                        {ordersLoading && (
                           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3" data-testid="text-scan-form-loading">
                             <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
                               Loading order information...
@@ -1768,18 +1697,18 @@ export default function Shipping() {
                           </div>
                         )}
 
-                        {isErrorShowOrders && (
+                        {ordersIsError && (
                           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3" data-testid="text-scan-form-fetch-error">
                             <p className="text-sm text-red-800 dark:text-red-200 font-medium">
-                              ⚠️ Failed to load order information
+                              Failed to load order information
                             </p>
                             <p className="text-xs text-red-700 dark:text-red-300 mt-1">
-                              {showOrdersError?.message || 'Unable to fetch orders for this show'}
+                              {ordersError?.message || 'Unable to fetch orders'}
                             </p>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => refetchShowOrders()}
+                              onClick={() => refetchOrders()}
                               className="mt-2"
                               data-testid="button-retry-orders"
                             >
@@ -1788,7 +1717,7 @@ export default function Shipping() {
                           </div>
                         )}
 
-                        {!isLoadingShowOrders && !isErrorShowOrders && !allOrdersHaveShipmentId && showOrdersResponse && (
+                        {!ordersLoading && !ordersIsError && !allOrdersHaveShipmentId && orders.length > 0 && (
                           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3" data-testid="text-scan-form-error">
                             <p className="text-sm text-red-800 dark:text-red-200 font-medium">
                               ⚠️ Cannot generate scan form: {ordersWithoutShipmentId.length} order{ordersWithoutShipmentId.length !== 1 ? 's' : ''} {ordersWithoutShipmentId.length !== 1 ? 'do' : 'does'} not have shipping labels purchased yet.
@@ -1837,7 +1766,7 @@ export default function Shipping() {
                           
                           <div className="flex justify-between items-center gap-3">
                             <span className="text-sm font-medium text-foreground">Total Orders:</span>
-                            <span className="text-sm text-muted-foreground" data-testid="text-scan-form-total-orders">{showTotalOrders}</span>
+                            <span className="text-sm text-muted-foreground" data-testid="text-scan-form-total-orders">{totalOrders}</span>
                           </div>
 
                           {!allOrdersHaveShipmentId && (
@@ -1859,7 +1788,7 @@ export default function Shipping() {
                     <AlertDialogCancel data-testid="button-cancel-scan-form">Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleGenerateScanForm}
-                      disabled={isLoadingShowOrders || isErrorShowOrders || !showOrdersResponse || !allOrdersHaveShipmentId || generateScanFormMutation.isPending || !!scanFormError}
+                      disabled={ordersLoading || ordersIsError || orders.length === 0 || !allOrdersHaveShipmentId || generateScanFormMutation.isPending || !!scanFormError}
                       data-testid="button-confirm-scan-form"
                     >
                       {generateScanFormMutation.isPending ? "Generating..." : "Generate Scan Form"}
@@ -2095,7 +2024,7 @@ export default function Shipping() {
                                   )}
                                   <span className="text-sm font-medium text-foreground">
                                     {typeof order.customer === "object"
-                                      ? `${order.customer?.firstName || "Unknown"} ${order.customer?.lastName || ""}`.trim()
+                                      ? order.customer?.userName || `${order.customer?.firstName || "Unknown"} ${order.customer?.lastName || ""}`.trim()
                                       : "Unknown Customer"}
                                   </span>
                                 </div>
@@ -2528,7 +2457,7 @@ export default function Shipping() {
                                               </span>
                                             </td>
                                             <td className="py-2 px-2 text-center">
-                                              {itemStatus === 'pending_cancellation' ? (
+                                              {(itemStatus === 'pending_cancellation' || (item as any).videoReceipt) ? (
                                                 <DropdownMenu>
                                                   <DropdownMenuTrigger asChild>
                                                     <Button
@@ -2540,30 +2469,47 @@ export default function Shipping() {
                                                     </Button>
                                                   </DropdownMenuTrigger>
                                                   <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                      onClick={() => {
-                                                        setCancellationOrderId(order._id);
-                                                        setCancellationItemId(item._id || null);
-                                                        setApproveDialogOpen(true);
-                                                      }}
-                                                      data-testid={`button-approve-item-${item._id || idx}`}
-                                                      className="text-green-600"
-                                                    >
-                                                      <CheckCircle size={14} className="mr-2" />
-                                                      Approve
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                      onClick={() => {
-                                                        setCancellationOrderId(order._id);
-                                                        setCancellationItemId(item._id || null);
-                                                        setDeclineDialogOpen(true);
-                                                      }}
-                                                      data-testid={`button-decline-item-${item._id || idx}`}
-                                                      className="text-red-600"
-                                                    >
-                                                      <XCircle size={14} className="mr-2" />
-                                                      Reject
-                                                    </DropdownMenuItem>
+                                                    {(item as any).videoReceipt && (
+                                                      <DropdownMenuItem
+                                                        onClick={() => {
+                                                          setVideoReceiptUrl((item as any).videoReceipt);
+                                                          setVideoReceiptDialogOpen(true);
+                                                        }}
+                                                        data-testid={`button-video-receipt-${item._id || idx}`}
+                                                      >
+                                                        <Video size={14} className="mr-2" />
+                                                        Video Receipt
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {itemStatus === 'pending_cancellation' && (
+                                                      <>
+                                                        {(item as any).videoReceipt && <DropdownMenuSeparator />}
+                                                        <DropdownMenuItem
+                                                          onClick={() => {
+                                                            setCancellationOrderId(order._id);
+                                                            setCancellationItemId(item._id || null);
+                                                            setApproveDialogOpen(true);
+                                                          }}
+                                                          data-testid={`button-approve-item-${item._id || idx}`}
+                                                          className="text-green-600"
+                                                        >
+                                                          <CheckCircle size={14} className="mr-2" />
+                                                          Approve
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                          onClick={() => {
+                                                            setCancellationOrderId(order._id);
+                                                            setCancellationItemId(item._id || null);
+                                                            setDeclineDialogOpen(true);
+                                                          }}
+                                                          data-testid={`button-decline-item-${item._id || idx}`}
+                                                          className="text-red-600"
+                                                        >
+                                                          <XCircle size={14} className="mr-2" />
+                                                          Reject
+                                                        </DropdownMenuItem>
+                                                      </>
+                                                    )}
                                                   </DropdownMenuContent>
                                                 </DropdownMenu>
                                               ) : '-'}
@@ -2644,6 +2590,34 @@ export default function Shipping() {
           scanForms={scanForms}
           isLoading={isLoadingScanForms}
         />
+
+        {/* Video Receipt Dialog */}
+        <Dialog open={videoReceiptDialogOpen} onOpenChange={(open) => {
+          setVideoReceiptDialogOpen(open);
+          if (!open) setVideoReceiptUrl(null);
+        }}>
+          <DialogContent className="sm:max-w-2xl" data-testid="dialog-video-receipt">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Video size={20} />
+                Video Receipt
+              </DialogTitle>
+            </DialogHeader>
+            <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+              {videoReceiptUrl && (
+                <video
+                  src={videoReceiptUrl}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                  data-testid="video-receipt-player"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Shipment Details Drawer */}
         <ShipmentDetailsDrawer

@@ -53,11 +53,6 @@ export function registerCategoryRoutes(app: Express) {
       
       const data = await response.json() as any;
       
-      // Log sample category structure for debugging
-      if (data?.categories && data.categories.length > 0) {
-        console.log('Sample category record:', JSON.stringify(data.categories[0], null, 2));
-      }
-      
       res.json(data);
     } catch (error) {
       console.error('Categories proxy error:', error);

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Mail, Save, DollarSign, Package, Truck, Eye, RotateCcw } from "lucide-react";
+import { Mail, Save, DollarSign, Package, Truck, Eye, RotateCcw, KeyRound, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -363,6 +363,287 @@ const defaultTemplates: EmailTemplate[] = [
       { name: "secondary_color", description: "Brand secondary color" },
     ],
   },
+  {
+    id: "password_reset",
+    name: "Password Reset",
+    description: "Sent to user when they request a password reset",
+    subject: "Reset Your Password - {{app_name}}",
+    body: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, {{primary_color}} 0%, {{secondary_color}} 100%); padding: 32px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">{{app_name}}</h1>
+            </td>
+          </tr>
+          <!-- Icon -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center;">
+              <div style="width: 80px; height: 80px; background-color: #f59e0b; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 40px;">&#128274;</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 20px 40px;">
+              <h2 style="color: #18181b; margin: 0 0 16px; font-size: 22px; text-align: center;">Password Reset Request</h2>
+              <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+                Hi {{name}}, we received a request to reset your password. Click the button below to create a new password.
+              </p>
+            </td>
+          </tr>
+          <!-- Security Notice -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 20px; text-align: center;">
+                    <p style="color: #92400e; font-size: 14px; margin: 0 0 8px;">This link will expire in</p>
+                    <p style="color: #78350f; font-size: 24px; font-weight: 700; margin: 0;">{{expiry_time}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding: 0 40px 24px; text-align: center;">
+              <a href="{{reset_url}}" style="display: inline-block; background-color: {{primary_color}}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">Reset Password</a>
+            </td>
+          </tr>
+          <!-- Alternative Link -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <p style="color: #71717a; font-size: 14px; line-height: 1.6; margin: 0; text-align: center;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="color: {{primary_color}}; font-size: 12px; line-height: 1.6; margin: 8px 0 0; text-align: center; word-break: break-all;">
+                {{reset_url}}
+              </p>
+            </td>
+          </tr>
+          <!-- Security Warning -->
+          <tr>
+            <td style="padding: 0 40px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fafafa; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #71717a; font-size: 13px; line-height: 1.6; margin: 0; text-align: center;">
+                      If you didn't request a password reset, please ignore this email or contact support if you have concerns about your account security.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #fafafa; padding: 24px 40px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; margin: 0 0 8px;">Need help? We're here for you!</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0 0 8px;">{{app_name}} Team</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">Contact us at <a href="mailto:{{support_email}}" style="color: {{primary_color}};">{{support_email}}</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+    recipients: ["User"],
+    icon: KeyRound,
+    variables: [
+      { name: "name", description: "User's name" },
+      { name: "reset_url", description: "Password reset link URL" },
+      { name: "expiry_time", description: "Time until link expires (e.g., '1 hour')" },
+      { name: "app_name", description: "Application name" },
+      { name: "support_email", description: "Support email address" },
+      { name: "primary_color", description: "Brand primary color" },
+      { name: "secondary_color", description: "Brand secondary color" },
+    ],
+  },
+  {
+    id: "show_analytics",
+    name: "Live Show Stats",
+    description: "Sent to seller after a live show ends with performance analytics",
+    subject: "Your Show Analytics - {{show_title}}",
+    body: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, {{primary_color}} 0%, {{secondary_color}} 100%); padding: 32px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">{{app_name}}</h1>
+            </td>
+          </tr>
+          <!-- Icon -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center;">
+              <div style="width: 80px; height: 80px; background-color: #667eea; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 40px; line-height: 80px;">&#128202;</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 20px 40px;">
+              <h2 style="color: #18181b; margin: 0 0 16px; font-size: 22px; text-align: center;">Your Show Analytics</h2>
+              <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 8px; text-align: center; font-weight: 600;">
+                {{show_title}}
+              </p>
+              <p style="color: #71717a; font-size: 14px; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+                {{show_time}}
+              </p>
+            </td>
+          </tr>
+          <!-- Metrics Grid -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fafafa; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #71717a; font-size: 12px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px;">Show Analytics</p>
+                    <!-- Items Sold -->
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Items Sold</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{items_sold}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Giveaways -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Giveaways</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{giveaways}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Shipments -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Shipments</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{shipments}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Total Sales -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Total Sales</td>
+                              <td style="color: #10b981; font-size: 22px; font-weight: 700; text-align: right;">{{total_sales}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Tips Received -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Tips Received</td>
+                              <td style="color: #8b5cf6; font-size: 22px; font-weight: 700; text-align: right;">{{tips_received}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Viewers -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Viewers</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{viewers}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- New Followers -->
+                      <tr>
+                        <td style="padding: 12px 0;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">New Followers</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{new_followers}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding: 0 40px 32px; text-align: center;">
+              <a href="{{show_analytics_url}}" style="display: inline-block; background-color: {{primary_color}}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">Start Shipping</a>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #fafafa; padding: 24px 40px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; margin: 0 0 8px;">Thank you for hosting on {{app_name}}!</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0 0 8px;">{{app_name}} Team</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">Need help? Contact us at <a href="mailto:{{support_email}}" style="color: {{primary_color}};">{{support_email}}</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+    recipients: ["Seller"],
+    icon: BarChart3,
+    variables: [
+      { name: "show_title", description: "Live show title" },
+      { name: "show_time", description: "Show date and time" },
+      { name: "items_sold", description: "Number of items sold" },
+      { name: "giveaways", description: "Number of giveaways" },
+      { name: "shipments", description: "Number of shipments" },
+      { name: "total_sales", description: "Total sales amount (e.g., $245.00)" },
+      { name: "tips_received", description: "Tips received amount (e.g., $25.00)" },
+      { name: "viewers", description: "Number of viewers" },
+      { name: "new_followers", description: "Number of new followers" },
+      { name: "show_analytics_url", description: "Link to shipping/analytics page" },
+      { name: "app_name", description: "Application name" },
+      { name: "support_email", description: "Support email address" },
+      { name: "primary_color", description: "Brand primary color" },
+      { name: "secondary_color", description: "Brand secondary color" },
+    ],
+  },
 ];
 
 export default function EmailTemplates() {
@@ -494,6 +775,18 @@ export default function EmailTemplates() {
       secondary_color: "#0D9488",
       dashboard_url: "#",
       order_url: "#",
+      reset_url: "https://yourstore.com/reset-password?token=abc123xyz",
+      expiry_time: "1 hour",
+      show_title: "Friday Night Live Sale",
+      show_time: "December 27, 2025 at 8:00 PM",
+      items_sold: "24",
+      giveaways: "3",
+      shipments: "18",
+      total_sales: "$1,245.00",
+      tips_received: "$85.50",
+      viewers: "156",
+      new_followers: "12",
+      show_analytics_url: "#",
     };
 
     let previewSubject = template.subject;

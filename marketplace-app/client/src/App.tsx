@@ -38,6 +38,8 @@ const Account = lazy(() => import("@/pages/account"));
 const Payments = lazy(() => import("@/pages/payments"));
 const Login = lazy(() => import("@/pages/auth/login"));
 const Signup = lazy(() => import("@/pages/auth/signup"));
+const ForgotPassword = lazy(() => import("@/pages/auth/forgot-password"));
+const ResetPassword = lazy(() => import("@/pages/auth/reset-password"));
 const Transactions = lazy(() => import("@/pages/commerce/transactions"));
 const MarketplaceHome = lazy(() => import("@/pages/marketplace/home"));
 const Browse = lazy(() => import("@/pages/marketplace/browse"));
@@ -170,6 +172,8 @@ function Router() {
     '/landing-8',
     '/login',
     '/signup',
+    '/forgot-password',
+    '/reset-password',
     '/seller/login',
     '/privacy-policy',
     '/terms-of-service',
@@ -256,6 +260,8 @@ function Router() {
               <Route path="/seller/login" component={SellerLogin} />
               <Route path="/login" component={Login} />
               <Route path="/signup" component={Signup} />
+              <Route path="/forgot-password" component={ForgotPassword} />
+              <Route path="/reset-password" component={ResetPassword} />
               <Route path="/link/:type/:id" component={DeepLink} />
               <Route path="/show/:id" component={ShowViewWrapper} />
               <Route path="/show" component={ShowViewWrapper} />
@@ -449,6 +455,8 @@ function Router() {
             <Route path="/seller/setup" component={SellerSetup} />
             <Route path="/login" component={MarketplaceHome} />
             <Route path="/signup" component={MarketplaceHome} />
+            <Route path="/forgot-password" component={ForgotPassword} />
+            <Route path="/reset-password" component={ResetPassword} />
             <Route path="/seller/login" component={MarketplaceHome} />
             <Route path="/link/:type/:id" component={DeepLink} />
             <Route path="/privacy-policy" component={PrivacyPolicy} />

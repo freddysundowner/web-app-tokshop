@@ -3,7 +3,7 @@ import { BASE_URL } from "../utils";
 import multer from "multer";
 import FormData from "form-data";
 import axios from "axios";
-import { sendEmail } from "../utils/email";
+import { sendEmail, sendBulkWithBrevo } from "../utils/email";
 
 // Multer configuration for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
@@ -320,11 +320,9 @@ export function registerAdminRoutes(app: Express) {
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
       if (req.query.title) queryParams.append("title", req.query.title as string);
       if (req.query.status) queryParams.append("status", req.query.status as string);
+      if (req.query.search) queryParams.append("search", req.query.search as string);
 
       const url = `${BASE_URL}/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-
-      console.log(`Fetching users from: ${url}`);
-      console.log(`Using accessToken (first 50 chars): ${accessToken ? accessToken.substring(0, 50) : 'NO TOKEN'}...`);
       
       const response = await fetch(url, {
         method: "GET",
@@ -1606,7 +1604,6 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const url = `${BASE_URL}/settings`;
-      console.log(`Fetching app settings from: ${url}`);
       
       const response = await fetch(url, {
         method: "GET",
@@ -2450,13 +2447,6 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const data = await response.json() as any;
-      console.log('Categories API response structure:', Object.keys(data));
-      console.log('Categories API response data type:', Array.isArray(data) ? 'Array' : typeof data);
-      
-      // Log sample category record for debugging
-      if (data?.categories && data.categories.length > 0) {
-        console.log('Sample category record:', JSON.stringify(data.categories[0], null, 2));
-      }
       
       res.json({
         success: true,
@@ -5441,6 +5431,160 @@ Thank you for using ${appName}!
         success: false,
         error: "Failed to send test email",
         details: error.message,
+      });
+    }
+  });
+
+  // Send bulk emails directly from server
+  app.post("/api/admin/email/send-bulk", requireAdmin, async (req, res) => {
+    try {
+      const { recipients, subject, html } = req.body;
+      const accessToken = req.session.accessToken;
+
+      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing or invalid recipients array",
+        });
+      }
+
+      if (!subject || !html) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields: subject, html",
+        });
+      }
+
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      // Fetch email settings from external API
+      const settingsUrl = `${BASE_URL}/settings`;
+      const settingsResponse = await fetch(settingsUrl, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!settingsResponse.ok) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to fetch email settings",
+        });
+      }
+
+      const settingsData = await settingsResponse.json();
+      const settings = Array.isArray(settingsData) ? settingsData[0] : settingsData;
+
+      if (!settings?.email_from_address || !settings?.email_service_provider) {
+        return res.status(500).json({
+          success: false,
+          error: "Email service not configured",
+        });
+      }
+
+      const emailSettings = {
+        email_service_provider: settings.email_service_provider,
+        email_api_key: settings.email_api_key,
+        email_from_address: settings.email_from_address,
+        email_from_name: settings.email_from_name || settings.app_name,
+        email_mailgun_domain: settings.email_mailgun_domain,
+      };
+
+      const provider = settings.email_service_provider?.toLowerCase();
+
+      // For Brevo, use bulk send (batches of 50) - more efficient
+      if (provider === 'brevo') {
+        // Personalize each recipient's content
+        const personalizedRecipients = recipients.map(recipient => {
+          let personalizedHtml = html;
+          let personalizedSubject = subject;
+          for (const [key, value] of Object.entries(recipient)) {
+            const placeholder = new RegExp(`{{${key}}}`, 'g');
+            personalizedSubject = personalizedSubject.replace(placeholder, String(value || ''));
+            personalizedHtml = personalizedHtml.replace(placeholder, String(value || ''));
+          }
+          return { email: recipient.email, html: personalizedHtml, subject: personalizedSubject };
+        });
+
+        // Group by unique subject/html combinations for true bulk sending
+        // For now, send individually but in batches to avoid rate limits
+        let success = 0;
+        let failed = 0;
+        const errors: string[] = [];
+        const BATCH_SIZE = 10; // Send 10 at a time with delay
+
+        for (let i = 0; i < personalizedRecipients.length; i += BATCH_SIZE) {
+          const batch = personalizedRecipients.slice(i, i + BATCH_SIZE);
+          
+          // Process batch in parallel
+          const results = await Promise.allSettled(
+            batch.map(r => sendEmail(emailSettings, { to: r.email, subject: r.subject, html: r.html }))
+          );
+
+          results.forEach((result, idx) => {
+            if (result.status === 'fulfilled') {
+              success++;
+            } else {
+              failed++;
+              errors.push(`${batch[idx].email}: ${result.reason?.message || 'Failed'}`);
+            }
+          });
+
+          // Delay between batches to avoid rate limiting
+          if (i + BATCH_SIZE < personalizedRecipients.length) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+
+        return res.json({ success: true, sent: success, failed, errors });
+      }
+
+      // For other providers, process individually
+      let success = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (const recipient of recipients) {
+        try {
+          let personalizedSubject = subject;
+          let personalizedHtml = html;
+          
+          for (const [key, value] of Object.entries(recipient)) {
+            const placeholder = new RegExp(`{{${key}}}`, 'g');
+            personalizedSubject = personalizedSubject.replace(placeholder, String(value || ''));
+            personalizedHtml = personalizedHtml.replace(placeholder, String(value || ''));
+          }
+
+          await sendEmail(emailSettings, {
+            to: recipient.email,
+            subject: personalizedSubject,
+            html: personalizedHtml,
+          });
+          success++;
+        } catch (error: any) {
+          failed++;
+          errors.push(`${recipient.email}: ${error.message || 'Failed to send'}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        sent: success,
+        failed,
+        errors,
+      });
+    } catch (error: any) {
+      console.error("Error sending bulk emails:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to send bulk emails",
       });
     }
   });

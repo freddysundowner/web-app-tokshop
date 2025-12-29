@@ -306,19 +306,14 @@ export default function Login() {
             </Form>
 
             <div className="text-center pt-2 space-y-2">
-              <button
-                onClick={() => {
-                  toast({ 
-                    title: "Coming Soon", 
-                    description: "Password reset will be available soon!",
-                    variant: "default" 
-                  });
-                }}
-                className="text-primary hover:text-primary/80 text-sm font-medium"
-                data-testid="link-forgot-password"
-              >
-                Forgot Password?
-              </button>
+              <Link href="/forgot-password">
+                <button
+                  className="text-primary hover:text-primary/80 text-sm font-medium"
+                  data-testid="link-forgot-password"
+                >
+                  Forgot Password?
+                </button>
+              </Link>
               
               <p className="text-muted-foreground text-sm">
                 Don't have an account?{" "}

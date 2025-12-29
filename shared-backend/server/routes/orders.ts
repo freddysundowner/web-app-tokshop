@@ -150,8 +150,19 @@ export function registerOrderRoutes(app: Express) {
         throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
       }
       
-      const data = await response.json();
-      res.json(data);
+      const data = await response.json() as any;
+      
+      // API returns: { orders: [...], total: number, limits: number, pages: currentPage }
+      const total = data.total || 0;
+      const limits = data.limits || 20;
+      const totalPages = total > 0 ? Math.ceil(total / limits) : 1;
+      
+      res.json({
+        ...data,
+        total: total,
+        pages: totalPages,
+        currentPage: data.pages || 1,
+      });
     } catch (error) {
       console.error('Orders proxy error:', error);
       res.status(500).json({ error: "Failed to fetch orders from Tokshop API" });

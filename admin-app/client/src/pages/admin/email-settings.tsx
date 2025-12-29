@@ -8,25 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Settings as SettingsIcon, Save, ShieldX, Info } from "lucide-react";
+import { Settings as SettingsIcon, Save, ShieldX } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function EmailSettings() {
   const { toast } = useToast();
 
-  const [emailServiceProvider, setEmailServiceProvider] = useState("sendgrid");
+  const [emailServiceProvider, setEmailServiceProvider] = useState("mailgun");
   const [emailApiKey, setEmailApiKey] = useState("");
   const [emailFromAddress, setEmailFromAddress] = useState("");
   const [emailFromName, setEmailFromName] = useState("");
   const [emailReplyTo, setEmailReplyTo] = useState("");
   const [emailMailgunDomain, setEmailMailgunDomain] = useState("");
-  const [emailSmtpHost, setEmailSmtpHost] = useState("");
-  const [emailSmtpPort, setEmailSmtpPort] = useState("");
-  const [emailSmtpUser, setEmailSmtpUser] = useState("");
-  const [emailSmtpPass, setEmailSmtpPass] = useState("");
 
   const { data: settingsData } = useQuery<any>({
-    queryKey: ['/api/settings'],
+    queryKey: ['/api/settings/full'],
   });
 
   const settings = settingsData?.data || settingsData;
@@ -34,16 +30,12 @@ export default function EmailSettings() {
 
   useEffect(() => {
     if (settings) {
-      setEmailServiceProvider(settings.email_service_provider || 'sendgrid');
+      setEmailServiceProvider(settings.email_service_provider || 'mailgun');
       setEmailApiKey(settings.email_api_key || '');
       setEmailFromAddress(settings.email_from_address || '');
       setEmailFromName(settings.email_from_name || '');
       setEmailReplyTo(settings.email_reply_to || '');
       setEmailMailgunDomain(settings.email_mailgun_domain || '');
-      setEmailSmtpHost(settings.email_smtp_host || '');
-      setEmailSmtpPort(settings.email_smtp_port || '');
-      setEmailSmtpUser(settings.email_smtp_user || '');
-      setEmailSmtpPass(settings.email_smtp_pass || '');
     }
   }, [settings]);
 
@@ -52,7 +44,7 @@ export default function EmailSettings() {
       return apiRequest("POST", "/api/settings", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/settings/full'] });
       toast({
         title: "Email settings saved",
         description: "Email configuration has been updated successfully",
@@ -84,10 +76,6 @@ export default function EmailSettings() {
       email_from_name: emailFromName,
       email_reply_to: emailReplyTo,
       email_mailgun_domain: emailMailgunDomain,
-      email_smtp_host: emailSmtpHost,
-      email_smtp_port: emailSmtpPort,
-      email_smtp_user: emailSmtpUser,
-      email_smtp_pass: emailSmtpPass,
     });
   };
 
@@ -125,104 +113,40 @@ export default function EmailSettings() {
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sendgrid">SendGrid</SelectItem>
                   <SelectItem value="mailgun">Mailgun</SelectItem>
-                  <SelectItem value="resend">Resend</SelectItem>
-                  <SelectItem value="smtp">SMTP</SelectItem>
+                  <SelectItem value="brevo">Brevo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {emailServiceProvider !== 'smtp' && (
-              <div className="space-y-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email_api_key">API Key</Label>
+                <Input
+                  id="email_api_key"
+                  type={isDemoMode ? 'text' : 'password'}
+                  value={emailApiKey}
+                  onChange={(e) => setEmailApiKey(e.target.value)}
+                  placeholder="Enter API key"
+                  data-testid="input-email-api-key"
+                  disabled={isDemoMode}
+                />
+              </div>
+
+              {emailServiceProvider === 'mailgun' && (
                 <div className="space-y-2">
-                  <Label htmlFor="email_api_key">API Key</Label>
+                  <Label htmlFor="email_mailgun_domain">Mailgun Domain</Label>
                   <Input
-                    id="email_api_key"
-                    type={isDemoMode ? 'text' : 'password'}
-                    value={emailApiKey}
-                    onChange={(e) => setEmailApiKey(e.target.value)}
-                    placeholder="Enter API key"
-                    data-testid="input-email-api-key"
+                    id="email_mailgun_domain"
+                    value={emailMailgunDomain}
+                    onChange={(e) => setEmailMailgunDomain(e.target.value)}
+                    placeholder="yourdomain.com"
+                    data-testid="input-mailgun-domain"
                     disabled={isDemoMode}
                   />
                 </div>
-
-                {emailServiceProvider === 'mailgun' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="email_mailgun_domain">Mailgun Domain</Label>
-                    <Input
-                      id="email_mailgun_domain"
-                      value={emailMailgunDomain}
-                      onChange={(e) => setEmailMailgunDomain(e.target.value)}
-                      placeholder="yourdomain.com"
-                      data-testid="input-mailgun-domain"
-                      disabled={isDemoMode}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {emailServiceProvider === 'smtp' && (
-              <div className="space-y-4 pt-4 border-t">
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>SMTP Configuration:</strong> Use this for custom SMTP servers like Gmail, Outlook, etc.
-                  </AlertDescription>
-                </Alert>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email_smtp_host">SMTP Host</Label>
-                    <Input
-                      id="email_smtp_host"
-                      value={emailSmtpHost}
-                      onChange={(e) => setEmailSmtpHost(e.target.value)}
-                      placeholder="smtp.gmail.com"
-                      data-testid="input-smtp-host"
-                      disabled={isDemoMode}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email_smtp_port">SMTP Port</Label>
-                    <Input
-                      id="email_smtp_port"
-                      value={emailSmtpPort}
-                      onChange={(e) => setEmailSmtpPort(e.target.value)}
-                      placeholder="587"
-                      data-testid="input-smtp-port"
-                      disabled={isDemoMode}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email_smtp_user">SMTP Username</Label>
-                    <Input
-                      id="email_smtp_user"
-                      value={emailSmtpUser}
-                      onChange={(e) => setEmailSmtpUser(e.target.value)}
-                      placeholder="your-email@gmail.com"
-                      data-testid="input-smtp-user"
-                      disabled={isDemoMode}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email_smtp_pass">SMTP Password</Label>
-                    <Input
-                      id="email_smtp_pass"
-                      type={isDemoMode ? 'text' : 'password'}
-                      value={emailSmtpPass}
-                      onChange={(e) => setEmailSmtpPass(e.target.value)}
-                      placeholder="App Password (16 characters)"
-                      data-testid="input-smtp-pass"
-                      disabled={isDemoMode}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
 
             <div className="space-y-4 pt-4 border-t">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

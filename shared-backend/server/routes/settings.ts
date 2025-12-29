@@ -96,9 +96,6 @@ export function registerSettingsRoutes(app: Express) {
       const data = await response.json();
       const themes = Array.isArray(data) ? data[0] : data;
       
-      // Log raw theme data to see what fields are available
-      console.log('Raw theme data from API:', JSON.stringify(themes, null, 2));
-      
       // Extract landing_page_logo from resources array if present
       let landingPageLogo = themes?.landing_page_logo || "";
       if (!landingPageLogo && themes?.resources && Array.isArray(themes.resources)) {
@@ -106,6 +103,21 @@ export function registerSettingsRoutes(app: Express) {
         if (landingLogoResource) {
           landingPageLogo = landingLogoResource.url;
         }
+      }
+      
+      // Also fetch agerestricted from settings API
+      let agerestricted = false;
+      try {
+        const settingsResponse = await fetch(`${BASE_URL}/settings`, {
+          method: "GET",
+          headers,
+        });
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          agerestricted = settingsData?.agerestricted === true;
+        }
+      } catch (e) {
+        // Silently fail - agerestricted defaults to false
       }
       
       res.json({
@@ -126,6 +138,8 @@ export function registerSettingsRoutes(app: Express) {
           terms_url: themes?.terms_url || themes?.termsUrl || "",
           // Demo mode flag from themes
           demoMode: themes?.demoMode || themes?.demo_mode || false,
+          // Age restriction from settings
+          agerestricted: agerestricted,
         },
       });
     } catch (error: any) {
@@ -154,7 +168,6 @@ export function registerSettingsRoutes(app: Express) {
       // For public settings, we need to fetch without requiring user authentication
       // We'll use a system-level access if available, or make it public on the API
       const url = `${BASE_URL}/settings`;
-      console.log(`Fetching public app settings from: ${url}`);
       
       // Try to get access token from session if available
       const accessToken = req.session?.accessToken;
@@ -199,9 +212,6 @@ export function registerSettingsRoutes(app: Express) {
 
       const data = await response.json();
       const settings = Array.isArray(data) ? data[0] : data;
-      
-      // Log raw settings to debug Firebase config
-      console.log('Raw settings from API:', JSON.stringify(settings, null, 2));
       
       // Extract public branding information, Stripe publishable key, and Firebase config
       const publicSettings = {
@@ -270,7 +280,6 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const url = `${BASE_URL}/settings`;
-      console.log(`Fetching full app settings from: ${url}`);
       
       const response = await fetch(url, {
         method: "GET",

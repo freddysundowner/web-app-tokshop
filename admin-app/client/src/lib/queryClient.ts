@@ -150,6 +150,11 @@ export const getQueryFn: <T>(options: {
         if (limit) queryParams.set('limit', String(limit));
         if (searchQuery) queryParams.set('title', String(searchQuery));
       }
+      // For /users search endpoint: [{ title: string }]
+      else if (endpoint === '/users' && params.length > 0 && typeof params[0] === 'object') {
+        const searchParams = params[0] as Record<string, string>;
+        if (searchParams.title) queryParams.set('title', searchParams.title);
+      }
       // For other endpoints that use userId pattern
       else if (params[0] && typeof params[0] === 'string') {
         queryParams.set('userId', params[0]);
