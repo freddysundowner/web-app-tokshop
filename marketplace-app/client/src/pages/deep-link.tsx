@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 const APP_STORE_URL = "https://apps.apple.com/us/app/icona-live/id6751861344";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.iconaapp.live&hl=en";
+const APP_SCHEME = "icona://";
 const UNIVERSAL_LINK_DOMAIN = "https://iconaapp.com";
 
 export default function DeepLink() {
@@ -58,13 +59,15 @@ export default function DeepLink() {
     const { type, id } = params;
     if (!type || !id) return;
     
-    const universalLink = `${UNIVERSAL_LINK_DOMAIN}/${type}/${id}`;
+    const deepLink = `${APP_SCHEME}${type}/${id}`;
     const storeUrl = isIOS ? APP_STORE_URL : PLAY_STORE_URL;
     
-    window.location.href = universalLink;
+    const now = Date.now();
+    
+    window.location.href = deepLink;
     
     setTimeout(() => {
-      if (document.hasFocus()) {
+      if (document.hasFocus() && Date.now() - now < 2000) {
         window.location.href = storeUrl;
       }
     }, 1500);
