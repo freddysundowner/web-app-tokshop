@@ -162,7 +162,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       try {
         // First, fetch public themes for colors (works without auth - for login page)
         try {
-          const themesResponse = await fetch('/api/public/themes');
+          const themesResponse = await fetch('/themes');
           if (themesResponse.ok) {
             const themesData = await themesResponse.json();
             console.log('🎨 Themes fetched:', themesData);
@@ -182,96 +182,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           console.warn('Failed to fetch public themes:', themesError);
         }
 
-        // Then fetch full settings (may require auth)
-        // Include auth tokens from localStorage to ensure server can authenticate with external API
-        const adminToken = localStorage.getItem('adminAccessToken');
-        const userToken = localStorage.getItem('accessToken');
-        const headers: Record<string, string> = {};
-        if (adminToken) headers['x-admin-token'] = adminToken;
-        if (userToken) {
-          headers['x-access-token'] = userToken;
-          headers['Authorization'] = `Bearer ${userToken}`;
-        }
-        
-        const response = await fetch('/api/settings', { 
-          credentials: 'include',
-          headers,
-        });
-        let firebaseConfig: FirebaseConfig | undefined;
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('⚙️ Settings fetched:', data);
-          if (data.success && data.data) {
-            console.log('⚙️ Settings data:', data.data);
-            setSettings(data.data);
-            
-            // Build Firebase config from either nested object or individual fields
-            if (data.data.firebase_config) {
-              // Use nested firebase_config object if available
-              firebaseConfig = data.data.firebase_config;
-              console.log('🔥 Using nested firebase_config from API');
-            } else if (data.data.firebase_api_key && data.data.firebase_project_id) {
-              // Build from individual fields (from admin panel settings)
-              firebaseConfig = {
-                apiKey: data.data.firebase_api_key || data.data.FIREBASE_API_KEY || '',
-                authDomain: data.data.firebase_auth_domain || '',
-                projectId: data.data.firebase_project_id || '',
-                storageBucket: data.data.firebase_storage_bucket || '',
-                appId: data.data.firebase_app_id || '',
-              };
-              console.log('🔥 Built firebase_config from individual fields');
-            }
-          }
-        }
-
-        // If Firebase config not found in settings, try /api/settings/full endpoint (requires auth)
-        if (!firebaseConfig || !firebaseConfig.apiKey || !firebaseConfig.projectId) {
-          console.log('🔥 Trying /api/settings/full for Firebase config...');
-          try {
-            const fullResponse = await fetch('/api/settings/full', { 
-              credentials: 'include',
-              headers,
-            });
-            if (fullResponse.ok) {
-              const fullData = await fullResponse.json();
-              console.log('⚙️ Full settings fetched:', fullData);
-              if (fullData.success && fullData.data) {
-                const s = fullData.data;
-                // Check for both lowercase and uppercase field names
-                const apiKey = s.firebase_api_key || s.FIREBASE_API_KEY || '';
-                const projectId = s.firebase_project_id || s.FIREBASE_PROJECT_ID || '';
-                const authDomain = s.firebase_auth_domain || s.FIREBASE_AUTH_DOMAIN || '';
-                const storageBucket = s.firebase_storage_bucket || s.FIREBASE_STORAGE_BUCKET || '';
-                const appId = s.firebase_app_id || s.FIREBASE_APP_ID || '';
-                
-                if (apiKey && projectId) {
-                  firebaseConfig = {
-                    apiKey,
-                    authDomain: authDomain || `${projectId}.firebaseapp.com`,
-                    projectId,
-                    storageBucket: storageBucket || `${projectId}.firebasestorage.app`,
-                    appId,
-                  };
-                  console.log('🔥 Got Firebase config from /api/settings/full:', { projectId });
-                }
-              }
-            }
-          } catch (fullError) {
-            console.warn('Failed to fetch full settings:', fullError);
-          }
-        }
-        
-        // Initialize Firebase with dynamic config if available
-        if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
-          console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
-          initializeFirebase(firebaseConfig);
-          console.log('✅ Firebase initialized successfully');
-          setIsFirebaseReady(true);
-        } else {
-          console.warn('⚠️ No valid Firebase config found in settings');
-          setIsFirebaseReady(false);
-        }
+        // Firebase will be initialized after login when settings are fetched
+        setIsFirebaseReady(false);
       } catch (error) {
         console.error('Failed to fetch app settings:', error);
         console.warn('⚠️ Cannot initialize Firebase without settings');

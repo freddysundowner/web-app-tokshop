@@ -42,7 +42,7 @@ export default function AdminInventory() {
   if (categoryFilter && categoryFilter !== "all") queryString += `&category=${encodeURIComponent(categoryFilter)}`;
   if (priceFilter && priceFilter !== "all") queryString += `&price=${encodeURIComponent(priceFilter)}`;
 
-  const { data: productsData, isLoading } = useQuery<{ 
+  const { data: productsData, isLoading, isError, error, refetch } = useQuery<{ 
     success: boolean; 
     data: {
       products: any[];
@@ -52,6 +52,9 @@ export default function AdminInventory() {
     };
   }>({
     queryKey: [queryString],
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const products = productsData?.data?.products || [];
@@ -286,6 +289,15 @@ export default function AdminInventory() {
               <div className="text-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
                 <p className="text-muted-foreground">Loading products...</p>
+              </div>
+            ) : isError ? (
+              <div className="text-center py-12">
+                <Package className="h-12 w-12 text-destructive mx-auto mb-4" />
+                <p className="text-destructive font-medium">Failed to load products</p>
+                <p className="text-muted-foreground text-sm mt-1">The server is temporarily unavailable</p>
+                <Button variant="outline" className="mt-4" onClick={() => refetch()}>
+                  Try Again
+                </Button>
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-12">

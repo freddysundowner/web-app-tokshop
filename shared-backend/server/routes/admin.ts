@@ -589,7 +589,7 @@ export function registerAdminRoutes(app: Express) {
       if (req.query.price) queryParams.append("price", req.query.price as string);
       if (req.query.userid) queryParams.append("userid", req.query.userid as string);
 
-      const url = `${BASE_URL}/products/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const url = `${BASE_URL}/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
       console.log(`Fetching products from: ${url}`);
       
@@ -3354,6 +3354,60 @@ If you have any questions, feel free to reach out to our support team.
       res.status(500).json({
         success: false,
         error: "Failed to update user block status",
+        details: error.message,
+      });
+    }
+  });
+
+  // Delete a user
+  app.delete("/api/admin/users/:userId", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      const { userId } = req.params;
+      
+      console.log(`[Delete User] Request to delete user: ${userId}`);
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/users/${userId}`;
+      console.log(`[Delete User] Calling ICONA API: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log(`[Delete User] API response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[Delete User] API error:`, errorData);
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || "Failed to delete user",
+        });
+      }
+
+      const data = await response.json().catch(() => ({}));
+      console.log('[Delete User] Success:', data);
+      
+      res.json({
+        success: true,
+        message: "User deleted successfully",
+      });
+    } catch (error: any) {
+      console.error(`Error deleting user:`, error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete user",
         details: error.message,
       });
     }

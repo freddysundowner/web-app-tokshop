@@ -52,8 +52,8 @@ export function registerSettingsRoutes(app: Express) {
     }
   });
 
-  // Get public theme settings (no auth required)
-  app.get("/api/public/themes", async (req, res) => {
+  // Get public theme settings (no auth required) - both /themes and /api/public/themes
+  app.get(["/themes", "/api/public/themes"], async (req, res) => {
     try {
       const url = `${BASE_URL}/themes`;
       console.log(`Fetching public themes from: ${url}`);
@@ -105,21 +105,6 @@ export function registerSettingsRoutes(app: Express) {
         }
       }
       
-      // Also fetch agerestricted from settings API
-      let agerestricted = false;
-      try {
-        const settingsResponse = await fetch(`${BASE_URL}/settings`, {
-          method: "GET",
-          headers,
-        });
-        if (settingsResponse.ok) {
-          const settingsData = await settingsResponse.json();
-          agerestricted = settingsData?.agerestricted === true;
-        }
-      } catch (e) {
-        // Silently fail - agerestricted defaults to false
-      }
-      
       res.json({
         success: true,
         data: {
@@ -133,13 +118,10 @@ export function registerSettingsRoutes(app: Express) {
           app_logo: themes?.app_logo || "",
           header_logo: themes?.header_logo || "",
           landing_page_logo: landingPageLogo,
-          // Legal URLs from themes
           privacy_url: themes?.privacy_url || themes?.privacyUrl || "",
           terms_url: themes?.terms_url || themes?.termsUrl || "",
-          // Demo mode flag from themes
           demoMode: themes?.demoMode || themes?.demo_mode || false,
-          // Age restriction from settings
-          agerestricted: agerestricted,
+          agerestricted: themes?.agerestricted || false,
         },
       });
     } catch (error: any) {
@@ -165,20 +147,36 @@ export function registerSettingsRoutes(app: Express) {
   // Get public app settings (branding information)
   app.get("/api/settings", async (req, res) => {
     try {
-      // For public settings, we need to fetch without requiring user authentication
-      // We'll use a system-level access if available, or make it public on the API
-      const url = `${BASE_URL}/settings`;
-      
-      // Try to get access token from session if available
+      // Try to get access token from session
       const accessToken = req.session?.accessToken;
       
+      // If no auth, return defaults immediately - don't call external API
+      if (!accessToken) {
+        return res.json({
+          success: true,
+          data: {
+            app_name: "App",
+            seo_title: "",
+            support_email: "support@example.com",
+            primary_color: "#F4D03F",
+            secondary_color: "#1A1A1A",
+            stripe_publishable_key: "",
+            commission_rate: 0,
+            firebase_api_key: "",
+            firebase_auth_domain: "",
+            firebase_project_id: "",
+            firebase_storage_bucket: "",
+            firebase_app_id: "",
+            demoMode: false,
+          },
+        });
+      }
+      
+      const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
       };
-      
-      if (accessToken) {
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
       
       const response = await fetch(url, {
         method: "GET",
@@ -186,7 +184,6 @@ export function registerSettingsRoutes(app: Express) {
       });
 
       if (!response.ok) {
-        // Return default values if API fails
         const errorText = await response.text().catch(() => 'Unknown error');
         console.warn(`Failed to fetch settings from API (${response.status}): ${errorText}, using defaults`);
         return res.json({
@@ -199,7 +196,6 @@ export function registerSettingsRoutes(app: Express) {
             secondary_color: "#1A1A1A",
             stripe_publishable_key: "",
             commission_rate: 0,
-            // Firebase configuration - must come from API, no hardcoded defaults
             firebase_api_key: "",
             firebase_auth_domain: "",
             firebase_project_id: "",
