@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 const APP_STORE_URL = "https://apps.apple.com/us/app/icona-live/id6751861344";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.iconaapp.live&hl=en";
 const APP_SCHEME = "icona://";
+const UNIVERSAL_LINK_DOMAIN = "https://iconaapp.com";
 
 interface MobileAppRedirectProps {
   type: "user" | "show" | "product";
@@ -30,7 +31,24 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
 
     if (mobile && !attemptedAppOpen) {
       setAttemptedAppOpen(true);
-      setShowAppPrompt(true);
+      
+      const referrer = document.referrer;
+      const isFromIconaDomain = referrer.includes('iconaapp.com');
+      const isOnIconaDomain = window.location.hostname === 'iconaapp.com' || 
+                               window.location.hostname === 'www.iconaapp.com';
+      
+      if (isOnIconaDomain && !isFromIconaDomain) {
+        const universalLink = `${UNIVERSAL_LINK_DOMAIN}/${type}/${id}`;
+        window.location.replace(universalLink);
+        
+        setTimeout(() => {
+          if (document.hasFocus()) {
+            setShowAppPrompt(true);
+          }
+        }, 1500);
+      } else {
+        setShowAppPrompt(true);
+      }
     }
     
     if (!mobile) {

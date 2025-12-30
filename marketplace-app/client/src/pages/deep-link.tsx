@@ -52,7 +52,23 @@ export default function DeepLink() {
       return;
     }
 
-    setStatus("ready");
+    const referrer = document.referrer;
+    const isFromIconaDomain = referrer.includes('iconaapp.com');
+    const isOnIconaDomain = window.location.hostname === 'iconaapp.com' || 
+                             window.location.hostname === 'www.iconaapp.com';
+    
+    if (isOnIconaDomain && !isFromIconaDomain) {
+      const universalLink = `${UNIVERSAL_LINK_DOMAIN}/${type}/${id}`;
+      window.location.replace(universalLink);
+      
+      setTimeout(() => {
+        if (document.hasFocus()) {
+          setStatus("ready");
+        }
+      }, 1500);
+    } else {
+      setStatus("ready");
+    }
   }, [params]);
 
   const handleContinueOnIcona = () => {

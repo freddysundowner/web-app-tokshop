@@ -675,6 +675,30 @@ export default function Inventory() {
     );
   };
 
+  // Helper to get auction winner info
+  const getAuctionWinner = (product: TokshopProduct) => {
+    const auction = (product as any).auction;
+    if (!auction || !auction.bids || auction.bids.length === 0) {
+      return null;
+    }
+    
+    // Winner is the highest bidder (last in sorted bids or highest amount)
+    const sortedBids = [...auction.bids].sort((a: any, b: any) => (b.amount || 0) - (a.amount || 0));
+    const highestBid = sortedBids[0];
+    
+    if (!highestBid) return null;
+    
+    const winnerUser = highestBid.user || highestBid.bidder;
+    const winnerName = winnerUser?.userName || winnerUser?.firstName || winnerUser?.name || 'Unknown';
+    const winAmount = highestBid.amount || auction.higestbid || auction.newbaseprice || 0;
+    
+    return {
+      name: winnerName,
+      amount: winAmount,
+      profilePhoto: winnerUser?.profilePhoto || winnerUser?.profilePicture
+    };
+  };
+
   // For auction products, determine status based on the 'ended' key
   const getAuctionStatusBadge = (product: TokshopProduct) => {
     const auction = (product as any).auction;
@@ -686,10 +710,26 @@ export default function Inventory() {
     const isEnded = auction.ended === true;
     
     if (isEnded) {
+      const winner = getAuctionWinner(product);
       return (
-        <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
-          ENDED
-        </Badge>
+        <div className="flex flex-col gap-1">
+          <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+            ENDED
+          </Badge>
+          {winner && (
+            <div className="text-xs text-muted-foreground">
+              <span className="font-medium text-green-600 dark:text-green-400">Won by:</span>{" "}
+              <span className="font-semibold">{winner.name}</span>
+              <br />
+              <span className="text-green-600 dark:text-green-400 font-medium">
+                {formatCurrency(winner.amount)}
+              </span>
+            </div>
+          )}
+          {!winner && (
+            <span className="text-xs text-muted-foreground">No bids</span>
+          )}
+        </div>
       );
     } else {
       return (
