@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 const APP_STORE_URL = "https://apps.apple.com/us/app/icona-live/id6751861344";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.iconaapp.live&hl=en";
+const UNIVERSAL_LINK_DOMAIN = "https://iconaapp.com";
 
 export default function DeepLink() {
   const params = useParams<{ type: string; id: string }>();
@@ -53,6 +54,22 @@ export default function DeepLink() {
     setStatus("ready");
   }, [params]);
 
+  const handleContinueOnIcona = () => {
+    const { type, id } = params;
+    if (!type || !id) return;
+    
+    const universalLink = `${UNIVERSAL_LINK_DOMAIN}/${type}/${id}`;
+    const storeUrl = isIOS ? APP_STORE_URL : PLAY_STORE_URL;
+    
+    window.location.href = universalLink;
+    
+    setTimeout(() => {
+      if (document.hasFocus()) {
+        window.location.href = storeUrl;
+      }
+    }, 1500);
+  };
+
   const handleOpenAppStore = () => {
     if (isIOS) {
       window.location.href = APP_STORE_URL;
@@ -96,10 +113,10 @@ export default function DeepLink() {
 
         <div className="space-y-3">
           <Button 
-            onClick={handleOpenAppStore}
+            onClick={handleContinueOnIcona}
             className="w-full h-12 text-base font-semibold"
           >
-            {isIOS ? "Download on App Store" : "Download on Google Play"}
+            Continue on Icona
           </Button>
           
           <Button 
@@ -112,8 +129,13 @@ export default function DeepLink() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          If you already have the app installed, it should open automatically.
-          If not, tap the button above to download it.
+          Don't have the app?{" "}
+          <button 
+            onClick={handleOpenAppStore}
+            className="text-primary underline hover:no-underline"
+          >
+            {isIOS ? "Download from App Store" : "Download from Google Play"}
+          </button>
         </p>
       </div>
     </div>
