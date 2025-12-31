@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,8 @@ export default function AdminSettings() {
     app_logo: '',
     header_logo: '',
     landing_page_logo: '',
+    ios_link: '',
+    android_link: '',
   });
   const [isSavingTheme, setIsSavingTheme] = useState(false);
 
@@ -139,6 +141,8 @@ export default function AdminSettings() {
       app_logo: themes?.app_logo || '',
       header_logo: themes?.header_logo || '',
       landing_page_logo: themes?.landing_page_logo || '',
+      ios_link: themes?.ios_link || '',
+      android_link: themes?.android_link || '',
     });
   }, [themes]);
 
@@ -1210,6 +1214,29 @@ export default function AdminSettings() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="android_link">Android App URL (Play Store)</Label>
+                    <Input
+                      id="android_link"
+                      value={themeFormData.android_link}
+                      onChange={(e) => handleThemeInputChange('android_link', e.target.value)}
+                      placeholder="https://play.google.com/store/apps/details?id=..."
+                      data-testid="input-android-link"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ios_link">iOS App URL (App Store)</Label>
+                    <Input
+                      id="ios_link"
+                      value={themeFormData.ios_link}
+                      onChange={(e) => handleThemeInputChange('ios_link', e.target.value)}
+                      placeholder="https://apps.apple.com/app/..."
+                      data-testid="input-ios-link"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="forceUpdate"
@@ -1228,6 +1255,29 @@ export default function AdminSettings() {
                   These version numbers are used with the Force Update feature
                 </p>
               </CardContent>
+              <CardFooter>
+                <Button 
+                  onClick={async () => {
+                    if (!canManageSettings) {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Permission Denied',
+                        description: 'You do not have permission to manage settings',
+                      });
+                      return;
+                    }
+                    updateMutation.mutate(formData);
+                    updateThemeMutation.mutate(themeFormData);
+                  }}
+                  disabled={updateMutation.isPending || updateThemeMutation.isPending}
+                  data-testid="save-app-versions"
+                >
+                  {(updateMutation.isPending || updateThemeMutation.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Save App Version Settings
+                </Button>
+              </CardFooter>
             </Card>
           </TabsContent>
 
