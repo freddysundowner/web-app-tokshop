@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Settings, DollarSign, Key, Package, Link as LinkIcon, Smartphone, ShieldX, Mail, Info, Languages, Plus, Trash2, Download, Upload, Palette } from "lucide-react";
+import { Settings, DollarSign, Key, Package, Link as LinkIcon, Smartphone, ShieldX, Mail, Info, Languages, Plus, Trash2, Download, Upload, Palette, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
@@ -61,6 +61,8 @@ export default function AdminSettings() {
     appVersion: '',
     androidVersion: '',
     iosVersion: '',
+    ios_link: '',
+    android_link: '',
     FIREBASE_API_KEY: '',
     firebase_auth_domain: '',
     firebase_project_id: '',
@@ -112,6 +114,8 @@ export default function AdminSettings() {
       appVersion: settings?.appVersion || '',
       androidVersion: settings?.androidVersion || '',
       iosVersion: settings?.iosVersion || '',
+      ios_link: settings?.ios_link || '',
+      android_link: settings?.android_link || '',
       FIREBASE_API_KEY: settings?.FIREBASE_API_KEY || '',
       firebase_auth_domain: settings?.firebase_config?.authDomain || settings?.firebase_auth_domain || '',
       firebase_project_id: settings?.firebase_config?.projectId || settings?.firebase_project_id || '',
@@ -1219,8 +1223,8 @@ export default function AdminSettings() {
                     <Label htmlFor="android_link">Android App URL (Play Store)</Label>
                     <Input
                       id="android_link"
-                      value={themeFormData.android_link}
-                      onChange={(e) => handleThemeInputChange('android_link', e.target.value)}
+                      value={formData.android_link}
+                      onChange={(e) => handleInputChange('android_link', e.target.value)}
                       placeholder="https://play.google.com/store/apps/details?id=..."
                       data-testid="input-android-link"
                     />
@@ -1229,8 +1233,8 @@ export default function AdminSettings() {
                     <Label htmlFor="ios_link">iOS App URL (App Store)</Label>
                     <Input
                       id="ios_link"
-                      value={themeFormData.ios_link}
-                      onChange={(e) => handleThemeInputChange('ios_link', e.target.value)}
+                      value={formData.ios_link}
+                      onChange={(e) => handleInputChange('ios_link', e.target.value)}
                       placeholder="https://apps.apple.com/app/..."
                       data-testid="input-ios-link"
                     />
@@ -1267,12 +1271,11 @@ export default function AdminSettings() {
                       return;
                     }
                     updateMutation.mutate(formData);
-                    updateThemeMutation.mutate(themeFormData);
                   }}
-                  disabled={updateMutation.isPending || updateThemeMutation.isPending}
+                  disabled={updateMutation.isPending}
                   data-testid="save-app-versions"
                 >
-                  {(updateMutation.isPending || updateThemeMutation.isPending) && (
+                  {updateMutation.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Save App Version Settings
