@@ -122,6 +122,9 @@ export function registerSettingsRoutes(app: Express) {
           terms_url: themes?.terms_url || themes?.termsUrl || "",
           demoMode: themes?.demoMode || themes?.demo_mode || false,
           agerestricted: themes?.agerestricted || false,
+          ios_link: themes?.ios_link || themes?.iosLink || themes?.app_store_url || "",
+          android_link: themes?.android_link || themes?.androidLink || themes?.play_store_url || "",
+          website_url: themes?.website_url || themes?.websiteUrl || "",
         },
       });
     } catch (error: any) {

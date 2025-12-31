@@ -14,6 +14,7 @@ export default function DeepLink() {
   const [appStoreUrl, setAppStoreUrl] = useState("");
   const [playStoreUrl, setPlayStoreUrl] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
+  const [appName, setAppName] = useState("App");
 
   useEffect(() => {
     fetch("/api/themes")
@@ -23,6 +24,7 @@ export default function DeepLink() {
         setAppStoreUrl(themes.ios_link || "");
         setPlayStoreUrl(themes.android_link || "");
         setWebsiteUrl(themes.website_url || window.location.origin);
+        setAppName(themes.app_name || "App");
       })
       .catch(() => {
         setWebsiteUrl(window.location.origin);
@@ -139,9 +141,9 @@ export default function DeepLink() {
         </div>
         
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-foreground">Open in Icona App</h1>
+          <h1 className="text-2xl font-bold text-foreground">Open in {appName} App</h1>
           <p className="text-muted-foreground">
-            Get the best experience with the Icona app
+            Get the best experience with the {appName} app
           </p>
         </div>
 
@@ -150,7 +152,7 @@ export default function DeepLink() {
             onClick={handleContinueOnIcona}
             className="w-full h-12 text-base font-semibold"
           >
-            Continue on Icona
+            Continue on {appName}
           </Button>
           
           <Button 
