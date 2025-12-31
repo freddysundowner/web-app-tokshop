@@ -31,6 +31,7 @@ import {
   Gift,
   Truck,
   MapPin,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -52,6 +53,17 @@ type NavSection = {
 };
 
 const navigationItems: NavSection[] = [
+  {
+    section: "Overview",
+    items: [
+      {
+        id: "dashboard",
+        name: "Dashboard",
+        href: "/admin",
+        icon: LayoutDashboard,
+      },
+    ],
+  },
   {
     section: "User Management",
     items: [

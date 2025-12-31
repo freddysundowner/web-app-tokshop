@@ -40,7 +40,9 @@ export default function ProductDetail() {
   const [showMakeOfferDialog, setShowMakeOfferDialog] = useState(false);
   const [offerPrice, setOfferPrice] = useState<number | null>(null);
 
-  const productId = params?.productId;
+  // Support both /product/:productId and /product?id=xxx URL patterns
+  const queryParams = new URLSearchParams(window.location.search);
+  const productId = params?.productId || queryParams.get('id');
 
   // Reset checkout view and offer price when product changes
   useEffect(() => {

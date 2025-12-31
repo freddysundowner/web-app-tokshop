@@ -19,6 +19,7 @@ interface AppSettings {
   commission_rate: number;
   firebase_config?: FirebaseConfig;
   demoMode?: boolean;
+  currency?: string;
 }
 
 interface SettingsContextType {
@@ -172,10 +173,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
               if (themes.primary_color) {
                 applyThemeColors(themes.primary_color, themes.secondary_color || defaultSettings.secondary_color);
               }
-              // Set demoMode from themes (for login page before auth)
-              if (themes.demoMode !== undefined) {
-                setSettings(prev => ({ ...prev, demoMode: themes.demoMode }));
-              }
+              // Set app_name and demoMode from themes (for login page before auth)
+              setSettings(prev => ({ 
+                ...prev, 
+                app_name: themes.app_name || prev.app_name,
+                demoMode: themes.demoMode !== undefined ? themes.demoMode : prev.demoMode 
+              }));
             }
           }
         } catch (themesError) {

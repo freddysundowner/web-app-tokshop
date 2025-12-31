@@ -457,20 +457,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('[checkAuth] Starting auth check...');
       
-      // First handle any pending redirects with a timeout
-      const redirectPromise = handleAuthRedirect();
-      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2000));
-      const redirectResult = await Promise.race([redirectPromise, timeoutPromise]) as any;
-      
-      if (redirectResult?.user && !isProcessingRef.current) {
-        isProcessingRef.current = true;
+      // Only handle Firebase redirects if Firebase is ready
+      if (isFirebaseReady) {
         try {
-          // Handle redirect result with additionalUserInfo
-          await authenticateWithTokshop(redirectResult.user, redirectResult?.additionalUserInfo);
-        } finally {
-          isProcessingRef.current = false;
+          // First handle any pending redirects with a timeout
+          const redirectPromise = handleAuthRedirect();
+          const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2000));
+          const redirectResult = await Promise.race([redirectPromise, timeoutPromise]) as any;
+          
+          if (redirectResult?.user && !isProcessingRef.current) {
+            isProcessingRef.current = true;
+            try {
+              // Handle redirect result with additionalUserInfo
+              await authenticateWithTokshop(redirectResult.user, redirectResult?.additionalUserInfo);
+            } finally {
+              isProcessingRef.current = false;
+            }
+            return;
+          }
+        } catch (firebaseError) {
+          console.log('[checkAuth] Firebase redirect handling skipped:', firebaseError);
         }
-        return;
+      } else {
+        console.log('[checkAuth] Skipping Firebase redirect - Firebase not ready');
       }
 
       // Check if we have stored user data in localStorage

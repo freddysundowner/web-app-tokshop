@@ -1,49 +1,102 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { 
+  Users, 
+  Eye, 
+  CheckCircle, 
+  Ban, 
+  Clock, 
+  ShoppingCart, 
+  DollarSign,
+  Video,
+  TrendingUp,
+  AlertCircle,
+  ArrowRight
+} from "lucide-react";
+import { useEffect } from "react";
+import { format } from "date-fns";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit] = useState(20);
+  const { settings } = useSettings();
+  const currency = settings.currency || '$';
 
-  // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
     if (!user?.admin) {
       setLocation("/");
     }
   }, [user?.admin, setLocation]);
 
-  // Build query string with pagination and search
-  const queryString = `/api/admin/users?page=${page}&limit=${limit}${searchQuery ? `&title=${encodeURIComponent(searchQuery)}` : ''}`;
+  const { data: userStatsData } = useQuery<{
+    success: boolean;
+    data: any;
+  }>({
+    queryKey: ['/api/admin/users/stats/all'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/users/stats/all', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user stats');
+      }
+      return await response.json();
+    },
+  });
 
-  const { data: usersData, isLoading } = useQuery<{ 
-    success: boolean; 
+
+  const { data: roomStatsData } = useQuery<{
+    success: boolean;
     data: {
-      users: any[];
-      totalDoc: number;
-      limits: number;
-      pages: number;
+      total: number;
+      live: number;
+      upcoming: number;
     };
   }>({
-    queryKey: ['/api/admin/users', page, limit, searchQuery],
+    queryKey: ['/api/admin/rooms/stats/all'],
     queryFn: async () => {
-      const response = await fetch(queryString, {
+      const response = await fetch('/api/admin/rooms/stats/all', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        return { success: false, data: { total: 0, live: 0, upcoming: 0 } };
+      }
+      return await response.json();
+    },
+  });
+
+  const { data: orderStatsData } = useQuery<{
+    success: boolean;
+    data: any;
+  }>({
+    queryKey: ['/api/admin/orders/stats/all'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/orders/stats/all', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        return { success: false, data: {} };
+      }
+      return await response.json();
+    },
+  });
+
+  const { data: usersData } = useQuery<{
+    success: boolean;
+    data: {
+      users: any[];
+    };
+  }>({
+    queryKey: ['/api/admin/users', 'dashboard'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/users?limit=5', {
         credentials: 'include',
       });
       if (!response.ok) {
@@ -53,272 +106,458 @@ export default function AdminDashboard() {
     },
   });
 
-  const users = usersData?.data?.users || [];
-  
-  const pagination = usersData?.data ? {
-    currentPage: page,
-    totalPages: usersData.data.pages,
-    totalItems: usersData.data.totalDoc,
-    hasNextPage: page < usersData.data.pages,
-    hasPrevPage: page > 1
-  } : undefined;
-
-  // Block/Unblock user mutation
-  const blockUserMutation = useMutation({
-    mutationFn: async ({ userId, blocked }: { userId: string; blocked: boolean }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/block`, { blocked });
-    },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      toast({
-        title: "Success",
-        description: `User ${variables.blocked ? 'blocked' : 'unblocked'} successfully`,
+  const { data: disputesData } = useQuery<{
+    success: boolean;
+    data: any;
+  }>({
+    queryKey: ['/api/admin/disputes', 'dashboard'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/disputes?page=1&limit=5', {
+        credentials: 'include',
       });
-    },
-    onError: (error: any, variables) => {
-      toast({
-        title: "Error",
-        description: error.message || `Failed to ${variables.blocked ? 'block' : 'unblock'} user`,
-        variant: "destructive",
-      });
+      if (!response.ok) {
+        return { success: false, data: { disputes: [] } };
+      }
+      return await response.json();
     },
   });
 
-  // Reset to page 1 when search query changes
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery]);
+  const { data: ordersData } = useQuery<any>({
+    queryKey: ['/api/orders/items/all?limit=5'],
+  });
+
+  const userStats = userStatsData?.data || {};
+  const recentUsers = usersData?.data?.users || [];
+  const disputes = disputesData?.data?.disputes || disputesData?.data || [];
+  const recentOrders = ordersData?.items || [];
+  
+  const orderStats = orderStatsData?.data || {};
+  const roomStatsRaw: any = roomStatsData?.data || {};
+  const recentShows = roomStatsRaw.recentshows || roomStatsRaw.recentShows || [];
+  const roomStats = Object.fromEntries(
+    Object.entries(roomStatsRaw).filter(([key, value]) => 
+      typeof value === 'number' || typeof value === 'string'
+    )
+  );
+
+  const formatStatLabel = (key: string): string => {
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .replace(/_/g, ' ')
+      .trim();
+  };
+
+  const getStatIcon = (key: string) => {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey.includes('live')) return { icon: Video, color: 'text-red-500', valueColor: 'text-red-600' };
+    if (lowerKey.includes('upcoming') || lowerKey.includes('pending') || lowerKey.includes('scheduled')) return { icon: Clock, color: 'text-blue-500', valueColor: 'text-blue-600' };
+    if (lowerKey.includes('active') || lowerKey.includes('approved')) return { icon: CheckCircle, color: 'text-green-500', valueColor: 'text-green-600' };
+    if (lowerKey.includes('blocked') || lowerKey.includes('banned')) return { icon: Ban, color: 'text-red-500', valueColor: 'text-red-600' };
+    if (lowerKey.includes('order')) return { icon: ShoppingCart, color: 'text-muted-foreground', valueColor: '' };
+    if (lowerKey.includes('revenue') || lowerKey.includes('amount')) return { icon: DollarSign, color: 'text-green-500', valueColor: 'text-green-600' };
+    if (lowerKey.includes('user') || lowerKey.includes('customer') || lowerKey.includes('seller')) return { icon: Users, color: 'text-muted-foreground', valueColor: '' };
+    if (lowerKey.includes('show') || lowerKey.includes('room')) return { icon: Video, color: 'text-muted-foreground', valueColor: '' };
+    if (lowerKey.includes('dispute')) return { icon: AlertCircle, color: 'text-orange-500', valueColor: 'text-orange-600' };
+    return { icon: TrendingUp, color: 'text-muted-foreground', valueColor: '' };
+  };
+
+  const formatStatValue = (key: string, value: any): string => {
+    const lowerKey = key.toLowerCase();
+    const numValue = Number(value);
+    if (lowerKey.includes('revenue') || lowerKey.includes('amount') || lowerKey.includes('price') || lowerKey.includes('value')) {
+      return `${currency}${numValue.toFixed(2)}`;
+    }
+    return String(value ?? 0);
+  };
 
   return (
     <AdminLayout>
-      <div className="p-4 sm:p-6 lg:p-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back! Here's an overview of your platform.</p>
+        </div>
+
+        {/* User Stats - Dynamic from API */}
+        {Object.keys(userStats).length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                User Statistics
+              </h2>
+              <Link href="/admin/users">
+                <Button variant="ghost" size="sm">
+                  View All <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {Object.entries(userStats).map(([key, value]) => {
+                const { icon: Icon, color, valueColor } = getStatIcon(key);
+                return (
+                  <Card key={key}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">{formatStatLabel(key)}</CardTitle>
+                      <Icon className={`h-4 w-4 ${color}`} />
+                    </CardHeader>
+                    <CardContent>
+                      <div className={`text-2xl font-bold ${valueColor}`}>
+                        {formatStatValue(key, value)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Shows Stats - Dynamic from API */}
+        {Object.keys(roomStats).length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Video className="h-5 w-5" />
+                Show Statistics
+              </h2>
+              <Link href="/admin/shows">
+                <Button variant="ghost" size="sm">
+                  View All <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.entries(roomStats).map(([key, value]) => {
+                const { icon: Icon, color, valueColor } = getStatIcon(key);
+                return (
+                  <Card key={key}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">{formatStatLabel(key)}</CardTitle>
+                      {key.toLowerCase() === 'live' ? (
+                        <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                      ) : (
+                        <Icon className={`h-4 w-4 ${color}`} />
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className={`text-2xl font-bold ${valueColor}`}>
+                        {formatStatValue(key, value)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Orders Stats - Dynamic from API */}
+        {Object.keys(orderStats).length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Order Statistics
+              </h2>
+              <Link href="/admin/orders">
+                <Button variant="ghost" size="sm">
+                  View All <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.entries(orderStats).map(([key, value]) => {
+                const { icon: Icon, color, valueColor } = getStatIcon(key);
+                return (
+                  <Card key={key}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">{formatStatLabel(key)}</CardTitle>
+                      <Icon className={`h-4 w-4 ${color}`} />
+                    </CardHeader>
+                    <CardContent>
+                      <div className={`text-2xl font-bold ${valueColor}`}>
+                        {formatStatValue(key, value)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Activity Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Users */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Recent Users</CardTitle>
+                  <CardDescription>Latest registered users</CardDescription>
+                </div>
+                <Link href="/admin/users">
+                  <Button variant="ghost" size="sm">
+                    View All <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-users">
-                {pagination?.totalItems || users.length}
-              </div>
-              <p className="text-xs text-muted-foreground">All registered users</p>
+              {recentUsers.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No users found</p>
+              ) : (
+                <div className="space-y-3">
+                  {recentUsers.slice(0, 5).map((user: any) => (
+                    <div key={user._id || user.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.profilePhoto} />
+                          <AvatarFallback>
+                            {user.firstName?.[0]}{user.lastName?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={user.seller ? "default" : "secondary"} className="text-xs">
+                          {user.seller ? "Seller" : "Customer"}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLocation(`/admin/users/${user._id || user.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Recent Shows */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sellers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Recent Shows</CardTitle>
+                  <CardDescription>Latest live shows</CardDescription>
+                </div>
+                <Link href="/admin/shows">
+                  <Button variant="ghost" size="sm">
+                    View All <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-sellers-count">
-                {users.filter((u: any) => u.seller).length}
-              </div>
-              <p className="text-xs text-muted-foreground">On current page</p>
+              {recentShows.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No shows found</p>
+              ) : (
+                <div className="space-y-3">
+                  {recentShows.slice(0, 5).map((show: any) => (
+                    <div key={show._id || show.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                          <Video className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium line-clamp-1">{show.title || show.name || 'Untitled Show'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {show.owner?.userName || show.owner?.firstName || show.hostId?.userName || show.host?.userName || 'Unknown Host'}
+                            {show.date && ` • ${format(new Date(show.date), 'MMM d, yyyy h:mm a')}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={show.status === 'live' ? "destructive" : show.status === 'upcoming' ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {show.status || (show.active ? "Live" : "Ended")}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLocation(`/admin/shows/${show._id || show.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+        </div>
+
+        {/* Recent Orders & Open Disputes */}
+        <div className="grid grid-cols-1 gap-6">
+          {/* Recent Orders */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Customers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Recent Orders</CardTitle>
+                  <CardDescription>Latest customer orders</CardDescription>
+                </div>
+                <Link href="/admin/orders">
+                  <Button variant="ghost" size="sm">
+                    View All <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-customers-count">
-                {users.filter((u: any) => !u.seller).length}
+              {recentOrders.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No orders found</p>
+              ) : (
+                <div className="space-y-3">
+                  {recentOrders.slice(0, 5).map((order: any) => (
+                    <div key={order._id || order.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {order.productId?.images?.[0] ? (
+                          <img 
+                            src={order.productId.images[0]} 
+                            alt={order.productId?.name || 'Product'} 
+                            className="h-10 w-10 rounded object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 bg-blue-100 rounded flex items-center justify-center">
+                            <ShoppingCart className="h-5 w-5 text-blue-600" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium line-clamp-1">
+                            {order.order_reference || order._id?.slice(-8) || 'Order'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {order.customer?.userName || order.customer?.firstName || 'Buyer'} → {order.seller?.userName || order.seller?.firstName || 'Seller'}
+                            {order.quantity && ` • Qty: ${order.quantity}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={order.status === 'completed' || order.status === 'delivered' ? "default" : order.status === 'pending' ? "secondary" : "outline"}
+                          className="text-xs"
+                        >
+                          {(order.status || 'Pending').replace(/_/g, ' ')}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLocation(`/admin/orders/${order.orderId?._id || order.orderId}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Open Disputes */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Open Disputes</CardTitle>
+                  <CardDescription>Disputes needing attention</CardDescription>
+                </div>
+                <Link href="/admin/disputes">
+                  <Button variant="ghost" size="sm">
+                    View All <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
               </div>
-              <p className="text-xs text-muted-foreground">On current page</p>
+            </CardHeader>
+            <CardContent>
+              {(Array.isArray(disputes) ? disputes : []).length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No disputes found</p>
+              ) : (
+                <div className="space-y-3">
+                  {(Array.isArray(disputes) ? disputes : []).slice(0, 5).map((dispute: any) => (
+                    <div key={dispute._id || dispute.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-orange-100 rounded flex items-center justify-center">
+                          <AlertCircle className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium line-clamp-1">{dispute.reason || dispute.title || 'Dispute'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {dispute.createdAt ? format(new Date(dispute.createdAt), 'MMM d, yyyy') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={dispute.status === 'open' || dispute.status === 'pending' ? "destructive" : "secondary"}
+                          className="text-xs"
+                        >
+                          {dispute.status || 'Open'}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLocation(`/admin/disputes/${dispute._id || dispute.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Users Table */}
+        {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-              <div>
-                <CardTitle>All Users</CardTitle>
-                <CardDescription>View and manage all registered users</CardDescription>
-              </div>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  data-testid="input-search-users"
-                />
-              </div>
-            </div>
+            <CardTitle className="text-base">Quick Actions</CardTitle>
+            <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading users...</p>
-              </div>
-            ) : users.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No users found</p>
-              </div>
-            ) : (
-              <>
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[200px]">User</TableHead>
-                        <TableHead className="hidden md:table-cell">Email</TableHead>
-                        <TableHead className="hidden lg:table-cell">Username</TableHead>
-                        <TableHead className="hidden xl:table-cell">Country</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="hidden sm:table-cell">Status</TableHead>
-                        <TableHead className="text-right">Wallet</TableHead>
-                        <TableHead className="text-right hidden sm:table-cell">Pending</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user: any) => (
-                        <TableRow key={user._id || user.id} data-testid={`row-user-${user._id || user.id}`}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="h-8 w-8 flex-shrink-0">
-                                <AvatarImage src={user.profilePhoto} />
-                                <AvatarFallback>
-                                  {user.firstName?.[0]}{user.lastName?.[0]}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0">
-                                <div className="font-medium truncate">{user.firstName} {user.lastName}</div>
-                                <div className="text-sm text-muted-foreground md:hidden truncate">{user.email}</div>
-                                <div className="text-sm text-muted-foreground hidden md:block">{user.phone || 'No phone'}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell" data-testid={`text-email-${user._id || user.id}`}>
-                            <div className="max-w-[200px] truncate">{user.email}</div>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell" data-testid={`text-username-${user._id || user.id}`}>{user.userName || 'N/A'}</TableCell>
-                          <TableCell className="hidden xl:table-cell">{user.country || 'N/A'}</TableCell>
-                          <TableCell>
-                            <Badge variant={user.seller ? "default" : "secondary"}>
-                              {user.seller ? "Seller" : "Customer"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            <Badge 
-                              variant={user.system_blocked ? "destructive" : "secondary"}
-                              data-testid={`badge-status-${user._id || user.id}`}
-                            >
-                              {user.system_blocked ? (
-                                <>
-                                  <ShieldBan className="h-3 w-3 mr-1" />
-                                  Blocked
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Active
-                                </>
-                              )}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right" data-testid={`text-wallet-${user._id || user.id}`}>
-                            <div className="flex items-center justify-end gap-1 font-medium">
-                              <Wallet className="h-3 w-3 text-muted-foreground" />
-                              <span>${(user.wallet || 0).toFixed(2)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right hidden sm:table-cell" data-testid={`text-wallet-pending-${user._id || user.id}`}>
-                            <span className="text-muted-foreground">${(user.walletPending || 0).toFixed(2)}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  data-testid={`button-actions-${user._id || user.id}`}
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => setLocation(`/admin/users/${user._id || user.id}`)}
-                                  data-testid={`menu-view-user-${user._id || user.id}`}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    blockUserMutation.mutate({
-                                      userId: user._id || user.id,
-                                      blocked: !user.system_blocked,
-                                    });
-                                  }}
-                                  disabled={blockUserMutation.isPending}
-                                  data-testid={`menu-block-user-${user._id || user.id}`}
-                                  className={user.system_blocked ? "" : "text-destructive focus:text-destructive"}
-                                >
-                                  {user.system_blocked ? (
-                                    <>
-                                      <CheckCircle className="h-4 w-4 mr-2" />
-                                      Unblock User
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Ban className="h-4 w-4 mr-2" />
-                                      Block User
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Pagination Controls */}
-                {pagination && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-                    <div className="text-sm text-muted-foreground text-center sm:text-left">
-                      <span className="hidden sm:inline">Page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalItems} total users)</span>
-                      <span className="sm:hidden">{pagination.currentPage} / {pagination.totalPages}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(page - 1)}
-                        disabled={!pagination.hasPrevPage}
-                        data-testid="button-prev-page"
-                      >
-                        <ChevronLeft className="h-4 w-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Previous</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(page + 1)}
-                        disabled={!pagination.hasNextPage}
-                        data-testid="button-next-page"
-                      >
-                        <span className="hidden sm:inline">Next</span>
-                        <ChevronRight className="h-4 w-4 sm:ml-1" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Link href="/admin/users">
+                <Button variant="outline" className="w-full h-auto py-4 flex flex-col gap-2">
+                  <Users className="h-6 w-6" />
+                  <span>Manage Users</span>
+                </Button>
+              </Link>
+              <Link href="/admin/pending-approvals">
+                <Button variant="outline" className="w-full h-auto py-4 flex flex-col gap-2">
+                  <Clock className="h-6 w-6" />
+                  <span>Pending Approvals</span>
+                </Button>
+              </Link>
+              <Link href="/admin/orders">
+                <Button variant="outline" className="w-full h-auto py-4 flex flex-col gap-2">
+                  <ShoppingCart className="h-6 w-6" />
+                  <span>View Orders</span>
+                </Button>
+              </Link>
+              <Link href="/admin/disputes">
+                <Button variant="outline" className="w-full h-auto py-4 flex flex-col gap-2">
+                  <AlertCircle className="h-6 w-6" />
+                  <span>Resolve Disputes</span>
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

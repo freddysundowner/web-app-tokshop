@@ -4,6 +4,58 @@ import { BASE_URL } from "../utils";
 import { z } from "zod";
 
 export function registerOrderRoutes(app: Express) {
+  // Get all order items for a show (tokshow)
+  app.get("/api/orders/items/all", async (req, res) => {
+    try {
+      console.log('Fetching order items for show');
+      console.log('Query params received:', req.query);
+      
+      const queryParams = new URLSearchParams();
+      
+      if (req.query.tokshow) {
+        queryParams.set('tokshow', req.query.tokshow as string);
+      }
+      if (req.query.page) {
+        queryParams.set('page', req.query.page as string);
+      }
+      if (req.query.limit) {
+        queryParams.set('limit', req.query.limit as string);
+      }
+      
+      const queryString = queryParams.toString();
+      const url = `${BASE_URL}/orders/items/all${queryString ? `?${queryString}` : ''}`;
+      console.log('Final API URL being called:', url);
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json() as any;
+      console.log('Order items response keys:', Object.keys(data));
+      
+      res.json(data);
+    } catch (error) {
+      console.error('Order items fetch error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: "Failed to fetch order items from Tokshop API" 
+      });
+    }
+  });
+
   // Get single order by ID (must be before general orders route)
   app.get("/api/orders/:orderId", async (req, res) => {
     try {

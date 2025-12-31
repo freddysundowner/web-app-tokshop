@@ -64,6 +64,24 @@ export default function AdminUsers() {
     },
   });
 
+  const { data: userStatsData } = useQuery<{
+    success: boolean;
+    data: any;
+  }>({
+    queryKey: ['/api/admin/users/stats/all'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/users/stats/all', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user stats');
+      }
+      return await response.json();
+    },
+  });
+
+  const userStats = userStatsData?.data;
+
   const allUsers = usersData?.data?.users || [];
   
   const users = allUsers.filter((u: any) => {
@@ -191,7 +209,7 @@ export default function AdminUsers() {
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -199,21 +217,9 @@ export default function AdminUsers() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-total-users">
-                {pagination?.totalItems || users.length}
+                {userStats?.totalUsers ?? pagination?.totalItems ?? users.length}
               </div>
-              <p className="text-xs text-muted-foreground">All registered users</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sellers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-sellers-count">
-                {users.filter((u: any) => u.seller).length}
-              </div>
-              <p className="text-xs text-muted-foreground">On current page</p>
+              <p className="text-xs text-muted-foreground">All registered</p>
             </CardContent>
           </Card>
           <Card>
@@ -223,9 +229,45 @@ export default function AdminUsers() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-customers-count">
-                {users.filter((u: any) => !u.seller).length}
+                {userStats?.totalCustomers ?? '-'}
               </div>
-              <p className="text-xs text-muted-foreground">On current page</p>
+              <p className="text-xs text-muted-foreground">Total customers</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Sellers</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600" data-testid="text-active-sellers">
+                {userStats?.activeSellers ?? '-'}
+              </div>
+              <p className="text-xs text-muted-foreground">Approved sellers</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Sellers</CardTitle>
+              <Clock className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600" data-testid="text-pending-sellers">
+                {userStats?.pendingSellers ?? '-'}
+              </div>
+              <p className="text-xs text-muted-foreground">Awaiting approval</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Blocked Users</CardTitle>
+              <Ban className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600" data-testid="text-blocked-users">
+                {userStats?.blockedUsers ?? '-'}
+              </div>
+              <p className="text-xs text-muted-foreground">Blocked accounts</p>
             </CardContent>
           </Card>
         </div>

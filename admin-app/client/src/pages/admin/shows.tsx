@@ -14,7 +14,23 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AdminLayout } from "@/components/admin-layout";
-import { Video, Search, ChevronLeft, ChevronRight, Eye, Calendar, User, Star, CalendarIcon } from "lucide-react";
+import { Video, Search, ChevronLeft, ChevronRight, Eye, Calendar, User, Star, CalendarIcon, Trash2, MoreHorizontal, DollarSign, ShoppingCart, Package, Clock, CheckCircle, Ban, TrendingUp, AlertCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -27,6 +43,8 @@ export default function AdminShows() {
   const [featureDialogOpen, setFeatureDialogOpen] = useState(false);
   const [selectedShow, setSelectedShow] = useState<any>(null);
   const [featuredUntilDate, setFeaturedUntilDate] = useState<Date | undefined>(undefined);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [showToDelete, setShowToDelete] = useState<any>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -34,6 +52,57 @@ export default function AdminShows() {
   const { data: showsData, isLoading } = useQuery<any>({
     queryKey: ['/api/admin/shows', page, limit, searchTitle, searchType],
   });
+
+  const { data: roomStatsData } = useQuery<{
+    success: boolean;
+    data: any;
+  }>({
+    queryKey: ['/api/admin/rooms/stats/all'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/rooms/stats/all', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        return { success: false, data: {} };
+      }
+      return await response.json();
+    },
+  });
+
+  const roomStatsRaw: any = roomStatsData?.data || {};
+  const roomStats = Object.fromEntries(
+    Object.entries(roomStatsRaw).filter(([key, value]) => 
+      typeof value === 'number' || typeof value === 'string'
+    )
+  );
+
+  const formatStatLabel = (key: string): string => {
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .replace(/_/g, ' ')
+      .trim();
+  };
+
+  const getStatIcon = (key: string) => {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey.includes('live')) return { icon: Video, color: 'text-red-500', valueColor: 'text-red-600' };
+    if (lowerKey.includes('upcoming') || lowerKey.includes('pending') || lowerKey.includes('scheduled')) return { icon: Clock, color: 'text-blue-500', valueColor: 'text-blue-600' };
+    if (lowerKey.includes('active') || lowerKey.includes('approved')) return { icon: CheckCircle, color: 'text-green-500', valueColor: 'text-green-600' };
+    if (lowerKey.includes('blocked') || lowerKey.includes('banned')) return { icon: Ban, color: 'text-red-500', valueColor: 'text-red-600' };
+    if (lowerKey.includes('revenue') || lowerKey.includes('amount')) return { icon: DollarSign, color: 'text-green-500', valueColor: 'text-green-600' };
+    if (lowerKey.includes('show') || lowerKey.includes('room') || lowerKey.includes('total')) return { icon: Video, color: 'text-muted-foreground', valueColor: '' };
+    return { icon: TrendingUp, color: 'text-muted-foreground', valueColor: '' };
+  };
+
+  const formatStatValue = (key: string, value: any): string => {
+    const lowerKey = key.toLowerCase();
+    const numValue = Number(value);
+    if (lowerKey.includes('revenue') || lowerKey.includes('amount') || lowerKey.includes('price')) {
+      return `$${numValue.toFixed(2)}`;
+    }
+    return String(value ?? 0);
+  };
 
   const featureMutation = useMutation({
     mutationFn: async ({ roomId, featured, featured_until }: { roomId: string; featured: boolean; featured_until: string | null }) => {
@@ -72,6 +141,48 @@ export default function AdminShows() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (roomId: string) => {
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete show');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Show Deleted",
+        description: "The show has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/shows'] });
+      setDeleteDialogOpen(false);
+      setShowToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete the show.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteShow = () => {
+    if (!showToDelete) return;
+    const roomId = showToDelete._id || showToDelete.id;
+    deleteMutation.mutate(roomId);
+  };
+
+  const openDeleteDialog = (show: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowToDelete(show);
+    setDeleteDialogOpen(true);
+  };
+
   const handleFeatureShow = () => {
     if (!selectedShow) return;
     
@@ -79,7 +190,7 @@ export default function AdminShows() {
     featureMutation.mutate({
       roomId,
       featured: true,
-      featured_until: featuredUntilDate ? featuredUntilDate.getTime() : null,
+      featured_until: featuredUntilDate ? String(featuredUntilDate.getTime()) : null,
     });
   };
 
@@ -100,9 +211,6 @@ export default function AdminShows() {
     hasPrevPage: page > 1
   } : null;
 
-  // Stats
-  const liveShows = shows.filter((show: any) => show.status === 'live').length;
-  const scheduledShows = shows.filter((show: any) => show.status === 'scheduled').length;
 
   return (
     <AdminLayout>
@@ -112,45 +220,31 @@ export default function AdminShows() {
           <p className="text-muted-foreground">Manage all live shopping shows and rooms</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Shows</CardTitle>
-              <Video className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-shows">
-                {pagination?.totalItems || shows.length}
-              </div>
-              <p className="text-xs text-muted-foreground">All time</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Live Now</CardTitle>
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600" data-testid="text-live-shows">
-                {liveShows}
-              </div>
-              <p className="text-xs text-muted-foreground">Currently active</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-scheduled-shows">
-                {scheduledShows}
-              </div>
-              <p className="text-xs text-muted-foreground">Upcoming shows</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Stats Cards - Dynamic from API */}
+        {Object.keys(roomStats).length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {Object.entries(roomStats).map(([key, value]) => {
+              const { icon: Icon, color, valueColor } = getStatIcon(key);
+              return (
+                <Card key={key}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{formatStatLabel(key)}</CardTitle>
+                    {key.toLowerCase() === 'live' ? (
+                      <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                    ) : (
+                      <Icon className={`h-4 w-4 ${color}`} />
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold ${valueColor}`}>
+                      {formatStatValue(key, value)}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
         {/* Shows Table */}
         <Card>
@@ -215,6 +309,9 @@ export default function AdminShows() {
                         <TableHead className="min-w-[250px]">Show Details</TableHead>
                         <TableHead className="hidden md:table-cell">Host</TableHead>
                         <TableHead className="hidden lg:table-cell">Viewers</TableHead>
+                        <TableHead className="hidden xl:table-cell">Products</TableHead>
+                        <TableHead className="hidden xl:table-cell">Orders</TableHead>
+                        <TableHead className="hidden xl:table-cell">Revenue</TableHead>
                         <TableHead className="hidden sm:table-cell">Created</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -261,13 +358,18 @@ export default function AdminShows() {
                                   <div className="font-medium truncate" data-testid={`text-title-${showId}`}>
                                     {String(show.title || show.name || 'Untitled Show')}
                                   </div>
-                                  {show.category?.name && (
-                                    <div className="text-xs text-muted-foreground mt-1">
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {show.roomType && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {String(show.roomType)}
+                                      </Badge>
+                                    )}
+                                    {show.category?.name && (
                                       <Badge variant="secondary" className="text-xs">
                                         {String(show.category.name)}
                                       </Badge>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                   {show.description && typeof show.description === 'string' && (
                                     <div className="text-sm text-muted-foreground line-clamp-2 mt-1">
                                       {show.description}
@@ -308,6 +410,24 @@ export default function AdminShows() {
                               <div className="flex items-center gap-1">
                                 <Eye className="h-4 w-4 text-muted-foreground" />
                                 {Array.isArray(show.viewers) ? show.viewers.length : 0}
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell" data-testid={`text-products-${showId}`}>
+                              <div className="flex items-center gap-1">
+                                <Package className="h-4 w-4 text-muted-foreground" />
+                                <span>{show.productsCount || show.products?.length || 0}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell" data-testid={`text-orders-${showId}`}>
+                              <div className="flex items-center gap-1">
+                                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                                <span>{show.salesCount || show.ordersCount || 0}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden xl:table-cell" data-testid={`text-revenue-${showId}`}>
+                              <div className="flex items-center gap-1 text-green-600 font-medium">
+                                <DollarSign className="h-4 w-4" />
+                                <span>{(show.salesTotal || show.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
                             </TableCell>
                             <TableCell className="hidden sm:table-cell">
@@ -357,15 +477,46 @@ export default function AdminShows() {
                               })()}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => openFeatureDialog(show, e)}
-                                className={show.featured ? "text-yellow-500" : ""}
-                                data-testid={`button-feature-${showId}`}
-                              >
-                                <Star className={`h-4 w-4 ${show.featured ? "fill-yellow-500" : ""}`} />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => e.stopPropagation()}
+                                    data-testid={`button-actions-${showId}`}
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setLocation(`/admin/shows/${showId}`);
+                                    }}
+                                    data-testid={`menu-view-${showId}`}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => openFeatureDialog(show, e as any)}
+                                    className={show.featured ? "text-yellow-600" : ""}
+                                    data-testid={`menu-feature-${showId}`}
+                                  >
+                                    <Star className={`mr-2 h-4 w-4 ${show.featured ? "fill-yellow-500" : ""}`} />
+                                    {show.featured ? "Update Featured" : "Feature Show"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => openDeleteDialog(show, e as any)}
+                                    className="text-destructive focus:text-destructive"
+                                    data-testid={`menu-delete-${showId}`}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Show
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         );
@@ -505,6 +656,30 @@ export default function AdminShows() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Show</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{showToDelete?.title || showToDelete?.name || 'this show'}"? 
+              This action cannot be undone and will permanently remove the show and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteShow}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Show"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

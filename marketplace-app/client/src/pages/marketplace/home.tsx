@@ -310,12 +310,13 @@ export default function MarketplaceHome() {
                     </div>
                   )}
 
-                  {/* First Section: Live Shows (4 rows ≈ 12 shows) */}
+                  {/* Live Shows Section */}
                   {rooms.length > 0 && (
                     <div>
                       <h2 className="text-lg font-bold mb-3">Live Shows</h2>
                       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4" data-testid="grid-giveaways">
-                        {rooms.slice(0, 12).map((room) => (
+                        {/* Show first 12 shows, or all shows if no trending products */}
+                        {(trendingProducts.length > 0 ? rooms.slice(0, 12) : rooms.slice(0, 24)).map((room) => (
                           <ShowCard
                             key={room._id || room.id}
                             show={room as any}
@@ -346,8 +347,8 @@ export default function MarketplaceHome() {
                     </div>
                   )}
 
-                  {/* Second Section: More Live Shows (4 rows ≈ 12 shows) */}
-                  {rooms.slice(12, 24).length > 0 && (
+                  {/* Second Section: More Live Shows - Only shown when trending products exist */}
+                  {trendingProducts.length > 0 && rooms.slice(12, 24).length > 0 && (
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4">
                       {rooms.slice(12, 24).map((room) => (
                         <ShowCard

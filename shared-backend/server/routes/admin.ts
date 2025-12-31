@@ -387,6 +387,205 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  // Get orders stats
+  app.get("/api/admin/orders/stats/all", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/orders/stats/all`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || "Failed to fetch order stats",
+          details: errorData,
+        });
+      }
+
+      const data = await response.json();
+      console.log("Order stats API response:", JSON.stringify(data, null, 2));
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching order stats:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch order stats",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get all orders (admin)
+  app.get("/api/admin/orders", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const page = req.query.page || 1;
+      const limit = req.query.limit || 10;
+      const status = req.query.status;
+      
+      let url = `${BASE_URL}/orders?page=${page}&limit=${limit}`;
+      if (status && status !== 'all') {
+        url += `&status=${status}`;
+      }
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || "Failed to fetch orders",
+          details: errorData,
+        });
+      }
+
+      const data = await response.json();
+      console.log("Admin orders API response - count:", data?.orders?.length || data?.length || 0);
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching orders:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch orders",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get shows/rooms stats
+  app.get("/api/admin/rooms/stats/all", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/rooms/stats/all`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || "Failed to fetch room stats",
+          details: errorData,
+        });
+      }
+
+      const data = await response.json();
+      console.log("Room stats API response:", JSON.stringify(data, null, 2));
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching room stats:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch room stats",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get user stats
+  app.get("/api/admin/users/stats/all", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/users/stats/all`;
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || "Failed to fetch user stats",
+          details: errorData,
+        });
+      }
+
+      const data = await response.json();
+      console.log("User stats API response:", JSON.stringify(data, null, 2));
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching user stats:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch user stats",
+        details: error.message,
+      });
+    }
+  });
+
   // Get user addresses
   app.get("/api/admin/users/:userId/addresses", requireAdmin, async (req, res) => {
     try {
@@ -1262,11 +1461,24 @@ If you have any questions, feel free to reach out to our support team.
 
       const data = await response.json();
       
+      // API returns: { data/rooms: [...], totalDoc: number, limits: number, pages: currentPage }
+      // Note: "pages" is current page, NOT total pages - same pattern as users endpoint
+      const totalDoc = data.totalDoc || data.total || data.totalCount || 0;
+      const limitsValue = data.limits || data.limit || parseInt(req.query.limit as string) || 10;
+      const limits = typeof limitsValue === 'number' ? limitsValue : parseInt(String(limitsValue)) || 10;
+      const currentPage = data.pages || data.page || 1;
+      
+      // Calculate total pages from totalDoc and limits (same pattern as users endpoint)
+      const totalPages = Math.ceil(totalDoc / limits);
+      
+      console.log(`Shows pagination - totalDoc: ${totalDoc}, limits: ${limits}, currentPage: ${currentPage}, calculated totalPages: ${totalPages}`);
+      
       res.json({
         success: true,
         data: data.data || data.rooms || [],
-        pages: data.pages || 1,
-        totalDoc: data.totalDoc || 0,
+        pages: totalPages,
+        totalDoc: totalDoc,
+        currentPage: currentPage,
       });
     } catch (error: any) {
       console.error("Error fetching shows:", error);

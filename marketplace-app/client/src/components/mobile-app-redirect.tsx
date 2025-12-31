@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const APP_STORE_URL = "https://apps.apple.com/us/app/icona-live/id6751861344";
-const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.iconaapp.live&hl=en";
 const APP_SCHEME = "icona://";
-const UNIVERSAL_LINK_DOMAIN = "https://iconaapp.com";
 
 interface MobileAppRedirectProps {
   type: "user" | "show" | "product";
@@ -19,6 +16,23 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
   const [isAndroid, setIsAndroid] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [attemptedAppOpen, setAttemptedAppOpen] = useState(false);
+  const [appStoreUrl, setAppStoreUrl] = useState("");
+  const [playStoreUrl, setPlayStoreUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+
+  useEffect(() => {
+    fetch("/api/themes")
+      .then(res => res.json())
+      .then(data => {
+        const themes = data.data || data;
+        setAppStoreUrl(themes.ios_link || "");
+        setPlayStoreUrl(themes.android_link || "");
+        setWebsiteUrl(themes.website_url || window.location.origin);
+      })
+      .catch(() => {
+        setWebsiteUrl(window.location.origin);
+      });
+  }, []);
 
   useEffect(() => {
     const userAgent = navigator.userAgent;
@@ -33,12 +47,13 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
       setAttemptedAppOpen(true);
       
       const referrer = document.referrer;
-      const isFromIconaDomain = referrer.includes('iconaapp.com');
-      const isOnIconaDomain = window.location.hostname === 'iconaapp.com' || 
-                               window.location.hostname === 'www.iconaapp.com';
+      const domainHost = websiteUrl ? new URL(websiteUrl).hostname : '';
+      const isFromIconaDomain = domainHost ? referrer.includes(domainHost) : false;
+      const isOnIconaDomain = domainHost ? (window.location.hostname === domainHost || 
+                               window.location.hostname === `www.${domainHost}`) : false;
       
-      if (isOnIconaDomain && !isFromIconaDomain) {
-        const universalLink = `${UNIVERSAL_LINK_DOMAIN}/${type}/${id}`;
+      if (isOnIconaDomain && !isFromIconaDomain && websiteUrl) {
+        const universalLink = `${websiteUrl}/${type}/${id}`;
         window.location.replace(universalLink);
         
         setTimeout(() => {
@@ -58,24 +73,24 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
 
   const handleOpenInApp = () => {
     const deepLink = `${APP_SCHEME}${type}/${id}`;
-    const storeUrl = isIOS ? APP_STORE_URL : PLAY_STORE_URL;
+    const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
     
     const now = Date.now();
     
     window.location.href = deepLink;
     
     setTimeout(() => {
-      if (document.hasFocus() && Date.now() - now < 2000) {
+      if (document.hasFocus() && Date.now() - now < 2000 && storeUrl) {
         window.location.href = storeUrl;
       }
     }, 1500);
   };
 
   const handleOpenAppStore = () => {
-    if (isIOS) {
-      window.location.href = APP_STORE_URL;
-    } else if (isAndroid) {
-      window.location.href = PLAY_STORE_URL;
+    if (isIOS && appStoreUrl) {
+      window.location.href = appStoreUrl;
+    } else if (isAndroid && playStoreUrl) {
+      window.location.href = playStoreUrl;
     }
   };
 

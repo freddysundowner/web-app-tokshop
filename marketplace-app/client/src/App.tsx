@@ -32,7 +32,7 @@ const LiveShows = lazy(() => import("@/pages/seller/live-shows"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Profile = lazy(() => import("@/pages/profile"));
 const ProfileView = lazy(() => import("@/pages/marketplace/profile-view"));
-const ProductDetail = lazy(() => import("@/pages/marketplace/product-detail"));
+const ProductDetailWrapper = lazy(() => import("@/pages/marketplace/product-detail-wrapper"));
 const AuctionDetail = lazy(() => import("@/pages/marketplace/auction-detail"));
 const Account = lazy(() => import("@/pages/account"));
 const Payments = lazy(() => import("@/pages/payments"));
@@ -265,6 +265,8 @@ function Router() {
               <Route path="/link/:type/:id" component={DeepLink} />
               <Route path="/show/:id" component={ShowViewWrapper} />
               <Route path="/show" component={ShowViewWrapper} />
+              <Route path="/product/:productId" component={ProductDetailWrapper} />
+              <Route path="/product" component={ProductDetailWrapper} />
               <Route path="/user" component={ProfileViewWrapper} />
               <Route path="/privacy-policy" component={PrivacyPolicy} />
               <Route path="/terms-of-service" component={TermsOfService} />
@@ -447,7 +449,7 @@ function Router() {
             <Route path="/featured/shows" component={FeaturedShows} />
             <Route path="/show/:id" component={ShowViewWrapper} />
             <Route path="/show" component={ShowViewWrapper} />
-            <Route path="/product/:productId" component={ProductDetail} />
+            <Route path="/product/:productId" component={ProductDetailWrapper} />
             <Route path="/auction/:auctionId" component={AuctionDetail} />
             <Route path="/user" component={ProfileViewWrapper} />
             <Route path="/profile/:userId" component={ProfileViewWrapper} />

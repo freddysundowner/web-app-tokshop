@@ -8,13 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Video, User, Eye, DollarSign, Gavel, Pin, ShoppingCart, Gift, Package } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Video, User, Eye, DollarSign, Gavel, Pin, ShoppingCart, Gift, Package, TrendingUp, ChevronLeft, ChevronRight, PlayCircle, X } from "lucide-react";
 
 export default function AdminShowDetail() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/admin/shows/:showId");
   const showId = params?.showId;
   const [activeTab, setActiveTab] = useState("overview");
+  const [soldPage, setSoldPage] = useState(1);
+  const soldLimit = 15;
+  const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
   const { data: showData, isLoading } = useQuery<any>({
     queryKey: [`admin-show-${showId}`],
@@ -73,11 +78,11 @@ export default function AdminShowDetail() {
     enabled: !!showId && activeTab === "buy-now",
   });
 
-  // Fetch sold items
+  // Fetch sold items - uses /orders/items/all with tokshow parameter
   const { data: soldData, isLoading: soldLoading } = useQuery<any>({
-    queryKey: [`admin-show-${showId}-sold`],
+    queryKey: [`admin-show-${showId}-sold`, soldPage],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/shows/${showId}/sold?page=1&limit=15`, {
+      const response = await fetch(`/api/orders/items/all?tokshow=${showId}&page=${soldPage}&limit=${soldLimit}`, {
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch sold items');
@@ -162,7 +167,9 @@ export default function AdminShowDetail() {
   const auctions = auctionsData?.data || [];
   const giveaways = giveawaysData?.data || [];
   const buyNowItems = buyNowData?.data || [];
-  const soldOrders = soldData?.data || [];
+  const soldOrders = soldData?.items || soldData?.data || [];
+  const soldTotalPages = soldData?.totalPages || 1;
+  const soldTotalDocs = soldData?.totalDocuments || soldOrders.length;
 
   return (
     <AdminLayout>
@@ -230,6 +237,76 @@ export default function AdminShowDetail() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs font-medium">Viewers</CardTitle>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="stat-viewers">
+                    {Array.isArray(show.viewers) ? show.viewers.length : 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs font-medium">Sales</CardTitle>
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="stat-sales">
+                    {show.salesCount || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs font-medium">Revenue</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600" data-testid="stat-revenue">
+                    ${(show.salesTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs font-medium">Giveaways</CardTitle>
+                  <Gift className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="stat-giveaways">
+                    {show.giveawayCount || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs font-medium">Shipments</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="stat-shipments">
+                    {show.shipmentsCount || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs font-medium">Tips</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600" data-testid="stat-tips">
+                    ${(show.tipsTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column - Show Info */}
               <div className="lg:col-span-2 space-y-6">
@@ -295,84 +372,6 @@ export default function AdminShowDetail() {
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Active Auction Card */}
-                {activeAuction && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Gavel className="h-5 w-5" />
-                        Active Auction
-                      </CardTitle>
-                      <CardDescription>Current auction in progress</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {activeAuction.product && (
-                        <div className="flex items-start gap-4">
-                          {activeAuction.product.images && activeAuction.product.images[0] && (
-                            <img
-                              src={activeAuction.product.images[0]}
-                              alt={activeAuction.product.name}
-                              className="w-20 h-20 rounded object-cover flex-shrink-0"
-                            />
-                          )}
-                          <div className="flex-1">
-                            <h3 className="font-medium" data-testid="text-auction-product-name">
-                              {activeAuction.product.name}
-                            </h3>
-                            {activeAuction.product.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {activeAuction.product.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h3 className="font-medium text-sm text-muted-foreground mb-1">Starting Price</h3>
-                          <p className="text-lg font-bold text-foreground" data-testid="text-auction-starting-price">
-                            ${activeAuction.startingprice || 0}
-                          </p>
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-sm text-muted-foreground mb-1">Current Bid</h3>
-                          <p className="text-lg font-bold text-green-600" data-testid="text-auction-current-bid">
-                            ${activeAuction.currentbid || activeAuction.startingprice || 0}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-sm text-muted-foreground mb-1">Status</h3>
-                        <Badge variant={activeAuction.won ? 'default' : 'secondary'}>
-                          {activeAuction.won ? 'Won' : 'In Progress'}
-                        </Badge>
-                      </div>
-                      {activeAuction.winner && (
-                        <div>
-                          <h3 className="font-medium text-sm text-muted-foreground mb-1">Winner</h3>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={activeAuction.winner.profilePhoto} />
-                              <AvatarFallback>
-                                {(activeAuction.winner.firstName || 'W')[0]}
-                                {(activeAuction.winner.lastName || 'N')[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-sm font-medium">
-                                {activeAuction.winner.firstName} {activeAuction.winner.lastName}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {activeAuction.winner.email}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
 
                 {/* Bids Card */}
                 {bids.length > 0 && (
@@ -542,19 +541,9 @@ export default function AdminShowDetail() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Show ID</span>
-                      <span className="text-xs font-mono">{show._id || show.id || 'N/A'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Total Viewers</span>
                       <span className="font-bold">{Array.isArray(show.viewers) ? show.viewers.length : 0}</span>
                     </div>
-                    {activeAuction && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Total Bids</span>
-                        <span className="font-bold">{bids.length}</span>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -755,69 +744,177 @@ export default function AdminShowDetail() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  Sold Orders ({soldOrders.length})
+                  Sold Items ({soldTotalDocs})
                 </CardTitle>
-                <CardDescription>All orders from this show</CardDescription>
+                <CardDescription>All sold items from this show</CardDescription>
               </CardHeader>
               <CardContent>
                 {soldLoading ? (
                   <div className="text-center py-8">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Loading sold orders...</p>
+                    <p className="text-muted-foreground">Loading sold items...</p>
                   </div>
                 ) : soldOrders.length === 0 ? (
                   <div className="text-center py-8">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No sold orders found</p>
+                    <p className="text-muted-foreground">No sold items found</p>
                   </div>
                 ) : (
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Order ID</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead>Date</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {soldOrders.map((order: any) => (
-                          <TableRow key={order._id} data-testid={`row-sold-${order._id}`}>
-                            <TableCell className="font-mono text-sm">
-                              {order._id?.substring(0, 8)}...
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {order.customer?.firstName} {order.customer?.lastName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {order.customer?.email}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">{order.status || 'pending'}</Badge>
-                            </TableCell>
-                            <TableCell className="font-bold">
-                              ${order.invoice || order.total || 0}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {formatDate(order.createdAt)}
-                            </TableCell>
+                  <>
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Order Ref</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Qty</TableHead>
+                            <TableHead>Price</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Video</TableHead>
+                            <TableHead>Date</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {soldOrders.map((item: any) => (
+                            <TableRow key={item._id} data-testid={`row-sold-${item._id}`}>
+                              <TableCell className="font-mono text-sm font-medium">
+                                {item.order_reference || '-'}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {item.productId?.images?.[0] && (
+                                    <img
+                                      src={item.productId.images[0]}
+                                      alt={item.productId?.name || 'Product'}
+                                      className="h-10 w-10 rounded object-cover"
+                                    />
+                                  )}
+                                  <span className="font-medium text-sm truncate max-w-[150px]">
+                                    {item.productId?.name || 'Unknown Product'}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {item.customer?.profilePhoto ? (
+                                    <img
+                                      src={item.customer.profilePhoto}
+                                      alt={item.customer?.userName || 'Customer'}
+                                      className="h-6 w-6 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs">
+                                      {item.customer?.userName?.charAt(0)?.toUpperCase() || '?'}
+                                    </div>
+                                  )}
+                                  <span className="text-sm">{item.customer?.userName || 'Unknown'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {item.quantity || 1}
+                              </TableCell>
+                              <TableCell className="font-bold">
+                                ${(item.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={item.status === 'delivered' ? 'default' : item.status === 'ready_to_ship' ? 'outline' : 'secondary'}
+                                  className={
+                                    item.status === 'delivered' ? 'bg-green-500' :
+                                    item.status === 'shipped' ? 'bg-blue-500' :
+                                    item.status === 'ready_to_ship' ? 'border-primary text-primary bg-transparent' :
+                                    item.status === 'cancelled' ? 'bg-red-500' : ''
+                                  }
+                                >
+                                  {item.status?.replace(/_/g, ' ') || 'pending'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {item.videoReceipt ? (
+                                  <button 
+                                    onClick={() => {
+                                      setCurrentVideoUrl(item.videoReceipt);
+                                      setVideoDialogOpen(true);
+                                    }}
+                                    className="text-primary hover:underline flex items-center gap-1"
+                                  >
+                                    <PlayCircle className="h-4 w-4" />
+                                    <span className="text-sm">View</span>
+                                  </button>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {formatDate(item.createdAt)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    
+                    {/* Pagination */}
+                    {soldTotalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Page {soldPage} of {soldTotalPages} ({soldTotalDocs} items)
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSoldPage(p => Math.max(1, p - 1))}
+                            disabled={soldPage <= 1 || soldLoading}
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSoldPage(p => Math.min(soldTotalPages, p + 1))}
+                            disabled={soldPage >= soldTotalPages || soldLoading}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Video Receipt Dialog */}
+      <Dialog open={videoDialogOpen} onOpenChange={setVideoDialogOpen}>
+        <DialogContent className="max-w-3xl p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <PlayCircle className="h-5 w-5" />
+              Video Receipt
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-4">
+            {currentVideoUrl && (
+              <video 
+                src={currentVideoUrl} 
+                controls 
+                autoPlay
+                className="w-full rounded-lg"
+                style={{ maxHeight: '70vh' }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
