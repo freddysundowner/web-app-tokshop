@@ -491,6 +491,7 @@ export const shippingEstimateRequestSchema = z.object({
   width: z.union([z.string(), z.number()]).transform(Number),
   height: z.union([z.string(), z.number()]).transform(Number),
   buying_label: z.boolean().optional().default(true),
+  order_id: z.string().optional(),
 });
 
 export const shippingEstimateResponseSchema = z.object({

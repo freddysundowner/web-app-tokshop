@@ -52,7 +52,7 @@ export default function Signup() {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch Firebase keys:', error);
+        console.error('Failed to fetch auth keys:', error);
       }
     };
     fetchFirebaseKeys();
@@ -98,9 +98,9 @@ export default function Signup() {
     } catch (error: any) {
       let errorMessage = 'Google signup failed';
       
-      // Handle specific Firebase auth errors
+      // Handle specific auth errors
       if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = 'Domain not authorized for Firebase authentication. Please contact support.';
+        errorMessage = 'Domain not authorized for authentication. Please contact support.';
       } else if (error.code === 'auth/popup-blocked') {
         errorMessage = 'Popup was blocked. Please allow popups and try again.';
       } else if (error.message) {
@@ -127,9 +127,9 @@ export default function Signup() {
     } catch (error: any) {
       let errorMessage = 'Apple signup failed';
       
-      // Handle specific Firebase auth errors
+      // Handle specific auth errors
       if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = 'Domain not authorized for Firebase authentication. Please contact support.';
+        errorMessage = 'Domain not authorized for authentication. Please contact support.';
       } else if (error.code === 'auth/popup-blocked') {
         errorMessage = 'Popup was blocked. Please allow popups and try again.';
       } else if (error.message) {

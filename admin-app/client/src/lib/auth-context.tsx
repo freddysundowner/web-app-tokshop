@@ -605,7 +605,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Admin app doesn't require Firebase to function (it's where Firebase gets configured!)
     // If Firebase isn't ready, still allow admin panel access
     if (!isFirebaseReady) {
-      console.log('[AuthProvider] Firebase not configured yet - admin can still access panel to configure it');
+      console.log('[AuthProvider] Auth not configured yet - admin can still access panel to configure it');
       // Still complete auth check without Firebase so admin panel loads
       if (!hasCheckedAuth.current) {
         checkAuth();
@@ -613,11 +613,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
-    console.log('[AuthProvider] Firebase ready, setting up auth listener');
+    console.log('[AuthProvider] Auth ready, setting up auth listener');
     
     // Set up Firebase auth state listener (mainly for logout events now)
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
-      console.log('[Firebase Listener] Auth state changed, user:', firebaseUser ? 'EXISTS' : 'NONE', 'hasCheckedAuth:', hasCheckedAuth.current);
+      console.log('[Auth Listener] Auth state changed, user:', firebaseUser ? 'EXISTS' : 'NONE', 'hasCheckedAuth:', hasCheckedAuth.current);
       
       if (!firebaseUser) {
         setUser(null);
@@ -627,10 +627,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Only set loading to false after checkAuth has completed
       if (hasCheckedAuth.current) {
-        console.log('[Firebase Listener] Setting isLoading = false');
+        console.log('[Auth Listener] Setting isLoading = false');
         setIsLoading(false);
       } else {
-        console.log('[Firebase Listener] Waiting for checkAuth to complete...');
+        console.log('[Auth Listener] Waiting for checkAuth to complete...');
       }
     });
 

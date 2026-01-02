@@ -415,7 +415,7 @@ export function registerShippingRoutes(app: Express) {
       console.log('Fetching shipping estimates from external API:', `${BASE_URL}/shipping/profiles/estimate/rates`);
       
       // Send data in request body using GET method with https.request
-      const requestBody = {
+      const requestBody: Record<string, any> = {
         weight: validatedData.weight,
         unit: validatedData.unit,
         product: validatedData.product,
@@ -427,6 +427,11 @@ export function registerShippingRoutes(app: Express) {
         height: validatedData.height,
         buying_label: validatedData.buying_label ?? true,
       };
+      
+      // Add order_id if provided
+      if (validatedData.order_id) {
+        requestBody.order_id = validatedData.order_id;
+      }
 
       // Build auth headers
       const headers: Record<string, string> = {};

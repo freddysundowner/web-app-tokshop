@@ -761,7 +761,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Handle case where Firebase config is not available - still allow app to load
   useEffect(() => {
     if (!settingsLoading && !isFirebaseReady) {
-      console.log('[AuthProvider] Settings loaded but Firebase not available - checking localStorage');
+      console.log('[AuthProvider] Settings loaded but auth not available - checking localStorage');
       // Try to restore user from localStorage even without Firebase
       const storedUser = localStorage.getItem('user');
       const storedToken = localStorage.getItem('accessToken');
@@ -783,25 +783,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     // Only set up Firebase listener after Firebase is initialized
     if (!isFirebaseReady) {
-      console.log('[AuthProvider] Waiting for Firebase to be ready...');
+      console.log('[AuthProvider] Waiting for auth to be ready...');
       return;
     }
 
-    console.log('[AuthProvider] Firebase ready, setting up auth listener');
+    console.log('[AuthProvider] Auth ready, setting up auth listener');
     
     // Set up Firebase auth state listener (mainly for logout events now)
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
-      console.log('[Firebase Listener] Auth state changed, user:', firebaseUser ? 'EXISTS' : 'NONE', 'hasCheckedAuth:', hasCheckedAuth.current);
+      console.log('[Auth Listener] Auth state changed, user:', firebaseUser ? 'EXISTS' : 'NONE', 'hasCheckedAuth:', hasCheckedAuth.current);
       
       if (!firebaseUser) {
         // Only clear user if there's no backend session token
         // This prevents email/password users from being logged out when Firebase reports no user
         const storedToken = localStorage.getItem('accessToken');
         if (!storedToken) {
-          console.log('[Firebase Listener] No Firebase user and no stored token - clearing user');
+          console.log('[Auth Listener] No auth user and no stored token - clearing user');
           setUser(null);
         } else {
-          console.log('[Firebase Listener] No Firebase user but backend session exists - keeping user logged in');
+          console.log('[Auth Listener] No auth user but backend session exists - keeping user logged in');
         }
       }
       // Note: Sign-in authentication now handled directly in login functions
@@ -809,10 +809,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Only set loading to false after checkAuth has completed
       if (hasCheckedAuth.current) {
-        console.log('[Firebase Listener] Setting isLoading = false');
+        console.log('[Auth Listener] Setting isLoading = false');
         setIsLoading(false);
       } else {
-        console.log('[Firebase Listener] Waiting for checkAuth to complete...');
+        console.log('[Auth Listener] Waiting for checkAuth to complete...');
       }
     });
 

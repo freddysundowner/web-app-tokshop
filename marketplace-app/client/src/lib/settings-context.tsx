@@ -234,7 +234,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           if (data.data.firebase_config) {
             // Use nested firebase_config object if available
             firebaseConfig = data.data.firebase_config;
-            console.log('🔥 Using nested firebase_config from API');
+            console.log('🔥 Using nested auth config from API');
           } else if (data.data.firebase_auth_domain || data.data.firebase_project_id) {
             // Build from individual fields (from admin panel settings)
             firebaseConfig = {
@@ -244,22 +244,22 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
               storageBucket: data.data.firebase_storage_bucket || '',
               appId: data.data.firebase_app_id || '',
             };
-            console.log('🔥 Built firebase_config from individual fields');
+            console.log('🔥 Built auth config from individual fields');
           }
           
           // Initialize Firebase with dynamic config if available
           if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
-            console.log('🔥 Initializing Firebase with config:', { projectId: firebaseConfig.projectId });
+            console.log('🔥 Initializing auth with config:', { projectId: firebaseConfig.projectId });
             initializeFirebase(firebaseConfig);
             setIsFirebaseReady(true);
           } else {
-            console.warn('⚠️ No valid Firebase config found in settings');
+            console.warn('⚠️ No valid auth config found in settings');
           }
         }
       }
     } catch (error) {
       console.error('Failed to fetch app settings:', error);
-      console.warn('⚠️ Cannot initialize Firebase without settings');
+      console.warn('⚠️ Cannot initialize auth without settings');
     }
   };
 

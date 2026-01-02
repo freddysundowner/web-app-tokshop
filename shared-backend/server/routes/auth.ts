@@ -334,7 +334,7 @@ export function registerAuthRoutes(app: Express) {
   // Social authentication proxy (Google/Apple)
   app.post("/api/auth/social", async (req, res) => {
     try {
-      console.log("Processing social auth with Firebase token verification");
+      console.log("Processing social auth with token verification");
       console.log("Social auth payload received:", {
         ...req.body,
         idToken: "[REDACTED]",
@@ -352,10 +352,10 @@ export function registerAuthRoutes(app: Express) {
 
       const socialAuthData = validationResult.data;
 
-      // Verify Firebase ID token server-side for security
-      console.log("Verifying Firebase ID token...");
+      // Verify ID token server-side for security
+      console.log("Verifying ID token...");
       const decodedToken = await verifyFirebaseToken(socialAuthData.idToken);
-      console.log("Firebase token verified successfully for UID:", decodedToken.uid);
+      console.log("Token verified successfully for UID:", decodedToken.uid);
 
       // Use the verified Firebase data as the authoritative source
       const verifiedSocialAuthData = {

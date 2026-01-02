@@ -707,18 +707,18 @@ export function registerProductRoutes(app: Express) {
         const productData = await productResponse.json();
         const images = productData?.images || [];
 
-        // Step 2: Delete images from Firebase Storage
+        // Step 2: Delete images from storage
         if (images.length > 0) {
-          console.log(`Found ${images.length} images to delete from Firebase Storage`);
+          console.log(`Found ${images.length} images to delete from storage`);
           try {
             await deleteImagesFromStorage(images);
-            console.log("✅ Successfully deleted product images from Firebase Storage");
+            console.log("✅ Successfully deleted product images from storage");
           } catch (storageError) {
             // Log error but continue with product deletion
-            console.error("⚠️ Error deleting images from Firebase Storage:", storageError);
+            console.error("⚠️ Error deleting images from storage:", storageError);
           }
         } else {
-          console.log("No images to delete from Firebase Storage");
+          console.log("No images to delete from storage");
         }
       } else {
         console.warn("Could not fetch product details for image cleanup");

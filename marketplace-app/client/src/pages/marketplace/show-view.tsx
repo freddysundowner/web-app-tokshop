@@ -248,9 +248,9 @@ export default function ShowViewNew() {
       
       if (userId) {
         hasSentJoinMessageRef.current = true;
-        console.log('📨 Sending join message to Firebase');
+        console.log('📨 Sending join message');
         sendRoomMessage(id, 'joined 👋', userId, userName, userPhoto, [])
-          .then(() => console.log('✅ Join message sent to Firebase'))
+          .then(() => console.log('✅ Join message sent'))
           .catch((err) => {
             console.error('❌ Failed to send join message:', err);
             hasSentJoinMessageRef.current = false; // Allow retry on error
@@ -1021,12 +1021,12 @@ export default function ShowViewNew() {
   useEffect(() => {
     if (!id || !isFirebaseReady) return;
     
-    console.log(`📨 Subscribing to Firebase room messages for show: ${id}`);
+    console.log(`📨 Subscribing to room messages for show: ${id}`);
     
     const unsubscribe = subscribeToRoomMessages(
       id,
       (messages) => {
-        console.log(`📨 Received ${messages.length} messages from Firebase:`, messages);
+        console.log(`📨 Received ${messages.length} messages:`, messages);
         const formattedMessages = messages.map(msg => ({
           message: msg.message,
           senderName: msg.senderName,
@@ -1044,7 +1044,7 @@ export default function ShowViewNew() {
     );
     
     return () => {
-      console.log(`📨 Unsubscribing from Firebase room messages for show: ${id}`);
+      console.log(`📨 Unsubscribing from room messages for show: ${id}`);
       unsubscribe();
     };
   }, [id, isFirebaseReady]);

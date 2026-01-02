@@ -258,7 +258,7 @@ export default function ScheduleShow() {
       const imageUrl = await uploadShowThumbnail(file, showId);
       
       form.setValue("thumbnail", imageUrl);
-      console.log('📸 Image uploaded to Firebase:', imageUrl);
+      console.log('📸 Image uploaded:', imageUrl);
       
       toast({
         title: "Image Uploaded",
@@ -303,7 +303,7 @@ export default function ScheduleShow() {
       const videoUrl = await uploadShowPreviewVideo(file, showId);
       
       form.setValue("preview_videos", videoUrl);
-      console.log('🎥 Video uploaded to Firebase:', videoUrl);
+      console.log('🎥 Video uploaded:', videoUrl);
       
       toast({
         title: "Video Uploaded",

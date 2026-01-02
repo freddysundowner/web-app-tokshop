@@ -6,7 +6,7 @@ export function registerSettingsRoutes(app: Express) {
   app.get("/api/settings/keys", async (req, res) => {
     try {
       const url = `${BASE_URL}/settings/keys`;
-      console.log(`Fetching Firebase keys from: ${url}`);
+      console.log(`Fetching auth keys from: ${url}`);
       
       const response = await fetch(url, {
         method: "GET",
@@ -40,7 +40,7 @@ export function registerSettingsRoutes(app: Express) {
         },
       });
     } catch (error: any) {
-      console.error("Error fetching Firebase keys:", error);
+      console.error("Error fetching auth keys:", error);
       res.json({
         success: true,
         data: {

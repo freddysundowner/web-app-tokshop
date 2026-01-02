@@ -211,11 +211,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
                   storageBucket: apiSettings.firebase_storage_bucket,
                   appId: apiSettings.firebase_app_id,
                 };
-                console.log('🔥 Initializing Firebase with config from settings');
+                console.log('🔥 Initializing auth with config from settings');
                 initializeFirebase(firebaseConfig);
                 setIsFirebaseReady(true);
               } else {
-                console.warn('⚠️ Firebase config not available in settings');
+                console.warn('⚠️ Auth config not available in settings');
                 setIsFirebaseReady(false);
               }
             }
@@ -225,7 +225,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Failed to fetch app settings:', error);
-        console.warn('⚠️ Cannot initialize Firebase without settings');
+        console.warn('⚠️ Cannot initialize auth without settings');
       } finally {
         setIsLoading(false);
       }

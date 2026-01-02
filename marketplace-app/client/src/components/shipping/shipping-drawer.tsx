@@ -227,6 +227,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         length: parseFloat(dimensions.length),
         width: parseFloat(dimensions.width),
         height: parseFloat(dimensions.height),
+        order_id: displayOrder._id,
       };
 
       // Get auth headers
@@ -464,18 +465,22 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     const originalPrice = initialEstimatePrices[serviceKey] || currentPrice;
     const priceDifference = (currentPrice - originalPrice).toFixed(2);
     
-    console.log('Purchasing label with locked estimate:', {
+    console.log('=== LABEL PURCHASE DEBUG ===');
+    console.log('RATE_ID being sent to buy label endpoint:', estimateToUse.objectId);
+    console.log('Order rate_id (if stored on order):', (displayOrder as any).rate_id || 'NOT STORED ON ORDER');
+    console.log('Full purchase details:', {
       serviceKey,
       initialPrice: originalPrice,
       currentPrice: estimateToUse.price,
       priceDifference,
       carrier: estimateToUse.carrier,
       service: estimateToUse.service,
-      objectId: estimateToUse.objectId, // Use the locked rate_id
+      objectId: estimateToUse.objectId,
       weight,
       dimensions,
       labelFileType
     });
+    console.log('=== END LABEL PURCHASE DEBUG ===');
     
     // Add labelFileType and price difference to the mutation data
     purchaseLabelMutation.mutate({ 

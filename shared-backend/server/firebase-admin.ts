@@ -30,7 +30,7 @@ async function initializeFirebaseAdmin(): Promise<App> {
 
   try {
     // Fetch Firebase config from settings API with timeout
-    console.log('🔥 Fetching Firebase config from settings API...');
+    console.log('🔥 Fetching auth config from settings API...');
     
     const fetchWithTimeout = async (url: string, timeout = 5000) => {
       const controller = new AbortController();
@@ -49,7 +49,7 @@ async function initializeFirebaseAdmin(): Promise<App> {
     const response = await fetchWithTimeout(`${BASE_URL}/settings`, 5000);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch Firebase config from settings API');
+      throw new Error('Failed to fetch auth config from settings API');
     }
 
     const settings = await response.json();
@@ -60,23 +60,23 @@ async function initializeFirebaseAdmin(): Promise<App> {
       storageBucket: settings.firebase_storage_bucket || 'tokshop-33509.appspot.com',
     };
 
-    console.log('🔥 Initializing Firebase Admin with config:', { 
+    console.log('🔥 Initializing Admin with config:', { 
       projectId: firebaseConfig.projectId,
       storageBucket: firebaseConfig.storageBucket 
     });
 
     adminApp = initializeApp(firebaseConfig);
-    console.log('✅ Firebase Admin initialized successfully');
+    console.log('✅ Admin initialized successfully');
     
     return adminApp;
   } catch (error) {
-    console.error('❌ Firebase Admin initialization error:', error);
+    console.error('❌ Admin initialization error:', error);
     // Fallback to default config
     const fallbackConfig = {
       projectId: 'tokshop-33509',
       storageBucket: 'tokshop-33509.appspot.com',
     };
-    console.log('⚠️ Using fallback Firebase config');
+    console.log('⚠️ Using fallback auth config');
     adminApp = initializeApp(fallbackConfig);
     return adminApp;
   } finally {
@@ -115,10 +115,10 @@ export async function verifyFirebaseToken(idToken: string) {
       picture: decodedToken.picture,
     };
   } catch (error) {
-    console.error('Firebase token verification failed:', error);
+    console.error('Token verification failed:', error);
     return {
       success: false,
-      error: 'Invalid or expired Firebase token',
+      error: 'Invalid or expired authentication token',
     };
   }
 }
@@ -138,7 +138,7 @@ export async function deleteImagesFromStorage(imageUrls: string[]): Promise<void
       // Firebase URLs look like: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media...
       const urlParts = url.split('/o/');
       if (urlParts.length < 2) {
-        console.warn('Invalid Firebase Storage URL format:', url);
+        console.warn('Invalid storage URL format:', url);
         return;
       }
 
@@ -146,7 +146,7 @@ export async function deleteImagesFromStorage(imageUrls: string[]): Promise<void
       const encodedPath = urlParts[1].split('?')[0];
       const filePath = decodeURIComponent(encodedPath);
 
-      console.log(`🗑️ Deleting image from Firebase Storage: ${filePath}`);
+      console.log(`🗑️ Deleting image from storage: ${filePath}`);
 
       // Delete the file from Storage
       await bucket.file(filePath).delete();

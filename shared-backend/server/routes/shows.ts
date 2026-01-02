@@ -201,18 +201,18 @@ export function registerShowRoutes(app: Express) {
           mediaUrls.push(roomData.preview_videos);
         }
 
-        // Step 2: Delete media from Firebase Storage
+        // Step 2: Delete media from storage
         if (mediaUrls.length > 0) {
-          console.log(`Found ${mediaUrls.length} media file(s) to delete from Firebase Storage`);
+          console.log(`Found ${mediaUrls.length} media file(s) to delete from storage`);
           try {
             await deleteImagesFromStorage(mediaUrls);
-            console.log('✅ Successfully deleted show media from Firebase Storage');
+            console.log('✅ Successfully deleted show media from storage');
           } catch (storageError) {
             // Log error but continue with room deletion
-            console.error('⚠️ Error deleting media from Firebase Storage:', storageError);
+            console.error('⚠️ Error deleting media from storage:', storageError);
           }
         } else {
-          console.log('No media files to delete from Firebase Storage');
+          console.log('No media files to delete from storage');
         }
       } else {
         console.warn('Could not fetch room details for media cleanup');

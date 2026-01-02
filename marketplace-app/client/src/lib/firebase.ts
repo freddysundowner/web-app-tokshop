@@ -43,17 +43,17 @@ let isInitialized = false;
 export function initializeFirebase(config?: FirebaseConfig) {
   // Don't re-initialize with placeholder config
   if (!config || config.projectId === 'your-project-id') {
-    console.warn('⚠️ Refusing to initialize Firebase with placeholder/missing config');
+    console.warn('⚠️ Refusing to initialize auth with placeholder/missing config');
     return;
   }
 
   // Allow re-initialization if config has changed (for development hot-reload)
   if (isInitialized) {
-    console.log('🔥 Firebase already initialized, skipping re-initialization');
+    console.log('🔥 Auth already initialized, skipping re-initialization');
     return;
   }
 
-  console.log('🔥 Initializing Firebase with config:', { projectId: config.projectId });
+  console.log('🔥 Initializing auth with config:', { projectId: config.projectId });
 
   app = initializeApp(config);
   _auth = getAuth(app);
@@ -61,27 +61,27 @@ export function initializeFirebase(config?: FirebaseConfig) {
   _db = getFirestore(app);
   isInitialized = true;
 
-  console.log('✅ Firebase initialized successfully');
+  console.log('✅ Auth initialized successfully');
 }
 
 // Getters that ensure Firebase is initialized
 export const getFirebaseAuth = (): Auth => {
   if (!isInitialized) {
-    throw new Error('Firebase not initialized. Make sure SettingsProvider loads settings first.');
+    throw new Error('Auth service not initialized. Make sure SettingsProvider loads settings first.');
   }
   return _auth;
 };
 
 export const getFirebaseStorage = (): FirebaseStorage => {
   if (!isInitialized) {
-    throw new Error('Firebase not initialized. Make sure SettingsProvider loads settings first.');
+    throw new Error('Auth service not initialized. Make sure SettingsProvider loads settings first.');
   }
   return _storage;
 };
 
 export const getFirebaseDb = (): Firestore => {
   if (!isInitialized) {
-    throw new Error('Firebase not initialized. Make sure SettingsProvider loads settings first.');
+    throw new Error('Auth service not initialized. Make sure SettingsProvider loads settings first.');
   }
   return _db;
 };
@@ -189,7 +189,7 @@ export const signInWithAppleRedirect = () => {
 // Auth state observer
 export const onAuthStateChange = (callback: (user: any) => void) => {
   if (!isInitialized) {
-    console.warn('⚠️ Firebase not initialized, cannot set up auth listener');
+    console.warn('⚠️ Auth not initialized, cannot set up auth listener');
     // Return a no-op unsubscribe function
     return () => {};
   }
