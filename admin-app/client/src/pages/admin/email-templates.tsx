@@ -771,27 +771,14 @@ const defaultTemplates: EmailTemplate[] = [
               </p>
             </td>
           </tr>
-          <!-- Version Info -->
+          <!-- What's New -->
           <tr>
             <td style="padding: 0 40px 24px;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 12px;">
                 <tr>
-                  <td style="padding: 24px; text-align: center;">
-                    <p style="color: #1e40af; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Latest Version</p>
-                    <p style="color: #1d4ed8; font-size: 36px; font-weight: 700; margin: 0;">v{{version}}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- What's New -->
-          <tr>
-            <td style="padding: 0 40px 24px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fafafa; border-radius: 8px;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <p style="color: #71717a; font-size: 12px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 1px;">What's New</p>
-                    <p style="color: #18181b; font-size: 14px; line-height: 1.8; margin: 0; white-space: pre-line;">{{whats_new}}</p>
+                  <td style="padding: 24px;">
+                    <p style="color: #1e40af; font-size: 14px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">What's New</p>
+                    <div style="color: #18181b; font-size: 14px; line-height: 1.8; margin: 0;">{{whats_new}}</div>
                   </td>
                 </tr>
               </table>

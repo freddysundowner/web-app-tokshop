@@ -462,6 +462,7 @@ export default function AdminEmailBulk() {
   const [allUsersProgress, setAllUsersProgress] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
+  const [whatsNew, setWhatsNew] = useState("");
 
   const { data: templatesData, isLoading: templatesLoading, refetch: refetchTemplates } = useQuery<any>({
     queryKey: ['/api/templates'],
@@ -773,8 +774,13 @@ export default function AdminEmailBulk() {
     setSendResults({ success: 0, failed: 0, errors: [] });
 
     try {
+      const recipientsWithWhatsNew = allRecipients.map(r => ({
+        ...r,
+        whats_new: whatsNew || '',
+      }));
+      
       const response = await apiRequest('POST', '/api/admin/email/send-bulk', {
-        recipients: allRecipients,
+        recipients: recipientsWithWhatsNew,
         subject: emailContent.subject,
         html: emailContent.html,
         fromEmail: fromEmail || undefined,
@@ -1019,6 +1025,26 @@ export default function AdminEmailBulk() {
                         </Badge>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {selectedTemplateData && (selectedTemplateData.name?.toLowerCase().includes('update') || selectedTemplateData.slug?.toLowerCase().includes('update')) && (
+                  <div className="space-y-2">
+                    <Label>What's New (Release Notes)</Label>
+                    <div className="border rounded-lg overflow-hidden bg-white">
+                      <ReactQuill
+                        theme="snow"
+                        value={whatsNew}
+                        onChange={setWhatsNew}
+                        modules={quillModules}
+                        formats={quillFormats}
+                        placeholder="Enter what's new in this update... (bullet points, features, bug fixes, etc.)"
+                        style={{ minHeight: '150px' }}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      This will replace {"{{whats_new}}"} in the email template
+                    </p>
                   </div>
                 )}
               </TabsContent>

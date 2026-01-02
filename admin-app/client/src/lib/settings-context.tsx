@@ -185,8 +185,44 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           console.warn('Failed to fetch public themes:', themesError);
         }
 
-        // Firebase will be initialized after login when settings are fetched
-        setIsFirebaseReady(false);
+        // Fetch full settings with Firebase config (requires auth)
+        try {
+          const settingsResponse = await fetch('/api/settings', {
+            credentials: 'include',
+          });
+          if (settingsResponse.ok) {
+            const settingsData = await settingsResponse.json();
+            console.log('🔧 Settings fetched:', settingsData);
+            if (settingsData.success && settingsData.data) {
+              const apiSettings = settingsData.data;
+              setSettings(prev => ({
+                ...prev,
+                ...apiSettings,
+              }));
+              
+              // Initialize Firebase if config is available
+              if (apiSettings.firebase_api_key && 
+                  apiSettings.firebase_project_id && 
+                  apiSettings.firebase_storage_bucket) {
+                const firebaseConfig = {
+                  apiKey: apiSettings.firebase_api_key,
+                  authDomain: apiSettings.firebase_auth_domain,
+                  projectId: apiSettings.firebase_project_id,
+                  storageBucket: apiSettings.firebase_storage_bucket,
+                  appId: apiSettings.firebase_app_id,
+                };
+                console.log('🔥 Initializing Firebase with config from settings');
+                initializeFirebase(firebaseConfig);
+                setIsFirebaseReady(true);
+              } else {
+                console.warn('⚠️ Firebase config not available in settings');
+                setIsFirebaseReady(false);
+              }
+            }
+          }
+        } catch (settingsError) {
+          console.warn('Failed to fetch settings:', settingsError);
+        }
       } catch (error) {
         console.error('Failed to fetch app settings:', error);
         console.warn('⚠️ Cannot initialize Firebase without settings');

@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export function ProductsSidebar(props: any) {
   const [expandedOfferProducts, setExpandedOfferProducts] = useState<Set<string>>(new Set());
+  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
   const {
     showMobileProducts, setShowMobileProducts, showTitle, productTab, setProductTab,
     auctionProducts, pinnedProduct, activeAuction, currentUserId, isShowOwner,

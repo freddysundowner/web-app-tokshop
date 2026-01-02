@@ -522,7 +522,6 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const data = await response.json();
-      console.log("Room stats API response:", JSON.stringify(data, null, 2));
 
       res.json({
         success: true,
@@ -1358,6 +1357,7 @@ If you have any questions, feel free to reach out to our support team.
       if (req.query.page) queryParams.append("page", req.query.page as string);
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
       if (req.query.userId) queryParams.append("userId", req.query.userId as string);
+      if (req.query.status) queryParams.append("status", req.query.status as string);
 
       const url = `${BASE_URL}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log(`Fetching transactions from: ${url}`);
@@ -2569,6 +2569,120 @@ If you have any questions, feel free to reach out to our support team.
         success: true,
         data: [],
         message: "Unable to fetch Stripe payouts",
+      });
+    }
+  });
+
+  // Initiate Stripe transfer
+  app.post("/api/stripe/transfer", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const { amount, user } = req.body;
+
+      if (!amount || !user) {
+        return res.status(400).json({
+          success: false,
+          error: "Amount and user are required",
+        });
+      }
+
+      const url = `${BASE_URL}/stripe/transfer`;
+      console.log(`Initiating Stripe transfer to: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount, user }),
+      });
+
+      const data = await response.json();
+      console.log('Stripe transfer response:', data);
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: data.message || "Transfer failed",
+          details: data,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error initiating transfer:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to initiate transfer",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get pending payouts
+  app.get("/api/users/payouts/pending", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = req.session.accessToken;
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const queryParams = new URLSearchParams();
+      if (req.query.page) queryParams.append("page", req.query.page as string);
+      if (req.query.limit) queryParams.append("limit", req.query.limit as string);
+
+      const url = `${BASE_URL}/users/payouts/pending${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      console.log(`Fetching pending payouts from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.log(`Pending payouts API returned ${response.status}`);
+        return res.json({
+          success: true,
+          data: [],
+          totalPages: 1,
+        });
+      }
+
+      const data = await response.json();
+      console.log('Pending payouts API response sample:', JSON.stringify(data, null, 2).substring(0, 1000));
+      
+      res.json({
+        success: true,
+        data: data.payouts || data.data || data || [],
+        totalPages: data.totalPages || 1,
+        currentPage: data.currentPage || data.page || 1,
+        totalDocuments: data.totalDocuments || data.total || 0,
+      });
+    } catch (error: any) {
+      console.error("Error fetching pending payouts:", error);
+      res.json({
+        success: true,
+        data: [],
+        totalPages: 1,
       });
     }
   });
@@ -3805,7 +3919,6 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const data = await response.json();
-      console.log('[Refunds] API Response Structure:', JSON.stringify(data, null, 2));
       
       res.json({
         success: true,
@@ -5790,16 +5903,17 @@ Thank you for using ${appName}!
       };
 
       // Auto-populated values from settings and themes (check both for version fields)
+      // Note: themes uses snake_case (android_link, ios_link), settings may use camelCase
       const autoPopulated = {
         app_name: themes.app_name || settings.app_name || 'App',
         support_email: settings.support_email || settings.email_from_address || '',
         primary_color: formatColor(themes.primary_color || settings.primary_color || ''),
         secondary_color: formatColor(themes.secondary_color || settings.secondary_color || ''),
-        version: themes.appVersion || settings.appVersion || themes.app_version || settings.app_version || '',
-        android_version: themes.androidVersion || settings.androidVersion || themes.appVersion || settings.appVersion || '',
-        ios_version: themes.iosVersion || settings.iosVersion || themes.appVersion || settings.appVersion || '',
-        android_link: themes.androidLink || settings.androidLink || themes.play_store_url || settings.play_store_url || '',
-        ios_link: themes.iosLink || settings.iosLink || themes.app_store_url || settings.app_store_url || '',
+        version: themes.appVersion || settings.appVersion || themes.app_version || settings.app_version || settings.androidVersion || settings.iosVersion || '',
+        android_version: settings.androidVersion || themes.androidVersion || themes.appVersion || settings.appVersion || '',
+        ios_version: settings.iosVersion || themes.iosVersion || themes.appVersion || settings.appVersion || '',
+        android_link: themes.android_link || settings.android_link || themes.androidLink || settings.androidLink || themes.play_store_url || settings.play_store_url || '',
+        ios_link: themes.ios_link || settings.ios_link || themes.iosLink || settings.iosLink || themes.app_store_url || settings.app_store_url || '',
       };
       console.log('[Bulk Email] Auto-populated values:', autoPopulated);
 

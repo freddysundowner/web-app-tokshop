@@ -292,9 +292,20 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
           {selectedOrder && (() => {
             const isGiveaway = !!selectedOrder.giveaway;
             
+            // Check if this is a flat order item (from /orders/items/all) or full order (with items array)
+            const isFlatItem = !selectedOrder.items && (selectedOrder.productId || selectedOrder.product);
+            
+            // For flat item structure, extract product info directly
+            const flatProduct = selectedOrder.productId || selectedOrder.product;
+            const flatProductName = flatProduct?.name || flatProduct?.title || selectedOrder.name || 'Item';
+            const flatProductImage = flatProduct?.images?.[0] || flatProduct?.image || selectedOrder.image;
+            const flatPrice = selectedOrder.price || flatProduct?.price || 0;
+            const flatQuantity = selectedOrder.quantity || 1;
+            
             // Calculate subtotal from all items
             const calculateSubtotal = () => {
               if (isGiveaway) return 0;
+              if (isFlatItem) return flatPrice * flatQuantity;
               if (selectedOrder.items && selectedOrder.items.length > 0) {
                 return selectedOrder.items.reduce((sum: number, item: any) => {
                   const itemPrice = item.price || 0;
@@ -313,6 +324,11 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
               productName = product?.name || product?.title || 'Giveaway Item';
               productImage = product?.images?.[0] || product?.image;
               quantity = selectedOrder.quantity || product?.quantity || 1;
+            } else if (isFlatItem) {
+              product = flatProduct;
+              productName = flatProductName;
+              productImage = flatProductImage;
+              quantity = flatQuantity;
             } else {
               const firstItem = selectedOrder.items?.[0];
               product = firstItem?.productId || firstItem;
@@ -321,16 +337,22 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
               quantity = selectedOrder.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || 1;
             }
             
-            const customerName = `${selectedOrder.customer?.firstName || ''} ${selectedOrder.customer?.lastName || ''}`.trim() || selectedOrder.customer?.userName || selectedOrder.customer?.email || 'Customer';
-            const customerEmail = selectedOrder.customer?.email || '';
+            // Customer info - handle both nested customer object and flat structure
+            const customer = selectedOrder.customer || selectedOrder.user || selectedOrder.buyer;
+            const customerName = `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() || customer?.userName || customer?.email || 'Customer';
+            const customerEmail = customer?.email || '';
             const orderPrice = calculateSubtotal();
             const shippingFee = selectedOrder.shipping_fee || selectedOrder.shippingFee || 0;
             const tax = selectedOrder.tax || 0;
-            const total = orderPrice + shippingFee + tax;
+            const total = selectedOrder.total || (orderPrice + shippingFee + tax);
+            
+            // For flat items, create a single-item array for display
+            const allItems = isFlatItem 
+              ? [{ productId: flatProduct, price: flatPrice, quantity: flatQuantity, order_reference: selectedOrder.order_reference }]
+              : (selectedOrder.items && selectedOrder.items.length > 0 ? selectedOrder.items : []);
             
             // Pagination logic for items
             const itemsPerPage = 5;
-            const allItems = selectedOrder.items && selectedOrder.items.length > 0 ? selectedOrder.items : [];
             const totalPages = Math.ceil(allItems.length / itemsPerPage);
             const startIndex = (orderItemsPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
@@ -366,7 +388,6 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                           <th className="text-left text-xs font-medium text-zinc-400 py-2 px-3">Product</th>
                           <th className="text-center text-xs font-medium text-zinc-400 py-2 px-3">Qty</th>
                           <th className="text-right text-xs font-medium text-zinc-400 py-2 px-3">Price</th>
-                          <th className="text-right text-xs font-medium text-zinc-400 py-2 px-3">Total</th>
                         </tr>
                       </thead>
                     </table>
@@ -398,7 +419,6 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                                   </td>
                                   <td className="py-3 px-3 text-center text-sm text-white">{itemQty}</td>
                                   <td className="py-3 px-3 text-right text-sm text-white">${itemPrice.toFixed(2)}</td>
-                                  <td className="py-3 px-3 text-right text-sm font-medium text-white">${itemTotal.toFixed(2)}</td>
                                 </tr>
                               );
                             })
@@ -423,7 +443,6 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                               </td>
                               <td className="py-3 px-3 text-center text-sm text-zinc-400">{quantity}</td>
                               <td className="py-3 px-3 text-right text-sm text-zinc-400">Free</td>
-                              <td className="py-3 px-3 text-right text-sm text-zinc-400">$0.00</td>
                             </tr>
                           ) : null}
                         </tbody>
@@ -463,10 +482,6 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                     {!isGiveaway && (
                       <div className="border-t-2 border-zinc-800">
                         <div className="px-3 py-2 space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-zinc-400">Subtotal</span>
-                            <span className="text-white">${orderPrice.toFixed(2)}</span>
-                          </div>
                           {shippingFee > 0 && (
                             <div className="flex justify-between">
                               <span className="text-zinc-400">Shipping</span>
@@ -479,7 +494,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                               <span className="text-white">${tax.toFixed(2)}</span>
                             </div>
                           )}
-                          <div className="flex justify-between pt-2 border-t border-zinc-800 font-bold text-base">
+                          <div className="flex justify-between font-bold text-base">
                             <span className="text-white">Total</span>
                             <span className="text-white">${total.toFixed(2)}</span>
                           </div>

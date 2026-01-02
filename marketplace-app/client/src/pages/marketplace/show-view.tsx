@@ -372,14 +372,14 @@ export default function ShowViewNew() {
 
   // Fetch sold orders for this show
   const { data: soldOrdersData, refetch: refetchSold } = useQuery<any>({
-    queryKey: ['/api/orders', id, 'sold'],
+    queryKey: ['/api/orders/items/all', id, 'sold'],
     queryFn: async () => {
       const params = new URLSearchParams({
         tokshow: id!,
         page: '1',
         limit: '50'
       });
-      const url = `/api/orders?${params.toString()}`;
+      const url = `/api/orders/items/all?${params.toString()}`;
       const response = await fetch(url);
       if (!response.ok) return { orders: [] };
       return response.json();
@@ -1851,9 +1851,9 @@ export default function ShowViewNew() {
   const auctionProducts = auctionProductsData?.products || [];
   const buyNowProducts = buyNowProductsData?.products || [];
   const giveawayProducts = giveawaysData?.giveaways || [];
-  const soldProducts = soldOrdersData?.orders || [];
+  const soldProducts = soldOrdersData?.items || [];
   
-  const soldOrders = soldOrdersData?.orders || [];
+  const soldOrders = soldOrdersData?.items || [];
   const giveaways = giveawaysData?.giveaways || [];
   
   // Initialize LiveKit for video streaming

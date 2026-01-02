@@ -26,7 +26,8 @@ export default function AdminTransactions() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [refundsPage, setRefundsPage] = useState(1);
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {
@@ -56,9 +57,9 @@ export default function AdminTransactions() {
   };
 
   const { data: transactionsData, isLoading } = useQuery<any>({
-    queryKey: ['admin-transactions'],
+    queryKey: ['admin-transactions', transactionsPage],
     queryFn: async () => {
-      const response = await fetch('/api/admin/transactions', {
+      const response = await fetch(`/api/admin/transactions?limit=10&page=${transactionsPage}`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -71,9 +72,9 @@ export default function AdminTransactions() {
   });
 
   const { data: refundsData, isLoading: refundsLoading } = useQuery<any>({
-    queryKey: ['admin-refunds', currentPage],
+    queryKey: ['admin-refunds', refundsPage],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/refunds?limit=10&page=${currentPage}`, {
+      const response = await fetch(`/api/admin/transactions?limit=10&page=${refundsPage}&status=Refunded`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -297,6 +298,7 @@ export default function AdminTransactions() {
                 )}
               </div>
             ) : (
+              <>
               <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -408,6 +410,34 @@ export default function AdminTransactions() {
                   </TableBody>
                 </Table>
               </div>
+                
+                {/* Pagination */}
+                {transactionsData?.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Page {transactionsData.currentPage || transactionsPage} of {transactionsData.totalPages} ({transactionsData.totalDocuments} total)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTransactionsPage(p => Math.max(1, p - 1))}
+                        disabled={transactionsPage <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTransactionsPage(p => Math.min(transactionsData.totalPages, p + 1))}
+                        disabled={transactionsPage >= transactionsData.totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -438,35 +468,46 @@ export default function AdminTransactions() {
                   <p className="text-muted-foreground">No refunds found</p>
                 </div>
               ) : (
+                <>
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Refund ID</TableHead>
+                        <TableHead>Transaction ID</TableHead>
+                        <TableHead>From</TableHead>
+                        <TableHead>To</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Reason</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {refundsData.data.map((refund: any) => {
-                        const refundId = refund.id;
-                        const amount = (refund.amount || 0) / 100;
+                        const refundId = refund._id || refund.id;
+                        const amount = Math.round((Number(refund.amount) || 0) * 100) / 100;
+                        const fromName = typeof refund.from === 'object'
+                          ? `${refund.from.firstName || ''} ${refund.from.lastName || ''}`.trim() || refund.from.userName || refund.from.email || 'Unknown'
+                          : 'Unknown';
+                        const toName = typeof refund.to === 'object'
+                          ? `${refund.to.firstName || ''} ${refund.to.lastName || ''}`.trim() || refund.to.userName || refund.to.email || 'Unknown'
+                          : 'Unknown';
                         
                         return (
                           <TableRow key={refundId}>
                             <TableCell className="font-mono text-xs" data-testid={`text-refund-id-${refundId}`}>
                               {String(refundId).slice(-8)}
                             </TableCell>
+                            <TableCell data-testid={`text-from-${refundId}`}>
+                              {fromName}
+                            </TableCell>
+                            <TableCell data-testid={`text-to-${refundId}`}>
+                              {toName}
+                            </TableCell>
                             <TableCell data-testid={`text-amount-${refundId}`}>
                               ${amount.toFixed(2)}
                             </TableCell>
-                            <TableCell data-testid={`text-reason-${refundId}`}>
-                              {refund.reason || 'N/A'}
-                            </TableCell>
                             <TableCell data-testid={`text-date-${refundId}`}>
-                              {formatDate(new Date(refund.created * 1000).toISOString())}
+                              {formatDate(refund.createdAt || refund.created)}
                             </TableCell>
                             <TableCell>
                               <Badge variant={getStatusColor(refund.status)} data-testid={`badge-status-${refundId}`}>
@@ -479,6 +520,34 @@ export default function AdminTransactions() {
                     </TableBody>
                   </Table>
                 </div>
+                
+                {/* Pagination */}
+                {refundsData?.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Page {refundsData.currentPage || refundsPage} of {refundsData.totalPages} ({refundsData.totalDocuments} total)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRefundsPage(p => Math.max(1, p - 1))}
+                        disabled={refundsPage <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRefundsPage(p => Math.min(refundsData.totalPages, p + 1))}
+                        disabled={refundsPage >= refundsData.totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                </>
               )}
             </CardContent>
           </Card>

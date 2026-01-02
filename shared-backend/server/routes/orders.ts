@@ -45,6 +45,10 @@ export function registerOrderRoutes(app: Express) {
       
       const data = await response.json() as any;
       console.log('Order items response keys:', Object.keys(data));
+      if (data.items && data.items.length > 0) {
+        console.log('First item keys:', Object.keys(data.items[0]));
+        console.log('First item sample:', JSON.stringify(data.items[0], null, 2).substring(0, 500));
+      }
       
       res.json(data);
     } catch (error) {

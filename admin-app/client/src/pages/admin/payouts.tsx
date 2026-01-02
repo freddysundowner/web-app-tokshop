@@ -1,22 +1,46 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminLayout } from "@/components/admin-layout";
-import { Banknote, Search, DollarSign, TrendingUp, Calendar, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
+import { Banknote, Search, DollarSign, TrendingUp, Calendar, ChevronLeft, ChevronRight, Filter, X, Clock, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminPayouts() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("stripe");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pendingPage, setPendingPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [startingAfter, setStartingAfter] = useState<string>("");
   const itemsPerPage = 10;
+  
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [selectedTransfer, setSelectedTransfer] = useState<{
+    amount: number;
+    userId: string;
+    userName: string;
+  } | null>(null);
 
   // Build query params for filters
   const buildQueryParams = () => {
@@ -43,8 +67,26 @@ export default function AdminPayouts() {
     refetchOnMount: true,
   });
 
+  const { data: pendingPayoutsData, isLoading: pendingLoading } = useQuery<any>({
+    queryKey: ['pending-payouts', pendingPage],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/payouts/pending?page=${pendingPage}&limit=10`, { 
+        credentials: 'include' 
+      });
+      return response.json();
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+  });
+
   const payouts = payoutsData?.data || [];
   const hasMore = payoutsData?.has_more || false;
+  const rawPendingData = pendingPayoutsData?.data;
+  const rawPendingPayouts = Array.isArray(rawPendingData) 
+    ? rawPendingData 
+    : rawPendingData?.total || rawPendingData?.payouts || pendingPayoutsData?.payouts || [];
+  const pendingPayouts = Array.isArray(rawPendingPayouts) ? rawPendingPayouts : [];
+  const pendingTotalPages = pendingPayoutsData?.totalPages || rawPendingData?.totalPages || 1;
 
   // Filter payouts by bank name or payout ID
   const filteredPayouts = payouts.filter((payout: any) => {
@@ -111,10 +153,17 @@ export default function AdminPayouts() {
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6">
-          <h2 className="text-3xl font-bold text-foreground">Stripe Payouts</h2>
-          <p className="text-muted-foreground">View Stripe payout transactions</p>
+          <h2 className="text-3xl font-bold text-foreground">Payouts</h2>
+          <p className="text-muted-foreground">Manage payout transactions</p>
         </div>
 
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="stripe">Stripe Payouts</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="stripe">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -355,7 +404,191 @@ export default function AdminPayouts() {
             )}
           </CardContent>
         </Card>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <Clock className="h-5 w-5 text-primary" />
+                <div>
+                  <CardTitle>Pending Payouts</CardTitle>
+                  <CardDescription>
+                    View all pending payout requests
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {pendingLoading ? (
+                <div className="text-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading pending payouts...</p>
+                </div>
+              ) : pendingPayouts.length === 0 ? (
+                <div className="text-center py-12">
+                  <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No pending payouts found</p>
+                </div>
+              ) : (
+                <>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingPayouts.map((payout: any, index: number) => {
+                        const payoutId = payout._id || payout.id || payout.userId || `pending-${index}`;
+                        const amount = payout.total || payout.amount || 0;
+                        const userId = payout.userId || payout.user?._id || payout.user?.id;
+                        const userName = payout.userName || payout.user?.userName || payout.user?.firstName || 'Unknown';
+                        const email = payout.email || payout.user?.email;
+                        const count = payout.count || 0;
+                        
+                        return (
+                          <TableRow key={payoutId}>
+                            <TableCell>
+                              <div className="font-medium">{userName}</div>
+                              {email && (
+                                <div className="text-xs text-muted-foreground">{email}</div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              ${Number(amount).toFixed(2)}
+                              {count > 0 && (
+                                <div className="text-xs text-muted-foreground">{count} transactions</div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">
+                                {payout.status || 'Pending'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedTransfer({ amount, userId, userName });
+                                  setTransferDialogOpen(true);
+                                }}
+                              >
+                                Transfer
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Pagination */}
+                {pendingTotalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Page {pendingPage} of {pendingTotalPages}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPendingPage(p => Math.max(1, p - 1))}
+                        disabled={pendingPage <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPendingPage(p => Math.min(pendingTotalPages, p + 1))}
+                        disabled={pendingPage >= pendingTotalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        </Tabs>
       </div>
+
+      <AlertDialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Transfer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to transfer <strong>${selectedTransfer ? Number(selectedTransfer.amount).toFixed(2) : '0.00'}</strong> to <strong>{selectedTransfer?.userName || 'Unknown'}</strong>?
+              <br /><br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={transferLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={transferLoading}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!selectedTransfer) return;
+                
+                setTransferLoading(true);
+                try {
+                  const response = await fetch('/api/stripe/transfer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ 
+                      amount: selectedTransfer.amount, 
+                      user: selectedTransfer.userId 
+                    })
+                  });
+                  const result = await response.json();
+                  if (result.success) {
+                    setTransferDialogOpen(false);
+                    toast({
+                      title: "Transfer Successful",
+                      description: `$${Number(selectedTransfer.amount).toFixed(2)} has been transferred to ${selectedTransfer.userName}`,
+                    });
+                    queryClient.invalidateQueries({ queryKey: ['pending-payouts'] });
+                  } else {
+                    toast({
+                      title: "Transfer Failed",
+                      description: result.error || 'An error occurred during the transfer',
+                      variant: "destructive",
+                    });
+                  }
+                } catch (error) {
+                  toast({
+                    title: "Transfer Failed",
+                    description: 'Failed to initiate transfer',
+                    variant: "destructive",
+                  });
+                } finally {
+                  setTransferLoading(false);
+                }
+              }}
+            >
+              {transferLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm Transfer'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
