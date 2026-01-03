@@ -43,12 +43,22 @@ export function OrderDetailsDrawer({
 
   if (!order) return null;
 
-  // Get product details
-  const product = order.items?.[0]?.productId;
+  // Handle both old order structure (with items array) and new item-level structure
+  const isItemLevel = !!(order as any).productId && !(order as any).items;
+  const orderData = order as any;
+  
+  // Get product details - handle both structures
+  const product = isItemLevel ? orderData.productId : order.items?.[0]?.productId;
   const productImage = product?.images?.[0] || order.giveaway?.images?.[0] || "";
   const productName = product?.name || order.giveaway?.name || "Product";
-  const category = product?.category?.name || order.giveaway?.category?.name || "N/A";
-  const isGiveaway = !!order.giveaway || order.ordertype === 'giveaway';
+  const categoryObj = product?.category || order.giveaway?.category;
+  const category = categoryObj?.name || (typeof categoryObj === 'string' ? categoryObj : null) || "N/A";
+  const isGiveaway = !!order.giveaway || order.ordertype === 'giveaway' || orderData.orderId?.ordertype === 'giveaway';
+  
+  // Build items array for display - handle both structures
+  const displayItems = isItemLevel 
+    ? [{ productId: orderData.productId, quantity: orderData.quantity || 1, price: orderData.price || 0, order_reference: orderData.order_reference }]
+    : order.items || [];
 
   // Print receipt handler
   const printReceipt = () => {
@@ -95,7 +105,7 @@ export function OrderDetailsDrawer({
               </tr>
             </thead>
             <tbody>
-              ${(order.items || []).map(item => `
+              ${displayItems.map((item: any) => `
                 <tr>
                   <td>${item.productId?.name || "Unknown Product"}${item.order_reference ? ` ${item.order_reference}` : ''}</td>
                   <td>${item.quantity || 0}</td>
@@ -154,16 +164,18 @@ export function OrderDetailsDrawer({
     }
   };
   
-  // Financial calculations - calculate from items
-  const price = calculateOrderSubtotal(order);
-  const tax = order.tax || 0;
-  const shippingFee = order.shipping_fee || 0;
+  // Financial calculations - calculate from items or item-level data
+  const price = isItemLevel 
+    ? (orderData.price || 0) * (orderData.quantity || 1)
+    : calculateOrderSubtotal(order);
+  const tax = orderData.tax || order.tax || 0;
+  const shippingFee = orderData.shipping_fee || order.shipping_fee || 0;
   const orderTotal = price + tax + shippingFee;
   
   // Seller earnings calculations - get from order data
-  const serviceFee = order.service_fee ?? order.servicefee ?? 0; // Use service_fee directly from order (fallback to legacy servicefee)
-  const processingFee = order.stripe_fees ?? 0; // Use stripe_fees directly from order
-  const sellerShippingPaid = order.seller_shipping_fee_pay ?? 0;
+  const serviceFee = orderData.service_fee ?? orderData.servicefee ?? order.service_fee ?? order.servicefee ?? 0;
+  const processingFee = orderData.stripe_fees ?? order.stripe_fees ?? 0;
+  const sellerShippingPaid = orderData.seller_shipping_fee_pay ?? order.seller_shipping_fee_pay ?? 0;
   
   // Commission rate for display purposes only (used in UI text)
   const commissionRate = settings.commission_rate || 0;
@@ -260,7 +272,7 @@ export function OrderDetailsDrawer({
             <div>
               <SheetTitle className="text-2xl">Order</SheetTitle>
               <SheetDescription className="text-lg text-muted-foreground mt-1" data-testid="text-order-id">
-                #{order.invoice || order._id?.slice(-8) || 'N/A'}
+                #{orderData.orderId?.invoice || orderData.orderId?._id?.slice(-8) || order.invoice || order._id?.slice(-8) || 'N/A'}
               </SheetDescription>
             </div>
           </div>
@@ -286,8 +298,8 @@ export function OrderDetailsDrawer({
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items && order.items.length > 0 ? (
-                    order.items.map((item, idx) => {
+                  {displayItems && displayItems.length > 0 ? (
+                    displayItems.map((item: any, idx: number) => {
                       const itemProduct = item.productId;
                       const itemImage = getImageUrl(itemProduct?.images?.[0], externalApiUrl);
                       const itemName = itemProduct?.name || "Product";
@@ -472,13 +484,13 @@ export function OrderDetailsDrawer({
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Quantity</span>
-                <span className="text-foreground" data-testid="text-quantity">{order.items?.[0]?.quantity || 1}</span>
+                <span className="text-foreground" data-testid="text-quantity">{isItemLevel ? (orderData.quantity || 1) : (order.items?.[0]?.quantity || 1)}</span>
               </div>
               {/* Show name - from tokshow field */}
-              {order.tokshow && (
+              {(order.tokshow || orderData.tokshow) && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Show</span>
-                  <span className="text-foreground">{order.tokshow.title || order.tokshow.name || order.tokshow._id}</span>
+                  <span className="text-foreground">{order.tokshow?.title || order.tokshow?.name || orderData.tokshow?.title || orderData.tokshow?.name || orderData.tokshow || order.tokshow?._id}</span>
                 </div>
               )}
             </div>

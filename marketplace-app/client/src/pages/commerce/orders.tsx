@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Search, Filter, MoreHorizontal, Package, Printer, Truck, Ship, X, MessageSquare, Info } from "lucide-react";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal, formatCurrency, calculateOrderSubtotal } from "@shared/pricing";
@@ -68,6 +69,7 @@ const formatStatus = (status: string) => {
 export default function Orders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedShowId, setSelectedShowId] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedOrder, setSelectedOrder] = useState<TokshopOrder | null>(null);
@@ -82,30 +84,31 @@ export default function Orders() {
   const [relistOption, setRelistOption] = useState(false);
 
   // Build query key with parameters for proper caching
-  const ordersQueryKey = ['/api/orders', user?.id, statusFilter, selectedShowId, currentPage, itemsPerPage];
+  const ordersQueryKey = ['/api/orders/items/all', user?.id, statusFilter, selectedShowId, searchQuery, currentPage, itemsPerPage];
   
   const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
     queryKey: ordersQueryKey,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (user?.id) {
-        params.set("userId", user.id);
+        params.set("seller", user.id);
       }
       if (statusFilter && statusFilter !== "all") {
         params.set("status", statusFilter);
       }
       if (selectedShowId && selectedShowId !== "all") {
-        if (selectedShowId === "marketplace") {
-          params.set("marketplace", "true");
-        } else {
+        if (selectedShowId !== "marketplace") {
           params.set("tokshow", selectedShowId);
         }
+      }
+      if (searchQuery && searchQuery.trim()) {
+        params.set("search", searchQuery.trim());
       }
       // Add pagination parameters
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      const response = await fetch(`/api/orders?${params.toString()}`, {
+      const response = await fetch(`/api/orders/items/all?${params.toString()}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -315,42 +318,50 @@ export default function Orders() {
     resetPaginationOnFilterChange();
   };
 
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    resetPaginationOnFilterChange();
+  };
+
   const handleResetFilters = () => {
     setStatusFilter("all");
     setSelectedShowId("all");
+    setSearchQuery("");
     setCurrentPage(1);
   };
 
-  // Extract orders array from the response
-  const orders = orderResponse?.orders || [];
+  // Extract order items array from the response (API returns { items, page, totalPages, totalDocuments })
+  const orderItems = (orderResponse as any)?.items || orderResponse?.orders || [];
 
   // Use centralized calculation function
   const calculateTotal = calculateOrderTotal;
 
-  // Calculate net earnings for an order
-  const calculateNetEarnings = (order: TokshopOrder) => {
+  // Calculate net earnings for an order item
+  const calculateNetEarnings = (item: any) => {
     // If it's a giveaway, earnings are 0
-    if (order.giveaway || order.ordertype === 'giveaway') {
+    if (item.giveaway || item.ordertype === 'giveaway' || item.orderId?.ordertype === 'giveaway') {
       return 0;
     }
     
-    const price = calculateOrderSubtotal(order);
-    const serviceFee = order.service_fee ?? order.servicefee ?? 0; // Use service_fee from order (fallback to legacy servicefee)
-    const processingFee = order.stripe_fees ?? 0; // Use stripe_fees from order
-    const sellerShippingCost = order.seller_shipping_fee_pay ?? 0;
-    return price - serviceFee - processingFee - sellerShippingCost;
+    const price = item.price || 0;
+    const quantity = item.quantity || 1;
+    const subtotal = price * quantity;
+    const serviceFee = item.service_fee ?? item.servicefee ?? 0;
+    const processingFee = item.stripe_fees ?? 0;
+    const sellerShippingCost = item.seller_shipping_fee_pay ?? 0;
+    return subtotal - serviceFee - processingFee - sellerShippingCost;
   };
 
-  // Orders are now filtered server-side, just sort by newest first
-  const filteredOrders = [...orders].sort((a: TokshopOrder, b: TokshopOrder) => {
+  // Order items are now filtered server-side, just sort by newest first
+  const filteredOrders = [...orderItems].sort((a: any, b: any) => {
     const aDate = a.date ? new Date(a.date) : new Date(a.createdAt || 0);
     const bDate = b.date ? new Date(b.date) : new Date(b.createdAt || 0);
     return bDate.getTime() - aDate.getTime();
   });
 
-  // Calculate pagination data
-  const totalOrders = orderResponse?.total || 0;
-  const totalPages = orderResponse?.pages || 0;
+  // Calculate pagination data (API returns totalDocuments and totalPages)
+  const totalOrders = (orderResponse as any)?.totalDocuments || orderResponse?.total || 0;
+  const totalPages = (orderResponse as any)?.totalPages || orderResponse?.pages || 0;
 
   if (isLoading) {
     return (
@@ -412,8 +423,21 @@ export default function Orders() {
           </p>
         </div>
 
-        {/* Filters */}
+        {/* Search and Filters */}
         <div className="mb-6">
+          {/* Search Field */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search orders by product name, customer, order reference..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 w-full"
+              data-testid="input-search-orders"
+            />
+          </div>
+
           <div className="flex flex-wrap gap-3 items-center">
             {/* Show Filter */}
             <div className="w-full sm:w-auto sm:min-w-64 sm:max-w-md">
@@ -541,31 +565,32 @@ export default function Orders() {
                     </td>
                   </tr>
                 ) : (
-                  filteredOrders.map((order) => {
-                    const productName = order.giveaway?.name || order.items?.[0]?.productId?.name || 'N/A';
-                    const orderReference = order.items?.[0]?.order_reference || '';
-                    const orderId = order.invoice || order._id.slice(-8);
-                    const customerUsername = order.customer?.userName || 'Unknown';
-                    const itemQuantity = order.giveaway ? 1 : (order.items?.length || 0);
-                    const orderDate = order.date ? new Date(order.date) : new Date(order.createdAt || Date.now());
-                    const price = calculateOrderSubtotal(order);
-                    const earnings = calculateNetEarnings(order);
-                    const orderStatus = order.status || 'processing';
+                  filteredOrders.map((item: any) => {
+                    const productName = item.productId?.name || item.giveaway?.name || '';
+                    const orderReference = item.order_reference || '';
+                    const orderId = item.orderId?.invoice || item.orderId?._id?.slice(-8) || item._id?.slice(-8);
+                    const customerUsername = item.customer?.userName || 'Unknown';
+                    const itemQuantity = item.quantity || 1;
+                    const orderDate = item.date ? new Date(item.date) : new Date(item.createdAt || Date.now());
+                    const price = (item.price || 0) * (item.quantity || 1);
+                    const earnings = calculateNetEarnings(item);
+                    const orderStatus = item.status || 'processing';
+                    const isFromShow = !!item.tokshow;
 
                     return (
                       <tr 
-                        key={order._id}
+                        key={item._id}
                         className="hover:bg-muted/50 cursor-pointer transition-colors"
-                        data-testid={`row-order-${order._id}`}
+                        data-testid={`row-order-${item._id}`}
                         onClick={() => {
-                          setSelectedOrder(order);
+                          setSelectedOrder(item);
                           setDrawerOpen(true);
                         }}
                       >
                         {/* Order column - product name + order reference + order ID */}
                         <td className="px-4 py-4">
                           <div className="text-sm font-medium text-foreground">
-                            {productName}{orderReference ? ` ${orderReference}` : ''}
+                            {productName ? `${productName}${orderReference ? ` ${orderReference}` : ''}` : (orderReference || 'Item')}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             Order #{orderId}
@@ -583,8 +608,8 @@ export default function Orders() {
                             className="text-sm text-primary cursor-pointer hover:underline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (order.customer?._id) {
-                                setLocation('/profile/' + order.customer._id);
+                              if (item.customer?._id) {
+                                setLocation('/profile/' + item.customer._id);
                               }
                             }}
                           >
@@ -599,7 +624,7 @@ export default function Orders() {
 
                         {/* Sales Channel column */}
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-foreground">
-                          {order.tokshow ? 'Show' : 'Marketplace'}
+                          {isFromShow ? 'Show' : 'Marketplace'}
                         </td>
 
                         {/* Price column - US$ format */}
@@ -634,11 +659,11 @@ export default function Orders() {
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            data-testid={`button-message-customer-${order._id}`}
-                            disabled={messagingOrderId === order._id}
+                            data-testid={`button-message-customer-${item._id}`}
+                            disabled={messagingOrderId === item._id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleMessageBuyer(order);
+                              handleMessageBuyer(item);
                             }}
                           >
                             <MessageSquare size={16} />

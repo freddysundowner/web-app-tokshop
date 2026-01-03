@@ -141,6 +141,7 @@ export default function Shipping() {
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedShowId, setSelectedShowId] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [bundleName, setBundleName] = useState("");
   const [showBundleDialog, setShowBundleDialog] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
@@ -583,9 +584,15 @@ export default function Shipping() {
     resetPaginationOnFilterChange();
   };
 
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    resetPaginationOnFilterChange();
+  };
+
   const handleResetFilters = () => {
     setStatusFilter("all");
     setSelectedShowId("all");
+    setSearchQuery("");
     setDateFrom(undefined);
     setDateTo(undefined);
     resetPaginationOnFilterChange();
@@ -754,7 +761,7 @@ export default function Shipping() {
 
   const { data: orderResponse, isLoading: ordersLoading, error: ordersError, isError: ordersIsError, refetch: refetchOrders } =
     useQuery<TokshopOrdersResponse>({
-      queryKey: ["external-orders", user?.id, statusFilter, selectedShowId, currentPage, itemsPerPage, dateFrom?.toISOString(), dateTo?.toISOString()],
+      queryKey: ["external-orders", user?.id, statusFilter, selectedShowId, searchQuery, currentPage, itemsPerPage, dateFrom?.toISOString(), dateTo?.toISOString()],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (user?.id) {
@@ -769,6 +776,9 @@ export default function Shipping() {
           } else {
             params.set("tokshow", selectedShowId);
           }
+        }
+        if (searchQuery && searchQuery.trim()) {
+          params.set("search", searchQuery.trim());
         }
         // Add date filter parameters (use YYYY-MM-DD format to avoid timezone issues)
         if (dateFrom) {
@@ -821,8 +831,8 @@ export default function Shipping() {
   const orderWithScanForm = orders.find((order: any) => (order as any).scan_form_url && (order as any).scan_form_url.trim() !== '');
   const hasScanForm = !!orderWithScanForm;
   
-  // Show view button if marketplace selected, or if any order has manifest_id/scan_form, or if just generated
-  const shouldShowViewButton = isMarketplaceSelected || hasScanForm || hasManifestId || generatedManifestId;
+  // Show view button if a specific show or marketplace is selected (not 'all')
+  const shouldShowViewButton = selectedShowId && selectedShowId !== 'all';
 
   // Handler to check status when manifest exists but URL not ready
   const handleCheckScanFormStatus = () => {
@@ -889,8 +899,8 @@ export default function Shipping() {
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         compareValue = dateA - dateB;
       } else if (sortColumn === 'items') {
-        const itemsA = a.giveaway ? 1 : (a.items?.length || 0);
-        const itemsB = b.giveaway ? 1 : (b.items?.length || 0);
+        const itemsA = (a.items?.length || 0) + (a.giveaway && a.giveaway._id ? 1 : 0);
+        const itemsB = (b.items?.length || 0) + (b.giveaway && b.giveaway._id ? 1 : 0);
         compareValue = itemsA - itemsB;
       } else if (sortColumn === 'total') {
         const totalA = (a.total || 0) + (a.tax || 0) + (a.shipping_fee || 0);
@@ -1471,8 +1481,21 @@ export default function Shipping() {
           </div>
         )}
 
-        {/* Filters */}
+        {/* Search and Filters */}
         <div className="mb-6">
+          {/* Search Field */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search shipments by product name, customer, order reference..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 w-full"
+              data-testid="input-search-shipments"
+            />
+          </div>
+
           <div className="flex flex-wrap gap-3 items-center">
             {/* Show Filter */}
             <div className="w-full sm:w-auto sm:min-w-64 sm:max-w-md">
@@ -1979,7 +2002,25 @@ export default function Shipping() {
                   {displayItems.map((order) => {
                     return (
                       <React.Fragment key={order._id}>
-                        <tr data-testid={`row-shipment-${order._id}`}>
+                        <tr 
+                          data-testid={`row-shipment-${order._id}`}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={(e) => {
+                            // Don't open drawer if clicking on checkbox, button, or dropdown
+                            const target = e.target as HTMLElement;
+                            if (target.closest('button') || target.closest('input') || target.closest('[role="menuitem"]')) {
+                              return;
+                            }
+                            // Open appropriate drawer based on order status
+                            if (order.status === "ready_to_ship") {
+                              setShipmentDetailsOrder(order);
+                              setShipmentDetailsOpen(true);
+                            } else {
+                              setShippingDrawerOrder(order);
+                              setShippingDrawerOpen(true);
+                            }
+                          }}
+                        >
                           <td className="px-3 py-3">
                             <Checkbox
                               checked={selectedOrders.includes(order._id)}
@@ -2047,7 +2088,7 @@ export default function Shipping() {
                           <td className="px-3 py-3">
                             <div className="text-center">
                               <div className="text-sm text-foreground font-medium">
-                                {order.giveaway ? 1 : (order.items?.length || 0)}
+                                {(order.items?.length || 0) + (order.giveaway && order.giveaway._id && !order.items?.some((item: any) => item.giveawayId === order.giveaway?._id || item.giveawayId?._id === order.giveaway?._id || (item.type === 'giveaway' && item._id === order.giveaway?._id)) ? 1 : 0)}
                               </div>
                             </div>
                           </td>
@@ -2056,18 +2097,17 @@ export default function Shipping() {
                               <div className="text-sm text-muted-foreground">
                                 $
                                 {(() => {
-                                  if (order.giveaway) {
-                                    return ((order.total || 0) + (order.tax || 0) + (order.shipping_fee || 0)).toFixed(2);
-                                  }
+                                  let subtotal = 0;
+                                  // Add items total if present
                                   if (order.items && order.items.length > 0) {
-                                    const itemsSubtotal = order.items.reduce((sum, item) => {
+                                    subtotal += order.items.reduce((sum, item) => {
                                       const quantity = item.quantity || 0;
                                       const price = item.price || 0;
                                       return sum + (quantity * price);
                                     }, 0);
-                                    return (itemsSubtotal + (order.tax || 0) + (order.shipping_fee || 0)).toFixed(2);
                                   }
-                                  return "0.00";
+                                  // Giveaways are $0, so no need to add anything for them
+                                  return (subtotal + (order.tax || 0) + (order.shipping_fee || 0)).toFixed(2);
                                 })()}
                               </div>
                             </div>
@@ -2075,28 +2115,41 @@ export default function Shipping() {
                           <td className="px-3 py-3">
                             <div className="text-center text-sm text-muted-foreground">
                               <div className="text-xs">
-                                {order.weight
-                                  ? `${order.weight}${order.scale || "oz"}`
-                                  : order.giveaway?.shipping_profile?.weight
-                                    ? `${order.giveaway.shipping_profile.weight}${order.giveaway.shipping_profile.scale || "oz"}`
-                                    : order.items &&
-                                        order.items.length > 0 &&
-                                        order.items[0].weight
-                                      ? `${order.items[0].weight}${order.items[0].scale || "oz"}`
-                                      : "-"}
+                                {(() => {
+                                  // If order has weight at top level, use it
+                                  if (order.weight) {
+                                    return `${order.weight}${order.scale || "oz"}`;
+                                  }
+                                  // Calculate total weight from items + giveaway
+                                  let totalWeight = 0;
+                                  let scale = "oz";
+                                  if (order.items && order.items.length > 0) {
+                                    order.items.forEach(item => {
+                                      if (item.weight) {
+                                        totalWeight += Number(item.weight) * (item.quantity || 1);
+                                        scale = item.scale || "oz";
+                                      }
+                                    });
+                                  }
+                                  if (order.giveaway?.shipping_profile?.weight) {
+                                    totalWeight += Number(order.giveaway.shipping_profile.weight);
+                                    scale = order.giveaway.shipping_profile.scale || "oz";
+                                  }
+                                  return totalWeight > 0 ? `${totalWeight}${scale}` : "-";
+                                })()}
                               </div>
                               <div className="text-xs">
                                 {order.length && order.width && order.height
                                   ? `${order.height}×${order.width}×${order.length}"`
                                   : order.giveaway
-                                    ? "Giveaway"
+                                    ? ""
                                     : order.items &&
                                         order.items.length > 0 &&
                                         order.items[0].height &&
                                         order.items[0].width &&
                                         order.items[0].length
                                       ? `${order.items[0].height}×${order.items[0].width}×${order.items[0].length}"`
-                                      : "-"}
+                                      : ""}
                               </div>
                             </div>
                           </td>
@@ -2331,7 +2384,7 @@ export default function Shipping() {
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {order.giveaway ? (
+                                      {order.giveaway && order.giveaway._id && !order.items?.some((item: any) => item.giveawayId === order.giveaway?._id || item.giveawayId?._id === order.giveaway?._id || (item.type === 'giveaway' && item._id === order.giveaway?._id)) && (
                                         <tr className="border-b">
                                           <td className="py-2 px-2">
                                             <div className="flex items-center gap-2">
@@ -2413,7 +2466,8 @@ export default function Shipping() {
                                             ) : '-'}
                                           </td>
                                         </tr>
-                                      ) : order.items && order.items.length > 0 ? (
+                                      )}
+                                      {order.items && order.items.length > 0 && (
                                         order.items.map((item, idx) => {
                                           const itemStatus = (item as any).status || order.status;
                                           return (
@@ -2432,7 +2486,7 @@ export default function Shipping() {
                                                   </div>
                                                 )}
                                                 <div>
-                                                  <p className="font-medium">{item.productId?.name || 'Item'}{(item as any).order_reference ? ` ${(item as any).order_reference}` : ''}</p>
+                                                  <p className="font-medium">{item.productId?.name ? `${item.productId.name}${(item as any).order_reference ? ` ${(item as any).order_reference}` : ''}` : ((item as any).order_reference || 'Item')}</p>
                                                   <p className="text-xs text-muted-foreground lowercase">{item.productId?.category?.name || '-'}</p>
                                                   <p className="text-xs text-muted-foreground">#{order.invoice || order._id.slice(-8)}</p>
                                                 </div>
@@ -2443,11 +2497,11 @@ export default function Shipping() {
                                             <td className="py-2 px-2">${(item.price || 0).toFixed(2)}</td>
                                             <td className="py-2 px-2">${(item.shipping_fee || 0).toFixed(2)}</td>
                                             <td className="py-2 px-2 text-center">
-                                              {order.seller_shipping_fee_pay && order.seller_shipping_fee_pay > 0 
-                                                ? `$${order.seller_shipping_fee_pay.toFixed(2)}`
+                                              {(item as any).seller_shipping_fee_pay && (item as any).seller_shipping_fee_pay > 0 
+                                                ? `$${(item as any).seller_shipping_fee_pay.toFixed(2)}`
                                                 : '-'}
                                             </td>
-                                            <td className="py-2 px-2">{order.tokshow ? 'Show' : 'Marketplace'}</td>
+                                            <td className="py-2 px-2">{(item as any).orderType || (order.tokshow ? 'Show' : 'Marketplace')}</td>
                                             <td className="py-2 px-2 text-xs text-muted-foreground">
                                               {order.date ? new Date(order.date).toLocaleDateString() : '-'}
                                             </td>
@@ -2517,7 +2571,8 @@ export default function Shipping() {
                                           </tr>
                                         );
                                         })
-                                      ) : (
+                                      )}
+                                      {!order.giveaway && (!order.items || order.items.length === 0) && (
                                         <tr className="border-b">
                                           <td colSpan={10} className="py-4 px-2 text-center text-muted-foreground">
                                             No items available

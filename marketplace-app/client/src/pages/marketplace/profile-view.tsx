@@ -560,7 +560,7 @@ export default function ProfileView() {
   
   // Get user data for display
   const userAvatar = displayUser?.profilePhoto || '';
-  const userDisplayName = displayUser?.firstName || displayUser?.userName || 'User';
+  const userDisplayName = displayUser?.userName || displayUser?.firstName || 'User';
   const userUsername = displayUser?.userName || 'user';
   const userBio = displayUser?.bio || '';
   const userFollowers = displayUser?.followersCount || displayUser?.followers?.length || 0;

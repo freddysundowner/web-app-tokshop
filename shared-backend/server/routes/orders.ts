@@ -7,7 +7,7 @@ export function registerOrderRoutes(app: Express) {
   // Get all order items for a show (tokshow)
   app.get("/api/orders/items/all", async (req, res) => {
     try {
-      console.log('Fetching order items for show');
+      console.log('Fetching order items');
       console.log('Query params received:', req.query);
       
       const queryParams = new URLSearchParams();
@@ -15,11 +15,23 @@ export function registerOrderRoutes(app: Express) {
       if (req.query.tokshow) {
         queryParams.set('tokshow', req.query.tokshow as string);
       }
+      if (req.query.seller) {
+        queryParams.set('seller', req.query.seller as string);
+      }
+      if (req.query.customer) {
+        queryParams.set('customer', req.query.customer as string);
+      }
+      if (req.query.status) {
+        queryParams.set('status', req.query.status as string);
+      }
       if (req.query.page) {
         queryParams.set('page', req.query.page as string);
       }
       if (req.query.limit) {
         queryParams.set('limit', req.query.limit as string);
+      }
+      if (req.query.search) {
+        queryParams.set('search', req.query.search as string);
       }
       
       const queryString = queryParams.toString();
@@ -176,6 +188,9 @@ export function registerOrderRoutes(app: Express) {
       // Add platform_order filter for giveaway orders
       if (req.query.platform_order) {
         queryParams.set('platform_order', req.query.platform_order as string);
+      }
+      if (req.query.search) {
+        queryParams.set('search', req.query.search as string);
       }
       
       const queryString = queryParams.toString();
@@ -647,6 +662,22 @@ export function registerOrderRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
+      // First, fetch the order to get its items
+      let orderData: any = null;
+      try {
+        const orderResponse = await fetch(`${BASE_URL}/orders/${order}`, {
+          method: 'GET',
+          headers,
+        });
+        if (orderResponse.ok) {
+          orderData = await orderResponse.json();
+          console.log('Fetched order for cancellation:', { orderId: order, itemCount: orderData?.items?.length || 0 });
+        }
+      } catch (fetchError) {
+        console.log('Could not fetch order details, proceeding with order cancellation only');
+      }
+
+      // Cancel the order itself
       const response = await fetch(`${BASE_URL}/orders/cancel/order`, {
         method: 'POST',
         headers,
@@ -671,6 +702,30 @@ export function registerOrderRoutes(app: Express) {
 
       const result = await response.json();
       console.log('Order cancelled successfully:', result);
+
+      // Also cancel each item in the order
+      if (orderData?.items && orderData.items.length > 0) {
+        console.log(`Cancelling ${orderData.items.length} items in order ${order}`);
+        const itemCancelResults = await Promise.allSettled(
+          orderData.items.map((item: any) => 
+            fetch(`${BASE_URL}/orders/cancel/order`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                order: item._id,
+                relist: relist || false,
+                initiator: initiator || 'buyer',
+                type: 'item',
+                description: description || 'Item cancelled with order'
+              })
+            })
+          )
+        );
+        
+        const successCount = itemCancelResults.filter(r => r.status === 'fulfilled').length;
+        console.log(`Cancelled ${successCount}/${orderData.items.length} items`);
+      }
+
       res.json({
         success: true,
         ...result
