@@ -2556,10 +2556,20 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const stripeData = await stripeResponse.json();
+      console.log('Stripe payouts API full response:', JSON.stringify(stripeData, null, 2));
+      console.log('Stripe payouts API response keys:', Object.keys(stripeData));
+      
+      // Extract data from various possible response structures
+      const payouts = stripeData.payouts || stripeData.data || stripeData.transactions || [];
+      console.log('Extracted payouts count:', Array.isArray(payouts) ? payouts.length : 'not an array');
       
       res.json({
         success: true,
-        data: stripeData.payouts || stripeData.data || [],
+        data: payouts,
+        transactions: payouts,
+        totalDocuments: stripeData.totalDocuments || stripeData.total || (Array.isArray(payouts) ? payouts.length : 0),
+        totalPages: stripeData.totalPages || 1,
+        currentPage: stripeData.currentPage || stripeData.page || 1,
         has_more: stripeData.has_more || false,
       });
     } catch (error: any) {

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Mail, Save, DollarSign, Package, Truck, Eye, RotateCcw, KeyRound, BarChart3, UserCheck, Smartphone, Trash2, Megaphone } from "lucide-react";
+import { Mail, Save, DollarSign, Package, Truck, Eye, RotateCcw, KeyRound, BarChart3, UserCheck, Smartphone, Trash2, Megaphone, Banknote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -1193,6 +1193,253 @@ const defaultTemplates: EmailTemplate[] = [
     variables: [
       { name: "name", description: "Recipient's name" },
       { name: "email", description: "Recipient's email" },
+    ],
+  },
+  {
+    id: "payout_initiated",
+    name: "Payout Initiated",
+    description: "Sent to seller when they initiate a payout request",
+    subject: "Payout of {{amount}} initiated - {{app_name}}",
+    body: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, {{primary_color}} 0%, {{secondary_color}} 100%); padding: 32px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">{{app_name}}</h1>
+            </td>
+          </tr>
+          <!-- Icon -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center;">
+              <div style="width: 80px; height: 80px; background-color: #3b82f6; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 40px;">&#128690;</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 20px 40px;">
+              <h2 style="color: #18181b; margin: 0 0 16px; font-size: 22px; text-align: center;">Payout Initiated</h2>
+              <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+                Hi {{name}}, your payout request has been submitted and is being processed.
+              </p>
+            </td>
+          </tr>
+          <!-- Amount Box -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px; text-align: center;">
+                    <p style="color: #1d4ed8; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Payout Amount</p>
+                    <p style="color: #1e40af; font-size: 36px; font-weight: 700; margin: 0;">{{amount}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Transfer Details -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fafafa; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #71717a; font-size: 12px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px;">Transfer Details</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="color: #71717a; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e4e4e7;">Bank</td>
+                        <td style="color: #18181b; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e4e4e7; text-align: right; font-weight: 500;">{{bank_name}}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #71717a; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e4e4e7;">Remaining Balance</td>
+                        <td style="color: #18181b; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e4e4e7; text-align: right; font-weight: 500;">{{balance_after_payout}}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #71717a; font-size: 14px; padding: 8px 0;">Status</td>
+                        <td style="color: #f59e0b; font-size: 14px; padding: 8px 0; text-align: right; font-weight: 600;">Processing</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Info Note -->
+          <tr>
+            <td style="padding: 0 40px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <p style="color: #92400e; font-size: 13px; line-height: 1.6; margin: 0; text-align: center;">
+                      Your payout is being processed. You will receive another email once the funds have been deposited to your bank account.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding: 0 40px 32px; text-align: center;">
+              <a href="{{dashboard_url}}" style="display: inline-block; background-color: {{primary_color}}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">View Transaction History</a>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #fafafa; padding: 24px 40px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; margin: 0 0 8px;">Thank you for selling with us!</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0 0 8px;">{{app_name}} Team</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">Need help? Contact us at <a href="mailto:{{support_email}}" style="color: {{primary_color}};">{{support_email}}</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+    recipients: ["Seller"],
+    icon: Banknote,
+    variables: [
+      { name: "name", description: "Seller's name" },
+      { name: "amount", description: "Payout amount" },
+      { name: "bank_name", description: "Bank name where funds will be deposited" },
+      { name: "balance_after_payout", description: "Remaining wallet balance after payout" },
+      { name: "app_name", description: "Application name" },
+      { name: "support_email", description: "Support email address" },
+      { name: "primary_color", description: "Brand primary color" },
+      { name: "secondary_color", description: "Brand secondary color" },
+      { name: "dashboard_url", description: "Seller dashboard URL" },
+    ],
+  },
+  {
+    id: "payout_completed",
+    name: "Payout Completed",
+    description: "Sent to seller when funds have been successfully transferred to their bank account",
+    subject: "Your payout of {{amount}} has been sent - {{app_name}}",
+    body: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, {{primary_color}} 0%, {{secondary_color}} 100%); padding: 32px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">{{app_name}}</h1>
+            </td>
+          </tr>
+          <!-- Icon -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center;">
+              <div style="width: 80px; height: 80px; background-color: #059669; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 40px;">&#128184;</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 20px 40px;">
+              <h2 style="color: #18181b; margin: 0 0 16px; font-size: 22px; text-align: center;">Payout Completed!</h2>
+              <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin: 0 0 24px; text-align: center;">
+                Hi {{name}}, great news! Your funds have been successfully transferred to your bank account.
+              </p>
+            </td>
+          </tr>
+          <!-- Amount Box -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ecfdf5; border: 2px solid #059669; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px; text-align: center;">
+                    <p style="color: #047857; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Amount Transferred</p>
+                    <p style="color: #065f46; font-size: 36px; font-weight: 700; margin: 0;">{{amount}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Transfer Details -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fafafa; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #71717a; font-size: 12px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px;">Transfer Details</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="color: #71717a; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e4e4e7;">Bank</td>
+                        <td style="color: #18181b; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e4e4e7; text-align: right; font-weight: 500;">{{bank_name}}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #71717a; font-size: 14px; padding: 8px 0;">Status</td>
+                        <td style="color: #059669; font-size: 14px; padding: 8px 0; text-align: right; font-weight: 600;">Paid</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Info Note -->
+          <tr>
+            <td style="padding: 0 40px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f9ff; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <p style="color: #0369a1; font-size: 13px; line-height: 1.6; margin: 0; text-align: center;">
+                      This payment has been deposited to your bank account. You can view your transaction history in your seller dashboard.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding: 0 40px 32px; text-align: center;">
+              <a href="{{dashboard_url}}" style="display: inline-block; background-color: {{primary_color}}; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">View Transaction History</a>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #fafafa; padding: 24px 40px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; margin: 0 0 8px;">Thank you for selling with us!</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0 0 8px;">{{app_name}} Team</p>
+              <p style="color: #a1a1aa; font-size: 12px; margin: 0;">Need help? Contact us at <a href="mailto:{{support_email}}" style="color: {{primary_color}};">{{support_email}}</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+    recipients: ["Seller"],
+    icon: Banknote,
+    variables: [
+      { name: "name", description: "Seller's name" },
+      { name: "amount", description: "Payout amount" },
+      { name: "bank_name", description: "Bank name where funds were deposited" },
+      { name: "app_name", description: "Application name" },
+      { name: "support_email", description: "Support email address" },
+      { name: "primary_color", description: "Brand primary color" },
+      { name: "secondary_color", description: "Brand secondary color" },
+      { name: "dashboard_url", description: "Seller dashboard URL" },
     ],
   },
 ];

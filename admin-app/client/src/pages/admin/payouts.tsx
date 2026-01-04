@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminLayout } from "@/components/admin-layout";
-import { Banknote, Search, DollarSign, TrendingUp, Calendar, ChevronLeft, ChevronRight, Filter, X, Clock, Loader2 } from "lucide-react";
+import { Banknote, Search, Calendar, ChevronLeft, ChevronRight, Filter, X, Clock, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,14 +49,14 @@ export default function AdminPayouts() {
     if (dateFrom) params.append('from', dateFrom);
     if (dateTo) params.append('to', dateTo);
     params.append('limit', itemsPerPage.toString());
-    if (startingAfter && currentPage > 1) params.append('starting_after', startingAfter);
+    params.append('page', currentPage.toString());
     return params.toString();
   };
 
   const queryParams = buildQueryParams();
 
   const { data: payoutsData, isLoading } = useQuery<any>({
-    queryKey: ['/api/admin/stripe-payouts', statusFilter, dateFrom, dateTo, startingAfter, currentPage],
+    queryKey: ['/api/admin/stripe-payouts', statusFilter, dateFrom, dateTo, currentPage],
     queryFn: async () => {
       const url = `/api/admin/stripe-payouts${queryParams ? '?' + queryParams : ''}`;
       console.log('Fetching payouts from:', url);
@@ -79,8 +79,12 @@ export default function AdminPayouts() {
     refetchOnMount: true,
   });
 
-  const payouts = payoutsData?.data || [];
-  const hasMore = payoutsData?.has_more || false;
+  // Extract payout transactions from the new data structure
+  // Backend returns: {success, data: [...], transactions: [...], totalDocuments, totalPages, currentPage}
+  const payouts = payoutsData?.transactions || payoutsData?.data || [];
+  const totalPages = payoutsData?.totalPages || 1;
+  const totalDocuments = payoutsData?.totalDocuments || payouts.length;
+  
   const rawPendingData = pendingPayoutsData?.data;
   const rawPendingPayouts = Array.isArray(rawPendingData) 
     ? rawPendingData 
@@ -92,8 +96,8 @@ export default function AdminPayouts() {
   const filteredPayouts = payouts.filter((payout: any) => {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      const bankName = (payout.destination?.bank_name || '').toLowerCase();
-      const payoutId = (payout.id || '').toLowerCase();
+      const bankName = (payout.bank_name || '').toLowerCase();
+      const payoutId = (payout._id || payout.payoutId || '').toLowerCase();
       if (!bankName.includes(searchLower) && !payoutId.includes(searchLower)) {
         return false;
       }
@@ -101,25 +105,10 @@ export default function AdminPayouts() {
     return true;
   });
 
-  // Calculate totals
-  const totalPayouts = filteredPayouts.reduce((sum: number, p: any) => sum + ((p.amount || 0) / 100), 0);
-  const itemCount = filteredPayouts.length;
-  const avgPayout = itemCount > 0 ? totalPayouts / itemCount : 0;
-
-  // Pagination
-  const totalPages = hasMore ? currentPage + 1 : currentPage; // If has_more, there's at least one more page
-  const startIndex = 0; // Always start from 0 since we fetch only the current page from API
-  const endIndex = filteredPayouts.length;
-  const paginatedPayouts = filteredPayouts; // Show all items from API response
-  const displayedStart = (currentPage - 1) * itemsPerPage + 1;
-  const displayedEnd = (currentPage - 1) * itemsPerPage + filteredPayouts.length;
-  const totalCount = hasMore ? `${displayedEnd}+` : displayedEnd;
-
   // Reset to page 1 when search term changes
   const handleSearch = (value: string) => {
     setSearchTerm(value);
     setCurrentPage(1);
-    setStartingAfter("");
   };
 
   // Reset all filters
@@ -129,25 +118,23 @@ export default function AdminPayouts() {
     setDateTo("");
     setSearchTerm("");
     setCurrentPage(1);
-    setStartingAfter("");
   };
+
+  const hasActiveFilters = statusFilter || dateFrom || dateTo;
 
   // Handle next page
   const handleNextPage = () => {
-    if (hasMore && payouts.length > 0) {
-      const lastPayout = payouts[payouts.length - 1];
-      setStartingAfter(lastPayout.id);
+    if (currentPage < totalPages) {
       setCurrentPage(prev => prev + 1);
     }
   };
 
-  // Handle previous page (reset to page 1 for now - true cursor pagination would need ending_before)
+  // Handle previous page
   const handlePrevPage = () => {
-    setCurrentPage(1);
-    setStartingAfter("");
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+    }
   };
-
-  const hasActiveFilters = statusFilter || dateFrom || dateTo;
 
   return (
     <AdminLayout>
@@ -164,46 +151,6 @@ export default function AdminPayouts() {
           </TabsList>
 
           <TabsContent value="stripe">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-amount">
-                ${totalPayouts.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">Across all payouts</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Payouts</CardTitle>
-              <Banknote className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-count">
-                {itemCount}
-              </div>
-              <p className="text-xs text-muted-foreground">Payout transactions</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Payout</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-avg-payout">
-                ${avgPayout.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">Per transaction</p>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Filters */}
         <Card className="mb-6">
           <CardHeader>
@@ -235,11 +182,10 @@ export default function AdminPayouts() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_transit">In Transit</SelectItem>
-                    <SelectItem value="canceled">Canceled</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Processing">Processing</SelectItem>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Failed">Failed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -305,60 +251,59 @@ export default function AdminPayouts() {
                     <TableRow>
                       <TableHead className="min-w-[180px]">Bank</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="hidden md:table-cell">Currency</TableHead>
-                      <TableHead className="hidden lg:table-cell">Created</TableHead>
-                      <TableHead className="hidden lg:table-cell">Arrival Date</TableHead>
+                      <TableHead className="hidden md:table-cell">Balance After</TableHead>
+                      <TableHead className="hidden lg:table-cell">Date</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead className="hidden sm:table-cell">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedPayouts.map((payout: any) => {
-                      const payoutId = payout.id;
-                      const amount = (payout.amount || 0) / 100;
-                      const createdDate = payout.created ? new Date(payout.created * 1000) : null;
-                      const arrivalDate = payout.arrival_date ? new Date(payout.arrival_date * 1000) : null;
-                      const bankName = payout.destination?.bank_name || 'Bank Account';
-                      const last4 = payout.destination?.last4 || '';
+                    {filteredPayouts.map((payout: any) => {
+                      const payoutId = payout._id || payout.payoutId;
+                      const amount = Number(payout.amount) || 0;
+                      const createdDate = payout.createdAt || payout.date;
+                      const bankName = payout.bank_name || 'Bank Account';
+                      const balanceAfter = payout.balance_after_payout;
+                      const payoutType = payout.payout_type || 'Stripe';
+                      const status = payout.status || 'Pending';
+                      
+                      const getStatusVariant = (s: string) => {
+                        switch (s?.toLowerCase()) {
+                          case 'paid': return 'default';
+                          case 'pending': return 'secondary';
+                          case 'processing': return 'outline';
+                          case 'failed': return 'destructive';
+                          default: return 'secondary';
+                        }
+                      };
                       
                       return (
                         <TableRow key={payoutId} data-testid={`row-payout-${payoutId}`}>
                           <TableCell data-testid={`text-bank-${payoutId}`}>
-                            <div className="max-w-[180px]">
-                              <div className="font-medium truncate">{bankName}</div>
-                              {last4 && (
-                                <div className="text-xs text-muted-foreground font-mono">
-                                  ****{last4}
-                                </div>
-                              )}
+                            <div className="max-w-[200px]">
+                              <div className="font-medium text-sm">{bankName}</div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-semibold" data-testid={`text-amount-${payoutId}`}>
-                            ${amount.toFixed(2)}
+                          <TableCell className="text-right font-semibold text-red-600" data-testid={`text-amount-${payoutId}`}>
+                            -${amount.toFixed(2)}
                           </TableCell>
-                          <TableCell className="hidden md:table-cell uppercase">
-                            {payout.currency || 'USD'}
+                          <TableCell className="hidden md:table-cell">
+                            {balanceAfter !== undefined ? `$${Number(balanceAfter).toFixed(2)}` : 'N/A'}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             <div className="flex items-center gap-2">
                               <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {createdDate ? createdDate.toLocaleDateString() : 'N/A'}
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {arrivalDate ? arrivalDate.toLocaleDateString() : 'N/A'}
+                              {createdDate ? new Date(createdDate).toLocaleDateString() : 'N/A'}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={payout.automatic ? "default" : "outline"}>
-                              {payout.automatic ? "Automatic" : "Manual"}
+                            <Badge variant="outline">
+                              {payoutType}
                             </Badge>
                           </TableCell>
                           <TableCell className="hidden sm:table-cell">
-                            <Badge variant="secondary">
-                              {payout.status || 'Completed'}
+                            <Badge variant={getStatusVariant(status)}>
+                              {status}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -370,10 +315,10 @@ export default function AdminPayouts() {
             )}
 
             {/* Pagination */}
-            {filteredPayouts.length > 0 && (
+            {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4">
                 <p className="text-sm text-muted-foreground">
-                  Showing {displayedStart} to {displayedEnd} of {totalCount} payouts
+                  Page {currentPage} of {totalPages} ({totalDocuments} total)
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -386,14 +331,11 @@ export default function AdminPayouts() {
                     <ChevronLeft className="h-4 w-4" />
                     Previous
                   </Button>
-                  <div className="text-sm text-muted-foreground">
-                    Page {currentPage}{hasMore ? '+' : ''}
-                  </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleNextPage}
-                    disabled={!hasMore}
+                    disabled={currentPage >= totalPages}
                     data-testid="button-next-page"
                   >
                     Next

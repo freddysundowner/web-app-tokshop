@@ -142,7 +142,16 @@ export default function Shipping() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedShowId, setSelectedShowId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
   const [bundleName, setBundleName] = useState("");
+
+  // Debounce search query - only update after 500ms of no typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [showBundleDialog, setShowBundleDialog] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [relistOption, setRelistOption] = useState<boolean>(false);
@@ -761,7 +770,7 @@ export default function Shipping() {
 
   const { data: orderResponse, isLoading: ordersLoading, error: ordersError, isError: ordersIsError, refetch: refetchOrders } =
     useQuery<TokshopOrdersResponse>({
-      queryKey: ["external-orders", user?.id, statusFilter, selectedShowId, searchQuery, currentPage, itemsPerPage, dateFrom?.toISOString(), dateTo?.toISOString()],
+      queryKey: ["external-orders", user?.id, statusFilter, selectedShowId, debouncedSearchQuery, currentPage, itemsPerPage, dateFrom?.toISOString(), dateTo?.toISOString()],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (user?.id) {
@@ -777,8 +786,8 @@ export default function Shipping() {
             params.set("tokshow", selectedShowId);
           }
         }
-        if (searchQuery && searchQuery.trim()) {
-          params.set("search", searchQuery.trim());
+        if (debouncedSearchQuery && debouncedSearchQuery.trim()) {
+          params.set("search", debouncedSearchQuery.trim());
         }
         // Add date filter parameters (use YYYY-MM-DD format to avoid timezone issues)
         if (dateFrom) {
@@ -1284,7 +1293,10 @@ export default function Shipping() {
     bulkLabelMutation.mutate({ orderIds: selectedOrders, labelFileType, carrierAccount });
   };
 
-  if (metricsLoading || ordersLoading || bundlesLoading) {
+  // Only show full-page loading on initial load (no data yet)
+  const isInitialLoading = (metricsLoading || ordersLoading || bundlesLoading) && !orderResponse && !metrics;
+
+  if (isInitialLoading) {
     return (
       <div className="py-6">
         <div className="px-4 sm:px-6 md:px-8">
@@ -1999,7 +2011,28 @@ export default function Shipping() {
                   </tr>
                 </thead>
                 <tbody className="bg-card divide-y divide-border">
-                  {displayItems.map((order) => {
+                  {ordersLoading ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                          <p className="text-muted-foreground">Loading shipments...</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : displayItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-12 text-center">
+                        <Package2 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-semibold text-foreground mb-2">No shipments found</h3>
+                        <p className="text-muted-foreground">
+                          {statusFilter !== "all" || selectedShowId !== "all" || debouncedSearchQuery
+                            ? "Try adjusting your filters or search" 
+                            : "Shipments will appear here when you have orders to ship"}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : displayItems.map((order) => {
                     return (
                       <React.Fragment key={order._id}>
                         <tr 

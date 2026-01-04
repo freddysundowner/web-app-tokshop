@@ -345,10 +345,25 @@ export default function AdminTransactions() {
                           </TableCell>
                           <TableCell data-testid={`text-amount-${transactionId}`}>
                             <div>
-                              <span className={transaction.deducting ? "text-red-600" : ""}>
-                                {transaction.deducting ? `-$${amount.toFixed(2)}` : `$${amount.toFixed(2)}`}
-                              </span>
-                              {(transaction.available_on || transaction.availableOn) && (
+                              {(() => {
+                                const formattedAmount = parseFloat(String(transaction.amount || 0)).toFixed(2);
+                                return (
+                                  <span className={transaction.deducting ? "text-red-600" : ""}>
+                                    {transaction.deducting ? `-$${formattedAmount}` : `$${formattedAmount}`}
+                                  </span>
+                                );
+                              })()}
+                              {transaction.type === 'payout' && transaction.bank_name && (
+                                <div className="text-xs text-muted-foreground">
+                                  {transaction.bank_name}
+                                </div>
+                              )}
+                              {transaction.type === 'payout' && transaction.balance_after_payout !== undefined && (
+                                <div className="text-xs text-teal-600">
+                                  Balance: ${parseFloat(String(transaction.balance_after_payout || 0)).toFixed(2)}
+                                </div>
+                              )}
+                              {transaction.type !== 'payout' && (transaction.available_on || transaction.availableOn) && Number(transaction.available_on || transaction.availableOn) > 0 && (
                                 <div className="text-xs text-teal-600">
                                   Available on {formatDate(transaction.available_on || transaction.availableOn)}
                                 </div>

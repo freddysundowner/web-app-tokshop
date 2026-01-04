@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
@@ -70,6 +70,7 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedShowId, setSelectedShowId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedOrder, setSelectedOrder] = useState<TokshopOrder | null>(null);
@@ -83,8 +84,16 @@ export default function Orders() {
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
   const [relistOption, setRelistOption] = useState(false);
 
+  // Debounce search query - only update after 500ms of no typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Build query key with parameters for proper caching
-  const ordersQueryKey = ['/api/orders/items/all', user?.id, statusFilter, selectedShowId, searchQuery, currentPage, itemsPerPage];
+  const ordersQueryKey = ['/api/orders/items/all', user?.id, statusFilter, selectedShowId, debouncedSearchQuery, currentPage, itemsPerPage];
   
   const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
     queryKey: ordersQueryKey,
@@ -101,8 +110,8 @@ export default function Orders() {
           params.set("tokshow", selectedShowId);
         }
       }
-      if (searchQuery && searchQuery.trim()) {
-        params.set("search", searchQuery.trim());
+      if (debouncedSearchQuery && debouncedSearchQuery.trim()) {
+        params.set("search", debouncedSearchQuery.trim());
       }
       // Add pagination parameters
       params.set("page", currentPage.toString());
@@ -363,7 +372,10 @@ export default function Orders() {
   const totalOrders = (orderResponse as any)?.totalDocuments || orderResponse?.total || 0;
   const totalPages = (orderResponse as any)?.totalPages || orderResponse?.pages || 0;
 
-  if (isLoading) {
+  // Only show full-page loading on initial load (no data yet)
+  const isInitialLoading = isLoading && !orderResponse;
+
+  if (isInitialLoading) {
     return (
       <div className="py-6">
         <div className="px-4 sm:px-6 md:px-8">
@@ -552,7 +564,16 @@ export default function Orders() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredOrders.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                        <p className="text-muted-foreground">Loading orders...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center">
                       <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

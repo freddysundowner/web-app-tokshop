@@ -140,8 +140,14 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
     setLocation(url);
   };
 
-  // Helper function to get user display name
+  // Helper function to get user display name - prioritize userName
   const getUserDisplayName = (user: any): string => {
+    if (user.userName) {
+      return user.userName;
+    }
+    if (user.username) {
+      return user.username;
+    }
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
@@ -150,9 +156,6 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
     }
     if (user.lastName) {
       return user.lastName;
-    }
-    if (user.username) {
-      return user.username;
     }
     if (user.name) {
       return user.name;

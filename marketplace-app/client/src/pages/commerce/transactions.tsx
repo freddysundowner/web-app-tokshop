@@ -230,8 +230,8 @@ export default function Transactions() {
                           </TableCell>
                           <TableCell>{getTypeBadge(transaction.type)}</TableCell>
                           <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            ${(parseFloat(transaction.amount) || 0).toFixed(2)}
+                          <TableCell className={`text-right font-medium ${transaction.type?.toLowerCase() === 'payout' ? 'text-red-500' : ''}`}>
+                            {transaction.type?.toLowerCase() === 'payout' ? '-' : ''}${(parseFloat(transaction.amount) || 0).toFixed(2)}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -323,10 +323,11 @@ export default function Transactions() {
                                                 selectedTransaction.type === 'order';
                   
                   if (!isPurchaseTransaction) {
+                    const isPayout = selectedTransaction.type?.toLowerCase() === 'payout';
                     return (
                       <div className="flex justify-between items-center text-lg font-bold">
                         <span>Amount:</span>
-                        <span>${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>
+                        <span className={isPayout ? 'text-red-500' : ''}>{isPayout ? '-' : ''}${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>
                       </div>
                     );
                   }

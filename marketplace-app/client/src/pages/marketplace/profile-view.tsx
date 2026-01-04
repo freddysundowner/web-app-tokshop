@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiRequest } from "@/lib/queryClient";
-import { getOrCreateChat } from "@/lib/firebase-chat";
+import { getOrCreateChat, blockUser, unblockUser } from "@/lib/firebase-chat";
 import { ShowCard } from "@/components/show-card";
 import { ShareDialog } from "@/components/share-dialog";
 
@@ -212,11 +212,12 @@ export default function ProfileView() {
       if (profileUser.isfollowing !== undefined) {
         setIsFollowing(profileUser.isfollowing);
       }
-      if (profileUser.isblocked !== undefined) {
-        setIsBlocked(profileUser.isblocked);
+      // Check if current user is in blocked_by array (means current user has blocked this profile)
+      if (currentUserId && profileUser.blocked_by && Array.isArray(profileUser.blocked_by)) {
+        setIsBlocked(profileUser.blocked_by.includes(currentUserId));
       }
     }
-  }, [profileUser]);
+  }, [profileUser, currentUserId]);
 
   // Fetch products for this user
   const { data: userProductsData, isLoading: productsLoading } = useQuery<any>({
@@ -351,7 +352,12 @@ export default function ProfileView() {
   // Block mutation - MUST be before early returns
   const blockMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('PUT', `/api/block/${currentUserId}/${userId}`, {});
+      // Call both API and Firebase
+      const [apiResult] = await Promise.all([
+        apiRequest('PUT', `/api/block/${currentUserId}/${userId}`, {}),
+        blockUser(currentUserId!, userId!),
+      ]);
+      return apiResult;
     },
     onSuccess: () => {
       setIsBlocked(true);
@@ -373,7 +379,12 @@ export default function ProfileView() {
   // Unblock mutation - MUST be before early returns
   const unblockMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('PUT', `/api/unblock/${currentUserId}/${userId}`, {});
+      // Call both API and Firebase
+      const [apiResult] = await Promise.all([
+        apiRequest('PUT', `/api/unblock/${currentUserId}/${userId}`, {}),
+        unblockUser(currentUserId!, userId!),
+      ]);
+      return apiResult;
     },
     onSuccess: () => {
       setIsBlocked(false);
