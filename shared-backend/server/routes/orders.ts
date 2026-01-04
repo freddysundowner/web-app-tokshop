@@ -501,51 +501,17 @@ export function registerOrderRoutes(app: Express) {
       const { orderIds } = bundleRequestSchema.parse(req.body);
       console.log('Creating bundle for orders:', orderIds);
 
-      // Validate that all orders have 'processing' status before bundling
-      const fetchHeaders: Record<string, string> = {
+      // Call external API bundling endpoint
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-
       if (req.session?.accessToken) {
-        fetchHeaders['Authorization'] = `Bearer ${req.session.accessToken}`;
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
-
-      const ordersResponse = await fetch(`${BASE_URL}/orders?userId=${req.query.userId || req.body.userId}`, {
-        method: 'GET',
-        headers: fetchHeaders
-      });
-
-      if (!ordersResponse.ok) {
-        return res.status(500).json({
-          success: false,
-          message: "Failed to validate order status",
-          error: "Could not fetch orders for validation"
-        });
-      }
-
-      const ordersData = await ordersResponse.json() as any;
-      const orders = ordersData.orders || [];
       
-      // Check that all selected orders have 'processing' status
-      const invalidOrders = orderIds.filter(orderId => {
-        const order = orders.find((o: any) => o._id === orderId);
-        return !order || order.status !== 'processing';
-      });
-
-      if (invalidOrders.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Only orders with 'processing' status can be bundled",
-          error: `Invalid orders: ${invalidOrders.join(', ')}`
-        });
-      }
-
-      // Call external API bundling endpoint
       const response = await fetch(`${BASE_URL}/orders/bundle/orders`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ orderIds })
       });
 
