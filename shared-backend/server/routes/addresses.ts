@@ -348,6 +348,61 @@ export function registerAddressRoutes(app: Express) {
     }
   });
 
+  // Set address as primary (PUT endpoint for client compatibility)
+  app.put("/api/address/primary/:addressId", async (req, res) => {
+    try {
+      const { addressId } = req.params;
+      const { userId } = req.body;
+      
+      console.log('Setting address as primary via PUT:', addressId, 'for user:', userId);
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      const token = req.session?.accessToken || 
+                   req.headers['x-access-token'] as string || 
+                   (req.headers['authorization']?.startsWith('Bearer ') ? 
+                     req.headers['authorization'].substring(7) : null);
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/address/${addressId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ primary: true, userId })
+      });
+      
+      const responseText = await response.text();
+      console.log('Tokshop API response status:', response.status);
+      console.log('Tokshop API response body:', responseText);
+      
+      if (!response.ok) {
+        console.error(`Tokshop API error ${response.status}:`, responseText);
+        try {
+          const errorJson = JSON.parse(responseText);
+          return res.status(response.status).json({ 
+            success: false,
+            error: errorJson.message || errorJson.error || "Failed to set primary address"
+          });
+        } catch (e) {
+          return res.status(response.status).json({ 
+            success: false,
+            error: responseText || "Failed to set primary address"
+          });
+        }
+      }
+      
+      const data = JSON.parse(responseText);
+      res.json({ success: true, data: data.data || data });
+    } catch (error) {
+      console.error('Set primary address error:', error);
+      res.status(500).json({ success: false, error: "Failed to set primary address" });
+    }
+  });
+
   // Make address primary
   app.patch("/api/address/:addressId", async (req, res) => {
     try {

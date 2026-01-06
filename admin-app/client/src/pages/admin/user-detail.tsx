@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, User, MapPin, Truck, Package, ShoppingCart, Activity, CreditCard, Printer } from "lucide-react";
+import { ArrowLeft, User, MapPin, Truck, Package, ShoppingCart, Activity, CreditCard, Printer, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
@@ -77,6 +77,49 @@ export default function AdminUserDetail() {
       toast({
         title: "Error",
         description: error.message || "Failed to update user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to impersonate user (open as seller in marketplace)
+  const impersonateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/admin/impersonate/user`, { userId });
+      return await response.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.success && data.accessToken) {
+        // Get the marketplace URL from settings or use default
+        const marketplaceUrl = settings?.website_url || window.location.origin.replace('admin', 'marketplace');
+        
+        // Build URL with impersonation token
+        const impersonateUrl = new URL(marketplaceUrl);
+        impersonateUrl.pathname = '/';
+        impersonateUrl.searchParams.set('impersonate', 'true');
+        impersonateUrl.searchParams.set('token', data.accessToken);
+        impersonateUrl.searchParams.set('authtoken', data.authtoken || '');
+        impersonateUrl.searchParams.set('user', encodeURIComponent(JSON.stringify(data.data)));
+        
+        // Open in new tab
+        window.open(impersonateUrl.toString(), '_blank');
+        
+        toast({
+          title: "Opening Marketplace",
+          description: `Opening marketplace as ${userInfo?.userName || userInfo?.email}`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to get impersonation tokens",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to impersonate user",
         variant: "destructive",
       });
     },
@@ -284,22 +327,56 @@ export default function AdminUserDetail() {
             {/* Admin Controls */}
             <div className="mt-6 pt-6 border-t">
               <h3 className="text-sm font-semibold mb-4">Admin Controls</h3>
-              <div className="flex items-center justify-between max-w-md">
-                <div className="space-y-0.5">
-                  <Label htmlFor="seller-toggle" className="text-base">
-                    Seller Account
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow this user to sell products on the platform
-                  </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between max-w-md">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="seller-toggle" className="text-base">
+                      Seller Account
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Allow this user to sell products on the platform
+                    </p>
+                  </div>
+                  <Switch
+                    id="seller-toggle"
+                    checked={userInfo.seller}
+                    onCheckedChange={handleSellerToggle}
+                    disabled={approveSellerMutation.isPending || updateUserMutation.isPending}
+                    data-testid="switch-seller-status"
+                  />
                 </div>
-                <Switch
-                  id="seller-toggle"
-                  checked={userInfo.seller}
-                  onCheckedChange={handleSellerToggle}
-                  disabled={approveSellerMutation.isPending || updateUserMutation.isPending}
-                  data-testid="switch-seller-status"
-                />
+                
+                {/* Open as Seller button */}
+                {userInfo.seller && (
+                  <div className="flex items-center justify-between max-w-md">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">
+                        View as Seller
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Open the marketplace as this seller in a new tab
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => impersonateMutation.mutate()}
+                      disabled={impersonateMutation.isPending}
+                      data-testid="button-impersonate-user"
+                    >
+                      {impersonateMutation.isPending ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                          Opening...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Open as Seller
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

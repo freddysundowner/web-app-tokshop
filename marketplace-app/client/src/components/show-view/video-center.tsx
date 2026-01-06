@@ -27,7 +27,7 @@ export function VideoCenter(props: any) {
   const bannersShownRef = useRef(false);
   
   const {
-    id, livekitRoom, muted, setMuted, isShowOwner, hasVideo, hasAudio,
+    id, livekitRoom, muted, setMuted, isShowOwner, hasVideo, hasAudio, canPublish,
     toggleCamera, toggleMicrophone, isConnecting, isConnected,
     hostAvatar, hostName, hostId, averageReviews, isFollowingHost,
     handleFollowHost, isFollowLoading, showTitle, activeAuction,
@@ -714,8 +714,8 @@ export function VideoCenter(props: any) {
                 </div>
               )}
 
-              {/* Show camera initializing state - when connected but no video yet */}
-              {livekit.isConnected && !livekit.hasVideo && !livekit.isConnecting && isShowOwner && (
+              {/* Show camera initializing state - when connected but no video yet (only for host with publish permissions) */}
+              {livekit.isConnected && !livekit.hasVideo && !livekit.isConnecting && isShowOwner && canPublish && (
                 <div className="absolute inset-0 w-full h-full bg-black/90 z-30 flex items-center justify-center">
                   <div className="flex flex-col items-center gap-4 text-white">
                     <Video className="h-12 w-12 animate-pulse" />
@@ -725,8 +725,8 @@ export function VideoCenter(props: any) {
                 </div>
               )}
 
-              {/* Show waiting for host state - for viewers when connected but host has no video yet */}
-              {livekit.isConnected && !livekit.hasHostVideo && !livekit.isConnecting && !isShowOwner && (
+              {/* Show waiting for host state - for viewers or owners without publish permissions when connected but host has no video yet */}
+              {livekit.isConnected && !livekit.hasHostVideo && !livekit.isConnecting && (!isShowOwner || (isShowOwner && !canPublish)) && (
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-black/85 via-black/80 to-black/85 z-30 flex items-center justify-center backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-6 text-white max-w-md mx-4 text-center">
                     <div className="relative">
@@ -1451,8 +1451,8 @@ export function VideoCenter(props: any) {
                   <span className="text-xs font-semibold">Store</span>
                 </button>
 
-                {/* More options button - Only show for show owner */}
-                {isShowOwner && (
+                {/* More options button - Only show for show owner with publish permissions */}
+                {isShowOwner && canPublish && (
                   <button 
                     className="flex flex-col items-center gap-1 text-white drop-shadow-lg"
                     onClick={() => setShowMoreOptionsSheet(true)}

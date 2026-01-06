@@ -6048,4 +6048,70 @@ Thank you for using ${appName}!
       });
     }
   });
+
+  // Impersonate user - allows admin to login as a seller in the marketplace
+  app.post("/api/admin/impersonate/user", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const adminId = req.session?.user?._id || req.session?.user?.id;
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+      }
+
+      if (!adminId) {
+        return res.status(401).json({
+          success: false,
+          error: "Admin authentication required",
+        });
+      }
+
+      const accessToken = req.session?.accessToken;
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token available",
+        });
+      }
+
+      // Call external API to impersonate user
+      const response = await fetch(`${BASE_URL}/admin/impersonate/user`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId, adminId }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Impersonate API error:", errorText);
+        return res.status(response.status).json({
+          success: false,
+          error: errorText || "Failed to impersonate user",
+        });
+      }
+
+      const data = await response.json();
+      
+      // Normalize token field names - external API may use authtoken/accesstoken
+      const impersonateToken = data.accessToken || data.accesstoken || data.authtoken;
+      
+      res.json({
+        success: true,
+        ...data,
+        accessToken: impersonateToken, // Ensure accessToken is always present
+      });
+    } catch (error: any) {
+      console.error("Error impersonating user:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to impersonate user",
+      });
+    }
+  });
 }

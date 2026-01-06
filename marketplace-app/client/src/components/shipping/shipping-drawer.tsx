@@ -607,9 +607,17 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Items:</span>
-                  <span>
-                    {displayOrder.giveaway?.name || (displayOrder.items && displayOrder.items.length > 0 ? (displayOrder.items[0].productId?.name || 'Unknown Item') + (displayOrder.items[0].order_reference ? ` ${displayOrder.items[0].order_reference}` : '') : 'Unknown Item')} 
-                    ({displayOrder.giveaway ? displayOrder.giveaway.quantity : (displayOrder.items ? displayOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 1)} items)
+                  <span className="text-right">
+                    {displayOrder.giveaway?.name || (displayOrder.items && displayOrder.items.length > 0 
+                      ? displayOrder.items.map((item: any, idx: number) => (
+                          <span key={idx}>
+                            {item.productId?.name || 'Unknown Item'}
+                            {item.order_reference ? ` ${item.order_reference}` : ''}
+                            {idx < displayOrder.items.length - 1 ? ', ' : ''}
+                          </span>
+                        ))
+                      : 'Unknown Item')} 
+                    ({displayOrder.giveaway ? displayOrder.giveaway.quantity : (displayOrder.items ? displayOrder.items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) : 1)} items)
                   </span>
                 </div>
                 {calculateSubtotal() > 0 && (
@@ -631,19 +639,14 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Your Shipping Cost:</span>
                   <span className="text-red-600">
-                    {(() => {
-                      const sellerShippingCost = Number(displayOrder.seller_shipping_fee_pay ?? 0);
-                      const estimatedShipping = Number(selectedEstimate?.price ?? estimates[0]?.price ?? 0);
-                      const shippingCost = sellerShippingCost > 0 ? sellerShippingCost : estimatedShipping;
-                      return shippingCost > 0 ? `-$${shippingCost.toFixed(2)}` : '—';
-                    })()}
+                    {(displayOrder.seller_shipping_fee_pay ?? 0) > 0 ? `-$${Number(displayOrder.seller_shipping_fee_pay).toFixed(2)}` : '—'}
                   </span>
                 </div>
                 {(() => {
                   const subtotal = calculateSubtotal();
                   const tax = displayOrder.tax || 0;
                   const buyerShipping = displayOrder.shipping_fee || 0;
-                  const sellerShippingCost = displayOrder.seller_shipping_fee_pay || selectedEstimate?.price || estimates[0]?.price || 0;
+                  const sellerShippingCost = displayOrder.seller_shipping_fee_pay || 0;
                   const total = subtotal + tax + buyerShipping - Number(sellerShippingCost);
                   return total > 0 ? (
                     <div className="flex justify-between text-sm font-semibold border-t pt-2">

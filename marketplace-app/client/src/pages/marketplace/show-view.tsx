@@ -2225,6 +2225,7 @@ export default function ShowViewNew() {
           hasAudio={livekit.hasAudio}
           toggleCamera={livekit.toggleCamera}
           toggleMicrophone={livekit.toggleMicrophone}
+          canPublish={livekit.canPublish}
           isConnecting={livekitIsConnecting}
           isConnected={livekitIsConnected}
           hostAvatar={hostAvatar}

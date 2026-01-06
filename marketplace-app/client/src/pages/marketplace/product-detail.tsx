@@ -87,6 +87,13 @@ export default function ProductDetail() {
 
   const userId = (currentUser as any)?._id || (currentUser as any)?.id || currentUser?.id;
 
+  // Refresh user data on mount to ensure we have fresh address/payment info for shipping
+  useEffect(() => {
+    if (userId && refreshUserData) {
+      refreshUserData();
+    }
+  }, [userId]);
+
   // Always get from user context (localStorage) - never fetch
   const defaultPayment = currentUser?.defaultpaymentmethod || null;
   const defaultAddress = currentUser?.address || null;

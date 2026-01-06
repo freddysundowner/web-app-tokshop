@@ -17,6 +17,8 @@ export interface LiveKitState {
   hasVideo: boolean;
   hasAudio: boolean;
   isHost: boolean;
+  canPublish: boolean;
+  sessionId: string | null;
   isMuted: boolean;
   hasHostVideo: boolean;
   hasHostAudio: boolean;
@@ -32,6 +34,8 @@ export function useLiveKit(config: LiveKitConfig) {
     hasVideo: false,
     hasAudio: false,
     isHost: false,
+    canPublish: false,
+    sessionId: null,
     isMuted: false,
     hasHostVideo: false,
     hasHostAudio: false,
@@ -95,17 +99,25 @@ export function useLiveKit(config: LiveKitConfig) {
         userName: config.userName || config.userId,
       });
 
-      const response = await res.json() as { token: string; url: string; role?: string; piptoken?: string };
-      const { token, url, role: serverRole } = response;
+      const response = await res.json() as { 
+        token: string; 
+        url: string; 
+        role?: string; 
+        canPublish?: boolean;
+        sessionId?: string;
+        publishingSession?: string;
+      };
+      const { token, url, role: serverRole, canPublish: serverCanPublish, sessionId } = response;
       
       if (!token || !url) {
         throw new Error('Invalid token response from server');
       }
       
       const isHost = serverRole === 'host';
-      console.log('🔐 Server verified role:', serverRole, 'isHost:', isHost);
+      const canPublish = serverCanPublish ?? false;
+      console.log('🔐 Server verified role:', serverRole, 'isHost:', isHost, 'canPublish:', canPublish, 'sessionId:', sessionId);
       
-      setState(prev => ({ ...prev, isHost }));
+      setState(prev => ({ ...prev, isHost, canPublish, sessionId: sessionId || null }));
 
       console.log('✅ LiveKit token received, connecting to room...', { url, roomId: config.roomId, role: serverRole });
 
@@ -205,10 +217,10 @@ export function useLiveKit(config: LiveKitConfig) {
 
       console.log('✅ LiveKit room connected successfully');
 
-      const canPublish = room.localParticipant.permissions?.canPublish ?? false;
-      console.log('🔐 LiveKit permissions:', { canPublish, role: serverRole });
+      const hasPublishPermission = room.localParticipant.permissions?.canPublish ?? false;
+      console.log('🔐 LiveKit permissions:', { canPublish: hasPublishPermission, serverCanPublish: canPublish, role: serverRole });
 
-      if (canPublish) {
+      if (hasPublishPermission) {
         console.log('🎥 Enabling camera and microphone for host...');
         try {
           await room.localParticipant.setMicrophoneEnabled(true);
@@ -250,6 +262,8 @@ export function useLiveKit(config: LiveKitConfig) {
         hasVideo: false,
         hasAudio: false,
         isHost: false,
+        canPublish: false,
+        sessionId: null,
         isMuted: false,
         hasHostVideo: false,
         hasHostAudio: false,
@@ -357,6 +371,8 @@ export function useLiveKit(config: LiveKitConfig) {
       hasVideo: false,
       hasAudio: false,
       isHost: false,
+      canPublish: false,
+      sessionId: null,
       isMuted: false,
       hasHostVideo: false,
       hasHostAudio: false,

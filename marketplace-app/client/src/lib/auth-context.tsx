@@ -498,6 +498,67 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('[checkAuth] Starting auth check...');
       
+      // Check for admin impersonation URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const isImpersonating = urlParams.get('impersonate') === 'true';
+      
+      if (isImpersonating) {
+        console.log('[checkAuth] Admin impersonation detected, processing...');
+        const token = urlParams.get('token');
+        const authtoken = urlParams.get('authtoken');
+        const userDataParam = urlParams.get('user');
+        
+        if (token && userDataParam) {
+          try {
+            const userData = JSON.parse(decodeURIComponent(userDataParam));
+            
+            // Store the impersonation tokens
+            localStorage.setItem('accessToken', token);
+            if (authtoken) {
+              localStorage.setItem('authtoken', authtoken);
+            }
+            localStorage.setItem('impersonating', 'true');
+            
+            // Build user object
+            const impersonatedUser: User = {
+              id: userData._id || userData.id,
+              email: userData.email || '',
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              profilePhoto: userData.profilePhoto || '',
+              coverPhoto: userData.coverPhoto || '',
+              userName: userData.userName || '',
+              country: userData.country || '',
+              phone: userData.phonenumber || userData.phone || '',
+              date_of_birth: userData.date_of_birth || '',
+              seller: userData.seller || false,
+              admin: userData.admin || false,
+              address: userData.address || null,
+              defaultpaymentmethod: userData.defaultpaymentmethod || null,
+              above_age: userData.above_age || false,
+            };
+            
+            // Store user data
+            localStorage.setItem('user', JSON.stringify(impersonatedUser));
+            localStorage.setItem('userId', impersonatedUser.id);
+            
+            // Set the user state
+            setUser(impersonatedUser);
+            hasCheckedAuth.current = true;
+            setIsLoading(false);
+            
+            // Clean up URL params
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            
+            console.log('[checkAuth] Impersonation successful as:', impersonatedUser.userName || impersonatedUser.email);
+            return;
+          } catch (e) {
+            console.error('[checkAuth] Failed to parse impersonation data:', e);
+          }
+        }
+      }
+      
       // First handle any pending redirects with a timeout
       const redirectPromise = handleAuthRedirect();
       const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2000));
