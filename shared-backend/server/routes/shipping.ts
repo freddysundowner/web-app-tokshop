@@ -656,6 +656,74 @@ export function registerShippingRoutes(app: Express) {
     }
   });
 
+  // Refund shipping label
+  app.post("/api/shipping/refund/label", async (req, res) => {
+    try {
+      const { shipment_id } = req.body;
+      
+      if (!shipment_id) {
+        return res.status(400).json({
+          success: false,
+          message: "shipment_id is required"
+        });
+      }
+
+      console.log('Refunding shipping label for shipment:', shipment_id);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/shipping/refund/label/shippo`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ shipment_id })
+      });
+
+      console.log(`Refund API response: ${response.status} ${response.statusText}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Refund API error response:', errorText);
+        
+        let errorMessage = 'Failed to refund label';
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error || errorData.message) {
+            errorMessage = errorData.error || errorData.message;
+          }
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        return res.status(response.status).json({
+          success: false,
+          message: errorMessage
+        });
+      }
+
+      const data = await response.json();
+      console.log('Refund API response data:', data);
+
+      res.status(200).json({
+        success: true,
+        data,
+        message: 'Label refunded successfully'
+      });
+
+    } catch (error) {
+      console.error('Shipping label refund error:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to refund shipping label"
+      });
+    }
+  });
+
   // Purchase shipping label for bundle (multiple orders)
   app.post("/api/shipping/labels/bundle", async (req, res) => {
     try {

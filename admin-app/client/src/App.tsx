@@ -36,6 +36,7 @@ import AdminEmailTemplates from "@/pages/admin/email-templates";
 import AdminEmailBulk from "@/pages/admin/email-bulk";
 import AdminGiveaways from "@/pages/admin/giveaways";
 import AdminShippingProfiles from "@/pages/admin/shipping-profiles";
+import AdminShipments from "@/pages/admin/shipments";
 import AdminAddress from "@/pages/admin/address";
 import AdminLandingPage from "@/pages/admin/pages/landing";
 import AdminGeneralPage from "@/pages/admin/pages/general";
@@ -213,6 +214,7 @@ function Router() {
             <Route path="/admin/shows" component={AdminShows} />
             <Route path="/admin/giveaways" component={AdminGiveaways} />
             <Route path="/admin/shipping-profiles" component={AdminShippingProfiles} />
+            <Route path="/admin/shipments" component={AdminShipments} />
             <Route path="/admin/address" component={AdminAddress} />
             <Route path="/admin/email-templates" component={AdminEmailTemplates} />
             <Route path="/admin/email-settings" component={AdminEmailSettings} />

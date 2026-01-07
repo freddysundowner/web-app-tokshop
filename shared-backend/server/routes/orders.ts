@@ -192,6 +192,9 @@ export function registerOrderRoutes(app: Express) {
       if (req.query.search) {
         queryParams.set('search', req.query.search as string);
       }
+      if (req.query.searchBy) {
+        queryParams.set('searchBy', req.query.searchBy as string);
+      }
       
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? '?' + queryString : ''}`;

@@ -171,9 +171,11 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
         width: parseFloat(dimensions.width),
         height: parseFloat(dimensions.height),
         estimate_data: {
-          price: "0.00",
+          price: estimate.price,
           carrier: estimate.carrier,
           service: estimate.service,
+          deliveryTime: estimate.deliveryTime,
+          estimatedDays: estimate.estimatedDays,
           weight: parseFloat(weight),
           weight_unit: order?.giveaway?.shipping_profile?.scale || "oz",
           length: parseFloat(dimensions.length),
@@ -192,6 +194,9 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
         }
 
         queryClient.invalidateQueries({ queryKey: ['admin-giveaway-orders'] });
+        queryClient.invalidateQueries({ predicate: (query) => 
+          Array.isArray(query.queryKey) && query.queryKey[0] === 'admin-shipments'
+        });
 
         toast({
           title: "Shipping label purchased!",
@@ -276,6 +281,12 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
                   <span className="text-muted-foreground">Status:</span>
                   <Badge variant="secondary">{order.status}</Badge>
                 </div>
+                {order.tracking_number && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tracking:</span>
+                    <span className="font-mono text-xs">{order.tracking_number}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

@@ -156,6 +156,12 @@ const navigationItems: NavSection[] = [
         icon: Truck,
       },
       {
+        id: "shipments",
+        name: "Shipments",
+        href: "/admin/shipments",
+        icon: Package,
+      },
+      {
         id: "address",
         name: "Business Address",
         href: "/admin/address",
