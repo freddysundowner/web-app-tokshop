@@ -93,7 +93,7 @@ export function useLiveKit(config: LiveKitConfig) {
 
       console.log('🔌 Getting LiveKit token...', { roomId: config.roomId, userId: config.userId });
 
-      const res = await apiRequest('POST', `/livekit/token`, {
+      const res = await apiRequest('POST', `/livekit/token/dynamic`, {
         room: config.roomId,
         userId: config.userId,
         userName: config.userName || config.userId,
@@ -311,7 +311,9 @@ export function useLiveKit(config: LiveKitConfig) {
 
     const newMutedState = !state.isMuted;
 
-    if (state.isHost) {
+    // Only toggle local microphone if host AND has publish permissions
+    // If owner without publish permissions, mute host audio locally like a viewer
+    if (state.isHost && state.canPublish) {
       console.log('🎤 Host toggling microphone:', { currentlyMuted: state.isMuted, willBeMuted: newMutedState });
       try {
         await roomRef.current.localParticipant.setMicrophoneEnabled(!newMutedState);
@@ -331,7 +333,8 @@ export function useLiveKit(config: LiveKitConfig) {
         console.error('❌ Failed to toggle host microphone:', error);
       }
     } else {
-      console.log('🔇 Viewer muting remote audio:', newMutedState);
+      // Viewer OR owner without publish permissions - mute host audio locally
+      console.log('🔇 Muting remote audio locally:', newMutedState, { isHost: state.isHost, canPublish: state.canPublish });
       roomRef.current.remoteParticipants.forEach(participant => {
         participant.audioTrackPublications.forEach(publication => {
           if (publication.audioTrack) {
@@ -344,7 +347,7 @@ export function useLiveKit(config: LiveKitConfig) {
       });
       setState(prev => ({ ...prev, isMuted: newMutedState }));
     }
-  }, [state.isHost, state.isMuted, config.roomId]);
+  }, [state.isHost, state.canPublish, state.isMuted, config.roomId]);
 
   // When roomId changes, disconnect from the previous room and reset all state
   // This prevents audio/video from the old room bleeding into the new one

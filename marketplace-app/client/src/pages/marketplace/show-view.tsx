@@ -786,9 +786,8 @@ export default function ShowViewNew() {
             // Set the ended auction so it shows on the overlay
             const normalizedEndedAuction = normalizeAuctionEndTime(showActiveAuction);
             
-            // Find winner and get shipping estimate for ended auction
+            // Find winner for ended auction (no shipping estimate needed - order already placed)
             findWinner(showActiveAuction.bids || []);
-            getShippingEstimate(showActiveAuction);
             
             return normalizedEndedAuction;
           } else {

@@ -341,6 +341,8 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
           price: string;
           carrier: string;
           service: string;
+          deliveryTime?: string;
+          estimatedDays?: number;
           weight: number;
           weight_unit: string;
           length: number;
@@ -362,11 +364,13 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         length: parseFloat(dimensions.length),
         width: parseFloat(dimensions.width),
         height: parseFloat(dimensions.height),
-        // Add the new estimate data with price DIFFERENCE (not total)
+        // Add the estimate data with full price
         estimate_data: {
-          price: estimate.priceDifference || "0.00", // Send the price difference, not the total
+          price: estimate.price, // Send the full shipping price
           carrier: estimate.carrier,
           service: estimate.service,
+          deliveryTime: estimate.deliveryTime,
+          estimatedDays: estimate.estimatedDays,
           weight: parseFloat(weight),
           weight_unit: getWeightUnit(),
           length: parseFloat(dimensions.length),
