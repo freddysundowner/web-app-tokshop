@@ -364,7 +364,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         height: parseFloat(dimensions.height),
         // Add the new estimate data with price DIFFERENCE (not total)
         estimate_data: {
-          price: estimate.priceDifference || "0.00", // Send the price difference, not the total
+          price: estimate.price, // Send the price difference, not the total
           carrier: estimate.carrier,
           service: estimate.service,
           weight: parseFloat(weight),
