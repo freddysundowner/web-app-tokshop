@@ -18,19 +18,26 @@ function VideoGrid() {
     <div className="w-full h-full bg-black flex items-center justify-center">
       {tracks.length > 0 && (
         <div className="w-full h-full">
-          {tracks.map((trackRef) => (
-            <div key={trackRef.participant.identity} className="w-full h-full">
-              <VideoTrack 
-                trackRef={trackRef}
-                className="w-full h-full object-cover"
-                style={{ 
-                  imageRendering: 'auto',
-                  transform: 'translateZ(0)', // Force GPU acceleration
-                  backfaceVisibility: 'hidden'
-                }}
-              />
-            </div>
-          ))}
+          {tracks.map((trackRef) => {
+            // Auto mirror: mirror local camera, don't mirror remote or screen share
+            const isLocal = trackRef.participant.isLocal;
+            const isCamera = trackRef.source === Track.Source.Camera;
+            const shouldMirror = isLocal && isCamera;
+            
+            return (
+              <div key={trackRef.participant.identity} className="w-full h-full">
+                <VideoTrack 
+                  trackRef={trackRef}
+                  className="w-full h-full object-cover"
+                  style={{ 
+                    imageRendering: 'auto',
+                    transform: shouldMirror ? 'scaleX(-1) translateZ(0)' : 'translateZ(0)',
+                    backfaceVisibility: 'hidden'
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
