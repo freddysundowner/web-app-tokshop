@@ -228,22 +228,6 @@ export function registerProductRoutes(app: Express) {
 
       const data: any = await response.json();
       
-      // Filter out featured auctions if saletype is auction and featured filter isn't explicitly set
-      if (req.query.saletype === 'auction' && req.query.featured === undefined) {
-        const products = data.products || data.data || [];
-        console.log(`🔍 Total auctions before filtering: ${products.length}`);
-        console.log(`🔍 Featured auctions:`, products.filter((p: any) => p.featured === true).map((p: any) => ({ id: p._id, name: p.name, featured: p.featured })));
-        
-        const nonFeaturedProducts = products.filter((product: any) => product.featured !== true);
-        console.log(`🔍 Non-featured auctions after filtering: ${nonFeaturedProducts.length}`);
-        
-        if (data.products) {
-          data.products = nonFeaturedProducts;
-        } else if (data.data) {
-          data.data = nonFeaturedProducts;
-        }
-      }
-      
       res.json(data);
     } catch (error) {
       console.error("Products proxy error:", error);

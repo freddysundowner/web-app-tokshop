@@ -1,8 +1,8 @@
 /**
- * Admin App server entry point
+ * Marketplace App server entry point
  *
- * This runs the Admin App.
- * For the marketplace app, change adminAppDir to marketplaceAppDir
+ * This runs the Marketplace App.
+ * For the admin app, change marketplaceAppDir to adminAppDir
  * To run both apps, use: ./run-both.sh
  */
 
@@ -12,19 +12,19 @@ import dotenv from "dotenv";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Load .env from admin-app directory BEFORE changing directory
-const adminAppDir = path.join(__dirname, "..", "admin-app");
-dotenv.config({ path: path.join(adminAppDir, ".env") });
+// Load .env from marketplace-app directory BEFORE changing directory
+const marketplaceAppDir = path.join(__dirname, "..", "marketplace-app");
+dotenv.config({ path: path.join(marketplaceAppDir, ".env") });
 
-// Change to admin-app directory
-process.chdir(adminAppDir);
-console.log("[Admin Server] Changed directory to:", process.cwd());
+// Change to marketplace-app directory
+process.chdir(marketplaceAppDir);
+console.log("[Marketplace Server] Changed directory to:", process.cwd());
 
-// Import the admin app server using absolute path
+// Import the marketplace app server using absolute path
 const serverPath = path.join(process.cwd(), "server.ts");
-console.log("[Admin Server] Loading server from:", serverPath);
+console.log("[Marketplace Server] Loading server from:", serverPath);
 
 import(serverPath).catch((err) => {
-  console.error("[Admin Server] Failed to load admin server:", err);
+  console.error("[Marketplace Server] Failed to load marketplace server:", err);
   process.exit(1);
 });

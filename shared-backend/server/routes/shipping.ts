@@ -140,7 +140,41 @@ export function registerShippingRoutes(app: Express) {
     }
   });
 
-  // Shipping profiles for user
+  // Shipping profiles for user (with /user/ prefix)
+  app.get("/api/shipping/profiles/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      console.log('Proxying shipping profiles request to Tokshop API for user:', userId);
+      
+      const url = `${BASE_URL}/shipping/profiles/user/${userId}`;
+      console.log('Final API URL being called:', url);
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Shipping profiles proxy error:', error);
+      res.status(500).json({ error: "Failed to fetch shipping profiles from Tokshop API" });
+    }
+  });
+
+  // Shipping profiles for user (legacy route)
   app.get("/api/shipping/profiles/:userId", async (req, res) => {
     try {
       const { userId } = req.params;

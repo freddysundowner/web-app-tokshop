@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Plus, Minus, Loader2 } from 'lucide-react';
 
 interface CustomBidDialogProps {
@@ -27,28 +28,35 @@ export function CustomBidDialog({
   timeLeft = 0
 }: CustomBidDialogProps) {
   const [bidAmount, setBidAmount] = useState(minimumBid);
+  const [inputValue, setInputValue] = useState(String(minimumBid));
   const [isMaxBid, setIsMaxBid] = useState(false);
 
   // Reset bid amount when minimumBid changes (new auction)
   useEffect(() => {
     setBidAmount(minimumBid);
+    setInputValue(String(minimumBid));
   }, [minimumBid]);
 
   // Reset bid amount when dialog opens
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
       setBidAmount(minimumBid);
+      setInputValue(String(minimumBid));
       setIsMaxBid(false);
     }
     onOpenChange(newOpen);
   };
 
   const handleIncrement = () => {
-    setBidAmount(prev => prev + 1);
+    const newAmount = bidAmount + 1;
+    setBidAmount(newAmount);
+    setInputValue(String(newAmount));
   };
 
   const handleDecrement = () => {
-    setBidAmount(prev => Math.max(minimumBid, prev - 1));
+    const newAmount = Math.max(minimumBid, bidAmount - 1);
+    setBidAmount(newAmount);
+    setInputValue(String(newAmount));
   };
 
   const handlePlaceBidClick = () => {
@@ -82,31 +90,59 @@ export function CustomBidDialog({
           </div>
 
           {/* Bid Amount Controls */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-3">
             <Button
               onClick={handleDecrement}
               variant="outline"
               size="icon"
-              className="h-14 w-14 rounded-full"
+              className="h-12 w-12 rounded-full flex-shrink-0"
               data-testid="button-decrement-bid"
             >
-              <Minus className="h-6 w-6" />
+              <Minus className="h-5 w-5" />
             </Button>
 
-            <div className="text-4xl font-bold" data-testid="text-custom-bid-amount">
-              ${bidAmount.toFixed(0)}
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">$</span>
+              <Input
+                type="number"
+                value={inputValue}
+                onChange={(e) => {
+                  const rawValue = e.target.value;
+                  setInputValue(rawValue);
+                  const numValue = parseFloat(rawValue);
+                  if (!isNaN(numValue) && numValue >= 0) {
+                    setBidAmount(numValue);
+                  }
+                }}
+                onBlur={() => {
+                  if (inputValue === '' || bidAmount < minimumBid) {
+                    setBidAmount(minimumBid);
+                    setInputValue(String(minimumBid));
+                  } else {
+                    setInputValue(String(bidAmount));
+                  }
+                }}
+                className="text-center text-2xl font-bold h-12 pl-8 pr-3"
+                min={minimumBid}
+                step={1}
+                data-testid="input-custom-bid-amount"
+              />
             </div>
 
             <Button
               onClick={handleIncrement}
               variant="outline"
               size="icon"
-              className="h-14 w-14 rounded-full"
+              className="h-12 w-12 rounded-full flex-shrink-0"
               data-testid="button-increment-bid"
             >
-              <Plus className="h-6 w-6" />
+              <Plus className="h-5 w-5" />
             </Button>
           </div>
+          
+          <p className="text-xs text-muted-foreground text-center">
+            Minimum bid: ${minimumBid.toFixed(0)}
+          </p>
 
           {/* Max Bid Toggle */}
           <div className="space-y-2">

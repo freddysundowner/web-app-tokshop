@@ -1081,7 +1081,7 @@ export function registerAdminRoutes(app: Express) {
   app.patch("/api/admin/users/:userId/approve-seller", requireAdmin, checkDemoMode, async (req, res) => {
     try {
       const { userId } = req.params;
-      const { email } = req.body;
+      const { email, action } = req.body;
       const accessToken = req.session.accessToken;
 
       if (!accessToken) {
@@ -1092,8 +1092,12 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const url = `${BASE_URL}/users/approveseller/${userId}`;
+      const payload: any = {};
+      if (email) payload.email = email;
+      if (action) payload.action = action;
+      
       console.log(`Approving seller at: ${url}`);
-      console.log(`Seller approval payload:`, { email });
+      console.log(`Seller approval payload:`, payload);
 
       const response = await fetch(url, {
         method: "PATCH",
@@ -1101,7 +1105,7 @@ export function registerAdminRoutes(app: Express) {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(payload),
       });
 
       console.log(`Seller approval API response status: ${response.status}`);
