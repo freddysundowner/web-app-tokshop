@@ -767,16 +767,31 @@ export function useShowSocketEvents({
       duration: 3000,
     });
     
+    // CRITICAL: Set leaving flag BEFORE leaving room to prevent auto-rejoin to OLD room
+    // This suppresses the SocketProvider's auto-rejoin logic during the rally transition
+    setLeavingRoom(true);
+    console.log('🚀 Set leaving flag to prevent auto-rejoin to old room');
+    
     // Leave current room
     if (roomId) {
       leaveRoom(roomId);
     }
     
     // Navigate to the target show after a short delay for smooth transition
+    // Then explicitly join the new room and clear the leaving flag
     setTimeout(() => {
+      console.log('🚀 Navigating to target show:', toRoom);
       navigate(`/show/${toRoom}`);
+      
+      // After navigation, join the target room and clear the leaving flag
+      // Small delay to ensure navigation has completed and new page is mounting
+      setTimeout(() => {
+        console.log('🚀 Joining target room after rally navigation:', toRoom);
+        joinRoom(toRoom);
+        setLeavingRoom(false);
+      }, 500);
     }, 1000);
-  }, [isShowOwner, roomId, leaveRoom, navigate, toast]);
+  }, [isShowOwner, roomId, leaveRoom, joinRoom, setLeavingRoom, navigate, toast]);
 
   // Refs to track current room and pending leave timeout for cleanup decisions
   const currentRoomRef = useRef<string | null>(null);

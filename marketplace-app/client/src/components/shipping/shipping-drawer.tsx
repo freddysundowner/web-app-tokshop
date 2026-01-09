@@ -132,26 +132,8 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     return (displayOrder.total || 0) + (displayOrder.servicefee || 0);
   };
   
-  // Extract real dimensions from order data
+  // Extract dimensions from order data
   const getRealOrderDimensions = () => {
-    // For giveaway orders, get from giveaway object
-    if (displayOrder.giveaway) {
-      if (displayOrder.giveaway.length && displayOrder.giveaway.width && displayOrder.giveaway.height) {
-        return {
-          length: displayOrder.giveaway.length,
-          width: displayOrder.giveaway.width,
-          height: displayOrder.giveaway.height,
-        };
-      }
-      // Fallback for giveaways
-      return {
-        length: "8",
-        width: "6", 
-        height: "2",
-      };
-    }
-    
-    // For regular orders, get from order object directly
     if (displayOrder.length && displayOrder.width && displayOrder.height) {
       return {
         length: displayOrder.length.toString(),
@@ -160,7 +142,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
       };
     }
     
-    // Fallback for regular orders
+    // Fallback
     return {
       length: "10",
       width: "8", 
@@ -168,23 +150,12 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     };
   };
   
-  // Extract real weight from order data
+  // Extract weight from order data
   const getRealOrderWeight = () => {
-    // For giveaways, check shipping_profile.weight first, then order.weight
-    if (displayOrder.giveaway) {
-      const giveawayWeight = displayOrder.giveaway.shipping_profile?.weight;
-      if (giveawayWeight) {
-        return giveawayWeight.toString();
-      }
-    }
-    
-    // Get weight from order.weight field
     if (displayOrder.weight) {
       return displayOrder.weight.toString();
     }
-    
-    // Fallback to 0 if no weight
-    return "0";
+    return "16";
   };
   
   // Get the weight unit from order data
@@ -612,15 +583,16 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Items:</span>
                   <span className="text-right">
-                    {displayOrder.giveaway?.name || (displayOrder.items && displayOrder.items.length > 0 
+                    {displayOrder.items && displayOrder.items.length > 0 
                       ? displayOrder.items.map((item: any, idx: number) => (
                           <span key={idx}>
-                            {item.productId?.name || 'Unknown Item'}
-                            {item.order_reference ? ` ${item.order_reference}` : ''}
+                            {item.productId?.name 
+                              ? `${item.productId.name}${item.order_reference ? ` ${item.order_reference}` : ''}` 
+                              : (item.order_reference || 'Item')}
                             {idx < displayOrder.items.length - 1 ? ', ' : ''}
                           </span>
                         ))
-                      : 'Unknown Item')} 
+                      : 'Item'} 
                     ({displayOrder.giveaway ? displayOrder.giveaway.quantity : (displayOrder.items ? displayOrder.items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) : 1)} items)
                   </span>
                 </div>

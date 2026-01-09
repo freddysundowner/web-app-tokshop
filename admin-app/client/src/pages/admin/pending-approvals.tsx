@@ -83,7 +83,7 @@ export default function AdminPendingApprovals() {
 
   const rejectUserMutation = useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/approve-seller`, { approved: false });
+      return apiRequest("PATCH", `/api/admin/users/${userId}/approve-seller`, { action: "reject" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });

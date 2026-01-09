@@ -53,6 +53,7 @@ export function registerPaymentMethodRoutes(app: Express) {
       }
       
       const data = responseText ? JSON.parse(responseText) : [];
+      console.log('Payment methods data:', JSON.stringify(data, null, 2));
       res.json(data);
     } catch (error) {
       console.error('Get payment methods error:', error);
@@ -93,6 +94,127 @@ export function registerPaymentMethodRoutes(app: Express) {
       
       const responseText = await response.text();
       console.log('Delete payment method response status:', response.status);
+      
+      if (!response.ok) {
+        console.error(`Tokshop API delete error ${response.status}`);
+        
+        try {
+          const errorJson = JSON.parse(responseText);
+          const apiMessage = errorJson.message || errorJson.error || errorJson;
+          
+          return res.status(response.status).json({ 
+            error: apiMessage,
+            details: errorJson,
+          });
+        } catch (e) {
+          return res.status(response.status).json({ 
+            error: responseText || "Failed to delete payment method",
+            details: responseText,
+          });
+        }
+      }
+      
+      const data = responseText ? JSON.parse(responseText) : {};
+      res.json(data);
+    } catch (error) {
+      console.error('Delete payment method error:', error);
+      res.status(500).json({ 
+        error: "Failed to delete payment method", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Update payment method (PATCH - forwards body as-is)
+  app.patch("/users/paymentmethod/:id", async (req, res) => {
+    try {
+      const paymentMethodId = req.params.id;
+      
+      if (!paymentMethodId) {
+        return res.status(400).json({ 
+          error: "Payment method ID is required" 
+        });
+      }
+      
+      console.log('Updating payment method:', { paymentMethodId, body: req.body });
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      // Send to Tokshop API - forward body as-is
+      const response = await fetch(`${BASE_URL}/users/paymentmethod/${paymentMethodId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(req.body)
+      });
+      
+      const responseText = await response.text();
+      console.log('Update payment method response:', response.status);
+      
+      if (!response.ok) {
+        console.error(`Tokshop API update error ${response.status}`);
+        
+        try {
+          const errorJson = JSON.parse(responseText);
+          const apiMessage = errorJson.message || errorJson.error || errorJson;
+          
+          return res.status(response.status).json({ 
+            error: apiMessage,
+            details: errorJson,
+          });
+        } catch (e) {
+          return res.status(response.status).json({ 
+            error: responseText || "Failed to update payment method",
+            details: responseText,
+          });
+        }
+      }
+      
+      const data = responseText ? JSON.parse(responseText) : {};
+      res.json(data);
+    } catch (error) {
+      console.error('Update payment method error:', error);
+      res.status(500).json({ 
+        error: "Failed to update payment method", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Delete payment method by ID
+  app.delete("/users/paymentmethod/:id", async (req, res) => {
+    try {
+      const paymentMethodId = req.params.id;
+      
+      if (!paymentMethodId) {
+        return res.status(400).json({ 
+          error: "Payment method ID is required" 
+        });
+      }
+      
+      console.log('Deleting payment method:', paymentMethodId);
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.session?.accessToken) {
+        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      }
+
+      // Send to Tokshop API
+      const response = await fetch(`${BASE_URL}/users/paymentmethod/${paymentMethodId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      
+      const responseText = await response.text();
+      console.log('Delete payment method response:', response.status);
       
       if (!response.ok) {
         console.error(`Tokshop API delete error ${response.status}`);

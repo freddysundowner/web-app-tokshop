@@ -150,8 +150,11 @@ export function registerSettingsRoutes(app: Express) {
   // Get public app settings (branding information)
   app.get("/api/settings", async (req, res) => {
     try {
-      // Try to get access token from session
-      const accessToken = req.session?.accessToken;
+      // Try to get access token from Authorization header first, then session
+      const authHeader = req.headers.authorization;
+      const accessToken = authHeader?.startsWith('Bearer ') 
+        ? authHeader.substring(7) 
+        : req.session?.accessToken;
       
       // If no auth, return defaults immediately - don't call external API
       if (!accessToken) {

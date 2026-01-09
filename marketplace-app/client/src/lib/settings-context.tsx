@@ -219,7 +219,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (settingsFetched) return; // Already fetched
     
     try {
-      const response = await fetch('/api/settings');
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/settings', { 
+        credentials: 'include',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       if (response.ok) {
         const data = await response.json();
         console.log('⚙️ Settings fetched:', data);

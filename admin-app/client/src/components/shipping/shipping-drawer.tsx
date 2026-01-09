@@ -63,25 +63,35 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch full order data to get items and complete details
+  const { data: fullOrderData, isLoading: orderLoading } = useQuery({
+    queryKey: ['/api/orders', order?._id],
+    queryFn: async () => {
+      if (!order?._id) return null;
+      const response = await fetch(`/api/orders/${order._id}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch order details');
+      const data = await response.json();
+      return data.data || data;
+    },
+    enabled: open && !!order?._id,
+    staleTime: 30000,
+  });
+
+  // Use full order data if available, otherwise fall back to passed order
+  const orderData = fullOrderData || order;
+
   useEffect(() => {
-    if (order && open) {
-      if (order.giveaway) {
-        setDimensions({
-          length: order.giveaway.length?.toString() || "10",
-          width: order.giveaway.width?.toString() || "8",
-          height: order.giveaway.height?.toString() || "3",
-        });
-        setWeight(order.giveaway.shipping_profile?.weight?.toString() || order.weight?.toString() || "16");
-      } else {
-        setDimensions({
-          length: order.length?.toString() || "10",
-          width: order.width?.toString() || "8",
-          height: order.height?.toString() || "3",
-        });
-        setWeight(order.weight?.toString() || "16");
-      }
+    if (orderData && open) {
+      setDimensions({
+        length: orderData.length?.toString() || "10",
+        width: orderData.width?.toString() || "8",
+        height: orderData.height?.toString() || "3",
+      });
+      setWeight(orderData.weight?.toString() || "16");
     }
-  }, [order, open]);
+  }, [orderData, open]);
 
   const hasValidDimensions = Boolean(
     dimensions.length && dimensions.width && dimensions.height && weight
@@ -89,17 +99,17 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
 
   const getOwnerId = () => {
     // For giveaway orders, owner comes from giveaway.user (the giveaway creator)
-    if (order?.giveaway?.user?._id) return order.giveaway.user._id;
-    if (order?.giveaway?.user && typeof order.giveaway.user === 'string') return order.giveaway.user;
+    if (orderData?.giveaway?.user?._id) return orderData.giveaway.user._id;
+    if (orderData?.giveaway?.user && typeof orderData.giveaway.user === 'string') return orderData.giveaway.user;
     // Fallback to seller for regular orders
-    if (order?.seller?._id) return order.seller._id;
-    if (order?.seller && typeof order.seller === 'string') return order.seller;
+    if (orderData?.seller?._id) return orderData.seller._id;
+    if (orderData?.seller && typeof orderData.seller === 'string') return orderData.seller;
     return 'admin';
   };
 
   const getCustomerId = () => {
-    if (order?.customer?._id) return order.customer._id;
-    if (order?.customer && typeof order.customer === 'string') return order.customer;
+    if (orderData?.customer?._id) return orderData.customer._id;
+    if (orderData?.customer && typeof orderData.customer === 'string') return orderData.customer;
     return '';
   };
 
@@ -117,15 +127,15 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
       
       const requestData = {
         weight: weight,
-        unit: order?.giveaway?.shipping_profile?.scale || "oz",
-        product: order?.giveaway?._id || order?.items?.[0]?.productId?._id || order?._id,
+        unit: orderData?.giveaway?.shipping_profile?.scale || orderData?.scale || "oz",
+        product: orderData?.giveaway?._id || orderData?.items?.[0]?.productId?._id || orderData?._id,
         update: true,
         owner: ownerId,
         customer: customerId,
         length: parseFloat(dimensions.length),
         width: parseFloat(dimensions.width),
         height: parseFloat(dimensions.height),
-        isGiveaway: true,
+        isGiveaway: !!orderData?.giveaway,
       };
 
       const response = await fetch(`/api/shipping/profiles/estimate/rates`, {
@@ -141,7 +151,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
       
       return await response.json() as ShippingEstimate[];
     },
-    enabled: hasValidDimensions && open && !!order && !!getCustomerId(),
+    enabled: hasValidDimensions && open && !!orderData && !!getCustomerId(),
     retry: 1,
   });
 
@@ -158,7 +168,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
     mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string }) => {
       const requestData = {
         rate_id: estimate.objectId,
-        order: order._id,
+        order: orderData._id,
         isBundle: false,
         shipping_fee: parseFloat(estimate.price),
         servicelevel: `${estimate.carrier} ${estimate.service}`,
@@ -166,7 +176,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
         deliveryTime: estimate.deliveryTime,
         label_file_type: estimate.labelFileType,
         weight: parseFloat(weight),
-        weight_unit: order?.giveaway?.shipping_profile?.scale || "oz",
+        weight_unit: orderData?.giveaway?.shipping_profile?.scale || orderData?.scale || "oz",
         length: parseFloat(dimensions.length),
         width: parseFloat(dimensions.width),
         height: parseFloat(dimensions.height),
@@ -177,7 +187,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
           deliveryTime: estimate.deliveryTime,
           estimatedDays: estimate.estimatedDays,
           weight: parseFloat(weight),
-          weight_unit: order?.giveaway?.shipping_profile?.scale || "oz",
+          weight_unit: orderData?.giveaway?.shipping_profile?.scale || orderData?.scale || "oz",
           length: parseFloat(dimensions.length),
           width: parseFloat(dimensions.width),
           height: parseFloat(dimensions.height),
@@ -243,11 +253,11 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
 
   if (!order) return null;
 
-  const customerName = typeof order.customer === 'object'
-    ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.userName
+  const customerName = typeof orderData.customer === 'object'
+    ? `${orderData.customer.firstName || ''} ${orderData.customer.lastName || ''}`.trim() || orderData.customer.userName
     : 'Unknown';
 
-  const giveawayTitle = order.giveaway?.title || order.giveaway?.name || 'Giveaway Item';
+  const giveawayTitle = orderData.giveaway?.title || orderData.giveaway?.name || 'Giveaway Item';
 
   return (
     <>
@@ -256,36 +266,60 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Package size={20} />
-              Ship Order {order.invoice || order._id?.slice(-8)}
+              Ship Order {orderData.invoice || orderData._id?.slice(-8)}
             </SheetTitle>
             <SheetDescription>
-              Purchase a shipping label for this giveaway order
+              Purchase a shipping label for this order
             </SheetDescription>
           </SheetHeader>
 
+          {orderLoading ? (
+            <div className="mt-6 flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
           <div className="mt-6 space-y-6 pb-6">
+            {/* Order Items Section */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Order Details</CardTitle>
+                <CardTitle className="text-sm">Order Items</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Customer:</span>
-                  <span className="font-medium">{customerName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Giveaway:</span>
-                  <span className="font-medium truncate max-w-[200px]">{giveawayTitle}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Status:</span>
-                  <Badge variant="secondary">{order.status}</Badge>
-                </div>
-                {order.tracking_number && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tracking:</span>
-                    <span className="font-mono text-xs">{order.tracking_number}</span>
-                  </div>
+                {orderData?.items && orderData.items.length > 0 ? (
+                  orderData.items.map((item: any, idx: number) => {
+                    const itemName = item.productId?.name 
+                      ? `${item.productId.name}${item.order_reference ? ` ${item.order_reference}` : ''}` 
+                      : (item.order_reference || 'Item');
+                    const itemImage = item.productId?.images?.[0];
+                    
+                    return (
+                      <div key={item._id || idx} className="flex items-center gap-2 py-2 px-2 bg-muted/50 rounded text-xs">
+                        {itemImage ? (
+                          <img 
+                            src={itemImage} 
+                            alt={itemName}
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {itemName}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {item.ordertype || 'Item'} · Qty: {item.quantity || 1}
+                            {item.weight && ` · ${item.weight}${item.scale || 'oz'}`}
+                          </p>
+                        </div>
+                        <p className="font-medium">${parseFloat(item.price || 0).toFixed(2)}</p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-muted-foreground text-sm text-center py-2">No items found</p>
                 )}
               </CardContent>
             </Card>
@@ -399,6 +433,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
               </CardContent>
             </Card>
           </div>
+          )}
         </SheetContent>
       </Sheet>
 

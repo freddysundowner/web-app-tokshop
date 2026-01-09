@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Clock, Hammer, ChevronLeft, ChevronRight, User, Truck, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, Hammer, ChevronLeft, ChevronRight, User, Truck, ShieldCheck, AlertCircle, Loader2, DollarSign } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSocket } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
+import { CustomBidDialog } from "@/components/custom-bid-dialog";
 
 // Lazy load payment/shipping components (same as live show)
 const PaymentShippingAlertDialog = lazy(() => import('@/components/payment-shipping-alert-dialog').then(m => ({ default: m.PaymentShippingAlertDialog })));
@@ -39,6 +40,16 @@ export default function AuctionDetail() {
   // Payment & Shipping dialogs (same as live show)
   const [showPaymentShippingAlert, setShowPaymentShippingAlert] = useState<boolean>(false);
   const [showPaymentShippingSheet, setShowPaymentShippingSheet] = useState<boolean>(false);
+  
+  // Custom Bid Dialog
+  const [showCustomBidDialog, setShowCustomBidDialog] = useState<boolean>(false);
+
+  // Refresh user data on page load to get latest address/payment info
+  useEffect(() => {
+    if (currentUser) {
+      refreshUserData();
+    }
+  }, [currentUser?.id]);
 
   console.log('🔍 STEP 1: Product ID from URL params:', productId);
 
@@ -353,9 +364,9 @@ export default function AuctionDetail() {
     return !!(userData.address && userData.defaultpaymentmethod);
   };
 
-  // Place bid mutation
+  // Place bid mutation - supports both regular and custom bids
   const placeBidMutation = useMutation({
-    mutationFn: async (bidAmount: number) => {
+    mutationFn: async (options: number | { amount: number; custom?: { autobid: boolean; autobidAmount: number } }) => {
       if (!currentUser) {
         throw new Error('Please sign in to place a bid');
       }
@@ -370,48 +381,50 @@ export default function AuctionDetail() {
         throw new Error('Not connected to server. Please try again.');
       }
       
+      // Parse options - support both old number format and new object format
+      const isCustomBid = typeof options === 'object' && options.custom;
+      const amount = typeof options === 'number' ? options : options.amount;
+      const customOptions = typeof options === 'object' ? options.custom : undefined;
+      
       // Use nested auction ID if available, otherwise fall back to product ID
       const auctionInfo = mergedData.auction || mergedData;
       const auctionId = auctionInfo._id || mergedData._id;
+      
+      // Determine bid amount
+      let bidAmount = amount;
+      if (isCustomBid && customOptions!.autobid) {
+        // Autobid enabled - place bid at next minimum
+        bidAmount = auctionInfo.newbaseprice || auctionInfo.baseprice || amount;
+      }
       
       console.log('📤 Placing bid via socket:', {
         user: currentUserId,
         amount: bidAmount,
         auction: auctionId,
-        increaseBidBy: auctionInfo.increaseBidBy || bidIncrement
+        increaseBidBy: auctionInfo.increaseBidBy || bidIncrement,
+        isCustomBid,
+        autobid: isCustomBid ? customOptions!.autobid : false,
+        autobidamount: isCustomBid ? customOptions!.autobidAmount : bidAmount
       });
       
-      // Return a promise that resolves when we get the bid-updated event
-      return new Promise((resolve, reject) => {
-        // Set a timeout in case the server doesn't respond
-        const timeout = setTimeout(() => {
-          reject(new Error('Bid request timed out'));
-        }, 10000); // 10 second timeout
-        
-        // Listen for bid-updated event (one-time listener)
-        const handleBidResponse = () => {
-          clearTimeout(timeout);
-          console.log('✅ Bid confirmed by server');
-          resolve(true);
-        };
-        
-        socket.once('bid-updated', handleBidResponse);
-        
-        // Emit the bid
-        socket.emit('place-bid', {
-          user: currentUserId,
-          amount: bidAmount,
-          increaseBidBy: auctionInfo.increaseBidBy || bidIncrement,
-          auction: auctionId,
-          prebid: false,
-          autobid: false,
-          autobidamount: bidAmount,
-          roomId: auctionId, // For scheduled auctions, roomId is the auction ID
-          type: 'scheduled' // Indicate this is a scheduled auction bid
-        });
-        
-        console.log('✅ Bid socket event emitted, waiting for confirmation...');
+      // Emit the bid - fire and forget, real-time updates will show the result
+      socket.emit('place-bid', {
+        user: currentUserId,
+        amount: bidAmount,
+        increaseBidBy: auctionInfo.increaseBidBy || bidIncrement,
+        auction: auctionId,
+        prebid: false,
+        autobid: isCustomBid ? customOptions!.autobid : false,
+        autobidamount: isCustomBid ? customOptions!.autobidAmount : bidAmount,
+        custom_bid: isCustomBid ? true : false,
+        roomId: auctionId, // For scheduled auctions, roomId is the auction ID
+        type: 'scheduled' // Indicate this is a scheduled auction bid
       });
+      
+      console.log('✅ Bid socket event emitted');
+      
+      // Return immediately - the real-time socket updates will reflect the bid
+      return true;
     },
     onSuccess: () => {
       toast({
@@ -459,6 +472,52 @@ export default function AuctionDetail() {
     // Use newbaseprice, or default_startprice if newbaseprice is 0
     const bidAmount = auctionInfo?.newbaseprice || mergedData?.default_startprice || 0;
     placeBidMutation.mutate(bidAmount);
+  };
+
+  // Handler for custom bid (from dialog)
+  const handleCustomBid = (amount: number, isMaxBid: boolean) => {
+    if (!currentUser) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to place a bid.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check payment/shipping before opening dialog
+    if (!hasPaymentAndShipping()) {
+      setShowPaymentShippingAlert(true);
+      return;
+    }
+
+    placeBidMutation.mutate({
+      amount,
+      custom: {
+        autobid: isMaxBid,
+        autobidAmount: amount
+      }
+    });
+  };
+
+  // Open custom bid dialog
+  const handleOpenCustomBid = () => {
+    if (!currentUser) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to place a bid.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check payment/shipping before opening dialog
+    if (!hasPaymentAndShipping()) {
+      setShowPaymentShippingAlert(true);
+      return;
+    }
+
+    setShowCustomBidDialog(true);
   };
 
   if (isLoading) {
@@ -622,9 +681,9 @@ export default function AuctionDetail() {
 
                 <Separator />
 
-                {/* Current Bid */}
+                {/* Current Bid / Starting Price */}
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Current Bid</p>
+                  <p className="text-sm text-muted-foreground mb-1">{bids.length > 0 ? 'Current Bid' : 'Starting Price'}</p>
                   <p className="text-3xl font-bold text-primary" data-testid="current-bid">
                     ${currentBid.toFixed(2)}
                     {!isLoadingShipping && shippingEstimate?.amount && (
@@ -666,22 +725,33 @@ export default function AuctionDetail() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <Button
-                        onClick={handleQuickBid}
-                        className="w-full"
-                        size="lg"
-                        disabled={placeBidMutation.isPending}
-                        data-testid="button-quick-bid"
-                      >
-                        {placeBidMutation.isPending ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <>
-                            <Hammer className="h-5 w-5 mr-2" />
-                            Place Bid - ${(auctionInfo?.newbaseprice || mergedData?.default_startprice || 0).toFixed(2)}
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleQuickBid}
+                          className="flex-1"
+                          size="lg"
+                          disabled={placeBidMutation.isPending}
+                          data-testid="button-quick-bid"
+                        >
+                          {placeBidMutation.isPending ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <>
+                              <Hammer className="h-5 w-5 mr-2" />
+                              Place Bid - ${(auctionInfo?.newbaseprice || mergedData?.default_startprice || 0).toFixed(2)}
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={handleOpenCustomBid}
+                          variant="outline"
+                          size="lg"
+                          disabled={placeBidMutation.isPending}
+                          data-testid="button-custom-bid"
+                        >
+                          <DollarSign className="h-5 w-5" />
+                        </Button>
+                      </div>
 
                       {userBidAmount !== null && (
                         <p className="text-xs text-muted-foreground text-center" data-testid="text-user-bid">
@@ -778,6 +848,17 @@ export default function AuctionDetail() {
           />
         </Suspense>
       )}
+
+      {/* Custom Bid Dialog */}
+      <CustomBidDialog
+        open={showCustomBidDialog}
+        onOpenChange={setShowCustomBidDialog}
+        productName={mergedData?.name || 'Auction Item'}
+        currentBid={currentBid}
+        minimumBid={auctionInfo?.newbaseprice || auctionInfo?.baseprice || 1}
+        onPlaceBid={handleCustomBid}
+        isPending={placeBidMutation.isPending}
+      />
     </div>
   );
 }
