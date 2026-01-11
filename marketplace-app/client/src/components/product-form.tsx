@@ -41,7 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronRight, Clock } from "lucide-react";
+import { ChevronRight, Clock, Zap, Percent, DollarSign } from "lucide-react";
 
 interface ProductFormProps {
   listingType?: ListingType;
@@ -87,8 +87,35 @@ export function ProductForm({
       whocanenter: 'everyone',
       tokshow: roomId || "",
       acceptsOffers: false,
+      flash_sale: false,
+      flash_sale_discount_type: 'percentage',
+      flash_sale_discount_value: 0,
+      flash_sale_buy_limit: 1,
+      flash_sale_duration: 60,
+      flash_sale_available_full_price: false,
+      flash_live_reserved: true,
     },
   });
+
+  // Watch flash sale enabled state
+  const isFlashSaleEnabled = useWatch({ control: form.control, name: 'flash_sale' });
+  const flashSaleDiscountType = useWatch({ control: form.control, name: 'flash_sale_discount_type' });
+  const flashSaleDiscountValue = useWatch({ control: form.control, name: 'flash_sale_discount_value' });
+  const productPrice = useWatch({ control: form.control, name: 'price' });
+
+  // Calculate flash sale price
+  const calculateFlashSalePrice = () => {
+    const numPrice = Number(productPrice);
+    const numDiscount = Number(flashSaleDiscountValue);
+    if (!numPrice || numPrice <= 0 || !numDiscount || numDiscount <= 0) return null;
+    if (flashSaleDiscountType === 'percentage') {
+      const discount = (numPrice * numDiscount) / 100;
+      return Math.max(0, numPrice - discount);
+    } else {
+      return Math.max(0, numPrice - numDiscount);
+    }
+  };
+  const flashSalePrice = calculateFlashSalePrice();
 
   // Watch the listing type from the form
   // Use useWatch to ensure proper re-rendering when value changes
@@ -170,6 +197,15 @@ export function ProductForm({
       // API returns 'offer' field, but form uses 'acceptsOffers'
       const acceptsOffersValue = existingProduct.offer ?? existingProduct.acceptsOffers ?? false;
       
+      // Flash sale fields
+      const flashSaleEnabled = existingProduct.flash_sale ?? false;
+      const flashSaleDiscountType = existingProduct.flash_sale_discount_type ?? 'percentage';
+      const flashSaleDiscountValue = existingProduct.flash_sale_discount_value ?? 0;
+      const flashSaleBuyLimit = existingProduct.flash_sale_buy_limit ?? 1;
+      const flashSaleDuration = existingProduct.flash_sale_duration ?? 60;
+      const flashSaleAvailableFullPrice = existingProduct.flash_sale_available_full_price ?? false;
+      const flashLiveReserved = existingProduct.flash_live_reserved ?? true;
+      
       console.log('Form values being set:', {
         name: existingProduct.name,
         quantity: productQuantity,
@@ -179,6 +215,13 @@ export function ProductForm({
         shippingProfile: shippingProfileId,
         category: categoryId,
         acceptsOffers: acceptsOffersValue,
+        flash_sale: flashSaleEnabled,
+        flash_sale_discount_type: flashSaleDiscountType,
+        flash_sale_discount_value: flashSaleDiscountValue,
+        flash_sale_buy_limit: flashSaleBuyLimit,
+        flash_sale_duration: flashSaleDuration,
+        flash_sale_available_full_price: flashSaleAvailableFullPrice,
+        flash_live_reserved: flashLiveReserved,
       });
       
       // Reset form with existing product data
@@ -199,6 +242,13 @@ export function ProductForm({
         sudden: productSudden,
         tokshow: roomId || existingProduct.tokshow || "",
         acceptsOffers: acceptsOffersValue,
+        flash_sale: flashSaleEnabled,
+        flash_sale_discount_type: flashSaleDiscountType,
+        flash_sale_discount_value: flashSaleDiscountValue,
+        flash_sale_buy_limit: flashSaleBuyLimit,
+        flash_sale_duration: flashSaleDuration,
+        flash_sale_available_full_price: flashSaleAvailableFullPrice,
+        flash_live_reserved: flashLiveReserved,
       });
       
       // Set preview images
@@ -247,10 +297,13 @@ export function ProductForm({
     },
     onSuccess: (data, variables) => {
       const isGiveaway = variables.listingType === 'giveaway';
-      queryClient.invalidateQueries({ queryKey: ["external-products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      // Invalidate all product queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["external-products"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"], refetchType: 'all' });
+      // Also invalidate show queries to update pinned product data
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms"], refetchType: 'all' });
       if (isGiveaway) {
-        queryClient.invalidateQueries({ queryKey: ["/api/giveaways"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/giveaways"], refetchType: 'all' });
       }
       if (!existingProduct) {
         form.reset();
@@ -328,11 +381,31 @@ export function ProductForm({
       if (currentListingType === 'buy_now') {
         submitData.price = data.price;
         submitData.shippingProfile = data.shippingProfile;
-        submitData.featured = data.featured;
+        // Featured is true if trending is enabled OR (flash sale + available for full price)
+        submitData.featured = data.featured || (data.flash_sale && data.flash_sale_available_full_price);
         // Map acceptsOffers to offer for the backend API (same as inventory form)
         submitData.offer = data.acceptsOffers ?? false;
+        
+        // Flash sale fields
+        submitData.flash_sale = data.flash_sale ?? false;
+        submitData.flash_sale_discount_type = data.flash_sale_discount_type ?? 'percentage';
+        submitData.flash_sale_discount_value = data.flash_sale_discount_value ?? 0;
+        submitData.flash_sale_buy_limit = data.flash_sale_buy_limit ?? 1;
+        submitData.flash_sale_duration = data.flash_sale_duration ?? 60;
+        submitData.flash_sale_available_full_price = data.flash_sale_available_full_price ?? false;
+        submitData.flash_live_reserved = data.flash_live_reserved ?? true;
+        
         console.log('🛒 Buy Now - setting shippingProfile to:', data.shippingProfile);
         console.log('🛒 Buy Now - setting offer (acceptsOffers) to:', data.acceptsOffers);
+        console.log('⚡ Flash Sale fields:', {
+          flash_sale: submitData.flash_sale,
+          flash_sale_discount_type: submitData.flash_sale_discount_type,
+          flash_sale_discount_value: submitData.flash_sale_discount_value,
+          flash_sale_buy_limit: submitData.flash_sale_buy_limit,
+          flash_sale_duration: submitData.flash_sale_duration,
+          flash_sale_available_full_price: submitData.flash_sale_available_full_price,
+          flash_live_reserved: submitData.flash_live_reserved,
+        });
       } else if (currentListingType === 'auction') {
         submitData.startingPrice = data.startingPrice;
         submitData.price = data.startingPrice; // Backend expects price
@@ -1013,8 +1086,8 @@ export function ProductForm({
           />
         )}
 
-        {/* Buy Now-specific: Accept Offers */}
-        {currentListingType === 'buy_now' && (
+        {/* Buy Now-specific: Accept Offers (hidden when flash sale is enabled) */}
+        {currentListingType === 'buy_now' && !isFlashSaleEnabled && (
           <FormField
             control={form.control}
             name="acceptsOffers"
@@ -1038,8 +1111,247 @@ export function ProductForm({
           />
         )}
 
-        {/* Buy Now-specific: Featured */}
+        {/* Buy Now-specific: Flash Sale Configuration */}
         {currentListingType === 'buy_now' && (
+          <div className="space-y-3">
+            <FormField
+              control={form.control}
+              name="flash_sale"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border border-yellow-500/30 p-3 bg-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-yellow-400" />
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-sm text-white font-medium">Enable Flash Sale</FormLabel>
+                      <FormDescription className="text-xs text-zinc-300">
+                        Pre-configure a flash sale discount for this product
+                      </FormDescription>
+                    </div>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="switch-flash-sale"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            {isFlashSaleEnabled && (
+              <div className="space-y-3 p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-yellow-400" />
+                  <span className="text-sm font-medium text-yellow-400">Flash Sale Settings</span>
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="flash_sale_discount_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white font-medium text-sm">Discount Type</FormLabel>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => field.onChange('percentage')}
+                          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-all ${
+                            field.value === 'percentage'
+                              ? 'border-yellow-500 bg-yellow-500/20 text-yellow-400'
+                              : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-600'
+                          }`}
+                        >
+                          <Percent className="h-4 w-4" />
+                          <span className="text-sm">Percentage</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => field.onChange('fixed')}
+                          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-all ${
+                            field.value === 'fixed'
+                              ? 'border-yellow-500 bg-yellow-500/20 text-yellow-400'
+                              : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-600'
+                          }`}
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          <span className="text-sm">Fixed Amount</span>
+                        </button>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="flash_sale_discount_value"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white font-medium text-sm">
+                        {flashSaleDiscountType === 'percentage' ? 'Discount Percentage' : 'Discount Amount'}
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min="0"
+                            max={flashSaleDiscountType === 'percentage' ? 100 : undefined}
+                            step={flashSaleDiscountType === 'percentage' ? 1 : 0.01}
+                            placeholder={flashSaleDiscountType === 'percentage' ? '20' : '5.00'}
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === '' ? 0 : parseFloat(value));
+                            }}
+                            className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 pr-10"
+                            data-testid="input-flash-sale-discount"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">
+                            {flashSaleDiscountType === 'percentage' ? '%' : '$'}
+                          </span>
+                        </div>
+                      </FormControl>
+                      <FormDescription className="text-xs text-zinc-400">
+                        {flashSaleDiscountType === 'percentage' 
+                          ? 'Percentage off the original price (e.g., 20 = 20% off)'
+                          : 'Fixed dollar amount off the original price'}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Flash Sale Price Preview */}
+                {flashSalePrice !== null && productPrice && Number(productPrice) > 0 && (
+                  <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-yellow-400">Flash Sale Price:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-zinc-400 line-through">${Number(productPrice).toFixed(2)}</span>
+                        <span className="text-lg font-bold text-yellow-400">${flashSalePrice.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="flash_sale_buy_limit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white font-medium text-sm">Buy Limit (per buyer)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="1"
+                          {...field}
+                          value={field.value ?? ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === '' ? 1 : parseInt(value));
+                          }}
+                          className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
+                          data-testid="input-flash-sale-buy-limit"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs text-zinc-400">
+                        Max items per buyer during flash sale
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="flash_sale_duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white font-medium text-sm">Flash Sale Duration</FormLabel>
+                      <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                            <SelectValue placeholder="Select duration" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="z-[10000]">
+                          <SelectItem value="10">10 sec</SelectItem>
+                          <SelectItem value="15">15 sec</SelectItem>
+                          <SelectItem value="20">20 sec</SelectItem>
+                          <SelectItem value="30">30 sec</SelectItem>
+                          <SelectItem value="45">45 sec</SelectItem>
+                          <SelectItem value="60">1 min</SelectItem>
+                          <SelectItem value="90">1 min 30 sec</SelectItem>
+                          <SelectItem value="120">2 min</SelectItem>
+                          <SelectItem value="150">2 min 30 sec</SelectItem>
+                          <SelectItem value="180">3 min</SelectItem>
+                          <SelectItem value="240">4 min</SelectItem>
+                          <SelectItem value="300">5 min</SelectItem>
+                          <SelectItem value="1200">20 min</SelectItem>
+                          <SelectItem value="1800">30 min</SelectItem>
+                          <SelectItem value="3600">1 hr</SelectItem>
+                          <SelectItem value="5400">1 hr 30 min</SelectItem>
+                          <SelectItem value="7200">2 hr</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs text-zinc-400">
+                        How long the flash sale will run when started
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="flash_sale_available_full_price"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-700 p-3 bg-zinc-800">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-white font-medium text-sm">Available For Full Price</FormLabel>
+                        <FormDescription className="text-xs text-zinc-400">
+                          Make this product available for full price outside of the flash sale
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-flash-sale-available-full-price"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="flash_live_reserved"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-700 p-3 bg-zinc-800">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-white font-medium text-sm">Reserve for Live</FormLabel>
+                        <FormDescription className="text-xs text-zinc-400">
+                          Reserve quantity for flash sale during live show
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-flash-live-reserved"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Buy Now-specific: Featured (hidden when flash sale is enabled) */}
+        {currentListingType === 'buy_now' && !isFlashSaleEnabled && (
           <FormField
             control={form.control}
             name="featured"

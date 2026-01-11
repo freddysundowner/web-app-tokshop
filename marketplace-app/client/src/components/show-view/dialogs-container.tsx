@@ -16,8 +16,10 @@ interface DialogsContainerProps {
   isShowOwner: boolean;
   handleOpenAuctionSettings: () => void;
   handleStartGiveaway: () => void;
+  handleOpenFlashSaleSettings: () => void;
   setShowDeleteConfirm: (show: boolean) => void;
   giveaways: any[];
+  activeFlashSale: any;
   
   // Auction Settings Dialog
   showAuctionSettingsDialog: boolean;
@@ -38,6 +40,7 @@ interface DialogsContainerProps {
   refetchAuction: () => void;
   refetchBuyNow: () => void;
   refetchGiveaways: () => void;
+  refetchShow: () => void;
   
   // Edit Product Dialog
   showEditProductDialog: boolean;
@@ -84,8 +87,10 @@ export function DialogsContainer(props: DialogsContainerProps) {
         isShowOwner={props.isShowOwner}
         handleOpenAuctionSettings={props.handleOpenAuctionSettings}
         handleStartGiveaway={props.handleStartGiveaway}
+        handleOpenFlashSaleSettings={props.handleOpenFlashSaleSettings}
         setShowDeleteConfirm={props.setShowDeleteConfirm}
         giveaways={props.giveaways}
+        activeFlashSale={props.activeFlashSale}
         showDeleteConfirm={props.showDeleteConfirm}
         deleteProductMutation={props.deleteProductMutation}
         showAddProductDialog={props.showAddProductDialog}
@@ -95,6 +100,7 @@ export function DialogsContainer(props: DialogsContainerProps) {
         refetchAuction={props.refetchAuction}
         refetchBuyNow={props.refetchBuyNow}
         refetchGiveaways={props.refetchGiveaways}
+        refetchShow={props.refetchShow}
         showEditProductDialog={props.showEditProductDialog}
         editingProduct={props.editingProduct}
       />

@@ -97,13 +97,40 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           isManualConnectRef.current = false;
         });
 
-        socketInstance.on('disconnect', () => {
-          console.log('Socket.IO disconnected');
+        socketInstance.on('disconnect', (reason) => {
+          console.log('Socket.IO disconnected, reason:', reason);
           setIsConnected(false);
+          
+          // If the server disconnected us, we need to manually reconnect
+          // 'io server disconnect' means the server forcefully disconnected the socket
+          // 'io client disconnect' means we called socket.disconnect()
+          if (reason === 'io server disconnect') {
+            console.log('🔄 Server disconnected us - manually reconnecting...');
+            socketInstance.connect();
+          }
+          // For other reasons like 'transport close', 'ping timeout', etc.,
+          // Socket.IO will automatically attempt to reconnect
         });
 
         socketInstance.on('connect_error', (error) => {
           console.error('Socket.IO connection error:', error);
+        });
+        
+        // Log reconnection attempts for debugging
+        socketInstance.io.on('reconnect_attempt', (attempt) => {
+          console.log('🔄 Socket.IO reconnection attempt:', attempt);
+        });
+        
+        socketInstance.io.on('reconnect', (attempt) => {
+          console.log('✅ Socket.IO reconnected after', attempt, 'attempts');
+        });
+        
+        socketInstance.io.on('reconnect_error', (error) => {
+          console.error('❌ Socket.IO reconnection error:', error);
+        });
+        
+        socketInstance.io.on('reconnect_failed', () => {
+          console.error('❌ Socket.IO reconnection failed - all attempts exhausted');
         });
 
         socketRef.current = socketInstance; // Store in ref for cleanup

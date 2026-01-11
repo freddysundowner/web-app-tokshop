@@ -330,6 +330,14 @@ export const productFormSchema = z.object({
   listingType: listingTypeSchema,
   shippingProfile: z.string().nullable().optional(),
   images: z.array(z.string()).optional(),
+  // Physical attributes (used in inventory form)
+  weight: z.string().optional(),
+  height: z.string().optional(),
+  width: z.string().optional(),
+  length: z.string().optional(),
+  scale: z.string().optional(),
+  colors: z.array(z.string()).optional(),
+  sizes: z.array(z.string()).optional(),
   // Auction-specific fields
   startingPrice: z.coerce.number().optional().nullable(),
   duration: z.coerce.number().int().optional().nullable(),
@@ -341,6 +349,14 @@ export const productFormSchema = z.object({
   // Buy Now-specific fields
   featured: z.boolean().optional().default(false),
   acceptsOffers: z.boolean().optional().default(false),
+  // Flash sale fields (for buy_now products)
+  flash_sale: z.boolean().optional().default(false),
+  flash_sale_discount_type: z.enum(['percentage', 'fixed']).optional().default('percentage'),
+  flash_sale_discount_value: z.coerce.number().optional().default(0),
+  flash_sale_buy_limit: z.coerce.number().int().optional().default(1), // max purchases per buyer
+  flash_sale_duration: z.coerce.number().int().optional().default(60), // duration in seconds
+  flash_sale_available_full_price: z.boolean().optional().default(false), // available at full price outside flash sale
+  flash_live_reserved: z.boolean().optional().default(true), // reserve quantity for live flash sale
   // Giveaway-specific fields
   whocanenter: z.enum(['everyone', 'followers']).optional().default('everyone'),
   // Room association

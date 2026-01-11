@@ -40,6 +40,8 @@ interface UseShowSocketEventsProps {
   refetchGiveaways: () => void;
   refetchOffers: () => void;
   shownWinnerAlertsRef: React.MutableRefObject<Set<string>>;
+  setActiveFlashSale: React.Dispatch<React.SetStateAction<any>>;
+  setFlashSaleTimeLeft: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export function useShowSocketEvents({
@@ -79,6 +81,8 @@ export function useShowSocketEvents({
   refetchGiveaways,
   refetchOffers,
   shownWinnerAlertsRef,
+  setActiveFlashSale,
+  setFlashSaleTimeLeft,
 }: UseShowSocketEventsProps) {
   const { toast } = useToast();
   const lastAuctionRefetchRef = useRef<number>(0);
@@ -778,20 +782,138 @@ export function useShowSocketEvents({
     }
     
     // Navigate to the target show after a short delay for smooth transition
-    // Then explicitly join the new room and clear the leaving flag
+    // The new show-view.tsx will handle joining and registering socket listeners automatically
     setTimeout(() => {
       console.log('🚀 Navigating to target show:', toRoom);
       navigate(`/show/${toRoom}`);
       
-      // After navigation, join the target room and clear the leaving flag
-      // Small delay to ensure navigation has completed and new page is mounting
+      // Clear leaving flag after navigation so the new page can join normally
       setTimeout(() => {
-        console.log('🚀 Joining target room after rally navigation:', toRoom);
-        joinRoom(toRoom);
+        console.log('🚀 Clearing leaving flag - new show will handle joining');
         setLeavingRoom(false);
-      }, 500);
+      }, 300);
     }, 1000);
-  }, [isShowOwner, roomId, leaveRoom, joinRoom, setLeavingRoom, navigate, toast]);
+  }, [isShowOwner, roomId, leaveRoom, setLeavingRoom, navigate, toast]);
+
+  // Flash sale timer ref
+  const flashSaleTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Memoized handler: Flash sale started
+  const handleFlashSaleStarted = useCallback((data: any) => {
+    console.log('⚡ FLASH-SALE-STARTED EVENT RECEIVED:', data);
+    const { productId, endTime, serverTime, discountType, discountValue } = data;
+    
+    // Calculate server offset for accurate timing
+    const serverOffset = serverTime ? serverTime - Date.now() : 0;
+    
+    // Update pinned product with flash sale started state
+    setPinnedProduct((prev: any) => {
+      if (!prev || (prev._id !== productId && prev.id !== productId)) {
+        console.log('⚡ Flash sale productId does not match pinned product, skipping update');
+        return prev;
+      }
+      
+      return {
+        ...prev,
+        flash_sale_started: true,
+        flash_sale_ended: false,
+        flashSaleEndTime: endTime,
+        serverOffset: serverOffset,
+        flash_sale_discount_type: discountType || prev.flash_sale_discount_type,
+        flash_sale_discount_value: discountValue || prev.flash_sale_discount_value
+      };
+    });
+    
+    setActiveFlashSale({
+      productId,
+      endTime,
+      serverTime,
+      serverOffset
+    });
+    
+    // Calculate initial time left
+    const now = Date.now() + serverOffset;
+    const timeLeft = Math.max(0, Math.floor((endTime - now) / 1000));
+    setFlashSaleTimeLeft(timeLeft);
+    
+    // Clear any existing timer
+    if (flashSaleTimerRef.current) {
+      clearInterval(flashSaleTimerRef.current);
+    }
+    
+    // Start countdown timer
+    flashSaleTimerRef.current = setInterval(() => {
+      const currentTime = Date.now() + serverOffset;
+      const remaining = Math.max(0, Math.floor((endTime - currentTime) / 1000));
+      setFlashSaleTimeLeft(remaining);
+      
+      if (remaining <= 0) {
+        if (flashSaleTimerRef.current) {
+          clearInterval(flashSaleTimerRef.current);
+          flashSaleTimerRef.current = null;
+        }
+        setActiveFlashSale(null);
+        // Update pinned product to mark flash sale as ended
+        setPinnedProduct((prev: any) => prev ? {
+          ...prev,
+          flash_sale_started: false,
+          flash_sale_ended: true
+        } : null);
+        refetchBuyNow();
+      }
+    }, 1000);
+    
+    toast({
+      title: "Flash Sale Started!",
+      description: "Limited time deal - act fast!",
+      duration: 3000,
+    });
+  }, [setActiveFlashSale, setFlashSaleTimeLeft, setPinnedProduct, refetchBuyNow, toast]);
+
+  // Memoized handler: Flash sale ended
+  const handleFlashSaleEnded = useCallback((data: any) => {
+    console.log('⚡ FLASH-SALE-ENDED EVENT RECEIVED:', data);
+    
+    // Clear timer
+    if (flashSaleTimerRef.current) {
+      clearInterval(flashSaleTimerRef.current);
+      flashSaleTimerRef.current = null;
+    }
+    
+    setActiveFlashSale(null);
+    setFlashSaleTimeLeft(0);
+    refetchBuyNow();
+    
+    toast({
+      title: "Flash Sale Ended",
+      description: "The flash sale has ended.",
+      duration: 3000,
+    });
+  }, [setActiveFlashSale, setFlashSaleTimeLeft, refetchBuyNow, toast]);
+
+  // Memoized handler: Flash sale product update (quantity changed)
+  const handleFlashSaleProductUpdate = useCallback((product: any) => {
+    console.log('⚡ FLASH-SALE-PRODUCT-UPDATE EVENT RECEIVED:', product);
+    
+    // Update pinned product with new quantity
+    setPinnedProduct((prev: any) => {
+      if (prev && (prev._id === product._id || prev.id === product._id)) {
+        return { ...prev, quantity: product.quantity };
+      }
+      return prev;
+    });
+    
+    // If quantity is 0, end the flash sale
+    if (product.quantity <= 0) {
+      if (flashSaleTimerRef.current) {
+        clearInterval(flashSaleTimerRef.current);
+        flashSaleTimerRef.current = null;
+      }
+      setActiveFlashSale(null);
+      setFlashSaleTimeLeft(0);
+      refetchBuyNow();
+    }
+  }, [setPinnedProduct, setActiveFlashSale, setFlashSaleTimeLeft, refetchBuyNow]);
 
   // Memoized handler: Prebid - update product prebids in real-time
   const handlePrebid = useCallback((data: any) => {
@@ -833,8 +955,10 @@ export function useShowSocketEvents({
   // Main effect: Register all socket event listeners
   // NOTE: This effect should NOT leave the room on cleanup when isConnected changes
   // That would cause issues during brief socket disconnects
+  // IMPORTANT: Register listeners immediately without waiting for proceedWithJoin
+  // This ensures rallied users don't miss events during the host conflict check
   useEffect(() => {
-    if (!socket || !roomId || !isConnected || !proceedWithJoin) return;
+    if (!socket || !roomId || !isConnected) return;
 
     // NOTE: Room joining is now handled in show-view.tsx when socket connects
     // This effect only registers event listeners
@@ -863,6 +987,9 @@ export function useShowSocketEvents({
     socket.on('fetch_offers', handleFetchOffers);
     socket.on('rally-in', handleRallyIn);
     socket.on('prebid', handlePrebid);
+    socket.on('flash-sale-started', handleFlashSaleStarted);
+    socket.on('flash-sale-ended', handleFlashSaleEnded);
+    socket.on('flash-sale-product-update', handleFlashSaleProductUpdate);
 
     // Cleanup function - only unregister listeners, don't leave room
     // Room leaving is handled by the separate roomId-only effect below
@@ -888,7 +1015,15 @@ export function useShowSocketEvents({
       socket.off('fetch_offers', handleFetchOffers);
       socket.off('rally-in', handleRallyIn);
       socket.off('prebid', handlePrebid);
+      socket.off('flash-sale-started', handleFlashSaleStarted);
+      socket.off('flash-sale-ended', handleFlashSaleEnded);
+      socket.off('flash-sale-product-update', handleFlashSaleProductUpdate);
       socket.off('createMessage');
+      // Clear flash sale timer on cleanup
+      if (flashSaleTimerRef.current) {
+        clearInterval(flashSaleTimerRef.current);
+        flashSaleTimerRef.current = null;
+      }
       console.log('🔌 Socket listeners cleaned up (room not left - handled separately)');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -896,7 +1031,6 @@ export function useShowSocketEvents({
     socket,
     roomId,
     isConnected,
-    proceedWithJoin,
     handleCurrentUserJoined,
     handleUserBidUpdated,
   ]);
@@ -920,10 +1054,19 @@ export function useShowSocketEvents({
     const previousRoom = currentRoomRef.current;
     currentRoomRef.current = roomId;
     
-    // If we're switching rooms, leave the previous one immediately
+    // If we're switching rooms, leave the previous one immediately and clear flash sale
     if (previousRoom && previousRoom !== roomId) {
       console.log('🔌 Leaving previous room:', previousRoom, '(navigated to:', roomId, ')');
       leaveRoom(previousRoom);
+      
+      // Clear flash sale timer when switching rooms
+      if (flashSaleTimerRef.current) {
+        clearInterval(flashSaleTimerRef.current);
+        flashSaleTimerRef.current = null;
+      }
+      // Reset flash sale state for new room
+      setActiveFlashSale(null);
+      setFlashSaleTimeLeft(0);
     }
     
     // Cleanup: set leaving flag to prevent auto-rejoin, then schedule debounced leave

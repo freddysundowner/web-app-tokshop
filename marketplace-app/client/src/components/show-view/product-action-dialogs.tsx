@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
-  Edit, Trash, Play, Bookmark, Loader2, AlertTriangle
+  Edit, Trash, Play, Bookmark, Loader2, AlertTriangle, Zap
 } from 'lucide-react';
 import { ProductForm } from '@/components/product-form';
 
@@ -26,8 +26,10 @@ interface ProductActionDialogsProps {
   isShowOwner: boolean;
   handleOpenAuctionSettings: () => void;
   handleStartGiveaway: () => void;
+  handleOpenFlashSaleSettings: () => void;
   setShowDeleteConfirm: (show: boolean) => void;
   giveaways: any[];
+  activeFlashSale: any;
   
   // Delete Confirmation Dialog
   showDeleteConfirm: boolean;
@@ -41,6 +43,7 @@ interface ProductActionDialogsProps {
   refetchAuction: () => void;
   refetchBuyNow: () => void;
   refetchGiveaways: () => void;
+  refetchShow: () => void;
   
   // Edit Product Dialog
   showEditProductDialog: boolean;
@@ -52,9 +55,9 @@ export function ProductActionDialogs(props: ProductActionDialogsProps) {
     productActionSheet, setProductActionSheet, selectedProduct, setSelectedProduct,
     setEditingProduct, setShowEditProductDialog, handlePinProduct, pinnedProduct,
     isLive, show, isShowOwner, handleOpenAuctionSettings, handleStartGiveaway,
-    setShowDeleteConfirm, giveaways, showDeleteConfirm, deleteProductMutation,
-    showAddProductDialog, setShowAddProductDialog, addProductType, id,
-    refetchAuction, refetchBuyNow, refetchGiveaways, showEditProductDialog,
+    handleOpenFlashSaleSettings, setShowDeleteConfirm, giveaways, activeFlashSale,
+    showDeleteConfirm, deleteProductMutation, showAddProductDialog, setShowAddProductDialog,
+    addProductType, id, refetchAuction, refetchBuyNow, refetchGiveaways, refetchShow, showEditProductDialog,
     editingProduct
   } = props;
 
@@ -124,6 +127,24 @@ export function ProductActionDialogs(props: ProductActionDialogsProps) {
                 Start Giveaway
               </Button>
             )}
+            
+            {/* Start Flash Sale - Only show for buy_now products that have flash_sale enabled, when show is live/started and no active flash sale */}
+            {/* Pins the product immediately so seller can manually start the flash sale */}
+            {(isLive || show?.started) && isShowOwner && !activeFlashSale && selectedProduct?.flash_sale && (
+              selectedProduct?.saletype === 'buy_now' || 
+              selectedProduct?.listing_type === 'buy_now'
+            ) && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-yellow-500 hover:bg-zinc-800 hover:text-yellow-400"
+                onClick={handlePinProduct}
+                data-testid="button-sheet-start-flash-sale"
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Start Flash Sale
+              </Button>
+            )}
+            
             
             {/* Delete Product */}
             <Button
@@ -249,6 +270,8 @@ export function ProductActionDialogs(props: ProductActionDialogsProps) {
                   if (listingType === 'auction') refetchAuction();
                   if (listingType === 'buy_now') refetchBuyNow();
                   if (listingType === 'giveaway') refetchGiveaways();
+                  // Also refetch show to update show.pinned with latest product data
+                  refetchShow();
                 }}
                 onCancel={() => {
                   setShowEditProductDialog(false);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, MoreVertical, Plus, Clock, Gift, Package, Tag, Loader2, ChevronDown, ChevronUp, User } from "lucide-react";
+import { X, Plus, Clock, Gift, Package, Tag, Loader2, ChevronDown, ChevronUp, User, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -15,8 +15,35 @@ export function ProductsSidebar(props: any) {
     soldProducts, activeGiveaway, setSelectedProduct, giveaways, giveawayTimeLeft,
     soldOrders, setSelectedOrder, setShowOrderDetailDialog, shippingEstimate, id,
     offers, offersCount, onViewOffers, onAcceptOffer, onDeclineOffer, onCounterOffer,
-    onMakeOffer, isOfferActionPending, pendingOfferId
+    onMakeOffer, isOfferActionPending, pendingOfferId,
+    activeFlashSale, flashSaleTimeLeft, handleEndFlashSale
   } = props;
+
+  // Check if this product is the active flash sale product
+  const isFlashSaleProduct = (productId: string) => {
+    return activeFlashSale?.productId === productId;
+  };
+  
+  // Calculate flash sale price dynamically based on discount settings
+  const calculateFlashSalePrice = (product: any) => {
+    if (!product.flash_sale || !product.price) return product.price;
+    
+    const discountType = product.flash_sale_discount_type || 'percentage';
+    const discountValue = product.flash_sale_discount_value || 0;
+    
+    if (discountType === 'percentage') {
+      return product.price * (1 - discountValue / 100);
+    } else {
+      return Math.max(0, product.price - discountValue);
+    }
+  };
+
+  // Format flash sale time
+  const formatFlashSaleTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
+  };
 
   // Check if auction is actually running based on time
   const isAuctionRunning = activeAuction && activeAuction.endTime && Date.now() < activeAuction.endTime;
@@ -96,24 +123,13 @@ export function ProductsSidebar(props: any) {
                 {/* Show pinned product first if it's an auction */}
                 {pinnedProduct && pinnedProduct.listing_type === 'auction' && (
                   <div className="px-3 py-2 border-b border-zinc-700 bg-zinc-900/50 relative" data-testid="product-pinned-auction">
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 flex-shrink-0 relative">
+                    <div className="flex items-start gap-3">
+                      <div className="w-14 h-14 flex-shrink-0">
                         <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
                           {pinnedProduct.images?.[0] && (
                             <img src={pinnedProduct.images[0]} alt={pinnedProduct.name} className="w-full h-full object-cover" />
                           )}
                         </div>
-                        {isShowOwner && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="absolute -top-1 -right-1 h-5 w-5 bg-black/70 hover:bg-black/90 text-white rounded-full" 
-                            onClick={() => handleProductAction(pinnedProduct)}
-                            data-testid="button-product-action-pinned-auction"
-                          >
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
@@ -127,6 +143,16 @@ export function ProductsSidebar(props: any) {
                           <span>•</span>
                           <span>{pinnedProduct.quantity || 1} left</span>
                         </div>
+                        {isShowOwner && (
+                          <Button 
+                            size="sm"
+                            className="mt-1 h-6 px-2 text-[10px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" 
+                            onClick={() => handleProductAction(pinnedProduct)}
+                            data-testid="button-product-action-pinned-auction"
+                          >
+                            Product Actions
+                          </Button>
+                        )}
                       </div>
                       {!isShowOwner && (
                         <Button
@@ -189,8 +215,10 @@ export function ProductsSidebar(props: any) {
                 {auctionProducts
                   .filter((product: any) => product._id !== pinnedProduct?._id)
                   .map((product: any, index: number) => {
-                  // Only hide prebid button if auction is actively running (not ended)
-                  const isActiveAuction = activeAuction?.product?._id === product._id && !activeAuction?.ended;
+                  // Only hide prebid button if this product's auction is the active auction AND it has started
+                  const productAuctionId = product.auction?._id || product.auction?.id || product.auction;
+                  const activeAuctionId = activeAuction?._id || activeAuction?.id;
+                  const isActiveAuction = activeAuctionId === productAuctionId && activeAuction?.started === true;
                   // Check if user has a prebid (from product.prebids, not auction.bids)
                   const userPrebid = product.prebids?.find((prebid: any) => 
                     prebid.user?._id === currentUserId || 
@@ -207,24 +235,13 @@ export function ProductsSidebar(props: any) {
                   
                   return (
                     <div key={product._id || product.id || index} className="px-3 py-2 border-b border-zinc-700 relative" data-testid={`product-auction-${product._id || index}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-14 h-14 flex-shrink-0 relative">
+                      <div className="flex items-start gap-3">
+                        <div className="w-14 h-14 flex-shrink-0">
                           <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
                             {product.images?.[0] && (
                               <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                             )}
                           </div>
-                          {isShowOwner && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="absolute -top-1 -right-1 h-5 w-5 bg-black/70 hover:bg-black/90 text-white rounded-full" 
-                              onClick={() => handleProductAction(product)}
-                              data-testid={`button-product-action-${product._id || index}`}
-                            >
-                              <MoreVertical className="h-3 w-3" />
-                            </Button>
-                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-semibold text-white truncate">{product.name}</h3>
@@ -243,6 +260,16 @@ export function ProductsSidebar(props: any) {
                             <p className="text-xs text-primary font-semibold" data-testid={`text-my-bid-${product._id || index}`}>
                               Your Prebid: ${userPrebidAmount?.toFixed(2) || '0.00'}
                             </p>
+                          )}
+                          {isShowOwner && (
+                            <Button 
+                              size="sm"
+                              className="mt-1 h-6 px-2 text-[10px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" 
+                              onClick={() => handleProductAction(product)}
+                              data-testid={`button-product-action-${product._id || index}`}
+                            >
+                              Product Actions
+                            </Button>
                           )}
                         </div>
                         {!isShowOwner && !isActiveAuction && (
@@ -332,13 +359,25 @@ export function ProductsSidebar(props: any) {
                 <div className="h-full overflow-y-auto pb-20">
                 {/* Only show pinned product if it's NOT an auction */}
                 {pinnedProduct && pinnedProduct.listing_type !== 'auction' && (
-                  <div className="px-4 py-4 border-b border-zinc-700 bg-zinc-900/50 relative" data-testid="product-pinned">
+                  <div className="px-4 py-4 border-b border-zinc-700 relative bg-zinc-900/50" data-testid="product-pinned">
                     <div className="flex justify-between gap-4">
                       <div className="flex-1">
-                        <Badge className="mb-2 bg-primary text-primary-foreground text-xs">Pinned</Badge>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className="bg-primary text-primary-foreground text-xs">Pinned</Badge>
+                          {pinnedProduct.flash_sale && (
+                            <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5">Flash Sale</Badge>
+                          )}
+                        </div>
                         <h3 className="text-lg font-bold text-white mb-2 leading-tight">{pinnedProduct.name}</h3>
                         <p className="text-sm text-zinc-400 mb-1">{pinnedProduct.quantity || 0} Available</p>
-                        <p className="text-sm text-zinc-400 mb-2">Price: ${(pinnedProduct.price || 0).toFixed(2)}</p>
+                        {pinnedProduct.flash_sale && pinnedProduct.flash_sale_discount_value ? (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm text-zinc-500 line-through">${(pinnedProduct.price || 0).toFixed(2)}</span>
+                            <span className="text-base font-semibold text-orange-500">${calculateFlashSalePrice(pinnedProduct).toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-zinc-400 mb-2">Price: ${(pinnedProduct.price || 0).toFixed(2)}</p>
+                        )}
                         {!isShowOwner && !shippingEstimate?.error && (
                           <div className="flex gap-2 mt-2">
                             <Button
@@ -365,24 +404,24 @@ export function ProductsSidebar(props: any) {
                           </div>
                         )}
                       </div>
-                      <div className="w-20 h-20 flex-shrink-0 relative">
+                      <div className="w-20 h-20 flex-shrink-0">
                         <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
                           {pinnedProduct.images?.[0] && (
                             <img src={pinnedProduct.images[0]} alt={pinnedProduct.name} className="w-full h-full object-cover" />
                           )}
                         </div>
-                        {isShowOwner && (
-                          <Button 
-                            size="icon"
-                            className="absolute top-1 right-1 h-7 w-7 bg-black/70 hover:bg-black/90 text-white rounded-full" 
-                            onClick={() => handleProductAction(pinnedProduct)}
-                            data-testid="button-product-action-pinned"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        )}
                       </div>
                     </div>
+                    {isShowOwner && !isFlashSaleProduct(pinnedProduct._id) && (
+                      <Button 
+                        size="sm"
+                        className="mt-2 h-6 px-2 text-[10px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" 
+                        onClick={() => handleProductAction(pinnedProduct)}
+                        data-testid="button-product-action-pinned"
+                      >
+                        Product Actions
+                      </Button>
+                    )}
                   </div>
                 )}
                 {buyNowProducts
@@ -391,9 +430,21 @@ export function ProductsSidebar(props: any) {
                   <div key={product._id || product.id || index} className="px-4 py-4 border-b border-zinc-700 relative" data-testid={`product-buynow-${product._id || index}`}>
                     <div className="flex justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white mb-2 leading-tight">{product.name}</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-bold text-white leading-tight">{product.name}</h3>
+                          {product.flash_sale && (
+                            <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5">Flash Sale</Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-zinc-400 mb-1">{product.quantity || 1} Available</p>
-                        <p className="text-base font-semibold text-white mb-2">Price: ${(product.price || 0).toFixed(2)}</p>
+                        {product.flash_sale && product.flash_sale_discount_value ? (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm text-zinc-500 line-through">${(product.price || 0).toFixed(2)}</span>
+                            <span className="text-base font-semibold text-orange-500">${calculateFlashSalePrice(product).toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <p className="text-base font-semibold text-white mb-2">Price: ${(product.price || 0).toFixed(2)}</p>
+                        )}
                         {!isShowOwner && !shippingEstimate?.error && (
                           <div className="flex gap-2 mt-2">
                             <Button
@@ -420,24 +471,24 @@ export function ProductsSidebar(props: any) {
                           </div>
                         )}
                       </div>
-                      <div className="w-20 h-20 flex-shrink-0 relative">
+                      <div className="w-20 h-20 flex-shrink-0">
                         <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
                           {product.images?.[0] && (
                             <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                           )}
                         </div>
-                        {isShowOwner && (
-                          <Button 
-                            size="icon"
-                            className="absolute top-1 right-1 h-7 w-7 bg-black/70 hover:bg-black/90 text-white rounded-full" 
-                            onClick={() => handleProductAction(product)}
-                            data-testid={`button-product-action-${product._id || index}`}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        )}
                       </div>
                     </div>
+                    {isShowOwner && !isFlashSaleProduct(product._id) && (
+                      <Button 
+                        size="sm"
+                        className="mt-2 h-6 px-2 text-[10px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" 
+                        onClick={() => handleProductAction(product)}
+                        data-testid={`button-product-action-${product._id || index}`}
+                      >
+                        Product Actions
+                      </Button>
+                    )}
                   </div>
                 ))}
                 {!pinnedProduct && buyNowProducts.length === 0 && (
@@ -494,22 +545,22 @@ export function ProductsSidebar(props: any) {
                           <p className="text-sm text-green-400">Winner: {giveaway.winner.userName || 'Someone'}</p>
                         )}
                       </div>
-                      <div className="w-20 h-20 flex-shrink-0 relative">
+                      <div className="w-20 h-20 flex-shrink-0">
                         <div className="w-full h-full bg-zinc-900 rounded-lg flex items-center justify-center">
                           <Gift className="h-10 w-10 text-zinc-600" />
                         </div>
-                        {isShowOwner && (
-                          <Button 
-                            size="icon"
-                            className="absolute top-1 right-1 h-7 w-7 bg-black/70 hover:bg-black/90 text-white rounded-full" 
-                            onClick={() => handleProductAction(giveaway)}
-                            data-testid={`button-product-action-${giveaway._id || index}`}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        )}
                       </div>
                     </div>
+                    {isShowOwner && (
+                      <Button 
+                        size="sm"
+                        className="mt-2 h-6 px-2 text-[10px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" 
+                        onClick={() => handleProductAction(giveaway)}
+                        data-testid={`button-product-action-${giveaway._id || index}`}
+                      >
+                        Product Actions
+                      </Button>
+                    )}
                   </div>
                 ))}
                 {!activeGiveaway && giveaways.length === 0 && (

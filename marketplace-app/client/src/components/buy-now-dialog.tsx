@@ -12,7 +12,8 @@ import {
   Minus, 
   ChevronRight,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -27,6 +28,8 @@ interface BuyNowDialogProps {
   onOpenPaymentMethods?: () => void;
   onOpenShippingAddresses?: () => void;
   offerPrice?: number | null;
+  isFlashSale?: boolean;
+  flashSalePrice?: number;
 }
 
 export function BuyNowDialog({ 
@@ -36,7 +39,9 @@ export function BuyNowDialog({
   shippingEstimate: passedShippingEstimate,
   onOpenPaymentMethods,
   onOpenShippingAddresses,
-  offerPrice
+  offerPrice,
+  isFlashSale = false,
+  flashSalePrice
 }: BuyNowDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -187,8 +192,9 @@ export function BuyNowDialog({
     }
   };
 
-  // Use offerPrice if provided, otherwise use product price
-  const unitPrice = offerPrice ?? product?.price ?? 0;
+  // Use offerPrice if provided, flash sale price if active, otherwise use product price
+  const unitPrice = offerPrice ?? (isFlashSale && flashSalePrice ? flashSalePrice : product?.price) ?? 0;
+  const originalPrice = product?.price ?? 0;
   const subtotal = unitPrice * quantity;
   const hasShippingError = (shippingEstimate as any)?.error === true;
   const shippingErrorMessage = (shippingEstimate as any)?.message || '';
@@ -254,7 +260,7 @@ export function BuyNowDialog({
       // Determine ordertype based on context
       const ordertype = product.tokshow ? 'tokshow' : 'marketplace';
       
-      const payload = {
+      const payload: any = {
         product: productId,
         status: 'processing',
         shippingFee: parseFloat((shippingEstimate as any)?.amount || '0'),
@@ -275,6 +281,11 @@ export function BuyNowDialog({
         tokshow: product.tokshow || '',
         ordertype: ordertype,
       };
+      
+      // Add flash_sale flag if this is a flash sale purchase
+      if (isFlashSale) {
+        payload.flash_sale = true;
+      }
       
       console.log('📦 BUY NOW DIALOG - Full payload before sending:', JSON.stringify(payload, null, 2));
       
@@ -348,14 +359,32 @@ export function BuyNowDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <DialogHeader>
-          <DialogTitle className="text-white text-xl">Buy Now</DialogTitle>
+          <DialogTitle className={`text-xl ${isFlashSale ? 'text-yellow-500 flex items-center gap-2' : 'text-white'}`}>
+            {isFlashSale && <Zap className="h-5 w-5 animate-pulse" />}
+            {isFlashSale ? 'Flash Sale Purchase!' : 'Buy Now'}
+          </DialogTitle>
         </DialogHeader>
+
+        {/* Flash Sale Banner */}
+        {isFlashSale && (
+          <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3 mt-2">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              <span className="text-yellow-500 font-semibold text-sm">Limited Time Flash Sale!</span>
+            </div>
+            <p className="text-zinc-400 text-xs mt-1">
+              {originalPrice > 0 && unitPrice < originalPrice 
+                ? `You're getting ${Math.round((1 - unitPrice / originalPrice) * 100)}% off the original price`
+                : 'Special flash sale pricing!'}
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4 mt-4">
           {/* Product Section */}
           <div className="flex gap-4">
             {product?.images?.[0] && (
-              <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800">
+              <div className={`w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden ${isFlashSale ? 'ring-2 ring-yellow-500' : 'bg-zinc-800'}`}>
                 <img 
                   src={product.images[0]} 
                   alt={product.name}
