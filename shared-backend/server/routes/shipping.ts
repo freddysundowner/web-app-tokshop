@@ -1077,23 +1077,10 @@ export function registerShippingRoutes(app: Express) {
   // Bulk label purchase for multiple selected orders
   app.post("/api/shipping/bulk-labels", async (req, res) => {
     try {
-      const { orderIds, labelFileType, userId } = req.body;
+      const { rates } = req.body;
 
-      if (!Array.isArray(orderIds) || orderIds.length === 0) {
-        return res.status(400).json({ 
-          success: false,
-          message: "Invalid orderIds: must be a non-empty array" 
-        });
-      }
-
-      if (!labelFileType) {
-        return res.status(400).json({ 
-          success: false,
-          message: "labelFileType is required" 
-        });
-      }
-
-      console.log(`Processing bulk label purchase for ${orderIds.length} orders with format: ${labelFileType}`);
+      console.log(`Processing bulk label purchase with ${rates?.length || 0} rates`);
+      console.log('Rates received:', JSON.stringify(rates, null, 2));
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -1103,81 +1090,7 @@ export function registerShippingRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${req.session.accessToken}`;
       }
 
-      // Use userId from req.body (already extracted above)
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "userId is required"
-        });
-      }
-
-      // Fetch all orders for this user in one API call
-      console.log(`Fetching all orders for user ${userId}`);
-      const ordersResponse = await fetch(`${BASE_URL}/orders?userId=${userId}`, {
-        method: 'GET',
-        headers
-      });
-
-      if (!ordersResponse.ok) {
-        return res.status(500).json({
-          success: false,
-          message: `Failed to fetch orders: ${ordersResponse.status}`
-        });
-      }
-
-      const ordersData = await ordersResponse.json() as any;
-      const allOrders = ordersData.orders || [];
-
-      console.log(`Fetched ${allOrders.length} total orders, filtering to ${orderIds.length} selected IDs`);
-
-      // Build rates array from selected order IDs
-      // Each selected row = one label (no deduplication)
-      const rates = [];
-      const fetchErrors = [];
-
-      for (const selectedId of orderIds) {
-        // Find the order in the fetched list
-        const order = allOrders.find((o: any) => o._id === selectedId);
-
-        if (!order) {
-          fetchErrors.push(`Order ${selectedId} not found`);
-          continue;
-        }
-
-        if (!order.rate_id) {
-          fetchErrors.push(`Order ${selectedId} has no rate_id`);
-          continue;
-        }
-
-        // External API expects bundleId
-        // Use order.bundleId if it exists, otherwise use order._id
-        const bundleIdToSend = order.bundleId || order._id;
-        
-        if (order.bundleId) {
-          console.log(`Order ${selectedId} belongs to bundle ${order.bundleId}, using bundle ID for label purchase`);
-        } else {
-          console.log(`Order ${selectedId} is standalone, using order._id as bundle ID for label purchase`);
-        }
-
-        // Add one entry per selected row
-        rates.push({
-          rate_id: order.rate_id,
-          label_file_type: labelFileType,
-          order: bundleIdToSend  // Always use bundleId from order object
-        });
-      }
-
-      if (rates.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No valid orders found to purchase labels",
-          errors: fetchErrors
-        });
-      }
-
-      // Send single request with rates array to external API
-      console.log(`Sending bulk label request with ${rates.length} rates`);
-      console.log('Rates being sent:', JSON.stringify(rates, null, 2));
+      // Send directly to external API - same as single label purchase
       console.log('API URL:', `${BASE_URL}/shipping/profiles/buy/label`);
       
       const labelResponse = await fetch(`${BASE_URL}/shipping/profiles/buy/label`, {
@@ -1190,32 +1103,17 @@ export function registerShippingRoutes(app: Express) {
 
       if (!labelResponse.ok) {
         const errorText = await labelResponse.text();
-        let errorMessage = 'Failed to purchase labels';
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          if (errorData.message || errorData.error) {
-            errorMessage = errorData.message || errorData.error;
-          }
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        
+        console.error('External API error:', errorText);
         return res.status(labelResponse.status).json({
           success: false,
-          message: errorMessage
+          message: errorText
         });
       }
 
       const labelData = await labelResponse.json();
       console.log('Label API response data:', JSON.stringify(labelData, null, 2));
       
-      return res.json({
-        success: true,
-        message: `Successfully purchased ${rates.length} labels`,
-        data: labelData,
-        fetchErrors: fetchErrors.length > 0 ? fetchErrors : undefined
-      });
+      return res.json(labelData);
     } catch (error) {
       console.error('Bulk label purchase error:', error);
       res.status(500).json({

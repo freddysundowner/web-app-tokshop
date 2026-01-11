@@ -393,6 +393,8 @@ export default function ShowViewNew() {
     queryFn: async () => {
       const params = new URLSearchParams({
         room: id!,
+        type: 'show',
+        status: 'active',
         page: '1',
         limit: '20'
       });
@@ -1439,26 +1441,17 @@ export default function ShowViewNew() {
         throw new Error('Please add payment and shipping information before prebidding');
       }
 
-      // For auction products, the product._id IS the auction ID
-      // Try nested auction._id first (for activeAuction), then fall back to product._id
-      const auctionId = listing.auction?._id || listing.auction?.id || listing._id || listing.id;
-      if (!auctionId) {
-        throw new Error('Auction ID not found in listing');
+      // Emit place-prebid socket event only
+      const productId = listing._id || listing.id;
+      if (socket) {
+        socket.emit('place-prebid', {
+          productId,
+          user: currentUserId,
+          amount: amount,
+          room: id
+        });
+        console.log('📡 place-prebid event emitted:', { productId, user: currentUserId, amount, room: id });
       }
-      
-      const payload = {
-        user: currentUserId,
-        amount: amount,
-        increaseBidBy: listing.auction?.increaseBidBy || listing.increaseBidBy || 5,
-        auction: auctionId,  // Product ID for auction products, or nested auction ID
-        prebid: true,
-        autobid: true,
-        autobidamount: amount,
-        roomId: id
-      };
-
-      const response = await apiRequest('PUT', `/api/auction/bid/${auctionId}`, payload);
-      return response;
     },
     onSuccess: () => {
       toast({
@@ -2380,6 +2373,7 @@ export default function ShowViewNew() {
           setPrebidAmount={setPrebidAmount}
           prebidMutation={prebidMutation}
           toast={toast}
+          currentUserId={currentUserId}
           showOrderDetailDialog={showOrderDetailDialog}
           setShowOrderDetailDialog={setShowOrderDetailDialog}
           selectedOrder={selectedOrder}

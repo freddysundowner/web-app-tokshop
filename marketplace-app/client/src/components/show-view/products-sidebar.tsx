@@ -95,74 +95,9 @@ export function ProductsSidebar(props: any) {
                 <div className="h-full overflow-y-auto pb-20">
                 {/* Show pinned product first if it's an auction */}
                 {pinnedProduct && pinnedProduct.listing_type === 'auction' && (
-                  <div className="px-4 py-4 border-b border-zinc-700 bg-zinc-900/50 relative" data-testid="product-pinned-auction">
-                    <div className="flex justify-between gap-4">
-                      <div className="flex-1">
-                        <Badge className="mb-2 bg-primary text-primary-foreground text-xs">Pinned</Badge>
-                        <h3 className="text-lg font-bold text-white mb-2 leading-tight">{pinnedProduct.name}</h3>
-                        <p className="text-sm text-zinc-400 mb-1">{pinnedProduct.auction?.bids?.length || 0} bids</p>
-                        <p className="text-sm text-zinc-400 mb-2">{pinnedProduct.quantity || 1} Available</p>
-                        {!isShowOwner && (
-                          <Button
-                            size="sm"
-                            className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                            onClick={async () => {
-                              console.log('📦 Fetching prebid shipping for:', pinnedProduct.name);
-                              
-                              // Open dialog immediately with loading state
-                              setPrebidAuction({
-                                ...pinnedProduct,
-                                prebidShippingCost: undefined // undefined means loading
-                              });
-                              setShowPrebidDialog(true);
-                              
-                              const payload = {
-                                weight: pinnedProduct.shipping_profile?.weight,
-                                unit: pinnedProduct.shipping_profile?.scale,
-                                product: pinnedProduct._id || pinnedProduct.id,
-                                update: false,
-                                owner: pinnedProduct.ownerId?._id || pinnedProduct.ownerId || pinnedProduct.owner?._id || pinnedProduct.owner,
-                                customer: currentUserId,
-                                tokshow: id,
-                                buying_label: false
-                              };
-                              
-                              fetch('/api/shipping/estimate', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload),
-                                credentials: 'include'
-                              })
-                                .then(res => res.json())
-                                .then(data => {
-                                  console.log('✅ Shipping estimate received:', data);
-                                  if (data.amount) {
-                                    setPrebidAuction({
-                                      ...pinnedProduct,
-                                      prebidShippingCost: parseFloat(data.amount)
-                                    });
-                                  } else {
-                                    setPrebidAuction({
-                                      ...pinnedProduct,
-                                      prebidShippingCost: null // null means no shipping cost available
-                                    });
-                                  }
-                                })
-                                .catch(error => {
-                                  console.error('❌ Shipping estimate error:', error);
-                                  setPrebidAuction({
-                                    ...pinnedProduct,
-                                    prebidShippingCost: null
-                                  });
-                                });
-                            }}
-                            data-testid="button-prebid-pinned"
-                          >
-                            Prebid
-                          </Button>
-                        )}
-                      </div>
-                      <div className="w-20 h-20 flex-shrink-0 relative">
+                  <div className="px-3 py-2 border-b border-zinc-700 bg-zinc-900/50 relative" data-testid="product-pinned-auction">
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 flex-shrink-0 relative">
                         <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
                           {pinnedProduct.images?.[0] && (
                             <img src={pinnedProduct.images[0]} alt={pinnedProduct.name} className="w-full h-full object-cover" />
@@ -170,48 +105,150 @@ export function ProductsSidebar(props: any) {
                         </div>
                         {isShowOwner && (
                           <Button 
+                            variant="ghost" 
                             size="icon"
-                            className="absolute top-1 right-1 h-7 w-7 bg-black/70 hover:bg-black/90 text-white rounded-full" 
+                            className="absolute -top-1 -right-1 h-5 w-5 bg-black/70 hover:bg-black/90 text-white rounded-full" 
                             onClick={() => handleProductAction(pinnedProduct)}
                             data-testid="button-product-action-pinned-auction"
                           >
-                            <MoreVertical className="h-4 w-4" />
+                            <MoreVertical className="h-3 w-3" />
                           </Button>
                         )}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0">Pinned</Badge>
+                        </div>
+                        <h3 className="text-sm font-semibold text-white truncate">{pinnedProduct.name}</h3>
+                        <div className="flex items-center gap-2 text-xs text-zinc-400">
+                          <span>{pinnedProduct.auction?.bids?.length || 0} bids</span>
+                          <span>•</span>
+                          <span className="text-white font-medium">${(pinnedProduct.auction?.baseprice || pinnedProduct.baseprice || pinnedProduct.price || 0).toFixed(2)}</span>
+                          <span>•</span>
+                          <span>{pinnedProduct.quantity || 1} left</span>
+                        </div>
+                      </div>
+                      {!isShowOwner && (
+                        <Button
+                          size="sm"
+                          className="h-7 px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                          onClick={async () => {
+                            console.log('📦 Fetching prebid shipping for:', pinnedProduct.name);
+                            setPrebidAuction({
+                              ...pinnedProduct,
+                              prebidShippingCost: undefined
+                            });
+                            setShowPrebidDialog(true);
+                            
+                            const payload = {
+                              weight: pinnedProduct.shipping_profile?.weight,
+                              unit: pinnedProduct.shipping_profile?.scale,
+                              product: pinnedProduct._id || pinnedProduct.id,
+                              update: false,
+                              owner: pinnedProduct.ownerId?._id || pinnedProduct.ownerId || pinnedProduct.owner?._id || pinnedProduct.owner,
+                              customer: currentUserId,
+                              tokshow: id,
+                              buying_label: false
+                            };
+                            
+                            fetch('/api/shipping/estimate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(payload),
+                              credentials: 'include'
+                            })
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.amount) {
+                                  setPrebidAuction({
+                                    ...pinnedProduct,
+                                    prebidShippingCost: parseFloat(data.amount)
+                                  });
+                                } else {
+                                  setPrebidAuction({
+                                    ...pinnedProduct,
+                                    prebidShippingCost: null
+                                  });
+                                }
+                              })
+                              .catch(() => {
+                                setPrebidAuction({
+                                  ...pinnedProduct,
+                                  prebidShippingCost: null
+                                });
+                              });
+                          }}
+                          data-testid="button-prebid-pinned"
+                        >
+                          Prebid
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
                 {auctionProducts
                   .filter((product: any) => product._id !== pinnedProduct?._id)
                   .map((product: any, index: number) => {
-                  const isActiveAuction = activeAuction?.product?._id === product._id;
-                  // Check if user already has a bid on this auction and get their bid
-                  const userBid = product.auction?.bids?.find((bid: any) => 
-                    bid.user?._id === currentUserId || 
-                    bid.user?.id === currentUserId ||
-                    bid.bidder?._id === currentUserId || 
-                    bid.bidder?.id === currentUserId
+                  // Only hide prebid button if auction is actively running (not ended)
+                  const isActiveAuction = activeAuction?.product?._id === product._id && !activeAuction?.ended;
+                  // Check if user has a prebid (from product.prebids, not auction.bids)
+                  const userPrebid = product.prebids?.find((prebid: any) => 
+                    prebid.user?._id === currentUserId || 
+                    prebid.user?.id === currentUserId ||
+                    prebid.user === currentUserId
                   );
-                  const userHasBid = !!userBid;
-                  const userBidAmount = userBid?.autobidamount || userBid?.amount;
+                  const userHasPrebid = !!userPrebid;
+                  const userPrebidAmount = userPrebid?.autobidamount || userPrebid?.amount;
+                  
+                  // Calculate highest prebid from prebids array
+                  const highestPrebid = product.prebids?.length > 0 
+                    ? Math.max(...product.prebids.map((p: any) => p.autobidamount || p.amount || 0))
+                    : null;
                   
                   return (
-                    <div key={product._id || product.id || index} className="px-4 py-4 border-b border-zinc-700 relative" data-testid={`product-auction-${product._id || index}`}>
-                      <div className="flex justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-white mb-2 leading-tight">{product.name}</h3>
-                          <p className="text-sm text-zinc-400 mb-1">{product.auction?.bids?.length || 0} bids</p>
-                          <p className="text-sm text-zinc-400 mb-2">{product.quantity || 1} Available</p>
-                          {!isShowOwner && !isActiveAuction && userHasBid && (
-                            <p className="text-sm text-primary font-semibold mt-2" data-testid={`text-my-bid-${product._id || index}`}>
-                              Your Bid: ${userBidAmount?.toFixed(2) || '0.00'}
+                    <div key={product._id || product.id || index} className="px-3 py-2 border-b border-zinc-700 relative" data-testid={`product-auction-${product._id || index}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 flex-shrink-0 relative">
+                          <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
+                            {product.images?.[0] && (
+                              <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                            )}
+                          </div>
+                          {isShowOwner && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="absolute -top-1 -right-1 h-5 w-5 bg-black/70 hover:bg-black/90 text-white rounded-full" 
+                              onClick={() => handleProductAction(product)}
+                              data-testid={`button-product-action-${product._id || index}`}
+                            >
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-semibold text-white truncate">{product.name}</h3>
+                          <div className="flex items-center gap-2 text-xs text-zinc-400">
+                            <span>{product.started ? (product.auction?.bids?.length || 0) : (product.prebids?.length || 0)} bids</span>
+                            <span>•</span>
+                            <span className="text-white font-medium">
+                              ${highestPrebid !== null 
+                                ? highestPrebid.toFixed(2) 
+                                : (product.auction?.baseprice || product.baseprice || product.price || 0).toFixed(2)}
+                            </span>
+                            <span>•</span>
+                            <span>{product.quantity || 1} left</span>
+                          </div>
+                          {!isShowOwner && userHasPrebid && !isActiveAuction && (
+                            <p className="text-xs text-primary font-semibold" data-testid={`text-my-bid-${product._id || index}`}>
+                              Your Prebid: ${userPrebidAmount?.toFixed(2) || '0.00'}
                             </p>
                           )}
-                          {!isShowOwner && !isActiveAuction && !userHasBid && (
-                            <Button
-                              size="sm"
-                              className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                        </div>
+                        {!isShowOwner && !isActiveAuction && (
+                          <Button
+                            size="sm"
+                            className="h-7 px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                               onClick={() => {
                                 console.log('📦 Fetching prebid shipping for:', product.name);
                                 
@@ -267,24 +304,6 @@ export function ProductsSidebar(props: any) {
                               Prebid
                             </Button>
                           )}
-                        </div>
-                        <div className="w-20 h-20 flex-shrink-0 relative">
-                          <div className="w-full h-full bg-zinc-900 rounded-lg overflow-hidden">
-                            {product.images?.[0] && (
-                              <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-                            )}
-                          </div>
-                          {isShowOwner && !isAuctionRunning && (
-                            <Button 
-                              size="icon"
-                              className="absolute top-1 right-1 h-7 w-7 bg-black/70 hover:bg-black/90 text-white rounded-full" 
-                              onClick={() => handleProductAction(product)}
-                              data-testid={`button-product-action-${product._id || index}`}
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
                       </div>
                     </div>
                   );
@@ -448,7 +467,7 @@ export function ProductsSidebar(props: any) {
                     <div className="flex justify-between gap-4">
                       <div className="flex-1">
                         <Badge className="mb-2 bg-primary text-primary-foreground text-xs">Active Giveaway</Badge>
-                        <h3 className="text-lg font-bold text-white mb-2 leading-tight">{activeGiveaway.name || 'Giveaway'}</h3>
+                        <h3 className="text-lg font-bold text-white mb-2 leading-tight">{activeGiveaway.name || 'Giveaway'}{activeGiveaway.reference ? ` #${activeGiveaway.reference}` : ''}</h3>
                         <p className="text-sm text-zinc-400 mb-1">{activeGiveaway.participants?.length || 0} participants</p>
                         {!activeGiveaway.ended && giveawayTimeLeft > 0 && (
                           <p className="text-sm text-zinc-400">
@@ -469,7 +488,7 @@ export function ProductsSidebar(props: any) {
                   <div key={giveaway._id || giveaway.id || index} className="px-4 py-4 border-b border-zinc-700 relative" data-testid={`giveaway-${giveaway._id || index}`}>
                     <div className="flex justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white mb-2 leading-tight">{giveaway.name || 'Giveaway'}</h3>
+                        <h3 className="text-lg font-bold text-white mb-2 leading-tight">{giveaway.name || 'Giveaway'}{giveaway.reference ? ` #${giveaway.reference}` : ''}</h3>
                         <p className="text-sm text-zinc-400 mb-1">{giveaway.participants?.length || 0} participants</p>
                         {giveaway.winner && (
                           <p className="text-sm text-green-400">Winner: {giveaway.winner.userName || 'Someone'}</p>
@@ -523,7 +542,9 @@ export function ProductsSidebar(props: any) {
                   
                   if (isGiveaway) {
                     product = order.giveaway;
-                    productName = product?.name || product?.title || 'Giveaway Item';
+                    const baseName = product?.name || product?.title || 'Giveaway Item';
+                    const orderRef = order.order_reference || order.invoice || order._id?.slice(-8) || '';
+                    productName = orderRef ? `${baseName} ${orderRef}` : baseName;
                     productImage = product?.images?.[0] || product?.image;
                     orderPrice = 0; // Giveaways are free
                     quantity = order.quantity || product?.quantity || 1;
@@ -532,8 +553,8 @@ export function ProductsSidebar(props: any) {
                     const firstItem = order.items?.[0];
                     product = firstItem?.productId || firstItem;
                     const baseName = product?.name || product?.title || 'Item';
-                    const orderReference = firstItem?.order_reference || '';
-                    productName = baseName + (orderReference ? ` ${orderReference}` : '');
+                    const orderRef = firstItem?.order_reference || order.order_reference || '';
+                    productName = orderRef ? `${baseName} ${orderRef}` : baseName;
                     productImage = product?.images?.[0] || product?.image;
                     orderPrice = order.total || order.price || (firstItem?.price * (firstItem?.quantity || 1)) || 0;
                     quantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || 1;

@@ -36,6 +36,7 @@ interface AuctionMiscDialogsProps {
   setPrebidAmount: (amount: string) => void;
   prebidMutation: any;
   toast: any;
+  currentUserId?: string;
   
   // Order Detail Dialog
   showOrderDetailDialog: boolean;
@@ -51,7 +52,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
     setAuctionSettings, handleStartAuctionWithSettings, showShareDialog,
     setShowShareDialog, showTitle, id, showPrebidDialog, setShowPrebidDialog,
     prebidAuction, setPrebidAuction, prebidAmount, setPrebidAmount,
-    prebidMutation, toast, showOrderDetailDialog, setShowOrderDetailDialog,
+    prebidMutation, toast, currentUserId, showOrderDetailDialog, setShowOrderDetailDialog,
     selectedOrder, orderItemsPage, setOrderItemsPage
   } = props;
 
@@ -258,6 +259,24 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                     });
                     return;
                   }
+                  
+                  // Check if user has an existing prebid and prevent lowering it
+                  const userExistingPrebid = prebidAuction?.prebids?.find((p: any) => 
+                    p.user?._id === currentUserId || 
+                    p.user?.id === currentUserId ||
+                    p.user === currentUserId
+                  );
+                  const existingPrebidAmount = userExistingPrebid?.autobidamount || userExistingPrebid?.amount || 0;
+                  
+                  if (existingPrebidAmount > 0 && amount < existingPrebidAmount) {
+                    toast({
+                      title: "Invalid Amount",
+                      description: `You cannot lower your prebid. Your current prebid is $${existingPrebidAmount.toFixed(2)}`,
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  
                   prebidMutation.mutate({ listing: prebidAuction, amount });
                 }}
                 disabled={prebidMutation.isPending || !prebidAmount}

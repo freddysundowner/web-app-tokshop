@@ -57,6 +57,7 @@ interface DialogsContainerProps {
   setPrebidAmount: (amount: string) => void;
   prebidMutation: any;
   toast: any;
+  currentUserId?: string;
   
   // Order Detail Dialog
   showOrderDetailDialog: boolean;
@@ -116,6 +117,7 @@ export function DialogsContainer(props: DialogsContainerProps) {
         setPrebidAmount={props.setPrebidAmount}
         prebidMutation={props.prebidMutation}
         toast={props.toast}
+        currentUserId={props.currentUserId}
         showOrderDetailDialog={props.showOrderDetailDialog}
         setShowOrderDetailDialog={props.setShowOrderDetailDialog}
         selectedOrder={props.selectedOrder}

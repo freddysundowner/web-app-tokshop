@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Sheet,
@@ -166,9 +166,11 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   const [dimensions, setDimensions] = useState(getRealOrderDimensions());
   const [weight, setWeight] = useState(getRealOrderWeight());
   
+  // Track the last fetched signature to avoid redundant API calls
+  const lastFetchedSignatureRef = useRef<string | null>(null);
+  
   // Check if we have valid data for fetching estimates
   const hasValidDimensions = Boolean(dimensions.length && dimensions.width && dimensions.height && weight);
-  const shouldAutoFetch = hasValidDimensions && isOpen;
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -228,11 +230,47 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
       
       return await response.json() as ShippingEstimateResponse[];
     },
-    enabled: shouldAutoFetch, // Automatically fetch when drawer opens with valid data
+    enabled: false, // Manual fetching only - controlled by useEffect below
     retry: 1,
+    staleTime: Infinity, // Never auto-refetch, only manual
   });
 
   const estimates = shippingEstimatesQuery.data || [];
+  
+  // Only fetch estimates when dimensions/weight actually change (user edits inputs)
+  // NOT on drawer open - only on explicit changes or Refresh button click
+  const initialSignatureRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    if (!isOpen || !hasValidDimensions) return;
+    
+    // Create signature of current values
+    const currentSignature = JSON.stringify({
+      weight,
+      length: dimensions.length,
+      width: dimensions.width,
+      height: dimensions.height,
+      orderId: displayOrder._id,
+    });
+    
+    // On first open, just store the initial signature without fetching
+    if (initialSignatureRef.current === null) {
+      initialSignatureRef.current = currentSignature;
+      lastFetchedSignatureRef.current = currentSignature;
+      return; // Don't fetch on initial open
+    }
+    
+    // Only fetch if values changed from what we last fetched
+    if (lastFetchedSignatureRef.current !== currentSignature) {
+      lastFetchedSignatureRef.current = currentSignature;
+      shippingEstimatesQuery.refetch();
+    }
+  }, [isOpen, weight, dimensions.length, dimensions.width, dimensions.height, displayOrder._id]);
+  
+  // Reset initial signature when order changes
+  useEffect(() => {
+    initialSignatureRef.current = null;
+  }, [displayOrder._id]);
 
   // Track initial estimate prices per service and detect price changes
   useEffect(() => {
@@ -287,19 +325,9 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   }, [isOpen]);
 
   const handleRefreshEstimates = () => {
-    // Invalidate and refetch the current query
-    queryClient.invalidateQueries({ 
-      queryKey: ['/api/shipping/profiles/estimate/rates', {
-        weight,
-        length: dimensions.length,
-        width: dimensions.width,
-        height: dimensions.height,
-        product: displayOrder.giveaway?._id || '',
-        owner: displayOrder.seller._id,
-        customer: displayOrder.customer._id,
-        isBundle,
-      }] 
-    });
+    // Clear the signature to force a refetch
+    lastFetchedSignatureRef.current = null;
+    shippingEstimatesQuery.refetch();
     toast({ title: "Refreshing shipping estimates..." });
   };
 

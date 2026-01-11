@@ -2,10 +2,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Package, Truck, MapPin, Download, Loader2 } from "lucide-react";
+import { Package, Truck, MapPin, Download, Loader2, FileText } from "lucide-react";
 import type { TokshopOrder } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 
 interface ShipmentDetailsDrawerProps {
   open: boolean;
@@ -49,6 +50,109 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
 
   // Get shipping address
   const address = orderData?.customer?.address;
+
+  // Generate and print packing slip
+  const handlePrintPackingSlip = () => {
+    const orderDate = orderData?.createdAt ? format(new Date(orderData.createdAt), 'MMM dd, yyyy') : '-';
+    const invoiceNum = orderData?.invoice || orderData?._id?.slice(-8) || '';
+    const customerName = orderData?.customer?.name || orderData?.customer?.username || 'Customer';
+    const sellerName = orderData?.seller?.name || orderData?.seller?.username || 'Seller';
+    
+    // Build items list
+    let itemsHtml = '';
+    if (orderData?.giveaway && orderData.giveaway._id) {
+      itemsHtml = `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">
+            ${orderData.giveaway.name} #${invoiceNum}
+          </td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${orderData.giveaway.quantity || 1}</td>
+        </tr>
+      `;
+    } else if (orderData?.items && orderData.items.length > 0) {
+      itemsHtml = orderData.items.map((item: any) => `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">
+            ${item.productId?.name || item.name || 'Item'}
+          </td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity || 1}</td>
+        </tr>
+      `).join('');
+    }
+
+    const packingSlipHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Packing Slip - Order #${invoiceNum}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+          .logo { font-size: 24px; font-weight: bold; }
+          .order-info { text-align: right; }
+          .addresses { display: flex; gap: 40px; margin-bottom: 30px; }
+          .address-box { flex: 1; }
+          .address-box h3 { margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; color: #666; }
+          .address-box p { margin: 0; line-height: 1.5; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th { background: #f5f5f5; padding: 10px 8px; text-align: left; font-size: 12px; text-transform: uppercase; }
+          th:last-child { text-align: center; }
+          .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">PACKING SLIP</div>
+          <div class="order-info">
+            <p><strong>Order #${invoiceNum}</strong></p>
+            <p>${orderDate}</p>
+          </div>
+        </div>
+        
+        <div class="addresses">
+          <div class="address-box">
+            <h3>Ship To</h3>
+            <p>
+              <strong>${customerName}</strong><br>
+              ${address?.street || ''}<br>
+              ${address?.city || ''}, ${address?.state || ''} ${address?.zipcode || ''}<br>
+              ${address?.country || 'USA'}
+            </p>
+          </div>
+          <div class="address-box">
+            <h3>From</h3>
+            <p><strong>${sellerName}</strong></p>
+          </div>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th style="width: 80px;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          <p>Thank you for your order!</p>
+        </div>
+        
+        <script>window.onload = function() { window.print(); }</script>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(packingSlipHtml);
+      printWindow.document.close();
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -228,13 +332,10 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
               <Button
                 variant="default"
                 className="w-full"
-                onClick={() => {
-                  // Open packing slip - could be a separate URL or generate one
-                  const packingSlipUrl = (orderData as any)?.packing_slip_url || labelUrl;
-                  if (packingSlipUrl) window.open(packingSlipUrl, '_blank');
-                }}
+                onClick={handlePrintPackingSlip}
                 data-testid="button-print-packing-slip"
               >
+                <FileText className="h-4 w-4 mr-2" />
                 Print Packing Slip
               </Button>
               {orderData?.status === "ready_to_ship" && (

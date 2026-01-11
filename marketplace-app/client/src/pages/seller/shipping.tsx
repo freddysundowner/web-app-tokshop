@@ -1239,13 +1239,11 @@ export default function Shipping() {
 
   // Bulk label purchase mutation
   const bulkLabelMutation = useMutation({
-    mutationFn: async ({ orderIds, labelFileType, carrierAccount }: { orderIds: string[]; labelFileType: string; carrierAccount?: string }) => {
-      if (!user?.id) throw new Error("User ID required");
-
+    mutationFn: async ({ rates }: { rates: Array<{ rate_id: string; label_file_type: string; order: string }> }) => {
       const response = await fetch("/api/shipping/bulk-labels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds, labelFileType, userId: user.id, carrierAccount }),
+        body: JSON.stringify({ rates }),
       });
       
       if (!response.ok) {
@@ -1288,9 +1286,17 @@ export default function Shipping() {
   };
 
   const confirmBulkLabelPurchase = (labelFileType: string) => {
-    // Get carrier account from selected show if available
-    const carrierAccount = selectedShow?.carrierAccount;
-    bulkLabelMutation.mutate({ orderIds: selectedOrders, labelFileType, carrierAccount });
+    // Build rates array in the format expected by external API
+    const rates = selectedOrders.map(orderId => {
+      const order = orders?.find(o => o._id === orderId);
+      return {
+        rate_id: order?.rate_id || '',
+        label_file_type: labelFileType,
+        order: order?.bundleId || orderId
+      };
+    });
+    
+    bulkLabelMutation.mutate({ rates });
   };
 
   // Only show full-page loading on initial load (no data yet)
@@ -2433,9 +2439,8 @@ export default function Shipping() {
                                                 </div>
                                               )}
                                               <div>
-                                                <p className="font-medium">{order.giveaway.name}</p>
+                                                <p className="font-medium">{order.giveaway.name} #{order.invoice || order._id.slice(-8)}</p>
                                                 <p className="text-xs text-muted-foreground lowercase">{order.giveaway.category?.name || '-'}</p>
-                                                <p className="text-xs text-muted-foreground">#{order.invoice || order._id.slice(-8)}</p>
                                               </div>
                                             </div>
                                           </td>
@@ -2519,9 +2524,8 @@ export default function Shipping() {
                                                   </div>
                                                 )}
                                                 <div>
-                                                  <p className="font-medium">{item.productId?.name ? `${item.productId.name}${(item as any).order_reference ? ` ${(item as any).order_reference}` : ''}` : ((item as any).order_reference || 'Item')}</p>
+                                                  <p className="font-medium">{item.productId?.name ? `${item.productId.name} #${order.invoice || order._id.slice(-8)}` : `Item #${order.invoice || order._id.slice(-8)}`}</p>
                                                   <p className="text-xs text-muted-foreground lowercase">{item.productId?.category?.name || '-'}</p>
-                                                  <p className="text-xs text-muted-foreground">#{order.invoice || order._id.slice(-8)}</p>
                                                 </div>
                                               </div>
                                             </td>
