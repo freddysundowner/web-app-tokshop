@@ -34,6 +34,13 @@ const createProductSchema = z.object({
   featured: z.boolean().optional().default(false),
   started: z.boolean().optional().default(false),
   userId: z.string().optional(),
+  flash_sale: z.boolean().optional(),
+  flash_sale_discount_type: z.enum(["percentage", "fixed"]).optional(),
+  flash_sale_discount_value: z.coerce.number().optional(),
+  flash_sale_buy_limit: z.coerce.number().optional(),
+  flash_sale_duration: z.coerce.number().optional(),
+  flash_sale_available_full_price: z.boolean().optional(),
+  flash_live_reserved: z.boolean().optional(),
 });
 
 export function registerProductRoutes(app: Express) {
@@ -321,6 +328,13 @@ export function registerProductRoutes(app: Express) {
           req.body.length.trim() && { length: req.body.length }),
         ...(req.body.scale &&
           req.body.scale.trim() && { scale: req.body.scale }),
+        ...(req.body.flash_sale !== undefined && { flash_sale: req.body.flash_sale }),
+        ...(req.body.flash_sale_discount_type && { flash_sale_discount_type: req.body.flash_sale_discount_type }),
+        ...(req.body.flash_sale_discount_value !== undefined && { flash_sale_discount_value: req.body.flash_sale_discount_value }),
+        ...(req.body.flash_sale_buy_limit !== undefined && { flash_sale_buy_limit: req.body.flash_sale_buy_limit }),
+        ...(req.body.flash_sale_duration !== undefined && { flash_sale_duration: req.body.flash_sale_duration }),
+        ...(req.body.flash_sale_available_full_price !== undefined && { flash_sale_available_full_price: req.body.flash_sale_available_full_price }),
+        ...(req.body.flash_live_reserved !== undefined && { flash_live_reserved: req.body.flash_live_reserved }),
       };
 
       // Include authentication token from session
@@ -614,6 +628,39 @@ export function registerProductRoutes(app: Express) {
         tokshopUpdateData.auction = req.body.auction;
         console.log("Sending to external API - auction ID:", tokshopUpdateData.auction);
       }
+      
+      // Flash sale fields
+      if (req.body.flash_sale !== undefined) {
+        tokshopUpdateData.flash_sale = req.body.flash_sale;
+      }
+      if (req.body.flash_sale_discount_type) {
+        tokshopUpdateData.flash_sale_discount_type = req.body.flash_sale_discount_type;
+      }
+      if (req.body.flash_sale_discount_value !== undefined) {
+        tokshopUpdateData.flash_sale_discount_value = req.body.flash_sale_discount_value;
+      }
+      if (req.body.flash_sale_buy_limit !== undefined) {
+        tokshopUpdateData.flash_sale_buy_limit = req.body.flash_sale_buy_limit;
+      }
+      if (req.body.flash_sale_duration !== undefined) {
+        tokshopUpdateData.flash_sale_duration = req.body.flash_sale_duration;
+      }
+      if (req.body.flash_sale_available_full_price !== undefined) {
+        tokshopUpdateData.flash_sale_available_full_price = req.body.flash_sale_available_full_price;
+      }
+      if (req.body.flash_live_reserved !== undefined) {
+        tokshopUpdateData.flash_live_reserved = req.body.flash_live_reserved;
+      }
+      
+      console.log("Flash sale fields being sent:", {
+        flash_sale: tokshopUpdateData.flash_sale,
+        flash_sale_discount_type: tokshopUpdateData.flash_sale_discount_type,
+        flash_sale_discount_value: tokshopUpdateData.flash_sale_discount_value,
+        flash_sale_buy_limit: tokshopUpdateData.flash_sale_buy_limit,
+        flash_sale_duration: tokshopUpdateData.flash_sale_duration,
+        flash_sale_available_full_price: tokshopUpdateData.flash_sale_available_full_price,
+        flash_live_reserved: tokshopUpdateData.flash_live_reserved,
+      });
 
       console.log(
         "Sending to external API - featured field:",

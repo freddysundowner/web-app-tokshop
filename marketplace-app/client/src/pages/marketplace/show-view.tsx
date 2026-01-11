@@ -1,5 +1,5 @@
 import { Link, useParams, useLocation } from 'wouter';
-import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package } from 'lucide-react';
+import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package, Zap } from 'lucide-react';
 import { timeSync } from '@/lib/time-sync';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -171,6 +171,15 @@ export default function ShowViewNew() {
   const [showBuyNowDialog, setShowBuyNowDialog] = useState<boolean>(false);
   const [buyNowProduct, setBuyNowProduct] = useState<any>(null);
   
+  // Flash Sale State
+  const [activeFlashSale, setActiveFlashSale] = useState<any>(null);
+  const [flashSaleTimeLeft, setFlashSaleTimeLeft] = useState<number>(0);
+  const [showFlashSaleDialog, setShowFlashSaleDialog] = useState<boolean>(false);
+  const [flashSaleSettings, setFlashSaleSettings] = useState({
+    salePrice: 0,
+    duration: 60
+  });
+  
   // Make Offer Dialog
   const [showMakeOfferDialog, setShowMakeOfferDialog] = useState<boolean>(false);
   const [makeOfferProduct, setMakeOfferProduct] = useState<any>(null);
@@ -191,6 +200,7 @@ export default function ShowViewNew() {
   const hasJoinedRef = useRef(false);
   const auctionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const orderNotificationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const flashSaleRestorationTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Ref for auto-scrolling chat
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -218,11 +228,104 @@ export default function ShowViewNew() {
   const hasJoinedRoomRef = useRef(false);
   const hasSentJoinMessageRef = useRef(false);
   
-  // Reset flags when room ID changes
+  // Reset ALL real-time state and flags when room ID changes
+  // This is CRITICAL for rally transitions - prevents old show's state from persisting
   useEffect(() => {
+    console.log('🔄 Room ID changed - resetting all real-time state for new show:', id);
+    
+    // Reset join flags
     hasJoinedRoomRef.current = false;
     hasSentJoinMessageRef.current = false;
+    hasShownPaymentAlertRef.current = false;
+    
+    // Reset all real-time state to fresh values
+    setViewers([]);
+    setPinnedProduct(null);
+    setActiveAuction(null);
+    setActiveGiveaway(null);
+    setAuctionTimeLeft(0);
+    setGiveawayTimeLeft(0);
+    setBidAmount('');
+    setChatMessages([]);
+    setShippingEstimate(null);
+    setWinningUser(null);
+    setWinningCurrentPrice(0);
+    setTimeAddedBlink(false);
+    setShowWinnerDialog(false);
+    setWinnerData(null);
+    setShowGiveawayWinnerDialog(false);
+    setGiveawayWinnerData(null);
+    setShowOrderNotification(false);
+    setOrderNotificationData(null);
+    setCurrentUserBid(null);
+    
+    // Reset flash sale state
+    setActiveFlashSale(null);
+    setFlashSaleTimeLeft(0);
+    
+    // Reset refs
+    previousHighestBidRef.current = 0;
+    lastAlertedMaxBidRef.current = 0;
+    shownWinnerAlertsRef.current = new Set();
+    
+    // Clear any running timers
+    if (auctionTimerRef.current) {
+      clearInterval(auctionTimerRef.current);
+      auctionTimerRef.current = null;
+    }
+    if (orderNotificationTimerRef.current) {
+      clearTimeout(orderNotificationTimerRef.current);
+      orderNotificationTimerRef.current = null;
+    }
+    if (flashSaleRestorationTimerRef.current) {
+      clearInterval(flashSaleRestorationTimerRef.current);
+      flashSaleRestorationTimerRef.current = null;
+    }
   }, [id]);
+  
+  // Flash sale countdown timer - starts when activeFlashSale exists and flashSaleTimeLeft > 0
+  // This handles both socket-started and restored-from-show-data flash sales
+  useEffect(() => {
+    // Only start timer if we have an active flash sale with time remaining
+    if (!activeFlashSale || flashSaleTimeLeft <= 0) {
+      // Clean up any existing timer when flash sale ends
+      if (flashSaleRestorationTimerRef.current) {
+        clearInterval(flashSaleRestorationTimerRef.current);
+        flashSaleRestorationTimerRef.current = null;
+      }
+      return;
+    }
+    
+    // Don't create duplicate timers
+    if (flashSaleRestorationTimerRef.current) {
+      return;
+    }
+    
+    console.log('⏱️ Starting flash sale countdown timer, time left:', flashSaleTimeLeft);
+    
+    flashSaleRestorationTimerRef.current = setInterval(() => {
+      setFlashSaleTimeLeft((prev) => {
+        const newTime = prev - 1;
+        if (newTime <= 0) {
+          console.log('⏱️ Flash sale countdown reached 0, clearing timer');
+          if (flashSaleRestorationTimerRef.current) {
+            clearInterval(flashSaleRestorationTimerRef.current);
+            flashSaleRestorationTimerRef.current = null;
+          }
+          setActiveFlashSale(null);
+          return 0;
+        }
+        return newTime;
+      });
+    }, 1000);
+    
+    return () => {
+      if (flashSaleRestorationTimerRef.current) {
+        clearInterval(flashSaleRestorationTimerRef.current);
+        flashSaleRestorationTimerRef.current = null;
+      }
+    };
+  }, [activeFlashSale, flashSaleTimeLeft > 0]);
   
   useEffect(() => {
     if (!id) return;
@@ -689,8 +792,13 @@ export default function ShowViewNew() {
             }
           }
           
-          // Don't set ended: true here! Wait for server's auction-ended event
-          return currentAuction;
+          // Mark auction as ended locally when timer expires
+          // This ensures UI updates immediately (prebid button shows, bid buttons hide)
+          // The socket event will also set ended: true, but may be delayed
+          return {
+            ...currentAuction,
+            ended: true
+          };
         } else {
           setAuctionTimeLeft(remaining);
           return currentAuction;
@@ -820,6 +928,47 @@ export default function ShowViewNew() {
         } else {
           console.log('📌 Initializing pinned product from show data:', show.pinned);
           setPinnedProduct(show.pinned);
+          
+          // Restore active flash sale state if there's an ongoing flash sale
+          // Check if flash_sale_end_time is in the future (most reliable indicator)
+          if (show.pinned.flash_sale && show.pinned.flash_sale_end_time && !show.pinned.flash_sale_ended) {
+            const endTime = new Date(show.pinned.flash_sale_end_time).getTime();
+            const now = Date.now();
+            const remainingTime = Math.max(0, Math.floor((endTime - now) / 1000));
+            
+            console.log('⚡ Flash sale check on load:', {
+              flash_sale: show.pinned.flash_sale,
+              flash_sale_started: show.pinned.flash_sale_started,
+              flash_sale_ended: show.pinned.flash_sale_ended,
+              flash_sale_end_time: show.pinned.flash_sale_end_time,
+              endTime,
+              now,
+              remainingTime
+            });
+            
+            if (remainingTime > 0) {
+              console.log('⚡ Restoring active flash sale from show data:', {
+                productId: show.pinned._id,
+                endTime: show.pinned.flash_sale_end_time,
+                remainingTime,
+                quantityLeft: show.pinned.quantity
+              });
+              
+              setActiveFlashSale({
+                productId: show.pinned._id || show.pinned.id,
+                startedAt: endTime - (show.pinned.flash_sale_duration * 1000),
+                duration: show.pinned.flash_sale_duration,
+                quantityLeft: show.pinned.quantity,
+                discountType: show.pinned.flash_sale_discount_type || 'percentage',
+                discountValue: show.pinned.flash_sale_discount_value || 0,
+                originalPrice: show.pinned.price,
+                salePrice: show.pinned.flash_sale_price
+              });
+              setFlashSaleTimeLeft(remainingTime);
+            } else {
+              console.log('⚡ Flash sale has expired, not restoring');
+            }
+          }
           
           // Get shipping estimate for pinned product (skip if user is show owner)
           const hostId = show?.owner?._id || show?.owner?.id;
@@ -1015,6 +1164,8 @@ export default function ShowViewNew() {
     refetchGiveaways,
     refetchOffers,
     shownWinnerAlertsRef,
+    setActiveFlashSale,
+    setFlashSaleTimeLeft,
   });
 
 
@@ -1848,6 +1999,54 @@ export default function ShowViewNew() {
   const soldOrders = soldOrdersData?.items || [];
   const giveaways = giveawaysData?.giveaways || [];
   
+  // Sync pinned product with latest buy now products data (e.g., after editing a product)
+  useEffect(() => {
+    if (!pinnedProduct || !buyNowProducts || buyNowProducts.length === 0) return;
+    
+    // Find the updated product in the buy now list
+    const updatedProduct = buyNowProducts.find(
+      (p: any) => p._id === pinnedProduct._id || p.id === pinnedProduct._id
+    );
+    
+    console.log('🔍 Sync effect check:', {
+      pinnedProductId: pinnedProduct._id,
+      pinnedDuration: pinnedProduct.flash_sale_duration,
+      foundProduct: !!updatedProduct,
+      updatedDuration: updatedProduct?.flash_sale_duration
+    });
+    
+    if (updatedProduct) {
+      // Always sync flash sale fields from buyNowProducts to pinnedProduct
+      // This ensures any edits are reflected immediately
+      const fieldsToSync = [
+        'flash_sale', 'flash_sale_duration', 'flash_sale_discount_type',
+        'flash_sale_discount_value', 'flash_sale_buy_limit', 'flash_sale_price'
+      ];
+      
+      const hasChanges = fieldsToSync.some(
+        field => updatedProduct[field] !== pinnedProduct[field]
+      );
+      
+      if (hasChanges) {
+        console.log('🔄 Syncing pinned product with updated data:', {
+          oldDuration: pinnedProduct.flash_sale_duration,
+          newDuration: updatedProduct.flash_sale_duration,
+          oldDiscountValue: pinnedProduct.flash_sale_discount_value,
+          newDiscountValue: updatedProduct.flash_sale_discount_value
+        });
+        setPinnedProduct((prev: any) => ({
+          ...prev,
+          flash_sale: updatedProduct.flash_sale,
+          flash_sale_duration: updatedProduct.flash_sale_duration,
+          flash_sale_discount_type: updatedProduct.flash_sale_discount_type,
+          flash_sale_discount_value: updatedProduct.flash_sale_discount_value,
+          flash_sale_buy_limit: updatedProduct.flash_sale_buy_limit,
+          flash_sale_price: updatedProduct.flash_sale_price
+        }));
+      }
+    }
+  }, [buyNowProducts]);
+  
   // Initialize LiveKit for video streaming
   // Role is determined server-side based on room ownership
   const livekit = useLiveKit({
@@ -2052,6 +2251,70 @@ export default function ShowViewNew() {
     setShowMobileProducts(false); // Close store dialog on mobile
   };
 
+  // Handler to open flash sale settings
+  const handleOpenFlashSaleSettings = () => {
+    if (!selectedProduct) return;
+    
+    // Pre-fill sale price with a discounted price (e.g., 20% off)
+    const originalPrice = selectedProduct.price || selectedProduct.buy_now_price || 0;
+    const suggestedSalePrice = Math.floor(originalPrice * 0.8);
+    
+    setFlashSaleSettings({
+      salePrice: suggestedSalePrice > 0 ? suggestedSalePrice : 1,
+      duration: 60
+    });
+    setProductActionSheet(false);
+    setShowFlashSaleDialog(true);
+  };
+
+  // Handler to start flash sale with settings
+  const handleStartFlashSale = () => {
+    if (!socket || !selectedProduct || !id) return;
+    
+    const salePrice = flashSaleSettings.salePrice;
+    const duration = flashSaleSettings.duration;
+    
+    console.log('⚡ Starting flash sale:', {
+      productId: selectedProduct._id,
+      showId: id,
+      salePrice,
+      duration
+    });
+    
+    // Emit start-flash-sale event
+    socket.emit('start-flash-sale', {
+      productId: selectedProduct._id,
+      showId: id,
+      salePrice,
+      duration
+    });
+    
+    setShowFlashSaleDialog(false);
+    setSelectedProduct(null);
+    setShowMobileProducts(false);
+    
+    toast({
+      title: "Flash Sale Starting",
+      description: `Flash sale will run for ${duration} seconds`,
+      duration: 3000,
+    });
+  };
+
+  // Handler to end flash sale
+  const handleEndFlashSale = () => {
+    if (!socket || !id || !activeFlashSale) return;
+    
+    console.log('⚡ Ending flash sale:', {
+      productId: activeFlashSale.productId,
+      showId: id
+    });
+    
+    socket.emit('end-flash-sale', {
+      productId: activeFlashSale.productId,
+      showId: id
+    });
+  };
+
   // Handler to manually end giveaway (draw winner)
   const handleEndGiveaway = () => {
     if (!socket || !activeGiveaway || !id) return;
@@ -2199,6 +2462,9 @@ export default function ShowViewNew() {
           onAcceptOffer={handleAcceptOffer}
           onDeclineOffer={handleDeclineOffer}
           onCounterOffer={handleCounterOffer}
+          activeFlashSale={activeFlashSale}
+          flashSaleTimeLeft={flashSaleTimeLeft}
+          handleEndFlashSale={handleEndFlashSale}
           onMakeOffer={(product: any) => {
             setMakeOfferProduct(product);
             setShowMakeOfferDialog(true);
@@ -2300,6 +2566,8 @@ export default function ShowViewNew() {
           setShowPaymentShippingAlert={setShowWalletDialog}
           showCustomBidDialog={showCustomBidDialog}
           setShowCustomBidDialog={setShowCustomBidDialog}
+          flashSaleTimeLeft={flashSaleTimeLeft}
+          activeFlashSale={activeFlashSale}
         />
         
         <ChatSidebar
@@ -2344,8 +2612,10 @@ export default function ShowViewNew() {
           isShowOwner={isShowOwner}
           handleOpenAuctionSettings={handleOpenAuctionSettings}
           handleStartGiveaway={handleStartGiveaway}
+          handleOpenFlashSaleSettings={handleOpenFlashSaleSettings}
           setShowDeleteConfirm={setShowDeleteConfirm}
           giveaways={giveaways}
+          activeFlashSale={activeFlashSale}
           showAuctionSettingsDialog={showAuctionSettingsDialog}
           setShowAuctionSettingsDialog={setShowAuctionSettingsDialog}
           auctionSettings={auctionSettings}
@@ -2360,6 +2630,7 @@ export default function ShowViewNew() {
           refetchAuction={refetchAuction}
           refetchBuyNow={refetchBuyNow}
           refetchGiveaways={refetchGiveaways}
+          refetchShow={refetchShow}
           showEditProductDialog={showEditProductDialog}
           editingProduct={editingProduct}
           showShareDialog={showShareDialog}
@@ -2395,6 +2666,20 @@ export default function ShowViewNew() {
             product={buyNowProduct}
             shippingEstimate={shippingEstimate}
             offerPrice={pendingOfferPrice}
+            isFlashSale={activeFlashSale?.productId === (buyNowProduct?._id || buyNowProduct?.id)}
+            flashSalePrice={activeFlashSale?.productId === (buyNowProduct?._id || buyNowProduct?.id) 
+              ? (() => {
+                  const discountType = buyNowProduct?.flash_sale_discount_type || 'percentage';
+                  const discountValue = buyNowProduct?.flash_sale_discount_value || 0;
+                  const price = buyNowProduct?.price || 0;
+                  if (discountType === 'percentage') {
+                    return price * (1 - discountValue / 100);
+                  } else {
+                    return Math.max(0, price - discountValue);
+                  }
+                })()
+              : undefined
+            }
             onOpenPaymentMethods={() => {
               setShowBuyNowDialog(false);
               setShowPaymentShippingIntermediateAlert(true);
@@ -2469,6 +2754,94 @@ export default function ShowViewNew() {
             />
           </Suspense>
         )}
+
+        {/* Flash Sale Settings Dialog */}
+        <Dialog open={showFlashSaleDialog} onOpenChange={setShowFlashSaleDialog}>
+          <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-white text-lg flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-500" />
+                Start Flash Sale
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <p className="text-sm text-zinc-400 mb-2">Product: {selectedProduct?.name}</p>
+                <p className="text-sm text-zinc-400 mb-4">
+                  Original Price: ${(selectedProduct?.price || selectedProduct?.buy_now_price || 0).toFixed(2)}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Flash Sale Price ($)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={flashSaleSettings.salePrice}
+                  onChange={(e) => setFlashSaleSettings(prev => ({
+                    ...prev,
+                    salePrice: parseFloat(e.target.value) || 0
+                  }))}
+                  className="bg-zinc-800 border-zinc-700 text-white"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Duration (seconds)</label>
+                <div className="flex gap-2">
+                  {[30, 60, 120, 300].map((seconds) => (
+                    <Button
+                      key={seconds}
+                      variant={flashSaleSettings.duration === seconds ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFlashSaleSettings(prev => ({ ...prev, duration: seconds }))}
+                      className={flashSaleSettings.duration === seconds 
+                        ? "bg-yellow-500 text-black hover:bg-yellow-600" 
+                        : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                      }
+                    >
+                      {seconds >= 60 ? `${seconds / 60}m` : `${seconds}s`}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="bg-zinc-800 p-3 rounded-lg">
+                <p className="text-sm text-zinc-400">
+                  <span className="text-yellow-500 font-medium">
+                    {Math.round((1 - flashSaleSettings.salePrice / (selectedProduct?.price || selectedProduct?.buy_now_price || 1)) * 100)}% OFF
+                  </span>
+                  {' '}- Sale runs for {flashSaleSettings.duration >= 60 
+                    ? `${flashSaleSettings.duration / 60} minute${flashSaleSettings.duration > 60 ? 's' : ''}` 
+                    : `${flashSaleSettings.duration} seconds`
+                  }
+                </p>
+              </div>
+              
+              <div className="flex gap-3 mt-4">
+                <Button
+                  variant="ghost"
+                  className="flex-1 text-white hover:bg-zinc-800"
+                  onClick={() => {
+                    setShowFlashSaleDialog(false);
+                    setSelectedProduct(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-yellow-500 text-black hover:bg-yellow-600"
+                  onClick={handleStartFlashSale}
+                  disabled={flashSaleSettings.salePrice <= 0}
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Start Sale
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Intermediate Payment & Shipping Alert - Shows first when user is missing info */}
         {showPaymentShippingIntermediateAlert && (

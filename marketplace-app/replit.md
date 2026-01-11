@@ -5,6 +5,47 @@ Live shopping marketplace application with real-time video streaming, auctions, 
 
 ## Recent Changes
 
+### 2026-01-11: Flash Sale Feature Implementation
+
+**Feature:** Added flash sale functionality for buy now products, allowing hosts to create limited-time discounted offers.
+
+**Key Components:**
+
+1. **Socket Event Handlers** (`use-show-socket-events.ts`):
+   - `flash-sale-started`: Receives flash sale data with productId, endTime, serverTime
+   - `flash-sale-ended`: Clears flash sale state and refetches products
+   - `flash-sale-product-update`: Updates product quantity during flash sale
+
+2. **Flash Sale State** (`show-view.tsx`):
+   - `activeFlashSale`: Contains current flash sale info (productId, endTime)
+   - `flashSaleTimeLeft`: Countdown timer in seconds
+   - `showFlashSaleDialog`: Controls flash sale settings dialog
+   - `flashSaleSettings`: Sale price and duration configuration
+
+3. **UI Components**:
+   - Flash Sale Settings Dialog: Hosts can set sale price and duration (30s, 60s, 2m, 5m)
+   - Flash Sale Banner: Yellow-themed banner with countdown timer on pinned products
+   - Flash Sale Buy Button: Yellow-styled "Buy Flash Sale!" button
+   - Flash Sale Purchase Dialog: Shows discount percentage and special styling
+
+4. **Socket Events Emitted**:
+   - `start-flash-sale`: { productId, showId, salePrice, duration }
+   - `end-flash-sale`: { productId, showId }
+
+5. **Order Integration**:
+   - BuyNowDialog accepts `isFlashSale` and `flashSalePrice` props
+   - Order payload includes `flash_sale: true` flag for flash sale purchases
+
+**Files Changed:**
+- `hooks/use-show-socket-events.ts` - Added flash sale event handlers
+- `pages/marketplace/show-view.tsx` - Added flash sale state and handlers
+- `components/show-view/product-action-dialogs.tsx` - Added "Start Flash Sale" button
+- `components/show-view/products-sidebar.tsx` - Added flash sale display UI
+- `components/show-view/dialogs-container.tsx` - Updated props
+- `components/buy-now-dialog.tsx` - Added flash sale support
+
+---
+
 ### 2025-11-05: Fixed iPhone "Maximum call stack size exceeded" Crash
 
 **Problem:** The show-view page crashed on iPhone Safari with "Maximum call stack size exceeded" error.

@@ -47,8 +47,12 @@ export function VideoCenter(props: any) {
     host, setShowShareDialog, livekit,
     showBuyNowDialog, setShowBuyNowDialog, message, handleSendMessage,
     currentMentions, setCurrentMentions, setShowPaymentShippingAlert,
-    showCustomBidDialog, setShowCustomBidDialog
+    showCustomBidDialog, setShowCustomBidDialog,
+    flashSaleTimeLeft,
+    activeFlashSale
   } = props;
+  
+  const isActiveFlashSale = activeFlashSale && (activeFlashSale.productId === pinnedProduct?._id || activeFlashSale.productId === pinnedProduct?.id);
 
   // Check if user has payment and shipping info
   const hasPaymentAndShipping = () => {
@@ -799,7 +803,7 @@ export function VideoCenter(props: any) {
               {(
               <div 
                 className={cn(
-                  "hidden lg:block absolute left-0 right-16 px-4 pointer-events-none z-30",
+                  "hidden lg:block absolute left-0 right-24 px-4 pointer-events-none z-30",
                   "bottom-4"
                 )}
               >
@@ -934,7 +938,37 @@ export function VideoCenter(props: any) {
                         </span>
                       </div>
                       
-                      {shippingEstimate && (
+                      {/* Flash Sale Info - Compact - Show for both active flash sale and when product has flash_sale enabled */}
+                      {(isActiveFlashSale || pinnedProduct.flash_sale) && (
+                        <div className="mt-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 bg-zinc-800/90 rounded-full px-3 py-1.5">
+                              <Zap className="h-4 w-4 text-yellow-400" />
+                              <span className="text-white font-semibold text-sm">
+                                Flash Sale - {pinnedProduct.flash_sale_discount_type === 'percentage' 
+                                  ? `${pinnedProduct.flash_sale_discount_value || 0}% Off`
+                                  : `$${pinnedProduct.flash_sale_discount_value || 0} Off`
+                                }
+                              </span>
+                            </div>
+                            <div className="bg-primary text-primary-foreground rounded-full px-3 py-1.5 flex items-center gap-2">
+                              <span className="font-bold text-sm">
+                                {pinnedProduct.quantity || 0} {isActiveFlashSale ? 'Left' : 'Available'}
+                              </span>
+                              {isActiveFlashSale && flashSaleTimeLeft > 0 && (
+                                <>
+                                  <span className="text-primary-foreground/50">·</span>
+                                  <span className="font-mono font-bold text-sm">
+                                    {Math.floor(flashSaleTimeLeft / 60)}:{(flashSaleTimeLeft % 60).toString().padStart(2, '0')}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {!isActiveFlashSale && shippingEstimate && (
                         <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
                           {shippingEstimate.error 
                             ? 'Unshippable' 
@@ -944,40 +978,66 @@ export function VideoCenter(props: any) {
                       )}
                       
                       {!isShowOwner && !shippingEstimate?.error && (
-                        <Button
-                          onClick={() => {
-                            setBuyNowProduct(pinnedProduct);
-                            setShowBuyNowDialog(true);
-                          }}
-                          className="mt-6 w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base transition-colors"
-                          data-testid="button-buy-now-overlay"
-                        >
-                          <ShoppingBag className="h-5 w-5 mr-2" />
-                          Buy Now
-                        </Button>
+                        pinnedProduct.flash_sale && !isActiveFlashSale ? (
+                          <Button
+                            disabled
+                            className="mt-6 w-full h-11 rounded-full font-bold text-base bg-zinc-700 text-zinc-400 cursor-not-allowed"
+                            data-testid="button-waiting-price-reveal"
+                          >
+                            <Zap className="h-5 w-5 mr-2" />
+                            Waiting Price Reveal
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => {
+                              setBuyNowProduct(pinnedProduct);
+                              setShowBuyNowDialog(true);
+                            }}
+                            className="mt-6 w-full h-11 rounded-full font-bold text-base transition-colors bg-primary hover:bg-primary/90 text-primary-foreground"
+                            data-testid="button-buy-now-overlay"
+                          >
+                            <ShoppingBag className="h-5 w-5 mr-2" />
+                            {isActiveFlashSale ? 'Buy Flash Sale!' : 'Buy Now'}
+                          </Button>
+                        )
                       )}
                       
-                      {isShowOwner && (
+                      {isShowOwner && pinnedProduct.flash_sale && !isActiveFlashSale && (
                         <Button
                           onClick={() => {
                             if (!socket || !id) return;
-                            socket.emit('pin-product', {
-                              pinned: false,
-                              product: pinnedProduct._id,
-                              tokshow: id
+                            socket.emit('start-flash-sale', {
+                              productId: pinnedProduct._id,
+                              roomId: id,
+                              discountType: pinnedProduct.flash_sale_discount_type || 'percentage',
+                              discountValue: pinnedProduct.flash_sale_discount_value || 0,
+                              duration: pinnedProduct.flash_sale_duration || 60,
+                              buyLimit: pinnedProduct.flash_sale_buy_limit || 1,
+                              originalPrice: pinnedProduct.price || 0
                             });
-                            console.log('📌 Unpin product emitted:', {
-                              pinned: false,
-                              product: pinnedProduct._id,
-                              tokshow: id
+                            console.log('⚡ Start flash sale emitted:', {
+                              productId: pinnedProduct._id,
+                              roomId: id,
+                              discountType: pinnedProduct.flash_sale_discount_type,
+                              discountValue: pinnedProduct.flash_sale_discount_value,
+                              duration: pinnedProduct.flash_sale_duration,
+                              buyLimit: pinnedProduct.flash_sale_buy_limit,
+                              originalPrice: pinnedProduct.price
                             });
                           }}
-                          className="mt-6 w-full h-11 rounded-full bg-zinc-700 hover:bg-zinc-600 text-white font-bold text-base transition-colors"
-                          data-testid="button-unpin-overlay"
+                          className="mt-4 w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base transition-colors flex items-center justify-center"
+                          data-testid="button-start-flash-sale"
                         >
-                          <Bookmark className="h-5 w-5 mr-2" />
-                          Unpin Product
+                          <Zap className="h-5 w-5 mr-2" />
+                          Start Flash Sale
                         </Button>
+                      )}
+                      
+                      {isShowOwner && isActiveFlashSale && (
+                        <div className="mt-4 w-full h-11 rounded-full bg-primary/20 text-primary font-bold text-base flex items-center justify-center">
+                          <ShoppingBag className="h-5 w-5 mr-2" />
+                          Purchases {pinnedProduct.salesCount || 0}
+                        </div>
                       )}
                     </div>
                   )}
@@ -1185,8 +1245,38 @@ export function VideoCenter(props: any) {
                           </span>
                         </div>
                         
+                        {/* Flash Sale Info - Mobile Compact */}
+                        {pinnedProduct.flash_sale && (
+                          <div className="mt-2">
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-0.5 bg-zinc-800/90 rounded-full px-2 py-1">
+                                <Zap className="h-3 w-3 text-yellow-400" />
+                                <span className="text-white font-semibold text-[10px]">
+                                  Flash Sale - {pinnedProduct.flash_sale_discount_type === 'percentage' 
+                                    ? `${pinnedProduct.flash_sale_discount_value || 0}% Off`
+                                    : `$${pinnedProduct.flash_sale_discount_value || 0} Off`
+                                  }
+                                </span>
+                              </div>
+                              <div className="bg-primary text-primary-foreground rounded-full px-2 py-1 flex items-center gap-1">
+                                <span className="font-bold text-[10px]">
+                                  {pinnedProduct.quantity || 0} {pinnedProduct.flash_sale_started ? 'Left' : 'Available'}
+                                </span>
+                                {pinnedProduct.flash_sale_started && flashSaleTimeLeft > 0 && (
+                                  <>
+                                    <span className="text-primary-foreground/50">·</span>
+                                    <span className="font-mono font-bold text-[10px]">
+                                      {Math.floor(flashSaleTimeLeft / 60)}:{(flashSaleTimeLeft % 60).toString().padStart(2, '0')}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* Shipping Info */}
-                        {shippingEstimate && (
+                        {!pinnedProduct.flash_sale && shippingEstimate && (
                           <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
                             {shippingEstimate.error 
                               ? shippingEstimate.message 
@@ -1406,7 +1496,7 @@ export function VideoCenter(props: any) {
 
               {/* Right Side Controls (Whatnot Style) - Positioned on video */}
               <div className={cn(
-                "absolute right-4 flex flex-col gap-6 z-40",
+                "absolute right-3 flex flex-col gap-6 z-40 items-end",
                 isShowOwner && !isLive ? "bottom-24" : 
                 (activeAuction && (() => {
                   const calculatedEndTime = activeAuction.endTime || (activeAuction.startedTime + (activeAuction.duration * 1000));
@@ -1478,14 +1568,32 @@ export function VideoCenter(props: any) {
                 {/* Price and Timer - Only show when there's an auction or pinned product */}
                 {(activeAuction || pinnedProduct) && (
                   <div className="flex flex-col items-center gap-0.5 text-white drop-shadow-lg" data-testid="display-current-bid">
+                    {/* Flash sale price display - show strikethrough when flash_sale is true (active or waiting) */}
+                    {!activeAuction && pinnedProduct?.flash_sale && (
+                      <span className="text-sm text-white/50 line-through">
+                        ${(pinnedProduct.price || 0).toFixed(2)}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1">
                       {activeAuction && timeAddedBlink && (
                         <span className="text-lg font-bold text-yellow-400">
                           +{activeAuction.increaseBidBy || 5}
                         </span>
                       )}
-                      <span className="text-3xl font-bold">
-                        ${activeAuction ? currentBid.toFixed(0) : pinnedProduct ? (pinnedProduct.price || 0).toFixed(0) : '0'}
+                      <span className="text-xl font-bold">
+                        ${activeAuction 
+                          ? currentBid.toFixed(0) 
+                          : pinnedProduct 
+                            ? pinnedProduct.flash_sale
+                              ? isActiveFlashSale
+                                ? (pinnedProduct.flash_sale_discount_type === 'percentage'
+                                    ? (pinnedProduct.price || 0) * (1 - (pinnedProduct.flash_sale_discount_value || 0) / 100)
+                                    : (pinnedProduct.price || 0) - (pinnedProduct.flash_sale_discount_value || 0)
+                                  ).toFixed(2)
+                                : '****'
+                              : (pinnedProduct.price || 0).toFixed(0)
+                            : '0'
+                        }
                       </span>
                     </div>
                     {activeAuction && (() => {
