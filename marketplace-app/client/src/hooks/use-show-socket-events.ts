@@ -793,6 +793,39 @@ export function useShowSocketEvents({
     }, 1000);
   }, [isShowOwner, roomId, leaveRoom, joinRoom, setLeavingRoom, navigate, toast]);
 
+  // Memoized handler: Prebid - update product prebids in real-time
+  const handlePrebid = useCallback((data: any) => {
+    console.log('📡 PREBID EVENT RECEIVED:', data);
+    const productId = data._id || data.id;
+    const prebids = data.prebids;
+    
+    if (!productId || !roomId) {
+      console.log('⚠️ Missing productId or roomId for prebid update');
+      return;
+    }
+    
+    // Update the cached auction products with new prebids
+    queryClient.setQueryData(['/api/products', roomId, 'auction'], (old: any) => {
+      if (!old?.products) {
+        console.log('⚠️ No cached products for prebid update');
+        return old;
+      }
+      
+      const updatedProducts = old.products.map((product: any) => {
+        if (product._id === productId || product.id === productId) {
+          console.log('✅ Updated product prebids in cache:', productId, prebids);
+          return {
+            ...product,
+            prebids: prebids
+          };
+        }
+        return product;
+      });
+      
+      return { ...old, products: updatedProducts };
+    });
+  }, [roomId]);
+
   // Refs to track current room and pending leave timeout for cleanup decisions
   const currentRoomRef = useRef<string | null>(null);
   const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -829,6 +862,7 @@ export function useShowSocketEvents({
     socket.on('marketplace_order', handleMarketplaceOrder);
     socket.on('fetch_offers', handleFetchOffers);
     socket.on('rally-in', handleRallyIn);
+    socket.on('prebid', handlePrebid);
 
     // Cleanup function - only unregister listeners, don't leave room
     // Room leaving is handled by the separate roomId-only effect below
@@ -853,6 +887,7 @@ export function useShowSocketEvents({
       socket.off('marketplace_order', handleMarketplaceOrder);
       socket.off('fetch_offers', handleFetchOffers);
       socket.off('rally-in', handleRallyIn);
+      socket.off('prebid', handlePrebid);
       socket.off('createMessage');
       console.log('🔌 Socket listeners cleaned up (room not left - handled separately)');
     };

@@ -53,7 +53,9 @@ export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
   const highestBid = bids.reduce((max: number, bid: any) => 
     Math.max(max, Number(bid.amount) || 0), 0
   ) || 0;
-  const currentBid = Number(highestBid || auctionData.newbaseprice || auctionData.baseprice || auctionData.startingPrice || auction.newbaseprice || auction.baseprice || auction.startingPrice || auction.price || 0);
+  const startingPrice = Number(auctionData.baseprice || auctionData.startingPrice || auction.baseprice || auction.startingPrice || auction.price || 0);
+  const currentBid = Number(highestBid || auctionData.newbaseprice || startingPrice);
+  const hasBids = bidsCount > 0 && highestBid > 0;
 
   // Calculate time left
   useEffect(() => {
@@ -260,10 +262,20 @@ export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
           {sellerVerified && <CheckCircle className="h-3 w-3 text-primary" />}
         </div>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-sm">
-            <span className="font-bold text-primary">${currentBid.toFixed(0)}</span>
-            <span className="text-muted-foreground">|</span>
-            <span className="text-muted-foreground">{bidsCount} bids</span>
+          <div className="flex flex-col text-sm">
+            {hasBids ? (
+              <>
+                <span className="font-bold text-primary">${currentBid.toFixed(0)} <span className="font-normal text-muted-foreground text-xs">({bidsCount} bids)</span></span>
+                {startingPrice > 0 && (
+                  <span className="text-xs text-muted-foreground">Starting: ${startingPrice.toFixed(0)}</span>
+                )}
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-muted-foreground">Starting Price</span>
+                <span className="font-bold text-primary">${startingPrice.toFixed(0)}</span>
+              </>
+            )}
           </div>
           <Badge variant="secondary" className="text-xs">Auction</Badge>
         </div>

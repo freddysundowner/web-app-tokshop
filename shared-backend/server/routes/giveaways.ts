@@ -76,6 +76,7 @@ export function registerGiveawayRoutes(app: Express) {
       if (req.query.page) queryParams.set('page', req.query.page as string);
       if (req.query.limit) queryParams.set('limit', req.query.limit as string);
       if (req.query.room) queryParams.set('room', req.query.room as string);
+      if (req.query.tokshow) queryParams.set('tokshow', req.query.tokshow as string);
       if (req.query.type) queryParams.set('type', req.query.type as string);
       if (req.query.status) queryParams.set('status', req.query.status as string);
       
