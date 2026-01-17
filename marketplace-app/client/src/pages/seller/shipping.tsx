@@ -2051,7 +2051,7 @@ export default function Shipping() {
                               return;
                             }
                             // Open appropriate drawer based on order status
-                            if (order.status === "ready_to_ship") {
+                            if (order.status === "ready_to_ship" || order.status === "shipped") {
                               setShipmentDetailsOrder(order);
                               setShipmentDetailsOpen(true);
                             } else {

@@ -125,6 +125,7 @@ export function registerSettingsRoutes(app: Express) {
           ios_link: themes?.ios_link || themes?.iosLink || themes?.app_store_url || "",
           android_link: themes?.android_link || themes?.androidLink || themes?.play_store_url || "",
           website_url: themes?.website_url || themes?.websiteUrl || "",
+          app_scheme: themes?.app_scheme || themes?.appScheme || themes?.deep_link_scheme || "",
         },
       });
     } catch (error: any) {

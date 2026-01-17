@@ -165,6 +165,8 @@ export default function ProfileView() {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showFollowersDialog, setShowFollowersDialog] = useState(false);
+  const [followersDialogType, setFollowersDialogType] = useState<'followers' | 'following'>('followers');
   
   // Handle both /profile/:userId and /user?id=userId routes
   let userId = params?.userId;
@@ -204,6 +206,28 @@ export default function ProfileView() {
     },
     enabled: !!(userId || currentUserId),
     staleTime: 0,
+  });
+
+  // Fetch followers/following list
+  const { data: followersData, isLoading: followersLoading } = useQuery<any[]>({
+    queryKey: ['/api/users', followersDialogType, userId || currentUserId],
+    queryFn: async () => {
+      const userIdToFetch = userId || currentUserId;
+      if (!userIdToFetch) return [];
+      const endpoint = followersDialogType === 'followers' 
+        ? `/api/users/followers/${userIdToFetch}` 
+        : `/api/users/following/${userIdToFetch}`;
+      const response = await fetch(endpoint);
+      if (!response.ok) return [];
+      const json = await response.json();
+      // Handle various response formats - API returns { success: true, data: { users: [...] } }
+      const innerData = json.data || json;
+      const result = innerData.users || innerData.followers || innerData.following || innerData;
+      return Array.isArray(result) ? result : [];
+    },
+    enabled: showFollowersDialog && !!(userId || currentUserId),
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Update follow and block status when profileUser changes - MUST be before early returns
@@ -755,11 +779,25 @@ export default function ProfileView() {
 
           {/* Stats */}
           <div className="flex items-center gap-4 sm:gap-6 text-xs sm:text-sm mb-4">
-            <button className="hover:underline" data-testid="button-following-stat">
+            <button 
+              className="hover:underline" 
+              data-testid="button-following-stat"
+              onClick={() => {
+                setFollowersDialogType('following');
+                setShowFollowersDialog(true);
+              }}
+            >
               <span className="font-bold text-foreground">{userFollowing.toLocaleString()}</span>{" "}
               <span className="text-muted-foreground">following</span>
             </button>
-            <button className="hover:underline" data-testid="button-followers-stat">
+            <button 
+              className="hover:underline" 
+              data-testid="button-followers-stat"
+              onClick={() => {
+                setFollowersDialogType('followers');
+                setShowFollowersDialog(true);
+              }}
+            >
               <span className="font-bold text-foreground">{userFollowers.toLocaleString()}</span>{" "}
               <span className="text-muted-foreground">followers</span>
             </button>
@@ -973,6 +1011,49 @@ export default function ProfileView() {
               {reportMutation.isPending ? "Reporting..." : "Submit Report"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Followers/Following Dialog */}
+      <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="capitalize">{followersDialogType}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto py-2">
+            {followersLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : !followersData || !Array.isArray(followersData) || followersData.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No {followersDialogType} yet
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {followersData.map((user: any) => (
+                  <Link
+                    key={user._id || user.id}
+                    href={`/profile/${user._id || user.id}`}
+                    onClick={() => setShowFollowersDialog(false)}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.profile || user.profileUrl || user.avatar} />
+                      <AvatarFallback>
+                        {(user.firstName?.[0] || user.userName?.[0] || user.username?.[0] || 'U').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        @{user.userName || user.username || 'User'}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

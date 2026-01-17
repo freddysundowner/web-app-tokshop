@@ -3,8 +3,6 @@ import { useParams } from "wouter";
 import { Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const APP_SCHEME = "icona://";
-
 export default function DeepLink() {
   const params = useParams<{ type: string; id: string }>();
   const [status, setStatus] = useState<"loading" | "ready">("loading");
@@ -15,6 +13,7 @@ export default function DeepLink() {
   const [playStoreUrl, setPlayStoreUrl] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [appName, setAppName] = useState("App");
+  const [appScheme, setAppScheme] = useState("app://");
 
   useEffect(() => {
     fetch("/api/themes")
@@ -25,6 +24,7 @@ export default function DeepLink() {
         setPlayStoreUrl(themes.android_link || "");
         setWebsiteUrl(themes.website_url || window.location.origin);
         setAppName(themes.app_name || "App");
+        setAppScheme(themes.app_scheme || "app://");
       })
       .catch(() => {
         setWebsiteUrl(window.location.origin);
@@ -70,11 +70,11 @@ export default function DeepLink() {
 
     const referrer = document.referrer;
     const domainHost = websiteUrl ? new URL(websiteUrl).hostname : '';
-    const isFromIconaDomain = domainHost ? referrer.includes(domainHost) : false;
-    const isOnIconaDomain = domainHost ? (window.location.hostname === domainHost || 
+    const isFromAppDomain = domainHost ? referrer.includes(domainHost) : false;
+    const isOnAppDomain = domainHost ? (window.location.hostname === domainHost || 
                              window.location.hostname === `www.${domainHost}`) : false;
     
-    if (isOnIconaDomain && !isFromIconaDomain && websiteUrl) {
+    if (isOnAppDomain && !isFromAppDomain && websiteUrl) {
       const universalLink = `${websiteUrl}/${type}/${id}`;
       window.location.replace(universalLink);
       
@@ -88,11 +88,11 @@ export default function DeepLink() {
     }
   }, [params]);
 
-  const handleContinueOnIcona = () => {
+  const handleContinueOnApp = () => {
     const { type, id } = params;
     if (!type || !id) return;
     
-    const deepLink = `${APP_SCHEME}${type}/${id}`;
+    const deepLink = `${appScheme}${type}/${id}`;
     const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
     
     const now = Date.now();
@@ -149,7 +149,7 @@ export default function DeepLink() {
 
         <div className="space-y-3">
           <Button 
-            onClick={handleContinueOnIcona}
+            onClick={handleContinueOnApp}
             className="w-full h-12 text-base font-semibold"
           >
             Continue on {appName}

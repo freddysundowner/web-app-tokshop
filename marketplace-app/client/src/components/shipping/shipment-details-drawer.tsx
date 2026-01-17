@@ -55,16 +55,29 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
   const handlePrintPackingSlip = () => {
     const orderDate = orderData?.createdAt ? format(new Date(orderData.createdAt), 'MMM dd, yyyy') : '-';
     const invoiceNum = orderData?.invoice || orderData?._id?.slice(-8) || '';
-    const customerName = orderData?.customer?.name || orderData?.customer?.username || 'Customer';
-    const sellerName = orderData?.seller?.name || orderData?.seller?.username || 'Seller';
+    const customerFirstName = orderData?.customer?.firstName || '';
+    const customerLastName = orderData?.customer?.lastName || '';
+    const customerName = (customerFirstName + ' ' + customerLastName).trim() || orderData?.customer?.name || orderData?.customer?.username || 'Customer';
+    const sellerFirstName = orderData?.seller?.firstName || '';
+    const sellerLastName = orderData?.seller?.lastName || '';
+    const sellerName = (sellerFirstName + ' ' + sellerLastName).trim() || orderData?.seller?.name || orderData?.seller?.username || 'Seller';
+    // Try multiple seller address locations
+    const sellerAddress = orderData?.seller?.address || {
+      street: orderData?.seller?.street || (orderData as any)?.fromAddress?.street || '',
+      city: orderData?.seller?.city || (orderData as any)?.fromAddress?.city || '',
+      state: orderData?.seller?.state || (orderData as any)?.fromAddress?.state || '',
+      zipcode: orderData?.seller?.zipcode || orderData?.seller?.zip || (orderData as any)?.fromAddress?.zipcode || '',
+      country: orderData?.seller?.country || (orderData as any)?.fromAddress?.country || 'USA'
+    };
     
     // Build items list
     let itemsHtml = '';
     if (orderData?.giveaway && orderData.giveaway._id) {
+      const giveawayRef = (orderData as any).order_reference || '';
       itemsHtml = `
         <tr>
           <td style="padding: 8px; border-bottom: 1px solid #eee;">
-            ${orderData.giveaway.name} #${invoiceNum}
+            ${orderData.giveaway.name}${giveawayRef ? ` ${giveawayRef}` : ''}
           </td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${orderData.giveaway.quantity || 1}</td>
         </tr>
@@ -73,7 +86,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
       itemsHtml = orderData.items.map((item: any) => `
         <tr>
           <td style="padding: 8px; border-bottom: 1px solid #eee;">
-            ${item.productId?.name || item.name || 'Item'}
+            ${item.productId?.name || item.name || 'Item'}${item.order_reference ? ` ${item.order_reference}` : ''}
           </td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity || 1}</td>
         </tr>
@@ -122,7 +135,12 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
           </div>
           <div class="address-box">
             <h3>From</h3>
-            <p><strong>${sellerName}</strong></p>
+            <p>
+              <strong>${sellerName}</strong>
+              ${sellerAddress?.street ? '<br>' + sellerAddress.street : ''}
+              ${sellerAddress?.city || sellerAddress?.state || sellerAddress?.zipcode ? '<br>' + [sellerAddress?.city, sellerAddress?.state, sellerAddress?.zipcode].filter(Boolean).join(', ') : ''}
+              ${sellerAddress?.country && sellerAddress?.city ? '<br>' + sellerAddress.country : ''}
+            </p>
           </div>
         </div>
         
@@ -205,7 +223,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{orderData.giveaway.name} #{orderData.invoice || orderData._id.slice(-8)}</p>
+                    <p className="font-medium truncate">{orderData.giveaway.name}{(orderData as any).order_reference ? ` ${(orderData as any).order_reference}` : ''}</p>
                     <p className="text-muted-foreground">Giveaway · Qty: {orderData.giveaway.quantity || 1}</p>
                   </div>
                   <p className="font-medium">$0.00</p>

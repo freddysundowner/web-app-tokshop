@@ -1,15 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, Store, Gift } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, Store, Gift, RotateCcw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 export default function AdminOrderDetail() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/admin/orders/:orderId");
   const orderId = params?.orderId;
+  const { toast } = useToast();
+
+  // Refund dialog state
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundItem, setRefundItem] = useState<{ itemId: string; name: string; total: number } | null>(null);
+  const [refundAmount, setRefundAmount] = useState("");
 
   const { data: orderData, isLoading } = useQuery<any>({
     queryKey: [`admin-order-${orderId}`],
@@ -27,6 +40,50 @@ export default function AdminOrderDetail() {
   });
 
   const order = orderData?.order || orderData?.data || orderData;
+
+  // Refund item mutation
+  const refundItemMutation = useMutation({
+    mutationFn: async ({ itemId, amount }: { itemId: string; amount: number }) => {
+      return apiRequest("PUT", `/api/admin/refund/${itemId}`, { type: 'order', orderId, itemId, amount });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`admin-order-${orderId}`] });
+      setRefundDialogOpen(false);
+      setRefundItem(null);
+      setRefundAmount("");
+      toast({
+        title: "Success",
+        description: "Item refund processed successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process refund",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const openRefundDialog = (itemId: string, name: string, total: number) => {
+    setRefundItem({ itemId, name, total });
+    setRefundAmount(total.toFixed(2));
+    setRefundDialogOpen(true);
+  };
+
+  const handleRefundSubmit = () => {
+    if (!refundItem) return;
+    const amount = parseFloat(refundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid refund amount",
+        variant: "destructive",
+      });
+      return;
+    }
+    refundItemMutation.mutate({ itemId: refundItem.itemId, amount });
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -86,11 +143,11 @@ export default function AdminOrderDetail() {
     );
   }
 
-  const customerName = typeof order.customer === 'object'
-    ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.userName || order.customer.email
+  const customerName = order.customer && typeof order.customer === 'object'
+    ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.userName || order.customer.email || 'Unknown'
     : 'Unknown';
 
-  const customerEmail = typeof order.customer === 'object' ? order.customer.email : '';
+  const customerEmail = order.customer && typeof order.customer === 'object' ? order.customer.email : '';
 
   // Calculate totals from items
   const calculateSubtotal = () => {
@@ -134,236 +191,41 @@ export default function AdminOrderDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Giveaway Info - Show for giveaway orders */}
-            {order.platform_order && order.giveaway && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Gift className="h-5 w-5 mr-2" />
-                    Giveaway Details
-                  </CardTitle>
-                  <CardDescription>This is a giveaway order</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-start gap-4 p-4 border rounded-lg bg-muted/50">
-                    {order.giveaway.image && (
-                      <img
-                        src={order.giveaway.image}
-                        alt={order.giveaway.title || 'Giveaway'}
-                        className="w-20 h-20 object-cover rounded"
-                        data-testid="img-giveaway"
-                      />
+        {/* Invoice Style Layout */}
+        <Card>
+          <CardContent className="p-6">
+            {/* Invoice Header */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6 border-b">
+              {/* Order Info */}
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground mb-2">ORDER INFO</h3>
+                <p className="font-medium">Invoice: {order.invoice || orderId}</p>
+                <p className="text-sm text-muted-foreground">Date: {formatDate(order.createdAt || order.orderDate)}</p>
+                {order.tracking_number && (
+                  <p className="text-sm text-muted-foreground">Tracking: {order.tracking_number}</p>
+                )}
+              </div>
+
+              {/* Customer Info */}
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground mb-2">CUSTOMER</h3>
+                <p className="font-medium">{customerName}</p>
+                {customerEmail && <p className="text-sm text-muted-foreground">{customerEmail}</p>}
+                {order.customer?.address && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {order.customer.address.street && <p>{order.customer.address.street}</p>}
+                    {order.customer.address.city && (
+                      <p>{order.customer.address.city}{order.customer.address.state && `, ${order.customer.address.state}`} {order.customer.address.zipcode || order.customer.address.zipCode}</p>
                     )}
-                    <div className="flex-1">
-                      <p className="font-semibold text-lg" data-testid="text-giveaway-title">
-                        {order.giveaway.title || order.giveaway.name || 'Giveaway'}
-                      </p>
-                      {order.giveaway.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{order.giveaway.description}</p>
-                      )}
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {order.giveaway.status && (
-                          <Badge variant="outline">{order.giveaway.status}</Badge>
-                        )}
-                        {order.giveaway.type && (
-                          <Badge variant="secondary">{order.giveaway.type}</Badge>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </div>
 
-            {/* Order Items - Hide for giveaway orders */}
-            {!order.platform_order && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Package className="h-5 w-5 mr-2" />
-                    Order Items
-                  </CardTitle>
-                  <CardDescription>{order.items?.length || 0} items</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {order.items && order.items.length > 0 ? (
-                    <div className="space-y-4">
-                      {order.items.map((item: any, index: number) => {
-                        const productName = item.productId?.name || item.productId?.title || item.name || item.title || 'Unknown Product';
-                        const productImage = item.productId?.image || item.productId?.images?.[0] || item.image || item.images?.[0];
-                        const quantity = item.quantity || 1;
-                        const price = item.price || 0;
-
-                        return (
-                          <div key={index} className="flex items-center gap-4 p-4 border rounded-lg" data-testid={`order-item-${index}`}>
-                            {productImage && (
-                              <img
-                                src={productImage}
-                                alt={productName}
-                                className="w-16 h-16 object-cover rounded"
-                                data-testid={`img-product-${index}`}
-                              />
-                            )}
-                            <div className="flex-1">
-                              <p className="font-medium" data-testid={`text-product-name-${index}`}>{productName}</p>
-                              <p className="text-sm text-muted-foreground">Quantity: {quantity}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold">${(price * quantity).toFixed(2)}</p>
-                              <p className="text-sm text-muted-foreground">${price.toFixed(2)} each</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-4">No items found</p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Order Summary - Moved below Order Items */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Order Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3" data-testid="order-summary">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Shipping Fee</span>
-                    <span>${shippingFee.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tax</span>
-                    <span>${tax.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-semibold text-lg pt-3 border-t">
-                    <span>Total</span>
-                    <span data-testid="text-order-total">${total.toFixed(2)}</span>
-                  </div>
-
-                  {/* Seller Shipping Info */}
-                  {order.seller_shipping && (
-                    <div className="pt-3 border-t">
-                      <p className="text-sm font-medium text-muted-foreground mb-2">Seller Shipping</p>
-                      <div className="text-sm space-y-1">
-                        {order.seller_shipping.name && <p className="font-medium">{order.seller_shipping.name}</p>}
-                        {order.seller_shipping.addrress1 && <p>{order.seller_shipping.addrress1}</p>}
-                        {order.seller_shipping.addrress2 && <p>{order.seller_shipping.addrress2}</p>}
-                        {(order.seller_shipping.city || order.seller_shipping.state || order.seller_shipping.zipcode) && (
-                          <p>
-                            {order.seller_shipping.city}
-                            {order.seller_shipping.state && `, ${order.seller_shipping.state}`}
-                            {order.seller_shipping.zipcode && ` ${order.seller_shipping.zipcode}`}
-                          </p>
-                        )}
-                        {order.seller_shipping.country && <p>{order.seller_shipping.country}</p>}
-                        {order.seller_shipping.phone && (
-                          <p className="text-muted-foreground">{order.seller_shipping.phone}</p>
-                        )}
-                        {order.seller_shipping.email && (
-                          <p className="text-muted-foreground">{order.seller_shipping.email}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Shipping Address */}
-            {order.shippingAddress && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MapPin className="h-5 w-5 mr-2" />
-                    Shipping Address
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm space-y-1" data-testid="shipping-address">
-                    {order.shippingAddress.street && <p>{order.shippingAddress.street}</p>}
-                    {order.shippingAddress.city && (
-                      <p>
-                        {order.shippingAddress.city}
-                        {order.shippingAddress.state && `, ${order.shippingAddress.state}`}
-                        {order.shippingAddress.zipCode && ` ${order.shippingAddress.zipCode}`}
-                      </p>
-                    )}
-                    {order.shippingAddress.country && <p>{order.shippingAddress.country}</p>}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Customer Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <User className="h-5 w-5 mr-2" />
-                  Customer
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3" data-testid="customer-info">
-                  <div>
-                    <p className="font-medium">{customerName}</p>
-                    {customerEmail && <p className="text-sm text-muted-foreground">{customerEmail}</p>}
-                  </div>
-                  
-                  {order.customer?.address && (
-                    <div className="pt-2 border-t">
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Shipping Address</p>
-                      <div className="text-sm space-y-1">
-                        {order.customer.address.street && <p>{order.customer.address.street}</p>}
-                        {order.customer.address.city && (
-                          <p>
-                            {order.customer.address.city}
-                            {order.customer.address.state && `, ${order.customer.address.state}`}
-                          </p>
-                        )}
-                        {(order.customer.address.zipcode || order.customer.address.zipCode) && (
-                          <p>{order.customer.address.zipcode || order.customer.address.zipCode}</p>
-                        )}
-                        {order.customer.address.country && <p>{order.customer.address.country}</p>}
-                        {order.customer.address.email && (
-                          <p className="pt-1 text-muted-foreground">{order.customer.address.email}</p>
-                        )}
-                        {order.customer.address.phone && (
-                          <p className="text-muted-foreground">{order.customer.address.phone}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Seller Info */}
-            {order.seller && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Store className="h-5 w-5 mr-2" />
-                    Seller
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2" data-testid="seller-info">
+              {/* Seller Info */}
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground mb-2">SELLER</h3>
+                {order.seller && (
+                  <>
                     <p className="font-medium">
                       {typeof order.seller === 'object'
                         ? `${order.seller.firstName || ''} ${order.seller.lastName || ''}`.trim() || order.seller.userName || order.seller.email
@@ -372,83 +234,178 @@ export default function AdminOrderDetail() {
                     {typeof order.seller === 'object' && order.seller.email && (
                       <p className="text-sm text-muted-foreground">{order.seller.email}</p>
                     )}
+                  </>
+                )}
+                {order.shippingAddress && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {order.shippingAddress.street && <p>{order.shippingAddress.street}</p>}
+                    {order.shippingAddress.city && (
+                      <p>{order.shippingAddress.city}{order.shippingAddress.state && `, ${order.shippingAddress.state}`} {order.shippingAddress.zipCode}</p>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
+            </div>
+
+            {/* Giveaway Info - Show for giveaway orders */}
+            {order.platform_order && order.giveaway && (
+              <div className="py-6 border-b">
+                <div className="flex items-start gap-4 p-4 border rounded-lg bg-muted/50">
+                  <Gift className="h-5 w-5 text-primary mt-1" />
+                  {order.giveaway.image && (
+                    <img
+                      src={order.giveaway.image}
+                      alt={order.giveaway.title || 'Giveaway'}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-semibold">{order.giveaway.title || order.giveaway.name || 'Giveaway'}</p>
+                    {order.giveaway.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{order.giveaway.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {order.giveaway.status && <Badge variant="outline">{order.giveaway.status}</Badge>}
+                      {order.giveaway.type && <Badge variant="secondary">{order.giveaway.type}</Badge>}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
-            {/* Order Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Truck className="h-5 w-5 mr-2" />
-                  Order Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm" data-testid="order-info">
-                  <div>
-                    <span className="text-muted-foreground">Order Date</span>
-                    <p className="font-medium">{formatDate(order.createdAt || order.orderDate)}</p>
-                  </div>
-                  {order.shippeddate && (
-                    <div>
-                      <span className="text-muted-foreground">Shipped Date</span>
-                      <p className="font-medium">{formatDate(order.shippeddate)}</p>
-                    </div>
-                  )}
-                  {order.payment_status && (
-                    <div>
-                      <span className="text-muted-foreground">Payment Status</span>
-                      <p className="font-medium capitalize" data-testid="text-payment-status">{order.payment_status}</p>
-                    </div>
-                  )}
-                  {order.orderType && (
-                    <div>
-                      <span className="text-muted-foreground">Order Type</span>
-                      <p className="font-medium capitalize">{order.orderType}</p>
-                    </div>
-                  )}
-                  {order.tracking_number && (
-                    <div>
-                      <span className="text-muted-foreground">Tracking Number</span>
-                      <p className="font-medium font-mono text-xs" data-testid="text-tracking-number">{order.tracking_number}</p>
-                    </div>
-                  )}
-                  {order.tracking_url && (
-                    <div>
-                      <span className="text-muted-foreground">Tracking URL</span>
-                      <a 
-                        href={order.tracking_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline block break-all"
-                        data-testid="link-tracking-url"
-                      >
-                        Track Package →
-                      </a>
-                    </div>
-                  )}
-                  {order.label && (
-                    <div className="pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(order.label, '_blank')}
-                        className="w-full"
-                        data-testid="button-print-label"
-                      >
-                        <Truck className="h-4 w-4 mr-2" />
-                        Print Shipping Label
-                      </Button>
-                    </div>
-                  )}
+            {/* Order Items Table */}
+            {!order.platform_order && order.items && order.items.length > 0 && (
+              <div className="py-6">
+                <h3 className="font-semibold mb-4">Order Items</h3>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="text-right">Shipping</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {order.items.map((item: any, index: number) => {
+                        const productName = item.productId?.name || item.productId?.title || item.name || item.title || 'Unknown Product';
+                        const productImage = item.productId?.image || item.productId?.images?.[0] || item.image || item.images?.[0];
+                        const quantity = item.quantity || 1;
+                        const price = item.price || 0;
+                        const itemShipping = item.shipping_fee || item.shippingFee || item.shipping || 0;
+                        const itemId = item._id || item.id || `item-${index}`;
+                        const isRefunded = item.status === 'refunded' || item.refunded;
+
+                        return (
+                          <TableRow key={index} data-testid={`order-item-${index}`}>
+                            <TableCell>
+                              {productImage && (
+                                <img
+                                  src={productImage}
+                                  alt={productName}
+                                  className="w-10 h-10 object-cover rounded"
+                                />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-medium">{productName}</p>
+                              {isRefunded && <Badge variant="destructive" className="mt-1">Refunded</Badge>}
+                            </TableCell>
+                            <TableCell className="text-center">{quantity}</TableCell>
+                            <TableCell className="text-right">${price.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">${itemShipping.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-medium">${(price * quantity + itemShipping).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              {!isRefunded && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openRefundDialog(itemId, productName, price * quantity + itemShipping)}
+                                  disabled={refundItemMutation.isPending}
+                                >
+                                  <RotateCcw className="h-3 w-3 mr-1" />
+                                  Refund
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              </div>
+            )}
+
+            {/* Order Summary */}
+            <div className="pt-6 border-t">
+              <div className="flex justify-end">
+                <div className="w-64 space-y-2" data-testid="order-summary">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Shipping</span>
+                    <span>${shippingFee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span>${tax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-lg pt-2 border-t">
+                    <span>Total</span>
+                    <span data-testid="text-order-total">${total.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Refund Confirmation Dialog */}
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Refund Item</DialogTitle>
+            <DialogDescription>
+              {refundItem && `Refund for: ${refundItem.name}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="refundAmount">Refund Amount ($)</Label>
+            <Input
+              id="refundAmount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={refundItem?.total || 0}
+              value={refundAmount}
+              onChange={(e) => setRefundAmount(e.target.value)}
+              className="mt-2"
+            />
+            <p className="text-sm text-muted-foreground mt-2">
+              Item total: ${refundItem?.total.toFixed(2) || '0.00'}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleRefundSubmit}
+              disabled={refundItemMutation.isPending}
+            >
+              {refundItemMutation.isPending ? "Processing..." : "Process Refund"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

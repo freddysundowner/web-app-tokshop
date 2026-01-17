@@ -36,7 +36,7 @@ const badgeConfig: Record<BadgeTier, {
   },
   icona: {
     icon: Award,
-    label: 'Icona Partner',
+    label: 'Partner',
     colors: 'text-purple-500',
     bgColor: 'bg-purple-100 dark:bg-purple-900/30',
   },

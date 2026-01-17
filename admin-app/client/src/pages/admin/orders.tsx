@@ -29,8 +29,10 @@ export default function AdminOrders() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("orders");
   const [searchTerm, setSearchTerm] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [searchBy, setSearchBy] = useState("customer");
+  const [appliedSearchBy, setAppliedSearchBy] = useState("customer");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
   
   const [shippingDrawerOpen, setShippingDrawerOpen] = useState(false);
   const [shippingDrawerOrder, setShippingDrawerOrder] = useState<any>(null);
@@ -41,12 +43,16 @@ export default function AdminOrders() {
 
   // Fetch regular orders
   const { data: ordersData, isLoading: isLoadingOrders } = useQuery<any>({
-    queryKey: ['admin-orders', activeTab === "orders" ? statusFilter : null],
+    queryKey: ['admin-orders', activeTab === "orders" ? statusFilter : null, activeTab === "orders" ? appliedSearch : null, activeTab === "orders" ? appliedSearchBy : null],
     queryFn: async () => {
       console.log('Fetching regular orders...');
       const params = new URLSearchParams();
       if (activeTab === "orders" && statusFilter && statusFilter !== "all") {
         params.set("status", statusFilter);
+      }
+      if (activeTab === "orders" && appliedSearch.trim()) {
+        params.set("search", appliedSearch.trim());
+        params.set("searchBy", appliedSearchBy);
       }
       const queryString = params.toString();
       const url = queryString ? `/api/orders?${queryString}` : `/api/orders`;
@@ -65,13 +71,17 @@ export default function AdminOrders() {
 
   // Fetch giveaway orders (platform_order: true)
   const { data: giveawayOrdersData, isLoading: isLoadingGiveaways } = useQuery<any>({
-    queryKey: ['admin-giveaway-orders', activeTab === "giveaways" ? statusFilter : null],
+    queryKey: ['admin-giveaway-orders', activeTab === "giveaways" ? statusFilter : null, activeTab === "giveaways" ? appliedSearch : null, activeTab === "giveaways" ? appliedSearchBy : null],
     queryFn: async () => {
       console.log('Fetching giveaway orders with platform_order=true...');
       const params = new URLSearchParams();
       params.set("platform_order", "true");
       if (activeTab === "giveaways" && statusFilter && statusFilter !== "all") {
         params.set("status", statusFilter);
+      }
+      if (activeTab === "giveaways" && appliedSearch.trim()) {
+        params.set("search", appliedSearch.trim());
+        params.set("searchBy", appliedSearchBy);
       }
       const response = await fetch(`/api/orders?${params.toString()}`, {
         credentials: 'include',
@@ -218,11 +228,16 @@ export default function AdminOrders() {
     if (searchTerm) {
       const invoice = String(order.invoice || order._id || '').toLowerCase();
       const customerName = typeof order.customer === 'object'
-        ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.userName || order.customer.email || ''
+        ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.email || ''
+        : '';
+      const customerUsername = typeof order.customer === 'object'
+        ? order.customer.userName || ''
         : '';
       const searchLower = searchTerm.toLowerCase();
       
-      if (!invoice.includes(searchLower) && !customerName.toLowerCase().includes(searchLower)) {
+      if (!invoice.includes(searchLower) && 
+          !customerName.toLowerCase().includes(searchLower) &&
+          !customerUsername.toLowerCase().includes(searchLower)) {
         return false;
       }
     }
@@ -257,13 +272,20 @@ export default function AdminOrders() {
     }
   };
 
+  const handleSearch = () => {
+    setAppliedSearch(searchTerm);
+    setAppliedSearchBy(searchBy);
+  };
+
   const clearFilters = () => {
     setSearchTerm("");
+    setAppliedSearch("");
+    setSearchBy("customer");
+    setAppliedSearchBy("customer");
     setStatusFilter("all");
   };
 
-  const hasActiveFilters = searchTerm || statusFilter !== "all";
-  const activeFilterCount = [searchTerm, statusFilter !== "all"].filter(Boolean).length;
+  const hasActiveFilters = appliedSearch || statusFilter !== "all";
 
   if (isLoading) {
     return (
@@ -324,7 +346,62 @@ export default function AdminOrders() {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {/* Shipping Actions for Giveaways tab - Generate Scan Form only for unfulfilled */}
+                  {/* Search By Dropdown */}
+                  <Select value={searchBy} onValueChange={setSearchBy}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="customer">Customer</SelectItem>
+                      <SelectItem value="seller">Seller</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      className="pl-9 w-40"
+                      data-testid="input-search-orders"
+                    />
+                  </div>
+                  
+                  <Button size="sm" onClick={handleSearch}>
+                    Search
+                  </Button>
+                  
+                  {/* Status Filter */}
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger data-testid="select-status-filter" className="w-40">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="unfulfilled">Unfulfilled</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="shipped">Shipped</SelectItem>
+                      <SelectItem value="delivered">Delivered</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  
+                  {/* Shipping Actions for Giveaways tab */}
                   {activeTab === "giveaways" && (
                     <>
                       {statusFilter === "unfulfilled" && (
@@ -349,79 +426,8 @@ export default function AdminOrders() {
                       </Button>
                     </>
                   )}
-                  
-                  {/* Filter Toggle Button */}
-                  <Button
-                    variant={showFilters ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    data-testid="button-toggle-filters"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                    {activeFilterCount > 0 && (
-                      <Badge variant="secondary" className="ml-2 px-1.5 py-0.5 text-xs">
-                        {activeFilterCount}
-                      </Badge>
-                    )}
-                  </Button>
                 </div>
               </div>
-
-              {/* Filters Section */}
-              {showFilters && (
-                <div className="mt-4 space-y-4 p-4 border rounded-lg bg-muted/50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Search */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Search</label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Invoice or customer..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-9"
-                          data-testid="input-search-orders"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Status Filter */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Status</label>
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger data-testid="select-status-filter">
-                          <SelectValue placeholder="All statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="unfulfilled">Unfulfilled</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="processing">Processing</SelectItem>
-                          <SelectItem value="shipped">Shipped</SelectItem>
-                          <SelectItem value="delivered">Delivered</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Clear Filters */}
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      data-testid="button-clear-filters"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Clear Filters
-                    </Button>
-                  )}
-                </div>
-              )}
             </CardHeader>
           <CardContent>
             {filteredOrders.length === 0 ? (
@@ -455,8 +461,11 @@ export default function AdminOrders() {
                       const orderId = order._id || order.id;
                       const invoiceNumber = order.invoice || orderId;
                       const customerName = typeof order.customer === 'object' && order.customer !== null
-                        ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.userName || order.customer.email
+                        ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.email
                         : 'Unknown';
+                      const customerUsername = typeof order.customer === 'object' && order.customer !== null
+                        ? order.customer.userName || ''
+                        : '';
                       const itemsCount = order.items?.length || 0;
                       
                       // Calculate total from items
@@ -481,7 +490,12 @@ export default function AdminOrders() {
                             {invoiceNumber}
                           </TableCell>
                           <TableCell data-testid={`text-customer-${orderId}`}>
-                            {customerName}
+                            <div>
+                              {customerName}
+                              {customerUsername && (
+                                <div className="text-xs text-muted-foreground">@{customerUsername}</div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell data-testid={`text-date-${orderId}`}>
                             {formatDate(order.createdAt || order.orderDate)}

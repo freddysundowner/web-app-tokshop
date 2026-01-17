@@ -63,6 +63,7 @@ export default function AdminSettings() {
     iosVersion: '',
     ios_link: '',
     android_link: '',
+    app_scheme: '',
     FIREBASE_API_KEY: '',
     firebase_auth_domain: '',
     firebase_project_id: '',
@@ -76,6 +77,7 @@ export default function AdminSettings() {
     livekit_url: '',
     livekit_api_key: '',
     livekit_api_secret: '',
+    google_api_key: '',
   });
 
   // Separate state for theme data
@@ -116,6 +118,7 @@ export default function AdminSettings() {
       iosVersion: settings?.iosVersion || '',
       ios_link: settings?.ios_link || '',
       android_link: settings?.android_link || '',
+      app_scheme: settings?.app_scheme || '',
       FIREBASE_API_KEY: settings?.FIREBASE_API_KEY || '',
       firebase_auth_domain: settings?.firebase_config?.authDomain || settings?.firebase_auth_domain || '',
       firebase_project_id: settings?.firebase_config?.projectId || settings?.firebase_project_id || '',
@@ -129,6 +132,7 @@ export default function AdminSettings() {
       livekit_url: settings?.livekit_url || '',
       livekit_api_key: settings?.livekit_api_key || '',
       livekit_api_secret: settings?.livekit_api_secret || '',
+      google_api_key: settings?.google_api_key || '',
     });
   }, [settings]);
 
@@ -1172,6 +1176,27 @@ export default function AdminSettings() {
                     Used for shipping label generation
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="google_api_key">Google API Key</Label>
+                  <Input
+                    id="google_api_key"
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.google_api_key) : formData.google_api_key}
+                    onChange={(e) => handleInputChange('google_api_key', e.target.value)}
+                    placeholder="AIza..."
+                    data-testid="input-google-api-key"
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for Google services (Maps, Places, etc.)
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -1239,6 +1264,20 @@ export default function AdminSettings() {
                       data-testid="input-ios-link"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="app_scheme">Deep Link Scheme</Label>
+                  <Input
+                    id="app_scheme"
+                    value={formData.app_scheme}
+                    onChange={(e) => handleInputChange('app_scheme', e.target.value)}
+                    placeholder="myapp://"
+                    data-testid="input-app-scheme"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The URL scheme for deep linking into the mobile app (e.g., myapp://). Used when redirecting users from web to the native app.
+                  </p>
                 </div>
 
                 <div className="flex items-center space-x-2">

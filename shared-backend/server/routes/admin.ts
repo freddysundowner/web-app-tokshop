@@ -1362,6 +1362,7 @@ If you have any questions, feel free to reach out to our support team.
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
       if (req.query.userId) queryParams.append("userId", req.query.userId as string);
       if (req.query.status) queryParams.append("status", req.query.status as string);
+      if (req.query.username) queryParams.append("username", req.query.username as string);
 
       const url = `${BASE_URL}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log(`Fetching transactions from: ${url}`);
@@ -3830,9 +3831,9 @@ If you have any questions, feel free to reach out to our support team.
                          (req.headers['authorization']?.startsWith('Bearer ') ? 
                           req.headers['authorization'].substring(7) : null);
       const { id } = req.params;
-      const { type } = req.body;
+      const { type, orderId, itemId, amount } = req.body;
       
-      console.log(`[Refund] Request to refund ${type}: ${id}`);
+      console.log(`[Refund] Request to refund ${type}: ${id}, orderId: ${orderId}, itemId: ${itemId}, amount: ${amount}`);
       console.log(`[Refund] Token source: ${req.headers['x-admin-token'] ? 'x-admin-token header' : req.headers['x-access-token'] ? 'x-access-token header' : req.session?.accessToken ? 'session' : req.headers['authorization'] ? 'authorization header' : 'none'}`);
       
       if (!accessToken) {
@@ -3850,7 +3851,12 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const url = `${BASE_URL}/orders/refund/order/transaction/${id}`;
-      console.log(`[Refund] Calling ICONA API: ${url} with type: ${type}`);
+      console.log(`[Refund] Calling ICONA API: ${url} with type: ${type}, amount: ${amount}`);
+      
+      const requestBody: any = { type };
+      if (orderId) requestBody.orderId = orderId;
+      if (itemId) requestBody.itemId = itemId;
+      if (amount) requestBody.amount = amount;
       
       const response = await fetch(url, {
         method: "PUT",
@@ -3858,7 +3864,7 @@ If you have any questions, feel free to reach out to our support team.
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log(`[Refund] API response status: ${response.status}`);
