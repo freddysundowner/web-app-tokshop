@@ -1565,10 +1565,11 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // User followers endpoint
+  // User followers endpoint with pagination
   app.get("/api/users/followers/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
+      const { page = '1', limit = '20' } = req.query;
       
       if (!userId) {
         return res.status(400).json({
@@ -1577,7 +1578,7 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      const url = `${BASE_URL}/users/followers/${userId}`;
+      const url = `${BASE_URL}/users/followers/${userId}?page=${page}&limit=${limit}`;
       
       const sessionToken = (req.session as any)?.accessToken;
       const headerToken = req.headers["x-access-token"] as string;
@@ -1607,6 +1608,9 @@ export function registerAuthRoutes(app: Express) {
       res.json({
         success: true,
         data: data.data || data || [],
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        totalDoc: data.totalDoc || data.total || 0,
       });
     } catch (error) {
       console.error("Followers endpoint error:", error);
@@ -1617,10 +1621,11 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // User following endpoint
+  // User following endpoint with pagination
   app.get("/api/users/following/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
+      const { page = '1', limit = '20' } = req.query;
       
       if (!userId) {
         return res.status(400).json({
@@ -1629,7 +1634,7 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      const url = `${BASE_URL}/users/following/${userId}`;
+      const url = `${BASE_URL}/users/following/${userId}?page=${page}&limit=${limit}`;
       
       const sessionToken = (req.session as any)?.accessToken;
       const headerToken = req.headers["x-access-token"] as string;
@@ -1659,6 +1664,9 @@ export function registerAuthRoutes(app: Express) {
       res.json({
         success: true,
         data: data.data || data || [],
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        totalDoc: data.totalDoc || data.total || 0,
       });
     } catch (error) {
       console.error("Following endpoint error:", error);

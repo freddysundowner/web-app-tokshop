@@ -208,27 +208,56 @@ export default function ProfileView() {
     staleTime: 0,
   });
 
-  // Fetch followers/following list
-  const { data: followersData, isLoading: followersLoading } = useQuery<any[]>({
+  // Fetch followers/following list with pagination
+  const {
+    data: followersData,
+    fetchNextPage: fetchNextFollowersPage,
+    hasNextPage: hasNextFollowersPage,
+    isFetchingNextPage: isFetchingNextFollowers,
+    isLoading: followersLoading,
+    refetch: refetchFollowers,
+  } = useInfiniteQuery({
     queryKey: ['/api/users', followersDialogType, userId || currentUserId],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 1 }) => {
       const userIdToFetch = userId || currentUserId;
-      if (!userIdToFetch) return [];
+      if (!userIdToFetch) return { users: [], totalDoc: 0, page: 1 };
       const endpoint = followersDialogType === 'followers' 
-        ? `/api/users/followers/${userIdToFetch}` 
-        : `/api/users/following/${userIdToFetch}`;
+        ? `/api/users/followers/${userIdToFetch}?page=${pageParam}&limit=20` 
+        : `/api/users/following/${userIdToFetch}?page=${pageParam}&limit=20`;
       const response = await fetch(endpoint);
-      if (!response.ok) return [];
+      if (!response.ok) return { users: [], totalDoc: 0, page: pageParam };
       const json = await response.json();
-      // Handle various response formats - API returns { success: true, data: { users: [...] } }
+      // Handle various response formats
       const innerData = json.data || json;
-      const result = innerData.users || innerData.followers || innerData.following || innerData;
-      return Array.isArray(result) ? result : [];
+      const users = innerData.users || innerData.followers || innerData.following || innerData;
+      return {
+        users: Array.isArray(users) ? users : [],
+        totalDoc: json.totalDoc || innerData.totalDoc || 0,
+        page: pageParam,
+      };
     },
+    getNextPageParam: (lastPage, allPages) => {
+      const currentPage = allPages.length;
+      const totalItems = lastPage.totalDoc || 0;
+      const itemsPerPage = 20;
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      return currentPage < totalPages ? currentPage + 1 : undefined;
+    },
+    initialPageParam: 1,
     enabled: showFollowersDialog && !!(userId || currentUserId),
     staleTime: 0,
     gcTime: 0,
   });
+
+  // Refetch when dialog opens
+  useEffect(() => {
+    if (showFollowersDialog) {
+      refetchFollowers();
+    }
+  }, [showFollowersDialog, followersDialogType]);
+
+  // Ref for infinite scroll in followers dialog
+  const followersScrollRef = useRef<HTMLDivElement>(null);
 
   // Update follow and block status when profileUser changes - MUST be before early returns
   useEffect(() => {
@@ -1020,39 +1049,59 @@ export default function ProfileView() {
           <DialogHeader>
             <DialogTitle className="capitalize">{followersDialogType}</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-2">
+          <div 
+            className="flex-1 overflow-y-auto py-2"
+            onScroll={(e) => {
+              const target = e.target as HTMLDivElement;
+              const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+              if (scrollBottom < 100 && hasNextFollowersPage && !isFetchingNextFollowers) {
+                fetchNextFollowersPage();
+              }
+            }}
+          >
             {followersLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
-            ) : !followersData || !Array.isArray(followersData) || followersData.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No {followersDialogType} yet
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {followersData.map((user: any) => (
-                  <Link
-                    key={user._id || user.id}
-                    href={`/profile/${user._id || user.id}`}
-                    onClick={() => setShowFollowersDialog(false)}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.profile || user.profileUrl || user.avatar} />
-                      <AvatarFallback>
-                        {(user.firstName?.[0] || user.userName?.[0] || user.username?.[0] || 'U').toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        @{user.userName || user.username || 'User'}
-                      </p>
+            ) : (() => {
+              const allUsers = followersData?.pages?.flatMap(page => page.users) || [];
+              if (allUsers.length === 0) {
+                return (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No {followersDialogType} yet
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-2">
+                  {allUsers.map((user: any) => (
+                    <Link
+                      key={user._id || user.id}
+                      href={`/profile/${user._id || user.id}`}
+                      onClick={() => setShowFollowersDialog(false)}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.profile || user.profileUrl || user.avatar} />
+                        <AvatarFallback>
+                          {(user.firstName?.[0] || user.userName?.[0] || user.username?.[0] || 'U').toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          @{user.userName || user.username || 'User'}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                  {isFetchingNextFollowers && (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>
