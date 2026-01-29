@@ -341,7 +341,7 @@ export function registerShowRoutes(app: Express) {
   // Get LiveKit token for room - proxy to external Tokshop API
   app.post("/livekit/token/dynamic", async (req, res) => {
     try {
-      const { room: roomId, userId: clientUserId, userName } = req.body;
+      const { room: roomId, userId: clientUserId, userName, uuid } = req.body;
 
       console.log('🔑 Request body received:', req.body);
 
@@ -395,7 +395,8 @@ export function registerShowRoutes(app: Express) {
         room: roomId,
         userId: clientUserId || userId,
         userName: userName,
-        role: role
+        role: role,
+        uuid: uuid || ''
       };
 
       console.log('📤 Sending to external API:', requestBody);

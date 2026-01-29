@@ -1565,6 +1565,118 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
+  // User followers endpoint with pagination
+  app.get("/api/users/followers/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { page = '1', limit = '20' } = req.query;
+      
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+      }
+
+      const url = `${BASE_URL}/users/followers/${userId}?page=${page}&limit=${limit}`;
+      
+      const sessionToken = (req.session as any)?.accessToken;
+      const headerToken = req.headers["x-access-token"] as string;
+      const authToken = sessionToken || headerToken;
+      
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: "Failed to fetch followers",
+        });
+      }
+
+      const data = await response.json();
+      res.json({
+        success: true,
+        data: data.data || data || [],
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        totalDoc: data.totalDoc || data.total || 0,
+      });
+    } catch (error) {
+      console.error("Followers endpoint error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch followers",
+      });
+    }
+  });
+
+  // User following endpoint with pagination
+  app.get("/api/users/following/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { page = '1', limit = '20' } = req.query;
+      
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+      }
+
+      const url = `${BASE_URL}/users/following/${userId}?page=${page}&limit=${limit}`;
+      
+      const sessionToken = (req.session as any)?.accessToken;
+      const headerToken = req.headers["x-access-token"] as string;
+      const authToken = sessionToken || headerToken;
+      
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: "Failed to fetch following",
+        });
+      }
+
+      const data = await response.json();
+      res.json({
+        success: true,
+        data: data.data || data || [],
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        totalDoc: data.totalDoc || data.total || 0,
+      });
+    } catch (error) {
+      console.error("Following endpoint error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch following",
+      });
+    }
+  });
+
   // Logout endpoint
   app.post("/api/auth/logout", async (req, res) => {
     try {

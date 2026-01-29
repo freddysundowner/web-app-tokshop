@@ -33,8 +33,16 @@ class SocketListener {
         console.log('❌ Backend Socket.IO disconnected');
       });
 
+      // Reduce log spam - only log first connection error
+      let errorLoggedCount = 0;
       this.socket.on('connect_error', (error) => {
-        console.error('❌ Backend Socket.IO connection error:', error);
+        errorLoggedCount++;
+        if (errorLoggedCount <= 3) {
+          console.warn('⚠️ Backend Socket.IO connection retry...', error.message?.substring(0, 50) || 'connection failed');
+        }
+        if (errorLoggedCount === 3) {
+          console.warn('⚠️ Suppressing further connection error logs...');
+        }
       });
 
       // Listen for room-ended events

@@ -420,6 +420,7 @@ export function ProductForm({
         submitData.whocanenter = data.whocanenter;
         submitData.shippingProfile = data.shippingProfile;
         submitData.featured = false; // Giveaways cannot be featured
+        submitData.type = 'show'; // Giveaways created during a show have type 'show'
         console.log('🎁 Giveaway - setting shippingProfile to:', data.shippingProfile);
       }
       

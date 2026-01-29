@@ -2,11 +2,17 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Room, RoomEvent, Track, RemoteParticipant, RemoteTrackPublication } from 'livekit-client';
 import { apiRequest } from '@/lib/queryClient';
 
+export interface CameraSettings {
+  deviceId?: string;
+  resolution?: { width: number; height: number };
+}
+
 export interface LiveKitConfig {
   roomId: string;
   userId: string;
   userName?: string;
   enabled?: boolean;
+  cameraSettings?: CameraSettings;
 }
 
 export interface LiveKitState {
@@ -93,10 +99,12 @@ export function useLiveKit(config: LiveKitConfig) {
 
       console.log('🔌 Getting LiveKit token...', { roomId: config.roomId, userId: config.userId });
 
+      const uuid = localStorage.getItem('device_uuid') || '';
       const res = await apiRequest('POST', `/livekit/token/dynamic`, {
         room: config.roomId,
         userId: config.userId,
         userName: config.userName || config.userId,
+        uuid,
       });
 
       const response = await res.json() as { 
@@ -126,9 +134,10 @@ export function useLiveKit(config: LiveKitConfig) {
         dynacast: true,
         videoCaptureDefaults: {
           resolution: { width: 1920, height: 1080, frameRate: 30 },
+          facingMode: 'user',
         },
         publishDefaults: {
-          videoEncoding: { maxBitrate: 3_000_000, maxFramerate: 30 },
+          videoEncoding: { maxBitrate: 5_000_000, maxFramerate: 30 },
           simulcast: true,
         },
       });
@@ -224,9 +233,28 @@ export function useLiveKit(config: LiveKitConfig) {
         console.log('🎥 Enabling camera and microphone for host...');
         try {
           await room.localParticipant.setMicrophoneEnabled(true);
-          await room.localParticipant.setCameraEnabled(true, {
-            resolution: { width: 1920, height: 1080, frameRate: 30 }
-          });
+          
+          const cameraOptions: any = {
+            resolution: config.cameraSettings?.resolution || { width: 1920, height: 1080, frameRate: 30 },
+            facingMode: 'user',
+          };
+          
+          if (config.cameraSettings?.deviceId) {
+            cameraOptions.deviceId = config.cameraSettings.deviceId;
+          }
+          
+          console.log('📹 Camera options:', cameraOptions);
+          
+          await room.localParticipant.setCameraEnabled(true, cameraOptions);
+          
+          
+          // Log actual camera resolution
+          const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
+          if (camPub?.track) {
+            const settings = camPub.track.mediaStreamTrack?.getSettings();
+            console.log('📹 Actual camera resolution:', settings?.width, 'x', settings?.height);
+          }
+          
           console.log('✅ Camera and microphone enabled');
         } catch (error) {
           console.error('❌ Failed to enable camera/microphone:', error);
@@ -247,7 +275,7 @@ export function useLiveKit(config: LiveKitConfig) {
         error: error instanceof Error ? error.message : 'Failed to connect to live stream',
       }));
     }
-  }, [config.enabled, config.roomId, config.userId, config.userName, updateHostTrackState]);
+  }, [config.enabled, config.roomId, config.userId, config.userName, config.cameraSettings, updateHostTrackState]);
 
   const disconnect = useCallback(async () => {
     if (roomRef.current) {

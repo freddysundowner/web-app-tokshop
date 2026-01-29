@@ -3,13 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package, Zap } from 'lucide-react';
+import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package, Zap, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sendRoomMessage } from '@/lib/firebase-chat';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { CustomBidDialog } from '@/components/custom-bid-dialog';
 import { RaidShowDialog } from '@/components/raid-show-dialog';
 import { UserBadge } from '@/components/user-badge';
+import { CameraSettingsModal, CameraSettings } from '@/components/camera-settings-modal';
 
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
@@ -22,6 +23,7 @@ export function VideoCenter(props: any) {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [currentBanner, setCurrentBanner] = useState<'explicit' | 'shipping' | null>(null);
   const [showRaidDialog, setShowRaidDialog] = useState(false);
+  const [showCameraSettings, setShowCameraSettings] = useState(false);
   
   // Track if banners have been shown (only show once per session)
   const bannersShownRef = useRef(false);
@@ -49,7 +51,8 @@ export function VideoCenter(props: any) {
     currentMentions, setCurrentMentions, setShowPaymentShippingAlert,
     showCustomBidDialog, setShowCustomBidDialog,
     flashSaleTimeLeft,
-    activeFlashSale
+    activeFlashSale,
+    onCameraSettingsConfirm
   } = props;
   
   const isActiveFlashSale = activeFlashSale && (activeFlashSale.productId === pinnedProduct?._id || activeFlashSale.productId === pinnedProduct?.id);
@@ -822,7 +825,7 @@ export function VideoCenter(props: any) {
                       )}
                       
                       <h2 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
-                        {activeAuction.product?.name || 'Auction Item'}
+                        {activeAuction.product?.name || 'Auction Item'}{activeAuction.product?.order_reference_counter ? ` #${activeAuction.product.order_reference_counter}` : ''}
                       </h2>
                       
                       <div className="flex items-center gap-1.5 text-white/90">
@@ -1174,7 +1177,7 @@ export function VideoCenter(props: any) {
                         
                         {/* Product Name */}
                         <h2 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
-                          {activeAuction.product?.name || 'Auction Item'}
+                          {activeAuction.product?.name || 'Auction Item'}{activeAuction.product?.order_reference_counter ? ` #${activeAuction.product.order_reference_counter}` : ''}
                         </h2>
                         
                         {/* Bids Count */}
@@ -1447,14 +1450,8 @@ export function VideoCenter(props: any) {
                     className="w-[90%] h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-2xl pointer-events-auto"
                     onClick={() => {
                       if (socket && socketIsConnected) {
-                        console.log('🎬 Start Show button clicked - emitting start-room event');
-                        socket.emit('start-room', { roomId: id, userId: currentUserId });
-                        setLivekitEnabled(true);
-                        
-                        toast({
-                          title: "Starting Show",
-                          description: "Connecting to live stream..."
-                        });
+                        console.log('🎬 Start Show button clicked - opening camera settings');
+                        setShowCameraSettings(true);
                       } else if (socket && !socketIsConnected) {
                         console.warn('⚠️ Socket exists but not connected yet');
                         toast({
@@ -1486,13 +1483,35 @@ export function VideoCenter(props: any) {
                       </>
                     ) : (
                       <>
-                        <Play className="h-6 w-6 mr-2" />
+                        <Settings className="h-6 w-6 mr-2" />
                         Start Show
                       </>
                     )}
                   </Button>
                 </div>
               )}
+              
+              {/* Camera Settings Modal */}
+              <CameraSettingsModal
+                open={showCameraSettings}
+                onClose={() => setShowCameraSettings(false)}
+                onConfirm={(settings: CameraSettings) => {
+                  setShowCameraSettings(false);
+                  console.log('🎬 Camera settings confirmed:', settings);
+                  
+                  if (onCameraSettingsConfirm) {
+                    onCameraSettingsConfirm(settings);
+                  }
+                  
+                  socket.emit('start-room', { roomId: id, userId: currentUserId });
+                  setLivekitEnabled(true);
+                  
+                  toast({
+                    title: "Starting Show",
+                    description: "Connecting to live stream..."
+                  });
+                }}
+              />
 
               {/* Right Side Controls (Whatnot Style) - Positioned on video */}
               <div className={cn(

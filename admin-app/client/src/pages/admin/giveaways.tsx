@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,7 @@ interface Giveaway {
 }
 
 export default function AdminGiveaways() {
+  const [, navigate] = useLocation();
   const [page, setPage] = useState(1);
   const [searchName, setSearchName] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -580,6 +582,27 @@ export default function AdminGiveaways() {
                             {giveaway.description.substring(0, 50)}{giveaway.description.length > 50 ? '...' : ''}
                           </p>
                         )}
+                        {giveaway.winner && (
+                          <div 
+                            className="flex items-center gap-2 mt-1 cursor-pointer hover:opacity-80"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const winnerId = typeof giveaway.winner === 'object' ? giveaway.winner._id : giveaway.winner;
+                              if (winnerId) navigate(`/admin/users/${winnerId}`);
+                            }}
+                          >
+                            {typeof giveaway.winner === 'object' && giveaway.winner.profilePhoto && (
+                              <img 
+                                src={giveaway.winner.profilePhoto} 
+                                alt="Winner" 
+                                className="w-5 h-5 rounded-full object-cover"
+                              />
+                            )}
+                            <p className="text-sm text-green-600 font-medium hover:underline">
+                              Winner: {typeof giveaway.winner === 'object' ? giveaway.winner.userName : giveaway.winner}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1007,7 +1030,24 @@ export default function AdminGiveaways() {
                 {selectedGiveaway.winner && (
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Winner</h4>
-                    <p>{typeof selectedGiveaway.winner === 'object' ? selectedGiveaway.winner.firstName : selectedGiveaway.winner}</p>
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                      onClick={() => {
+                        const winnerId = typeof selectedGiveaway.winner === 'object' ? selectedGiveaway.winner._id : selectedGiveaway.winner;
+                        if (winnerId) navigate(`/admin/users/${winnerId}`);
+                      }}
+                    >
+                      {typeof selectedGiveaway.winner === 'object' && selectedGiveaway.winner.profilePhoto && (
+                        <img 
+                          src={selectedGiveaway.winner.profilePhoto} 
+                          alt="Winner" 
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      )}
+                      <p className="text-green-600 font-medium hover:underline">
+                        {typeof selectedGiveaway.winner === 'object' ? selectedGiveaway.winner.userName : selectedGiveaway.winner}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

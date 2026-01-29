@@ -18,7 +18,7 @@ const badgeUrls: Record<string, string> = {
 const badgeText: Record<string, string> = {
   rising: "Rising",
   verified: "Verified",
-  icona: "Icona",
+  icona: "Partner",
 };
 
 const borderColors: Record<string, string> = {

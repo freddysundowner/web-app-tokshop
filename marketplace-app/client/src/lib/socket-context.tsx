@@ -3,6 +3,25 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
 import { useSettings } from './settings-context';
 
+const DEVICE_UUID_KEY = 'device_uuid';
+
+function getOrCreateDeviceUUID(): string {
+  let uuid = localStorage.getItem(DEVICE_UUID_KEY);
+  if (!uuid) {
+    uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    localStorage.setItem(DEVICE_UUID_KEY, uuid);
+  }
+  return uuid;
+}
+
+export function getDeviceUUID(): string {
+  return getOrCreateDeviceUUID();
+}
+
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -34,13 +53,14 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   // Wrapped in useCallback for stable reference
   const getUserIdentity = useCallback((socketId: string) => {
     const currentUser = userRef.current;
+    const deviceUUID = getOrCreateDeviceUUID();
     const userId = currentUser 
       ? ((currentUser as any)._id || (currentUser as any).id || currentUser.id) 
-      : `guest_${socketId}`;
+      : `guest_${deviceUUID}`;
     const userName = currentUser 
       ? ((currentUser as any).userName || currentUser.firstName || currentUser.email) 
-      : `Guest_${socketId.slice(0, 6)}`;
-    return { userId, userName };
+      : `Guest_${deviceUUID.slice(0, 6)}`;
+    return { userId, userName, deviceUUID };
   }, []);
 
   useEffect(() => {
@@ -83,13 +103,14 @@ export function SocketProvider({ children }: { children: ReactNode }) {
           if (currentRoomIdRef.current && !isManualConnectRef.current && !isLeavingRoomRef.current) {
             console.log('🔄 Reconnected! Auto-rejoining room:', currentRoomIdRef.current);
             const socketId = socketInstance.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
-            const { userId, userName } = getUserIdentity(socketId);
+            const { userId, userName, deviceUUID } = getUserIdentity(socketId);
             
-            console.log('🔑 Auto-rejoin with user:', { userId, userName });
+            console.log('🔑 Auto-rejoin with user:', { userId, userName, deviceUUID });
             socketInstance.emit('join-room', {
               roomId: currentRoomIdRef.current,
               userId,
-              userName
+              userName,
+              deviceUUID
             });
           }
           
@@ -200,13 +221,14 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     
     // Get current user identity using fresh data
     const socketId = socket.id || `temp_${Math.random().toString(36).substr(2, 9)}`;
-    const { userId, userName } = getUserIdentity(socketId);
+    const { userId, userName, deviceUUID } = getUserIdentity(socketId);
     
-    console.log('📤 Emitting join-room event:', { roomId, userId, userName });
+    console.log('📤 Emitting join-room event:', { roomId, userId, userName, deviceUUID });
     socket.emit('join-room', {
       roomId,
       userId,
-      userName
+      userName,
+      deviceUUID
     });
   }, [socket, getUserIdentity]);
 

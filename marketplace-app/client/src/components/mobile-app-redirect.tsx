@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const APP_SCHEME = "icona://";
-
 interface MobileAppRedirectProps {
   type: "user" | "show" | "product";
   id: string;
@@ -19,6 +17,8 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
   const [appStoreUrl, setAppStoreUrl] = useState("");
   const [playStoreUrl, setPlayStoreUrl] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
+  const [appName, setAppName] = useState("App");
+  const [appScheme, setAppScheme] = useState("app://");
 
   useEffect(() => {
     fetch("/api/themes")
@@ -28,6 +28,8 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
         setAppStoreUrl(themes.ios_link || "");
         setPlayStoreUrl(themes.android_link || "");
         setWebsiteUrl(themes.website_url || window.location.origin);
+        setAppName(themes.app_name || "App");
+        setAppScheme(themes.app_scheme || "app://");
       })
       .catch(() => {
         setWebsiteUrl(window.location.origin);
@@ -48,11 +50,11 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
       
       const referrer = document.referrer;
       const domainHost = websiteUrl ? new URL(websiteUrl).hostname : '';
-      const isFromIconaDomain = domainHost ? referrer.includes(domainHost) : false;
-      const isOnIconaDomain = domainHost ? (window.location.hostname === domainHost || 
+      const isFromAppDomain = domainHost ? referrer.includes(domainHost) : false;
+      const isOnAppDomain = domainHost ? (window.location.hostname === domainHost || 
                                window.location.hostname === `www.${domainHost}`) : false;
       
-      if (isOnIconaDomain && !isFromIconaDomain && websiteUrl) {
+      if (isOnAppDomain && !isFromAppDomain && websiteUrl) {
         const universalLink = `${websiteUrl}/${type}/${id}`;
         window.location.replace(universalLink);
         
@@ -72,7 +74,7 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
   }, [type, id, attemptedAppOpen]);
 
   const handleOpenInApp = () => {
-    const deepLink = `${APP_SCHEME}${type}/${id}`;
+    const deepLink = `${appScheme}${type}/${id}`;
     const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
     
     const now = Date.now();
@@ -116,9 +118,9 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
           </div>
           
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-foreground">Open in Icona App</h1>
+            <h1 className="text-2xl font-bold text-foreground">Open in {appName} App</h1>
             <p className="text-muted-foreground">
-              Get the best experience with the Icona app
+              Get the best experience with the {appName} app
             </p>
           </div>
 
@@ -127,7 +129,7 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
               onClick={handleOpenInApp}
               className="w-full h-12 text-base font-semibold"
             >
-              Continue on Icona
+              Continue on {appName}
             </Button>
             
             <Button 

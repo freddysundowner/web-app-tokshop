@@ -1,5 +1,19 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Helper to handle expired token - clear storage and redirect to login
+function handleExpiredToken() {
+  console.log('[Auth] Token expired - clearing session and redirecting to login');
+  localStorage.removeItem('adminAccessToken');
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('adminUser');
+  
+  // Redirect to login page if not already there
+  if (!window.location.pathname.includes('/login')) {
+    window.location.href = '/login';
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -9,6 +23,16 @@ async function throwIfResNotOk(res: Response) {
       statusText: res.statusText,
       text: text
     });
+    
+    // Handle 401 - token expired or invalid
+    if (res.status === 401) {
+      // Check if this is a login attempt (don't redirect on login failures)
+      const isLoginAttempt = res.url.includes('/login') || res.url.includes('/auth');
+      if (!isLoginAttempt) {
+        handleExpiredToken();
+        throw new Error("Session expired. Please log in again.");
+      }
+    }
     
     // Try to extract the clean error message from JSON response
     let errorData;
@@ -210,8 +234,16 @@ export const getQueryFn: <T>(options: {
       headers,
     });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    if (res.status === 401) {
+      // Check if this is a login-related endpoint
+      const isLoginAttempt = endpoint.includes('/login') || endpoint.includes('/auth');
+      if (!isLoginAttempt) {
+        handleExpiredToken();
+        throw new Error("Session expired. Please log in again.");
+      }
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
     }
 
     await throwIfResNotOk(res);

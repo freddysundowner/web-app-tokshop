@@ -253,8 +253,8 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
 
   if (!order) return null;
 
-  const customerName = typeof orderData.customer === 'object'
-    ? `${orderData.customer.firstName || ''} ${orderData.customer.lastName || ''}`.trim() || orderData.customer.userName
+  const customerName = typeof orderData.customer === 'object' && orderData.customer
+    ? `${orderData.customer.firstName || ''} ${orderData.customer.lastName || ''}`.trim() || orderData.customer.userName || 'Unknown'
     : 'Unknown';
 
   const giveawayTitle = orderData.giveaway?.title || orderData.giveaway?.name || 'Giveaway Item';

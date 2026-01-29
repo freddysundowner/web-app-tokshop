@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminLayout } from "@/components/admin-layout";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { CreditCard, Search, Filter, X, Printer, MoreVertical, DollarSign } from "lucide-react";
+import { CreditCard, Search, X, Printer, MoreVertical, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/lib/settings-context";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -23,7 +23,7 @@ export default function AdminTransactions() {
   const { toast } = useToast();
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [transactionsPage, setTransactionsPage] = useState(1);
@@ -57,9 +57,15 @@ export default function AdminTransactions() {
   };
 
   const { data: transactionsData, isLoading } = useQuery<any>({
-    queryKey: ['admin-transactions', transactionsPage],
+    queryKey: ['admin-transactions', transactionsPage, appliedSearch],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/transactions?limit=10&page=${transactionsPage}`, {
+      const params = new URLSearchParams();
+      params.append('limit', '10');
+      params.append('page', String(transactionsPage));
+      if (appliedSearch.trim()) {
+        params.append('username', appliedSearch.trim());
+      }
+      const response = await fetch(`/api/admin/transactions?${params.toString()}`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -70,6 +76,12 @@ export default function AdminTransactions() {
       return result.success ? result.data : result;
     },
   });
+
+  const handleSearch = () => {
+    setAppliedSearch(searchTerm);
+    setTransactionsPage(1);
+    queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
+  };
 
   const { data: refundsData, isLoading: refundsLoading } = useQuery<any>({
     queryKey: ['admin-refunds', refundsPage],
@@ -127,28 +139,8 @@ export default function AdminTransactions() {
     },
   });
 
-  // Filter transactions
-  const filteredTransactions = allTransactions.filter((transaction: any) => {
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const transactionId = String(transaction._id || transaction.id || '').toLowerCase();
-      
-      // Get from and to names
-      const fromName = typeof transaction.from === 'object'
-        ? `${transaction.from.firstName || ''} ${transaction.from.lastName || ''}`.trim() || transaction.from.userName || transaction.from.email || ''
-        : '';
-      const toName = typeof transaction.to === 'object'
-        ? `${transaction.to.firstName || ''} ${transaction.to.lastName || ''}`.trim() || transaction.to.userName || transaction.to.email || ''
-        : '';
-      
-      if (!transactionId.includes(searchLower) && 
-          !fromName.toLowerCase().includes(searchLower) && 
-          !toName.toLowerCase().includes(searchLower)) {
-        return false;
-      }
-    }
-    return true;
-  });
+  // Transactions are now filtered by the API
+  const filteredTransactions = allTransactions;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -179,9 +171,11 @@ export default function AdminTransactions() {
 
   const clearFilters = () => {
     setSearchTerm("");
+    setAppliedSearch("");
+    setTransactionsPage(1);
   };
 
-  const hasActiveFilters = searchTerm;
+  const hasActiveFilters = appliedSearch;
 
   if (isLoading) {
     return (
@@ -225,51 +219,41 @@ export default function AdminTransactions() {
           <TabsContent value="transactions">
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col gap-4">
               <div className="flex items-center space-x-3">
                 <CreditCard className="h-5 w-5 text-primary" />
                 <div>
                   <CardTitle>Transaction History</CardTitle>
                   <CardDescription>
-                    {filteredTransactions.length} of {allTransactions.length} transactions
+                    {transactionsData?.totalDocuments || allTransactions.length} transactions
+                    {hasActiveFilters && ` (filtered by: ${appliedSearch})`}
                   </CardDescription>
                 </div>
               </div>
               
-              <Button
-                variant={showFilters ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                data-testid="button-toggle-filters"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="ml-2 px-1.5 py-0.5 text-xs">
-                    1
-                  </Badge>
-                )}
-              </Button>
-            </div>
-
-            {showFilters && (
-              <div className="mt-4 space-y-4 p-4 border rounded-lg bg-muted/50">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Search</label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Transaction ID or user..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9"
-                        data-testid="input-search-transactions"
-                      />
-                    </div>
-                  </div>
+              <div className="flex gap-2 items-center">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by username..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSearch();
+                      }
+                    }}
+                    className="pl-9"
+                    data-testid="input-search-transactions"
+                  />
                 </div>
-
+                <Button
+                  onClick={handleSearch}
+                  data-testid="button-search-transactions"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </Button>
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
@@ -278,11 +262,11 @@ export default function AdminTransactions() {
                     data-testid="button-clear-filters"
                   >
                     <X className="h-4 w-4 mr-2" />
-                    Clear Filters
+                    Clear
                   </Button>
                 )}
               </div>
-            )}
+            </div>
           </CardHeader>
           <CardContent>
             {filteredTransactions.length === 0 ? (
@@ -317,13 +301,19 @@ export default function AdminTransactions() {
                     {filteredTransactions.map((transaction: any) => {
                       const transactionId = transaction._id || transaction.id;
                       
-                      // Get from and to names
+                      // Get from and to names and usernames
                       const fromName = typeof transaction.from === 'object'
-                        ? `${transaction.from.firstName || ''} ${transaction.from.lastName || ''}`.trim() || transaction.from.userName || transaction.from.email || 'Unknown'
+                        ? `${transaction.from.firstName || ''} ${transaction.from.lastName || ''}`.trim() || transaction.from.email || 'Unknown'
                         : 'Unknown';
+                      const fromUsername = typeof transaction.from === 'object'
+                        ? transaction.from.userName || ''
+                        : '';
                       const toName = typeof transaction.to === 'object'
-                        ? `${transaction.to.firstName || ''} ${transaction.to.lastName || ''}`.trim() || transaction.to.userName || transaction.to.email || 'Unknown'
+                        ? `${transaction.to.firstName || ''} ${transaction.to.lastName || ''}`.trim() || transaction.to.email || 'Unknown'
                         : 'Unknown';
+                      const toUsername = typeof transaction.to === 'object'
+                        ? transaction.to.userName || ''
+                        : '';
                       
                       const amount = Math.round((Number(transaction.amount) || 0) * 100) / 100;
                       const type = transaction.type || 'N/A';
@@ -335,10 +325,20 @@ export default function AdminTransactions() {
                             {String(transactionId).slice(-8)}
                           </TableCell>
                           <TableCell data-testid={`text-from-${transactionId}`}>
-                            {fromName}
+                            <div>
+                              {fromName}
+                              {fromUsername && (
+                                <div className="text-xs text-muted-foreground">@{fromUsername}</div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell data-testid={`text-to-${transactionId}`}>
-                            {toName}
+                            <div>
+                              {toName}
+                              {toUsername && (
+                                <div className="text-xs text-muted-foreground">@{toUsername}</div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell data-testid={`text-type-${transactionId}`}>
                             <span className="capitalize">{type.replace(/_/g, ' ')}</span>
@@ -501,11 +501,17 @@ export default function AdminTransactions() {
                         const refundId = refund._id || refund.id;
                         const amount = Math.round((Number(refund.amount) || 0) * 100) / 100;
                         const fromName = typeof refund.from === 'object'
-                          ? `${refund.from.firstName || ''} ${refund.from.lastName || ''}`.trim() || refund.from.userName || refund.from.email || 'Unknown'
+                          ? `${refund.from.firstName || ''} ${refund.from.lastName || ''}`.trim() || refund.from.email || 'Unknown'
                           : 'Unknown';
+                        const fromUsername = typeof refund.from === 'object'
+                          ? refund.from.userName || ''
+                          : '';
                         const toName = typeof refund.to === 'object'
-                          ? `${refund.to.firstName || ''} ${refund.to.lastName || ''}`.trim() || refund.to.userName || refund.to.email || 'Unknown'
+                          ? `${refund.to.firstName || ''} ${refund.to.lastName || ''}`.trim() || refund.to.email || 'Unknown'
                           : 'Unknown';
+                        const toUsername = typeof refund.to === 'object'
+                          ? refund.to.userName || ''
+                          : '';
                         
                         return (
                           <TableRow key={refundId}>
@@ -513,10 +519,20 @@ export default function AdminTransactions() {
                               {String(refundId).slice(-8)}
                             </TableCell>
                             <TableCell data-testid={`text-from-${refundId}`}>
-                              {fromName}
+                              <div>
+                                {fromName}
+                                {fromUsername && (
+                                  <div className="text-xs text-muted-foreground">@{fromUsername}</div>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell data-testid={`text-to-${refundId}`}>
-                              {toName}
+                              <div>
+                                {toName}
+                                {toUsername && (
+                                  <div className="text-xs text-muted-foreground">@{toUsername}</div>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell data-testid={`text-amount-${refundId}`}>
                               ${amount.toFixed(2)}

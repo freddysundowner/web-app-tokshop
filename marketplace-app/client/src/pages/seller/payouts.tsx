@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, Info, Loader2, Plus, Trash2, Building2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 export default function Payouts() {
   const { user } = useAuth();
+  const { appName } = useSettings();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
@@ -361,7 +363,7 @@ export default function Payouts() {
             </div>
             <div className="pt-4 border-t">
               <p className="text-xs text-muted-foreground mb-3">
-                To add a new bank account, go to the Icona mobile app under Payouts.
+                To add a new bank account, go to the {appName} mobile app under Payouts.
               </p>
               <Button 
                 variant="outline" 
