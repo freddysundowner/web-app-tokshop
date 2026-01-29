@@ -39,6 +39,10 @@ export default function DeepLink() {
         return `/product/${id}`;
       case "show":
         return `/show/${id}`;
+      case "giveaway":
+        return `/giveaway/${id}`;
+      case "auction":
+        return `/auction/${id}`;
       default:
         return "/";
     }

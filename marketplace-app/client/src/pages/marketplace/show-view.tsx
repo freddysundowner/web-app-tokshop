@@ -385,6 +385,7 @@ export default function ShowViewNew() {
   
   // LiveKit state
   const [livekitEnabled, setLivekitEnabled] = useState(false);
+  const [cameraSettings, setCameraSettings] = useState<{ deviceId?: string; resolution?: { width: number; height: number } } | undefined>(undefined);
   
   // Host conflict detection
   const [showHostConflictDialog, setShowHostConflictDialog] = useState(false);
@@ -2054,6 +2055,7 @@ export default function ShowViewNew() {
     userId: currentUserId || '',
     userName: user?.userName || user?.firstName || currentUserId || '',
     enabled: livekitEnabled && isLive,
+    cameraSettings,
   });
   
   // Extract livekit properties for VideoCenter (avoid name conflicts)
@@ -2568,6 +2570,7 @@ export default function ShowViewNew() {
           setShowCustomBidDialog={setShowCustomBidDialog}
           flashSaleTimeLeft={flashSaleTimeLeft}
           activeFlashSale={activeFlashSale}
+          onCameraSettingsConfirm={setCameraSettings}
         />
         
         <ChatSidebar

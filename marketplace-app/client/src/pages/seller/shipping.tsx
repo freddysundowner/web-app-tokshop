@@ -117,6 +117,8 @@ const statusColors = {
   delivered:
     "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  payment_failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   pending_cancellation:
     "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   pickup:
@@ -2356,9 +2358,11 @@ export default function Shipping() {
                                     </DropdownMenuItem>
                                   )}
 
-                                  {/* Cancel order option for non-cancelled/shipped orders */}
+                                  {/* Cancel order option for non-cancelled/shipped/failed orders */}
                                   {order.status !== "cancelled" &&
                                     order.status !== "shipped" &&
+                                    order.status !== "failed" &&
+                                    order.status !== "payment_failed" &&
                                     !order.tracking_number &&
                                     !(order as any).tracking_url && (
                                       <>
@@ -2439,7 +2443,7 @@ export default function Shipping() {
                                                 </div>
                                               )}
                                               <div>
-                                                <p className="font-medium">{order.giveaway.name} #{order.invoice || order._id.slice(-8)}</p>
+                                                <p className="font-medium">{order.giveaway.name}{order.order_reference ? ` ${order.order_reference}` : ''}</p>
                                                 <p className="text-xs text-muted-foreground lowercase">{order.giveaway.category?.name || '-'}</p>
                                               </div>
                                             </div>
@@ -2524,7 +2528,7 @@ export default function Shipping() {
                                                   </div>
                                                 )}
                                                 <div>
-                                                  <p className="font-medium">{item.productId?.name ? `${item.productId.name} #${order.invoice || order._id.slice(-8)}` : `Item #${order.invoice || order._id.slice(-8)}`}</p>
+                                                  <p className="font-medium">{item.productId?.name ? `${item.productId.name}${(item as any).order_reference ? ` ${(item as any).order_reference}` : ''}` : ((item as any).order_reference ? `${(item as any).order_reference}` : 'Item')}</p>
                                                   <p className="text-xs text-muted-foreground lowercase">{item.productId?.category?.name || '-'}</p>
                                                 </div>
                                               </div>

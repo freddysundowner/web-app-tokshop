@@ -58,9 +58,11 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
     const customerFirstName = orderData?.customer?.firstName || '';
     const customerLastName = orderData?.customer?.lastName || '';
     const customerName = (customerFirstName + ' ' + customerLastName).trim() || orderData?.customer?.name || orderData?.customer?.username || 'Customer';
+    const customerUserName = orderData?.customer?.userName || '';
     const sellerFirstName = orderData?.seller?.firstName || '';
     const sellerLastName = orderData?.seller?.lastName || '';
     const sellerName = (sellerFirstName + ' ' + sellerLastName).trim() || orderData?.seller?.name || orderData?.seller?.username || 'Seller';
+    const sellerUserName = orderData?.seller?.userName || '';
     // Try multiple seller address locations
     const sellerAddress = orderData?.seller?.address || {
       street: orderData?.seller?.street || (orderData as any)?.fromAddress?.street || '',
@@ -127,7 +129,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
           <div class="address-box">
             <h3>Ship To</h3>
             <p>
-              <strong>${customerName}</strong><br>
+              <strong>${customerName}</strong>${customerUserName ? '<br>(' + customerUserName + ')' : ''}<br>
               ${address?.street || ''}<br>
               ${address?.city || ''}, ${address?.state || ''} ${address?.zipcode || ''}<br>
               ${address?.country || 'USA'}
@@ -136,7 +138,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
           <div class="address-box">
             <h3>From</h3>
             <p>
-              <strong>${sellerName}</strong>
+              <strong>${sellerName}</strong>${sellerUserName ? '<br>(' + sellerUserName + ')' : ''}
               ${sellerAddress?.street ? '<br>' + sellerAddress.street : ''}
               ${sellerAddress?.city || sellerAddress?.state || sellerAddress?.zipcode ? '<br>' + [sellerAddress?.city, sellerAddress?.state, sellerAddress?.zipcode].filter(Boolean).join(', ') : ''}
               ${sellerAddress?.country && sellerAddress?.city ? '<br>' + sellerAddress.country : ''}

@@ -103,7 +103,7 @@ export default function AdminOrders() {
   // Refund mutation
   const refundMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: 'order' | 'transaction' }) => {
-      return apiRequest("PUT", `/api/admin/refund/${id}`, { type });
+      return apiRequest("PUT", `/api/admin/refund/${id}`, { type, orderId: id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });

@@ -73,15 +73,7 @@ export default function AdminOrderDetail() {
 
   const handleRefundSubmit = () => {
     if (!refundItem) return;
-    const amount = parseFloat(refundAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid refund amount",
-        variant: "destructive",
-      });
-      return;
-    }
+    const amount = refundItem.total;
     refundItemMutation.mutate({ itemId: refundItem.itemId, amount });
   };
 
@@ -292,8 +284,10 @@ export default function AdminOrderDetail() {
                     </TableHeader>
                     <TableBody>
                       {order.items.map((item: any, index: number) => {
-                        const productName = item.productId?.name || item.productId?.title || item.name || item.title || 'Unknown Product';
-                        const productImage = item.productId?.image || item.productId?.images?.[0] || item.image || item.images?.[0];
+                        const baseName = item.giveawayId?.name || item.giveawayId?.title || item.productId?.name || item.productId?.title || item.name || item.title || 'Unknown Product';
+                        const orderRef = item.order_reference || '';
+                        const productName = orderRef ? orderRef : baseName;
+                        const productImage = item.giveawayId?.image || item.giveawayId?.images?.[0] || item.productId?.image || item.productId?.images?.[0] || item.image || item.images?.[0];
                         const quantity = item.quantity || 1;
                         const price = item.price || 0;
                         const itemShipping = item.shipping_fee || item.shippingFee || item.shipping || 0;
@@ -320,7 +314,7 @@ export default function AdminOrderDetail() {
                             <TableCell className="text-right">${itemShipping.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-medium">${(price * quantity + itemShipping).toFixed(2)}</TableCell>
                             <TableCell className="text-right">
-                              {!isRefunded && (
+                              {!isRefunded && item.status === 'processing' ? (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -330,6 +324,8 @@ export default function AdminOrderDetail() {
                                   <RotateCcw className="h-3 w-3 mr-1" />
                                   Refund
                                 </Button>
+                              ) : (
+                                <Badge variant="secondary" className="capitalize">{item.status}</Badge>
                               )}
                             </TableCell>
                           </TableRow>
@@ -382,12 +378,9 @@ export default function AdminOrderDetail() {
             <Input
               id="refundAmount"
               type="number"
-              step="0.01"
-              min="0.01"
-              max={refundItem?.total || 0}
               value={refundAmount}
-              onChange={(e) => setRefundAmount(e.target.value)}
-              className="mt-2"
+              readOnly
+              className="mt-2 bg-muted"
             />
             <p className="text-sm text-muted-foreground mt-2">
               Item total: ${refundItem?.total.toFixed(2) || '0.00'}

@@ -870,9 +870,8 @@ export default function AdminShipments() {
                                                     </div>
                                                   )}
                                                   <div>
-                                                    <p className="font-medium">{order.giveaway.name}</p>
+                                                    <p className="font-medium">{order.giveaway.name}{order.order_reference ? ` ${order.order_reference}` : ''}</p>
                                                     <p className="text-xs text-muted-foreground lowercase">{order.giveaway.category?.name || '-'}</p>
-                                                    <p className="text-xs text-muted-foreground">#{order.invoice || order._id.slice(-8)}</p>
                                                   </div>
                                                 </div>
                                               </td>
@@ -915,9 +914,8 @@ export default function AdminShipments() {
                                                       </div>
                                                     )}
                                                     <div>
-                                                      <p className="font-medium">{item.productId?.name ? `${item.productId.name}${item.order_reference ? ` ${item.order_reference}` : ''}` : (item.order_reference || 'Item')}</p>
+                                                      <p className="font-medium">{item.productId?.name ? `${item.productId.name}${item.order_reference ? ` ${item.order_reference}` : ''}` : (item.order_reference ? `${item.order_reference}` : 'Item')}</p>
                                                       <p className="text-xs text-muted-foreground lowercase">{item.productId?.category?.name || '-'}</p>
-                                                      <p className="text-xs text-muted-foreground">#{order.invoice || order._id.slice(-8)}</p>
                                                     </div>
                                                   </div>
                                                 </td>

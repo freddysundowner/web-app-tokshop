@@ -155,7 +155,19 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     if (displayOrder.weight) {
       return displayOrder.weight.toString();
     }
-    return "16";
+    // Calculate from items if no order-level weight
+    let totalWeight = 0;
+    if (displayOrder.items && displayOrder.items.length > 0) {
+      displayOrder.items.forEach((item: any) => {
+        if (item.weight) {
+          totalWeight += Number(item.weight) * (item.quantity || 1);
+        }
+      });
+    }
+    if ((displayOrder as any).giveaway?.shipping_profile?.weight) {
+      totalWeight += Number((displayOrder as any).giveaway.shipping_profile.weight);
+    }
+    return totalWeight.toString();
   };
   
   // Get the weight unit from order data
@@ -804,54 +816,44 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                 const orderService = displayOrder.servicelevel || 'Standard';
                 const orderRateId = (displayOrder as any).rate_id || '';
                 
-                if (orderShippingCost > 0) {
-                  return (
-                    <div
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="text-xs">
-                            {orderCarrier}
-                          </Badge>
-                          <span className="font-medium text-sm">{orderService}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Buyer paid rate
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="font-bold text-lg">${Number(orderShippingCost).toFixed(2)}</p>
-                        </div>
-                        {orderRateId && (
-                          <Button
-                            onClick={() => handlePrintLabel({
-                              objectId: orderRateId,
-                              carrier: orderCarrier,
-                              service: orderService,
-                              price: orderShippingCost.toString(),
-                              deliveryTime: 'Buyer paid rate',
-                              estimatedDays: 0
-                            })}
-                            disabled={purchaseLabelMutation.isPending}
-                            size="sm"
-                            data-testid="button-print-buyer-rate"
-                          >
-                            <Printer size={14} className="mr-1" />
-                            {purchaseLabelMutation.isPending ? 'Purchasing...' : 'Buy Label'}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
                 return (
-                  <div className="mb-4 p-3 bg-muted/50 border border-muted rounded-md">
-                    <p className="text-sm text-muted-foreground">
-                      Click "Refresh Estimates" to get shipping options.
-                    </p>
+                  <div
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs">
+                          {orderCarrier}
+                        </Badge>
+                        <span className="font-medium text-sm">{orderService}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Buyer paid rate
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-bold text-lg">${Number(orderShippingCost).toFixed(2)}</p>
+                      </div>
+                      <Button
+                        onClick={() => handlePrintLabel({
+                          objectId: orderRateId,
+                          carrier: orderCarrier,
+                          service: orderService,
+                          price: orderShippingCost.toString(),
+                          deliveryTime: 'Buyer paid rate',
+                          estimatedDays: 0
+                        })}
+                        disabled={purchaseLabelMutation.isPending || Number(weight) === 0}
+                        size="sm"
+                        data-testid="button-print-buyer-rate"
+                        title={Number(weight) === 0 ? 'Weight is required to buy a label' : ''}
+                      >
+                        <Printer size={14} className="mr-1" />
+                        {purchaseLabelMutation.isPending ? 'Purchasing...' : 'Buy Label'}
+                      </Button>
+                    </div>
                   </div>
                 );
               })()}
@@ -879,9 +881,10 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                       </div>
                       <Button
                         onClick={() => handlePrintLabel(estimate)}
-                        disabled={purchaseLabelMutation.isPending}
+                        disabled={purchaseLabelMutation.isPending || Number(weight) === 0}
                         size="sm"
                         data-testid={`button-print-${estimate.carrier.toLowerCase()}-${estimate.service.replace(/\s+/g, '-').toLowerCase()}`}
+                        title={Number(weight) === 0 ? 'Weight is required to buy a label' : ''}
                       >
                         <Printer size={14} className="mr-1" />
                         {purchaseLabelMutation.isPending ? 'Purchasing...' : 'Buy Label'}
