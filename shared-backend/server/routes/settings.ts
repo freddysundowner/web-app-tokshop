@@ -329,6 +329,9 @@ export function registerSettingsRoutes(app: Express) {
 
       const url = `${BASE_URL}/settings`;
       console.log(`Updating app settings at: ${url}`);
+      console.log('Settings payload keys:', Object.keys(req.body));
+      console.log('stripe_platform_webhook_key value:', req.body.stripe_platform_webhook_key ? 'SET' : 'NOT SET');
+      console.log('stripe_webhook_key value:', req.body.stripe_webhook_key ? 'SET' : 'NOT SET');
       
       const response = await fetch(url, {
         method: "POST",

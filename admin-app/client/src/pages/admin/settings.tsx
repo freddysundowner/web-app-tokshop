@@ -73,6 +73,7 @@ export default function AdminSettings() {
     stripeSecretKey: '',
     stripepublickey: '',
     stripe_webhook_key: '',
+    stripe_platform_webhook_key: '',
     stripe_connect_account: '',
     livekit_url: '',
     livekit_api_key: '',
@@ -128,6 +129,7 @@ export default function AdminSettings() {
       stripeSecretKey: settings?.stripeSecretKey || '',
       stripepublickey: settings?.stripepublickey || '',
       stripe_webhook_key: settings?.stripe_webhook_key || '',
+      stripe_platform_webhook_key: settings?.stripe_platform_webhook_key || '',
       stripe_connect_account: settings?.stripe_connect_account || '',
       livekit_url: settings?.livekit_url || '',
       livekit_api_key: settings?.livekit_api_key || '',
@@ -156,19 +158,7 @@ export default function AdminSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Settings update failed:', errorData);
-        throw new Error(errorData?.error || 'Failed to update settings');
-      }
+      const response = await apiRequest('POST', '/api/settings', data);
       return response.json();
     },
     onSuccess: () => {
@@ -192,19 +182,7 @@ export default function AdminSettings() {
   // Mutation for updating themes via POST /themes
   const updateThemeMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/themes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Theme update failed:', errorData);
-        throw new Error(errorData?.error || 'Failed to update theme');
-      }
+      const response = await apiRequest('POST', '/api/themes', data);
       return response.json();
     },
     onSuccess: () => {
@@ -613,7 +591,27 @@ export default function AdminSettings() {
                     className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Used for verifying webhook events from Stripe
+                    Used for verifying webhook events from Stripe Connected Account
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripe_platform_webhook_key">Stripe Platform Webhook Key</Label>
+                  <Input
+                    id="stripe_platform_webhook_key"
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.stripe_platform_webhook_key) : formData.stripe_platform_webhook_key}
+                    onChange={(e) => handleInputChange('stripe_platform_webhook_key', e.target.value)}
+                    placeholder="whsec_..."
+                    data-testid="input-stripe-platform-webhook-key"
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for verifying webhook events from Stripe Platform
                   </p>
                 </div>
                 <div className="space-y-2">
