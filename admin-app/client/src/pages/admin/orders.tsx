@@ -542,7 +542,7 @@ export default function AdminOrders() {
                                     </DropdownMenuItem>
                                   </>
                                 )}
-                                {activeTab !== "giveaways" && (
+                                {activeTab !== "giveaways" && order.status?.toLowerCase() !== 'refunded' && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem

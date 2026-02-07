@@ -169,6 +169,7 @@ export default function Orders() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/items/all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ["external-orders"] });
       toast({ title: "Order marked as shipped" });
@@ -187,7 +188,7 @@ export default function Orders() {
         body: JSON.stringify({
           order: orderId,
           initiator: "seller",
-          type: "order",
+          type: "item",
           relist: relist,
           description: "Order cancelled by seller"
         }),
@@ -200,10 +201,12 @@ export default function Orders() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/items/all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ["external-orders"] });
       toast({ title: "Order cancelled" });
       setDrawerOpen(false);
+      setSelectedOrder(null);
       setCancelDialogOpen(false);
       setOrderToCancel(null);
       setRelistOption(false);

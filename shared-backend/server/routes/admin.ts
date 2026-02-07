@@ -321,6 +321,7 @@ export function registerAdminRoutes(app: Express) {
       if (req.query.title) queryParams.append("title", req.query.title as string);
       if (req.query.status) queryParams.append("status", req.query.status as string);
       if (req.query.search) queryParams.append("search", req.query.search as string);
+      if (req.query.type) queryParams.append("type", req.query.type as string);
 
       const url = `${BASE_URL}/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
@@ -3533,12 +3534,6 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      if (!favored) {
-        return res.status(400).json({
-          success: false,
-          error: "Favored user ID is required",
-        });
-      }
 
       const url = `${BASE_URL}/orders/close/dispute/${disputeId}`;
       console.log(`[Resolve Dispute] Calling ICONA API: ${url}`);
@@ -3831,9 +3826,9 @@ If you have any questions, feel free to reach out to our support team.
                          (req.headers['authorization']?.startsWith('Bearer ') ? 
                           req.headers['authorization'].substring(7) : null);
       const { id } = req.params;
-      const { type, orderId, itemId, amount } = req.body;
+      const { type, orderId, itemId, amount, fromDispute } = req.body;
       
-      console.log(`[Refund] Request to refund ${type}: ${id}, orderId: ${orderId}, itemId: ${itemId}, amount: ${amount}`);
+      console.log(`[Refund] Request to refund ${type}: ${id}, orderId: ${orderId}, itemId: ${itemId}, amount: ${amount}, fromDispute: ${fromDispute}`);
       console.log(`[Refund] Token source: ${req.headers['x-admin-token'] ? 'x-admin-token header' : req.headers['x-access-token'] ? 'x-access-token header' : req.session?.accessToken ? 'session' : req.headers['authorization'] ? 'authorization header' : 'none'}`);
       
       if (!accessToken) {
@@ -3857,6 +3852,7 @@ If you have any questions, feel free to reach out to our support team.
       if (orderId) requestBody.orderId = orderId;
       if (itemId) requestBody.itemId = itemId;
       if (amount) requestBody.amount = amount;
+      if (fromDispute) requestBody.fromDispute = fromDispute;
       
       const response = await fetch(url, {
         method: "PUT",

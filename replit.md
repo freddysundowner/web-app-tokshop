@@ -1,8 +1,12 @@
-# Tokshop
+# TokShop - Live Shopping Marketplace Platform
 
 ## Overview
 
-Tokshop is a monorepo project comprising two primary web applications: an Admin App for platform management and a Marketplace App. The Marketplace App is a comprehensive live streaming e-commerce platform featuring real-time video, auctions, chat, and product sales. Both applications leverage React, TypeScript, and Vite, sharing a common UI component library (shadcn/ui) while serving distinct functionalities. The project aims to deliver a robust and scalable solution for live commerce.
+TokShop is a live streaming e-commerce platform that enables sellers to host live video shows, showcase products in real-time, and process instant transactions. The project is structured as a monorepo with two frontend applications (Admin Panel and Marketplace) sharing a common backend. In development, a unified server on port 5000 serves both apps simultaneously. For production, each app can be deployed independently.
+
+The platform supports live video streaming, real-time auctions, flash sales, giveaways, chat, product management, order processing, and seller/buyer dashboards.
+
+**Note:** The `Archivezipzip/` directory is an archived copy of the project — always work from the root-level files and directories.
 
 ## User Preferences
 
@@ -12,84 +16,100 @@ Preferred communication style: Simple, everyday language.
 
 ### Monorepo Structure
 
-The project is structured as a monorepo containing `/admin-app` (Admin App), `/marketplace-app` (Marketplace App), and a `/shared-backend`. The Marketplace App is the default application that runs on port 5000. To switch to the Admin App, edit `server/index.ts` and change `marketplaceAppDir` to `adminAppDir`. This separation allows for independent development and deployment while facilitating code sharing.
+```
+/
+├── server/index.ts              # Development dual-app server (serves both apps on port 5000)
+├── shared/schema.ts             # Root-level Drizzle schema (minimal, used by root config)
+├── admin-app/                   # Admin Panel frontend application
+│   ├── client/                  # React frontend (Vite)
+│   ├── server.ts                # Production entry point (port 5000)
+│   ├── vite.config.ts           # Vite config with path aliases
+│   └── package.json             # Independent dependencies
+├── marketplace-app/             # Marketplace frontend application
+│   ├── client/                  # React frontend (Vite)
+│   ├── server.ts                # Production entry point (port 5001)
+│   ├── vite.config.ts           # Vite config with path aliases
+│   └── package.json             # Independent dependencies
+├── shared-backend/              # Shared Express server & API routes
+│   ├── server/                  # Express server, routes, services
+│   │   ├── index.ts             # Main server setup (sessions, middleware)
+│   │   ├── routes.ts            # Route registration hub
+│   │   ├── vite.ts              # Vite dev server integration
+│   │   ├── firebase-admin.ts    # Firebase Admin SDK (dynamic init)
+│   │   └── routes/              # Route modules (auth, orders, shows, etc.)
+│   └── shared/                  # Shared types, schemas, utilities
+│       ├── schema.ts            # Zod validation schemas & TypeScript types
+│       └── pricing.ts           # Order calculation utilities
+├── drizzle.config.ts            # Root Drizzle config (PostgreSQL)
+├── package.json                 # Root dependencies & dev scripts
+├── vite.config.ts               # Root Vite config
+└── Archivezipzip/               # Archived copy — ignore this directory
+```
+
+### Development vs Production
+
+- **Development:** Run `npm run dev` from root. The `server/index.ts` dual-app server creates two Vite dev servers — marketplace at `/` and admin at `/admin/*` — both on port 5000. It loads `.env` from the admin-app directory.
+- **Production:** Each app builds and runs independently. Admin on port 5000, Marketplace on port 5001. Each app's `server.ts` imports from `shared-backend/server/index.ts`.
 
 ### Frontend Architecture
 
-Both applications use **Wouter** for lightweight client-side routing. State management is handled by **TanStack Query** for server state and data fetching, and **React Context** for local state. UI components are built using **shadcn/ui**, **Radix UI** primitives, and **Tailwind CSS**. A key design decision involves duplicating the component library across apps for independent customization, with the Admin App using Space Grotesk font and the Marketplace App using Inter.
+- **Framework:** React with TypeScript
+- **Build Tool:** Vite with React plugin and `@replit/vite-plugin-runtime-error-modal`
+- **Routing:** Wouter (lightweight client-side router)
+- **State Management:** TanStack React Query for server state; React Context for local state
+- **UI Components:** Shadcn/ui (New York style) built on Radix UI primitives
+- **Styling:** Tailwind CSS with CSS custom properties for theming (HSL color tokens)
+- **Forms:** React Hook Form with Zod resolvers via `@hookform/resolvers`
+- **Path Aliases:** `@/` → `client/src/`, `@shared/` → `shared-backend/shared/`, `@assets/` → `attached_assets/`
+- **Zod Resolution:** Vite configs include smart zod path resolution checking local then root `node_modules`
 
-Lazy loading in the Marketplace App is primarily applied at the route level. Large, monolithic components are refactored into smaller, directly imported modules to prevent "Maximum call stack size exceeded" errors, especially on mobile Safari.
+### Backend Architecture
 
-### Real-Time Features (Marketplace App)
+- **Runtime:** Node.js with Express
+- **Language:** TypeScript compiled via `tsx` (dev) and `esbuild` (production build)
+- **API Pattern:** The backend acts as a proxy/middleware layer — it forwards requests to an external API at `BASE_URL` (configured via environment variable). It is NOT a standalone API with its own database for core business data.
+- **Session Management:** Express sessions with header-based restoration (`x-access-token`, `x-admin-token`, `x-user-data` headers)
+- **Authentication:** Firebase Admin SDK for token verification (Google/Apple social auth), initialized dynamically from settings API
+- **Real-time:** Socket.IO for bidirectional events (auctions, chat, flash sales); LiveKit for WebRTC live video streaming
 
-**LiveKit** provides WebRTC-based live video streaming, utilizing `@livekit/components-react` for UI. **Socket.IO** manages bidirectional event-based communication for dynamic features like auctions and viewer counts. **Firebase** is used for persistent chat message storage and real-time synchronization, leveraging the strengths of both services.
+### Database
 
-### Styling Architecture
+- **ORM:** Drizzle ORM with `drizzle-kit` for schema management
+- **Database:** PostgreSQL via `@neondatabase/serverless`
+- **Schema Location:** Root `shared/schema.ts` has a minimal users table; the main application schemas live in `shared-backend/shared/schema.ts` as Zod validation schemas (not Drizzle tables)
+- **Migrations:** Run `npm run db:push` from root to push schema changes
 
-Both applications use CSS custom properties for theming, incorporating Shadcn/ui design tokens and custom tokens for marketplace-specific features. **Tailwind CSS** is used for utility-first styling, including custom utility classes and responsive breakpoints.
+### Key Design Decisions
 
-### Build System
+1. **Proxy Backend Pattern:** The Express server proxies requests to an external API (`BASE_URL`). Core business data (products, orders, shows) lives on the external API, not in the local PostgreSQL database. The local DB is primarily for session/user scaffolding.
 
-**Vite** serves as the build tool and development server, configured with a React plugin and path aliases for efficient module resolution. TypeScript is used purely for type checking, with Vite handling compilation. A smart Zod resolution addresses module import paths in different environments.
+2. **Shared Backend:** Both apps import the same backend code from `shared-backend/` to avoid duplication. Route modules are organized by domain (auth, orders, shows, products, etc.).
 
-### Mobile Optimization
+3. **Independent App Builds:** Each app has its own `package.json`, `vite.config.ts`, `tailwind.config.ts`, and `postcss.config.js`. This allows independent deployment as separate packages.
 
-Significant effort was directed at optimizing the Marketplace App for mobile Safari. This involved a strategic decomposition of large components into smaller, independent modules, prioritizing direct imports over dynamic lazy loading for improved performance and stability.
-
-### Feature Specifications
-
-*   **Help Center System**: A public-facing help center has been added to the marketplace app, accessible at `/help-center` and `/help-center/:slug`. It features a hero section, breadcrumbs, client-side search, category filters, and a responsive grid of article cards. Articles are stored in MongoDB.
-*   **Rally/Raid Feature**: Allows a host to "raid" another live show, redirecting their viewers. This involves a dialog for selecting a target show, socket events (`rally`, `rally-in`), and Firebase for chat announcements. Race conditions related to source show ID capture, `useEffect` cleanup, navigation timing, and socket auto-rejoin have been addressed.
-*   **User Badge System**: Implemented `badgeTier` property for users (`rising`, `verified`, `icona`). These badges are displayed via a reusable `UserBadge` component across various user-facing parts of the application (e.g., profile, show cards, rally dialog, chat).
-*   **Featured Shows Page**: A dedicated page at `/featured/shows` displays all featured shows, similar to the existing `/trending/products` page.
+4. **Mobile Optimization:** The marketplace app is heavily optimized for mobile Safari, with component decomposition to prevent call stack overflows on iOS devices.
 
 ## External Dependencies
 
-### UI & Styling
-- **@radix-ui/\*** (Accessible component primitives)
-- **tailwindcss** (Utility-first CSS framework)
-- **class-variance-authority** (Component variant management)
-- **lucide-react** (Icon library)
+### Third-Party Services
+- **Firebase:** Authentication (Google/Apple social auth), Firestore, Cloud Storage — initialized dynamically via Firebase Admin SDK
+- **Stripe:** Payment processing via `@stripe/stripe-js` and `@stripe/react-stripe-js` (client), `stripe` (server)
+- **SendGrid:** Email delivery via `@sendgrid/mail`
+- **LiveKit:** WebRTC live video streaming via `@livekit/components-react` and `@livekit/components-styles`
+- **External API:** Core business API at `BASE_URL` env variable — handles products, orders, shows, users, and all business logic
 
-### Data Fetching & State
-- **@tanstack/react-query** (Server state management)
-- **wouter** (Lightweight routing library)
+### Key Libraries
+- **UI:** Radix UI primitives, Tailwind CSS, Shadcn/ui component system
+- **Data Fetching:** TanStack React Query
+- **Forms:** React Hook Form + Zod validation
+- **Routing:** Wouter
+- **Database:** Drizzle ORM + `@neondatabase/serverless` (PostgreSQL)
+- **Real-time:** Socket.IO (events), LiveKit (video)
+- **Build:** Vite (frontend), esbuild (server bundle), tsx (dev server)
 
-### Forms & Validation
-- **react-hook-form** (Form state management)
-- **@hookform/resolvers** (Validation schema integration)
-- **zod** (Runtime type validation)
-
-### Live Streaming (Marketplace App)
-- **@livekit/components-react** (Video streaming UI components)
-- **@livekit/components-styles** (Pre-built styling for LiveKit)
-- **LiveKit Cloud** (Backend video infrastructure)
-
-### Real-Time Communication (Marketplace App)
-- **socket.io-client** (Real-time bidirectional events)
-- **Firebase** (Chat persistence and real-time database)
-
-### Payment Processing (Marketplace App)
-- **@stripe/stripe-js** (Stripe JavaScript SDK)
-- **@stripe/react-stripe-js** (React components for Stripe)
-- **Stripe API** (Payment processing)
-
-### Email (Marketplace App)
-- **@sendgrid/mail** (Transactional email service)
-- **nodemailer** (SMTP email client)
-- **SendGrid API** (Email delivery)
-
-### Build & Development
-- **vite** (Build tool and dev server)
-- **@vitejs/plugin-react** (Vite plugin for React)
-- **esbuild** (JavaScript bundler)
-- **typescript** (Type checking)
-- **tsx** (TypeScript execution)
-
-### Backend Runtime (Marketplace App)
-- **express** (Web server framework)
-- **dotenv** (Environment variable management)
-- **Node.js** (Server runtime)
-
-### Media Handling (Marketplace App)
-- **multer** (File upload middleware)
+### Environment Variables Required
+- `DATABASE_URL` — PostgreSQL connection string (Neon)
+- `BASE_URL` — External API server URL (required, validated on startup)
+- `SESSION_SECRET` — Express session secret
+- `FORCE_SECURE_COOKIES` — Set to `true` if behind HTTPS proxy
+- Firebase, Stripe, and SendGrid credentials as needed

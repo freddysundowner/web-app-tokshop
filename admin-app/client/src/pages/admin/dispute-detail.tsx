@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, AlertTriangle, Package, User, ShoppingCart, Scale, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Package, User, ShoppingCart, Scale, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
@@ -54,7 +54,10 @@ export default function AdminDisputeDetail() {
 
   const [adminNotes, setAdminNotes] = useState("");
   const [showResolveDialog, setShowResolveDialog] = useState(false);
-  const [selectedDecision, setSelectedDecision] = useState<"buyer" | "seller" | null>(null);
+  const [selectedDecision, setSelectedDecision] = useState<"buyer" | "seller" | "no_favor" | null>(null);
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<{ _id: string; name: string; price: number } | null>(null);
+  const [refundingItemId, setRefundingItemId] = useState<string | null>(null);
 
   // Fetch dispute details
   const { data: disputeData, isLoading } = useQuery<any>({
@@ -75,24 +78,18 @@ export default function AdminDisputeDetail() {
 
   // Resolve dispute mutation
   const resolveMutation = useMutation({
-    mutationFn: async ({ decision }: { decision: "buyer" | "seller" }) => {
+    mutationFn: async ({ decision }: { decision: "buyer" | "seller" | "no_favor" }) => {
       if (!dispute || !dispute.orderId) throw new Error("Dispute data not available");
       
-      // Get the favored user ID from orderId object
-      let favoredId: string;
+      let favoredId: string | null = null;
       if (decision === "buyer") {
-        // Customer ID is directly in orderId.customer
         favoredId = dispute.orderId.customer || "";
-      } else {
-        // Seller ID is directly in orderId.seller
+        if (!favoredId) throw new Error("Could not find buyer ID in order data");
+      } else if (decision === "seller") {
         favoredId = dispute.orderId.seller || "";
+        if (!favoredId) throw new Error("Could not find seller ID in order data");
       }
       
-      if (!favoredId) {
-        throw new Error(`Could not find ${decision} ID in order data`);
-      }
-      
-      // Use dispute._id, not the orderId from URL params
       return apiRequest("POST", `/api/admin/disputes/${dispute._id}/resolve`, {
         favored: favoredId,
         final_comments: adminNotes,
@@ -115,6 +112,49 @@ export default function AdminDisputeDetail() {
     },
   });
 
+  // Refund item mutation
+  const refundMutation = useMutation({
+    mutationFn: async ({ itemId, orderId, amount }: { itemId: string; orderId: string; amount: number }) => {
+      setRefundingItemId(itemId);
+      const response = await fetch(`/api/admin/refund/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          type: 'order',
+          orderId: orderId,
+          itemId: itemId,
+          amount: amount,
+          fromDispute: true,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to process refund');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/disputes', disputeId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      toast({
+        title: "Refund Processed",
+        description: "The item has been refunded successfully",
+      });
+      setRefundingItemId(null);
+      setShowRefundDialog(false);
+      setSelectedItem(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Refund Failed",
+        description: error.message || "Failed to process refund",
+        variant: "destructive",
+      });
+      setRefundingItemId(null);
+    },
+  });
+
   const handleResolve = (decision: "buyer" | "seller") => {
     setSelectedDecision(decision);
     setShowResolveDialog(true);
@@ -124,6 +164,25 @@ export default function AdminDisputeDetail() {
     if (selectedDecision) {
       resolveMutation.mutate({ decision: selectedDecision });
       setShowResolveDialog(false);
+    }
+  };
+
+  const handleRefundItem = (item: { _id: string; productId?: { name?: string }; price: number }) => {
+    setSelectedItem({
+      _id: item._id,
+      name: item.productId?.name || 'Unknown Product',
+      price: item.price,
+    });
+    setShowRefundDialog(true);
+  };
+
+  const confirmRefund = () => {
+    if (selectedItem && dispute?.orderId?._id) {
+      refundMutation.mutate({
+        itemId: selectedItem._id,
+        orderId: dispute.orderId._id,
+        amount: selectedItem.price,
+      });
     }
   };
 
@@ -315,10 +374,28 @@ export default function AdminDisputeDetail() {
                             </div>
                           )}
                           <div className="flex-1">
-                            <p className="font-medium">{item.productId?.name || 'Unknown Product'}</p>
+                            <p className="font-medium">
+                              {item.productId?.name || 'Unknown Product'}
+                              {(item as any).order_reference && (
+                                <span className="text-muted-foreground"> {(item as any).order_reference}</span>
+                              )}
+                            </p>
                             <p className="text-sm text-muted-foreground">Quantity: {item.quantity || 1}</p>
                             <p className="text-sm font-semibold mt-1">${item.price?.toFixed(2)}</p>
                           </div>
+                          {!isResolved && item.status?.toLowerCase() !== 'refunded' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRefundItem(item)}
+                              disabled={refundingItemId === item._id}
+                              className="shrink-0"
+                              data-testid={`refund-item-${item._id}`}
+                            >
+                              <RotateCcw className={`h-4 w-4 mr-1 ${refundingItemId === item._id ? 'animate-spin' : ''}`} />
+                              {refundingItemId === item._id ? 'Refunding...' : 'Refund'}
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -428,6 +505,18 @@ export default function AdminDisputeDetail() {
                       <XCircle className="h-4 w-4 mr-2" />
                       Rule in Favor of Seller
                     </Button>
+
+                    <Button
+                      className="w-full"
+                      variant="secondary"
+                      size="lg"
+                      onClick={() => handleResolve("no_favor")}
+                      disabled={resolveMutation.isPending}
+                      data-testid="button-no-favor"
+                    >
+                      <Scale className="h-4 w-4 mr-2" />
+                      Resolve No Favor
+                    </Button>
                   </div>
 
                   <p className="text-xs text-muted-foreground mt-4">
@@ -461,10 +550,13 @@ export default function AdminDisputeDetail() {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Resolution</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to rule in favor of the {selectedDecision === "buyer" ? "buyer" : "seller"}?
-                {selectedDecision === "buyer" && " The buyer will be refunded."}
-                {selectedDecision === "seller" && " The seller will keep the payment."}
-                This action cannot be undone.
+                {selectedDecision === "no_favor"
+                  ? "Are you sure you want to resolve this dispute with no favor to either party? This action cannot be undone."
+                  : <>Are you sure you want to rule in favor of the {selectedDecision === "buyer" ? "buyer" : "seller"}?
+                    {selectedDecision === "buyer" && " The buyer will be refunded."}
+                    {selectedDecision === "seller" && " The seller will keep the payment."}
+                    {" "}This action cannot be undone.</>
+                }
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -475,6 +567,29 @@ export default function AdminDisputeDetail() {
                 data-testid="button-confirm-resolve"
               >
                 {resolveMutation.isPending ? "Resolving..." : "Confirm"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Refund Confirmation Dialog */}
+        <AlertDialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to refund "{selectedItem?.name}" for ${selectedItem?.price?.toFixed(2)}?
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-refund">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmRefund}
+                disabled={refundMutation.isPending}
+                data-testid="button-confirm-refund"
+              >
+                {refundMutation.isPending ? "Processing..." : "Confirm Refund"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
