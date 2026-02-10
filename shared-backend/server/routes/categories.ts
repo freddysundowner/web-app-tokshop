@@ -48,7 +48,10 @@ export function registerCategoryRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;

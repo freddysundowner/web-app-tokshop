@@ -111,9 +111,20 @@ export default function ProductDetail() {
     queryFn: async () => {
       if (!product || !userId) return null;
       try {
+        const shippingHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const userToken = localStorage.getItem('accessToken');
+        if (userToken) {
+          shippingHeaders['x-access-token'] = userToken;
+          shippingHeaders['Authorization'] = `Bearer ${userToken}`;
+        }
+        const storedUserData = localStorage.getItem('user');
+        if (storedUserData) {
+          shippingHeaders['x-user-data'] = btoa(unescape(encodeURIComponent(storedUserData)));
+        }
         const response = await fetch('/api/shipping/estimate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: shippingHeaders,
+          credentials: 'include',
           body: JSON.stringify({
             weight: product.shipping_profile.weight,
             unit: product.shipping_profile.scale,
@@ -124,8 +135,12 @@ export default function ProductDetail() {
             buying_label: false
           }),
         });
-        if (!response.ok) return null;
-        return response.json();
+        if (!response.ok) return { error: true, amount: '0.00' };
+        const data = await response.json();
+        if (data?.success === false) {
+          return { error: true, message: data.message, amount: '0.00' };
+        }
+        return data;
       } catch (error) {
         console.error('Failed to fetch shipping estimate:', error);
         return null;
@@ -164,6 +179,38 @@ export default function ProductDetail() {
     enabled: shouldFetchSellerProducts,
   });
 
+  // Referral discount logic - read from localStorage
+  const storedUser = (() => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+  const hasReferralCredit = storedUser?.referredBy && storedUser?.awarded_referal_credit === false;
+  const referredByUserId = storedUser?.referredBy || '';
+
+  const { data: referralSettings } = useQuery({
+    queryKey: ['referral-settings-for-checkout'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings', { credentials: 'include' });
+      if (!res.ok) return null;
+      const result = await res.json();
+      return result.data || result;
+    },
+    enabled: Boolean(showCheckout && hasReferralCredit),
+    staleTime: 60000,
+  });
+
+  const referralCredit = referralSettings?.referal_credit || 15;
+  const referralMinimum = referralSettings?.referral_credit_limit || 25;
+  const referrerIdNorm = (referredByUserId || '').toString().trim().toLowerCase();
+  const sellerIdNorm = (sellerId || '').toString().trim().toLowerCase();
+  const isFromReferrer = hasReferralCredit && referrerIdNorm === sellerIdNorm;
+  const inlineSubtotal = (offerPrice !== null ? offerPrice : (product?.price || 0)) * quantity;
+  const inlineShippingCost = shippingEstimate ? (typeof shippingEstimate.amount === 'string' ? parseFloat(shippingEstimate.amount) : (shippingEstimate.amount || 0)) : 0;
+  const referralDiscountApplies = isFromReferrer && inlineSubtotal >= referralMinimum;
+  const referralDiscount = referralDiscountApplies ? Math.min(referralCredit, inlineSubtotal + inlineShippingCost) : 0;
+
   // Checkout mutation - place order OR create offer depending on offerPrice state
   const checkoutMutation = useMutation({
     mutationFn: async () => {
@@ -174,7 +221,7 @@ export default function ProductDetail() {
       // Use offer price if making an offer, otherwise use product price
       const priceToUse = offerPrice !== null ? offerPrice : (product.price || 0);
       const subtotal = priceToUse * quantity;
-      const total = subtotal + shippingCost;
+      const total = Math.max(0, subtotal + shippingCost - referralDiscount);
       
       // If making an offer, call the offers API
       if (offerPrice !== null) {
@@ -222,6 +269,11 @@ export default function ProductDetail() {
         seller_shipping_fee_pay: parseFloat((shippingEstimate as any)?.seller_shipping_fee_pay || '0'),
         status: 'processing',
       };
+
+      if (referralDiscount > 0) {
+        payload.referralDiscount = parseFloat(referralDiscount.toFixed(2));
+        payload.referredBy = referredByUserId;
+      }
       
       // Only include tokshow if it has a value
       if (product.tokshow) {
@@ -771,22 +823,33 @@ export default function ProductDetail() {
             {hasValidAddress && (
               <div className="flex justify-between text-sm">
                 <span>Shipping</span>
-                {shippingCost !== null ? (
+                {isLoadingShipping ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : shippingEstimate?.error ? (
+                  <span className="text-destructive text-xs">{shippingEstimate.message || 'Error'}</span>
+                ) : shippingCost !== null ? (
                   <span className="font-medium">
                     US${(typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost).toFixed(2)}
                   </span>
                 ) : (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-zinc-400 text-xs">Unavailable</span>
                 )}
+              </div>
+            )}
+            {referralDiscountApplies && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Referral Credit</span>
+                <span className="font-medium">-US${referralDiscount.toFixed(2)}</span>
               </div>
             )}
             <Separator />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
               <span data-testid="text-total-price">
-                US${(
+                US${Math.max(0,
                   (offerPrice !== null ? offerPrice : (product.price || 0)) * quantity + 
-                  (shippingCost ? (typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost) : 0)
+                  (shippingCost ? (typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost) : 0) -
+                  referralDiscount
                 ).toFixed(2)}
               </span>
             </div>

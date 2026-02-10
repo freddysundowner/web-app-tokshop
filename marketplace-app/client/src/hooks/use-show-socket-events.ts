@@ -214,11 +214,19 @@ export function useShowSocketEvents({
         
         console.log('📦 Fetching shipping estimate for pinned product:', pinnedPayload);
         
-        fetch('/api/shipping/estimate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pinnedPayload)
-        })
+        (() => {
+          const hdrs: Record<string, string> = { 'Content-Type': 'application/json' };
+          const tk = localStorage.getItem('accessToken');
+          if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
+          const ud = localStorage.getItem('user');
+          if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
+          return fetch('/api/shipping/estimate', {
+            method: 'POST',
+            headers: hdrs,
+            body: JSON.stringify(pinnedPayload),
+            credentials: 'include'
+          });
+        })()
           .then(res => res.json())
           .then(data => {
             console.log('✅ Pinned product shipping estimate received:', data);

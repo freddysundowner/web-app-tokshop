@@ -70,6 +70,7 @@ export function registerAuthRoutes(app: Express) {
         ...req.body,
         password: "[REDACTED]",
       });
+      console.log("Signup referredBy:", req.body.referredBy || "NOT PROVIDED");
 
       // Validate request body using schema
       const validationResult = signupSchema.safeParse(req.body);
@@ -82,6 +83,9 @@ export function registerAuthRoutes(app: Express) {
       }
 
       const { email, country, firstName, lastName, userName, phone, password } = validationResult.data;
+
+      const referredBy = req.body.referredBy || undefined;
+      const clientIp = req.body.clientIp || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket.remoteAddress || '';
 
       const { response, data: responseData } = await resilientFetch(
         `${BASE_URL}/auth/signup`,
@@ -98,6 +102,7 @@ export function registerAuthRoutes(app: Express) {
             userName,
             phone,
             password,
+            ...(referredBy ? { referredBy, clientIp } : {}),
           }),
         },
       );
@@ -370,11 +375,15 @@ export function registerAuthRoutes(app: Express) {
         gender: socialAuthData.gender,
       };
 
+      const referredBy = req.body.referredBy || undefined;
+      const clientIp = req.body.clientIp || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket.remoteAddress || '';
+
       // Build auth payload with provider token for backend decoding
       const authPayload = {
         ...verifiedSocialAuthData,
         // Include provider token if available (Google accessToken or Apple identityToken)
         providerToken: socialAuthData.providerToken,
+        ...(referredBy ? { referredBy, clientIp } : {}),
       };
 
       const { response, data: responseData } = await resilientFetch(
@@ -481,6 +490,9 @@ export function registerAuthRoutes(app: Express) {
         providerToken: req.body.providerToken,
       };
 
+      const referredBy = req.body.referredBy || undefined;
+      const clientIp = req.body.clientIp || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket.remoteAddress || '';
+
       // Call auth endpoint with all user data including providerToken
       const apiEndpoint = `${BASE_URL}/auth`;
       const { response, data: responseData } = await resilientFetch(apiEndpoint, {
@@ -499,6 +511,7 @@ export function registerAuthRoutes(app: Express) {
           type: socialAuthData.type,
           profilePhoto: socialAuthData.profilePhoto,
           providerToken: socialAuthData.providerToken,
+          ...(referredBy ? { referredBy, clientIp } : {}),
         }),
       });
 

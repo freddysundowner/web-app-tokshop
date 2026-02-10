@@ -54,6 +54,8 @@ export default function AdminSettings() {
     commission: '',
     stripe_fee: '',
     extra_charges: '',
+    referral_credit: '',
+    referral_credit_limit: '',
     currency: '$',
     support_email: '',
     forceUpdate: false,
@@ -110,6 +112,8 @@ export default function AdminSettings() {
       commission: settings?.commission || '',
       stripe_fee: settings?.stripe_fee || '',
       extra_charges: settings?.extra_charges || '',
+      referral_credit: settings?.referral_credit || '',
+      referral_credit_limit: settings?.referral_credit_limit || '',
       currency: settings?.currency || '$',
       support_email: settings?.support_email || '',
       forceUpdate: settings?.forceUpdate || false,
@@ -485,6 +489,39 @@ export default function AdminSettings() {
                     />
                     <p className="text-xs text-muted-foreground">
                       Fixed additional charges per transaction
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="referral_credit">Referral Credit ($)</Label>
+                    <Input
+                      id="referral_credit"
+                      type="number"
+                      step="0.01"
+                      value={formData.referral_credit}
+                      onChange={(e) => handleInputChange('referral_credit', e.target.value)}
+                      placeholder="15"
+                      data-testid="input-referral-credit"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Credit amount given to referred users
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="referral_credit_limit">Referral Credit Limit ($)</Label>
+                    <Input
+                      id="referral_credit_limit"
+                      type="number"
+                      step="0.01"
+                      value={formData.referral_credit_limit}
+                      onChange={(e) => handleInputChange('referral_credit_limit', e.target.value)}
+                      placeholder="25"
+                      data-testid="input-referral-credit-limit"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Minimum order amount to apply the referral credit
                     </p>
                   </div>
                 </div>

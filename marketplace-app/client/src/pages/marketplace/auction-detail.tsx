@@ -96,9 +96,20 @@ export default function AuctionDetail() {
           unit: product.unit,
           ownerId: product.ownerId
         });
+        const shippingHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const userToken = localStorage.getItem('accessToken');
+        if (userToken) {
+          shippingHeaders['x-access-token'] = userToken;
+          shippingHeaders['Authorization'] = `Bearer ${userToken}`;
+        }
+        const storedUserData = localStorage.getItem('user');
+        if (storedUserData) {
+          shippingHeaders['x-user-data'] = btoa(unescape(encodeURIComponent(storedUserData)));
+        }
         const response = await fetch('/api/shipping/estimate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: shippingHeaders,
+          credentials: 'include',
           body: JSON.stringify({
             weight: product.weight || 1,
             unit: product.unit || 'oz',

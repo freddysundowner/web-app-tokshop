@@ -192,7 +192,15 @@ export function registerSettingsRoutes(app: Express) {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        console.warn(`Failed to fetch settings from API (${response.status}): ${errorText}, using defaults`);
+        console.warn(`Failed to fetch settings from API (${response.status}): ${errorText}`);
+        // Pass through 401/404 so the frontend can handle token expiry
+        if (response.status === 401 || response.status === 404) {
+          return res.status(response.status).json({
+            success: false,
+            error: response.status === 401 ? "Unauthorized" : "Not found",
+          });
+        }
+        // For other errors, return defaults
         return res.json({
           success: true,
           data: {
@@ -270,26 +278,25 @@ export function registerSettingsRoutes(app: Express) {
     }
   });
 
-  // Get full app settings (requires auth via session)
+  // Get full app settings (proxy to external API)
   app.get("/api/settings/full", async (req, res) => {
     try {
-      const accessToken = req.session?.accessToken;
-      
-      if (!accessToken) {
-        return res.status(401).json({
-          success: false,
-          error: "No access token found",
-        });
-      }
+      const authHeader = req.headers.authorization;
+      const accessToken = authHeader?.startsWith('Bearer ') 
+        ? authHeader.substring(7) 
+        : req.session?.accessToken;
 
       const url = `${BASE_URL}/settings`;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
       
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -315,30 +322,25 @@ export function registerSettingsRoutes(app: Express) {
     }
   });
 
-  // Update app settings (requires auth via session)
+  // Update app settings (proxy to external API)
   app.post("/api/settings", async (req, res) => {
     try {
-      const accessToken = req.session?.accessToken;
-      
-      if (!accessToken) {
-        return res.status(401).json({
-          success: false,
-          error: "No access token found",
-        });
-      }
+      const authHeader = req.headers.authorization;
+      const accessToken = authHeader?.startsWith('Bearer ') 
+        ? authHeader.substring(7) 
+        : req.session?.accessToken;
 
       const url = `${BASE_URL}/settings`;
-      console.log(`Updating app settings at: ${url}`);
-      console.log('Settings payload keys:', Object.keys(req.body));
-      console.log('stripe_platform_webhook_key value:', req.body.stripe_platform_webhook_key ? 'SET' : 'NOT SET');
-      console.log('stripe_webhook_key value:', req.body.stripe_webhook_key ? 'SET' : 'NOT SET');
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
       
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(req.body),
       });
 

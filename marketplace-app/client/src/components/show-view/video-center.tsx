@@ -1,4 +1,5 @@
-import { Suspense, lazy, useState, useEffect, useRef } from 'react';
+import { Suspense, lazy, useState, useEffect, useRef, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +57,47 @@ export function VideoCenter(props: any) {
   } = props;
   
   const isActiveFlashSale = activeFlashSale && (activeFlashSale.productId === pinnedProduct?._id || activeFlashSale.productId === pinnedProduct?.id);
+
+  const getStoredUser = () => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  };
+
+  const storedUser = getStoredUser();
+  const hasReferralCredit = storedUser?.referredBy && storedUser?.awarded_referal_credit === false;
+
+  const { data: referralSettings } = useQuery({
+    queryKey: ['referral-settings-show-view'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings', { credentials: 'include' });
+      if (!res.ok) return null;
+      const result = await res.json();
+      return result.data || result;
+    },
+    enabled: Boolean(hasReferralCredit),
+    staleTime: 60000,
+  });
+
+  const referralInfo = (() => {
+    if (!hasReferralCredit || !pinnedProduct) return null;
+    const referralCredit = referralSettings?.referral_credit ?? 15;
+    const referralMinimum = referralSettings?.referral_credit_limit ?? 25;
+    const price = pinnedProduct.price || 0;
+    const referrerIdNorm = String(storedUser.referredBy || '').trim();
+    const productSellerId = (() => {
+      if (typeof pinnedProduct.owner === 'string') return pinnedProduct.owner;
+      if (pinnedProduct.owner) return pinnedProduct.owner._id || pinnedProduct.owner.id || '';
+      if (pinnedProduct.ownerId) return typeof pinnedProduct.ownerId === 'string' ? pinnedProduct.ownerId : (pinnedProduct.ownerId._id || pinnedProduct.ownerId.id || '');
+      return hostId || '';
+    })();
+    const sellerIdNorm = String(productSellerId || '').trim();
+    if (!referrerIdNorm || !sellerIdNorm || referrerIdNorm !== sellerIdNorm) return null;
+    if (price < referralMinimum) return null;
+    const discount = Math.min(referralCredit, price);
+    return { referredBy: referrerIdNorm, credit: discount, minimum: referralMinimum };
+  })();
 
   // Check if user has payment and shipping info
   const hasPaymentAndShipping = () => {
@@ -971,6 +1013,14 @@ export function VideoCenter(props: any) {
                         </div>
                       )}
                       
+                      {/* Referral Credit Info - show when user has referral credit from this seller */}
+                      {!pinnedProduct.flash_sale && referralInfo && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-white/50 line-through text-sm">${(pinnedProduct.price || 0).toFixed(2)}</span>
+                          <span className="text-primary font-bold text-sm">${((pinnedProduct.price || 0) - referralInfo.credit).toFixed(2)}</span>
+                        </div>
+                      )}
+
                       {!isActiveFlashSale && shippingEstimate && (
                         <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
                           {shippingEstimate.error 
@@ -1593,6 +1643,12 @@ export function VideoCenter(props: any) {
                         ${(pinnedProduct.price || 0).toFixed(2)}
                       </span>
                     )}
+                    {/* Referral credit strikethrough - show when no flash sale but referral applies */}
+                    {!activeAuction && pinnedProduct && !pinnedProduct.flash_sale && referralInfo && (
+                      <span className="text-sm text-white/50 line-through">
+                        ${(pinnedProduct.price || 0).toFixed(2)}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1">
                       {activeAuction && timeAddedBlink && (
                         <span className="text-lg font-bold text-yellow-400">
@@ -1610,7 +1666,9 @@ export function VideoCenter(props: any) {
                                     : (pinnedProduct.price || 0) - (pinnedProduct.flash_sale_discount_value || 0)
                                   ).toFixed(2)
                                 : '****'
-                              : (pinnedProduct.price || 0).toFixed(0)
+                              : referralInfo
+                                ? ((pinnedProduct.price || 0) - referralInfo.credit).toFixed(2)
+                                : (pinnedProduct.price || 0).toFixed(0)
                             : '0'
                         }
                       </span>

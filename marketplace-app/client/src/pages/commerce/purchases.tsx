@@ -219,7 +219,7 @@ export default function Purchases() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          order: itemId,  // Send item ID in the order field for item-level cancellation
+          order: orderId,
           relist: false,
           initiator: "buyer",
           type: "item",

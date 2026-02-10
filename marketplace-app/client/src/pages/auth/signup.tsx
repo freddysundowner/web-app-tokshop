@@ -26,9 +26,29 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
+  const [referrerName, setReferrerName] = useState<string>("");
+  const [referrerPhoto, setReferrerPhoto] = useState<string>("");
   const { toast } = useToast();
   const { emailSignup, loginWithGoogle, loginWithApple } = useAuth();
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const referredBy = localStorage.getItem('referredBy');
+    if (referredBy) {
+      fetch(`/api/users/public/profile/${referredBy}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) {
+            const user = data.data || data;
+            const name = user.userName || '';
+            if (name) setReferrerName(name);
+            const photo = user.profilePhoto || '';
+            if (photo) setReferrerPhoto(photo.startsWith('http') ? photo : `/api/proxy-image?url=${encodeURIComponent(photo)}`);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   // Fetch Firebase keys on mount to initialize Firebase for auth (no token required)
   useEffect(() => {
@@ -205,6 +225,21 @@ export default function Signup() {
           <CardHeader className="pb-4">
             <div className="text-center mb-4">
               <h2 className="text-xl font-semibold text-foreground">Create your account</h2>
+              {referrerName && (
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  {referrerPhoto && (
+                    <img
+                      src={referrerPhoto}
+                      alt={referrerName}
+                      className="w-6 h-6 rounded-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    Invited by <span className="font-medium text-primary">{referrerName}</span>
+                  </p>
+                </div>
+              )}
             </div>
           </CardHeader>
           

@@ -95,7 +95,10 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json();
@@ -163,7 +166,10 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json();
@@ -198,7 +204,10 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json();
@@ -235,7 +244,10 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json();
@@ -268,7 +280,10 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json();
@@ -300,7 +315,10 @@ export function registerShippingRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json();
@@ -377,16 +395,15 @@ export function registerShippingRoutes(app: Express) {
         buying_label: req.body.buying_label ?? true,
       };
 
-      // Build auth headers
+      const accessToken = req.session?.accessToken || req.headers['x-access-token'] as string || (req.headers['authorization'] as string)?.replace('Bearer ', '');
       const headers: Record<string, string> = {};
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const estimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody, headers);
       console.log('Shipping estimate response:', estimate);
       
-      // Check if Tokshop API returned an error for identical addresses
       if (estimate && typeof estimate === 'object') {
         // Check for various error indicators from Tokshop API
         const errorMessage = estimate.message || estimate.error || estimate.msg;

@@ -23,6 +23,8 @@ interface User {
   address?: any; // Shipping address from Tokshop API
   defaultpaymentmethod?: any; // Default payment method from Tokshop API
   above_age?: boolean; // User has confirmed they are over 18
+  referredBy?: string | null; // ID of user who referred this user
+  awarded_referal_credit?: boolean; // Whether referral credit has been used
 }
 
 interface AuthContextType {
@@ -47,6 +49,17 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+async function getClientIp(): Promise<string> {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    if (res.ok) {
+      const data = await res.json();
+      return data.ip || '';
+    }
+  } catch (e) {}
+  return '';
+}
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -125,6 +138,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // For Apple users, skip the user existence check and proceed directly to social auth
       // The backend social auth endpoint will handle user creation/login appropriately
 
+      const referredBy = localStorage.getItem('referredBy') || undefined;
+      const clientIp = referredBy ? await getClientIp() : '';
+
       // Prepare social auth data with Firebase verification info
       const socialAuthData = {
         // Firebase verification data (server will use this for identity)
@@ -141,7 +157,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         userName: '', // Leave empty so new users are redirected to completion page to enter their own username
         country: '',
         phone: '',
-        gender: ''
+        gender: '',
+        ...(referredBy ? { referredBy, clientIp } : {}),
       };
 
       // Send to backend with Firebase token - let server handle validation and user correlation
@@ -181,7 +198,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           authProvider: authType as 'google' | 'apple',
           address: tokshopResponse.data.address,
           defaultpaymentmethod: tokshopResponse.data.defaultpaymentmethod,
-          above_age: tokshopResponse.data.above_age || false
+          above_age: tokshopResponse.data.above_age || false,
+          referredBy: tokshopResponse.data.referredBy || null,
+          awarded_referal_credit: tokshopResponse.data.awarded_referal_credit ?? false
         };
         
         setUser(userData);
@@ -191,6 +210,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (tokshopResponse.accessToken) {
           localStorage.setItem('accessToken', tokshopResponse.accessToken);
         }
+        
+        if (referredBy) {
+          localStorage.setItem('referral_signup_done', 'true');
+          localStorage.removeItem('referredBy');
+          document.cookie = 'referral_signup_done=true; path=/; max-age=31536000; SameSite=Lax';
+          sessionStorage.setItem('show_referral_banner', 'true');
+          sessionStorage.setItem('referral_referrer_id', referredBy);
+        }
+        
         // Clear any pending auth state
         setPendingSocialAuth(false);
         setPendingSocialAuthEmail(null);
@@ -243,7 +271,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           authProvider: 'email' as const,
           address: loginResponse.data.address,
           defaultpaymentmethod: loginResponse.data.defaultpaymentmethod,
-          above_age: loginResponse.data.above_age || false
+          above_age: loginResponse.data.above_age || false,
+          referredBy: loginResponse.data.referredBy || null,
+          awarded_referal_credit: loginResponse.data.awarded_referal_credit ?? false
         };
         
         setUser(userData);
@@ -273,7 +303,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Validate input using schema
       const validatedData = signupSchema.parse({ email, password, firstName, lastName, userName, phone, country });
       
-      const response = await apiRequest('POST', '/api/auth/signup', validatedData);
+      const referredBy = localStorage.getItem('referredBy') || undefined;
+      const clientIp = referredBy ? await getClientIp() : '';
+      const payload = { ...validatedData, ...(referredBy ? { referredBy, clientIp } : {}) };
+      
+      const response = await apiRequest('POST', '/api/auth/signup', payload);
       const signupResponse = await response.json();
       
       if (signupResponse.success) {
@@ -293,7 +327,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           authProvider: 'email' as const,
           address: signupResponse.data.address,
           defaultpaymentmethod: signupResponse.data.defaultpaymentmethod,
-          above_age: signupResponse.data.above_age || false
+          above_age: signupResponse.data.above_age || false,
+          referredBy: signupResponse.data.referredBy || null,
+          awarded_referal_credit: signupResponse.data.awarded_referal_credit ?? false
         };
         
         setUser(userData);
@@ -302,6 +338,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('user', JSON.stringify(userData));
         if (signupResponse.accessToken) {
           localStorage.setItem('accessToken', signupResponse.accessToken);
+        }
+        
+        if (referredBy) {
+          localStorage.setItem('referral_signup_done', 'true');
+          localStorage.removeItem('referredBy');
+          document.cookie = 'referral_signup_done=true; path=/; max-age=31536000; SameSite=Lax';
+          sessionStorage.setItem('show_referral_banner', 'true');
+          sessionStorage.setItem('referral_referrer_id', referredBy);
         }
       } else {
         // Use the actual API message first, fallback to friendly error, then generic message
@@ -389,6 +433,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Get stored provider token from pending auth
       const storedProviderToken = localStorage.getItem('pendingProviderToken') || undefined;
       
+      const referredBy = localStorage.getItem('referredBy') || undefined;
+      const clientIp = referredBy ? await getClientIp() : '';
+
       // Combine the original Firebase data with the completion data
       const fullSocialAuthData = {
         email: pendingSocialAuthData.email || '',
@@ -400,7 +447,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         country: validatedData.country || '',
         phone: validatedData.phone || '',
         gender: validatedData.gender || '',
-        providerToken: storedProviderToken // Include provider token for backend decoding
+        providerToken: storedProviderToken,
+        ...(referredBy ? { referredBy, clientIp } : {}),
       };
 
       const response = await apiRequest('POST', '/api/auth/social/complete', fullSocialAuthData);
@@ -423,7 +471,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           authProvider: authType as 'google' | 'apple',
           address: completeResponse.data.address,
           defaultpaymentmethod: completeResponse.data.defaultpaymentmethod,
-          above_age: completeResponse.data.above_age || false
+          above_age: completeResponse.data.above_age || false,
+          referredBy: completeResponse.data.referredBy || null,
+          awarded_referal_credit: completeResponse.data.awarded_referal_credit ?? false
         };
         
         setUser(userData);
@@ -432,6 +482,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('user', JSON.stringify(userData));
         if (completeResponse.accessToken) {
           localStorage.setItem('accessToken', completeResponse.accessToken);
+        }
+
+        if (referredBy) {
+          localStorage.setItem('referral_signup_done', 'true');
+          localStorage.removeItem('referredBy');
+          document.cookie = 'referral_signup_done=true; path=/; max-age=31536000; SameSite=Lax';
+          sessionStorage.setItem('show_referral_banner', 'true');
+          sessionStorage.setItem('referral_referrer_id', referredBy);
         }
 
         // Clear pending auth state
@@ -536,6 +594,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
               address: userData.address || null,
               defaultpaymentmethod: userData.defaultpaymentmethod || null,
               above_age: userData.above_age || false,
+              referredBy: userData.referredBy || null,
+              awarded_referal_credit: userData.awarded_referal_credit ?? false,
             };
             
             // Store user data
@@ -667,8 +727,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 notification_settings: profileData.notification_settings || userData.notification_settings,
                 address: defaultAddress,
                 defaultpaymentmethod: defaultPaymentMethod,
-                // Preserve above_age: if local is true, keep it (user confirmed), otherwise use API value
-                above_age: userData.above_age === true ? true : (profileData.above_age ?? false)
+                above_age: userData.above_age === true ? true : (profileData.above_age ?? false),
+                referredBy: profileData.referredBy || userData.referredBy || null,
+                awarded_referal_credit: profileData.awarded_referal_credit ?? userData.awarded_referal_credit ?? false
               };
               
               setUser(updatedUser);
@@ -775,7 +836,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isRefreshing.current = true;
       lastRefreshTime.current = now;
 
-      console.log('[refreshUserData] Fetching latest address/payment data for:', currentUserData.id);
+      console.log('[refreshUserData] Fetching latest profile/address/payment data for:', currentUserData.id);
+
+      // Fetch profile to get referral fields
+      const profileResponse = await apiRequest('GET', `/api/profile/${currentUserData.id}`);
+      const profileData = await profileResponse.json();
 
       // Fetch default address from the correct endpoint
       const addressResponse = await apiRequest('GET', `/api/address/default/address/${currentUserData.id}`);
@@ -797,7 +862,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const updatedUser = {
         ...currentUserData,
         address: defaultAddress || null,
-        defaultpaymentmethod: defaultPaymentMethod || null
+        defaultpaymentmethod: defaultPaymentMethod || null,
+        referredBy: profileData?.referredBy || currentUserData.referredBy || '',
+        awarded_referal_credit: profileData?.awarded_referal_credit ?? currentUserData.awarded_referal_credit ?? false,
       };
 
       setUser(updatedUser);
@@ -806,7 +873,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('[refreshUserData] User data updated:', {
         userName: updatedUser.userName,
         hasAddress: !!updatedUser.address,
-        hasPayment: !!updatedUser.defaultpaymentmethod
+        hasPayment: !!updatedUser.defaultpaymentmethod,
+        referredBy: updatedUser.referredBy,
+        awarded_referal_credit: updatedUser.awarded_referal_credit,
       });
 
       // Return the fresh data for immediate use

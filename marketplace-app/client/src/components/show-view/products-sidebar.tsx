@@ -177,12 +177,19 @@ export function ProductsSidebar(props: any) {
                               buying_label: false
                             };
                             
-                            fetch('/api/shipping/estimate', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify(payload),
-                              credentials: 'include'
-                            })
+                            (() => {
+                              const hdrs: Record<string, string> = { 'Content-Type': 'application/json' };
+                              const tk = localStorage.getItem('accessToken');
+                              if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
+                              const ud = localStorage.getItem('user');
+                              if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
+                              return fetch('/api/shipping/estimate', {
+                                method: 'POST',
+                                headers: hdrs,
+                                body: JSON.stringify(payload),
+                                credentials: 'include'
+                              });
+                            })()
                               .then(res => res.json())
                               .then(data => {
                                 if (data.amount) {
@@ -297,12 +304,19 @@ export function ProductsSidebar(props: any) {
                                   buying_label: false
                                 };
                                 
-                                fetch('/api/shipping/estimate', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify(payload),
-                                  credentials: 'include'
-                                })
+                                (() => {
+                                  const hdrs: Record<string, string> = { 'Content-Type': 'application/json' };
+                                  const tk = localStorage.getItem('accessToken');
+                                  if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
+                                  const ud = localStorage.getItem('user');
+                                  if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
+                                  return fetch('/api/shipping/estimate', {
+                                    method: 'POST',
+                                    headers: hdrs,
+                                    body: JSON.stringify(payload),
+                                    credentials: 'include'
+                                  });
+                                })()
                                   .then(res => res.json())
                                   .then(data => {
                                     console.log('✅ Shipping estimate received:', data);

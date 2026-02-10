@@ -1,19 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Helper to handle expired token - clear storage and redirect to login
-function handleExpiredToken() {
-  console.log('[Auth] Token expired - clearing session and redirecting to login');
-  localStorage.removeItem('adminAccessToken');
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('user');
-  localStorage.removeItem('adminUser');
-  
-  // Redirect to login page if not already there
-  if (!window.location.pathname.includes('/login')) {
-    window.location.href = '/login';
-  }
-}
-
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -24,50 +10,35 @@ async function throwIfResNotOk(res: Response) {
       text: text
     });
     
-    // Handle 401 - token expired or invalid
-    if (res.status === 401) {
-      // Check if this is a login attempt (don't redirect on login failures)
-      const isLoginAttempt = res.url.includes('/login') || res.url.includes('/auth');
-      if (!isLoginAttempt) {
-        handleExpiredToken();
-        throw new Error("Session expired. Please log in again.");
-      }
-    }
-    
     // Try to extract the clean error message from JSON response
     let errorData;
     try {
       errorData = JSON.parse(text);
     } catch (parseError) {
-      // If JSON parsing fails, use user-friendly generic messages
       console.log('JSON parsing failed:', parseError, 'Original text:', text);
     }
     
     // If we successfully parsed JSON, check for error messages
     if (errorData) {
       if (errorData.error) {
-        // Handle different error formats
         if (typeof errorData.error === 'string') {
           throw new Error(errorData.error);
         } else if (typeof errorData.error === 'object') {
-          // If error is an object, try to extract message
           const errorObj = errorData.error;
           if (errorObj.message) {
             throw new Error(errorObj.message);
           } else if (errorObj.error) {
             throw new Error(errorObj.error);
           } else {
-            // Fallback: stringify the object for debugging
             throw new Error(`Validation failed: ${JSON.stringify(errorObj)}`);
           }
         }
       } else if (errorData.message) {
-        // Fallback to message field if error field doesn't exist
         throw new Error(errorData.message);
       }
     }
     
-    // Fallback: show user-friendly message based on status code instead of technical details
+    // Fallback: show user-friendly message based on status code
     if (res.status === 400) {
       throw new Error("Please check your information and try again.");
     } else if (res.status === 401) {
@@ -234,16 +205,8 @@ export const getQueryFn: <T>(options: {
       headers,
     });
 
-    if (res.status === 401) {
-      // Check if this is a login-related endpoint
-      const isLoginAttempt = endpoint.includes('/login') || endpoint.includes('/auth');
-      if (!isLoginAttempt) {
-        handleExpiredToken();
-        throw new Error("Session expired. Please log in again.");
-      }
-      if (unauthorizedBehavior === "returnNull") {
-        return null;
-      }
+    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      return null;
     }
 
     await throwIfResNotOk(res);

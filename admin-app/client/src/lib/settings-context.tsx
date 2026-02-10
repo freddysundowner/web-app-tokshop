@@ -187,9 +187,35 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
         // Fetch full settings with Firebase config (requires auth)
         try {
+          const adminToken = localStorage.getItem('adminAccessToken');
+          const userToken = localStorage.getItem('accessToken');
+          const settingsHeaders: Record<string, string> = {};
+          if (adminToken) {
+            settingsHeaders['Authorization'] = `Bearer ${adminToken}`;
+            settingsHeaders['x-admin-token'] = adminToken;
+          } else if (userToken) {
+            settingsHeaders['Authorization'] = `Bearer ${userToken}`;
+            settingsHeaders['x-access-token'] = userToken;
+          }
           const settingsResponse = await fetch('/api/settings', {
             credentials: 'include',
+            headers: settingsHeaders,
           });
+          if (settingsResponse.status === 401 || settingsResponse.status === 404) {
+            const hasToken = !!(adminToken || userToken);
+            if (hasToken) {
+              console.log('[Settings] Token expired or user not found, logging out');
+              localStorage.removeItem('adminAccessToken');
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('user');
+              localStorage.removeItem('adminUser');
+              localStorage.removeItem('userId');
+              if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/admin/login';
+              }
+              return;
+            }
+          }
           if (settingsResponse.ok) {
             const settingsData = await settingsResponse.json();
             console.log('🔧 Settings fetched:', settingsData);

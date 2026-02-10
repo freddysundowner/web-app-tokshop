@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Search, MessageSquare, Menu, Plus, Calendar, PackagePlus } from 'lucide-react';
+import { Search, MessageSquare, Menu, Plus, Calendar, PackagePlus, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -496,6 +496,13 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     {(currentUser as any)?.applied_seller ? 'Complete Seller Setup' : 'Become a Seller'}
                   </Button>
                 )}
+
+                {/* Referral */}
+                <Link href="/referral">
+                  <Button size="icon" variant="ghost" className={`h-9 w-9 rounded-full ${isShowPage ? 'text-white hover:text-white' : ''}`} data-testid="button-referral">
+                    <Gift className="h-5 w-5" />
+                  </Button>
+                </Link>
 
                 {/* Messages */}
                 <Link href="/inbox">

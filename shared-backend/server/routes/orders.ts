@@ -52,7 +52,10 @@ export function registerOrderRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;
@@ -96,13 +99,10 @@ export function registerOrderRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        if (response.status === 404) {
-          return res.status(404).json({ 
-            success: false,
-            error: "Order not found" 
-          });
-        }
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;
@@ -221,7 +221,10 @@ export function registerOrderRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;
@@ -267,6 +270,8 @@ export function registerOrderRoutes(app: Express) {
         color: z.string().optional(),
         size: z.string().optional(),
         tokshow: z.string().optional(),
+        referralDiscount: z.union([z.string(), z.number()]).optional(),
+        referredBy: z.string().optional(),
       });
 
       const orderData = checkoutSchema.parse(req.body);

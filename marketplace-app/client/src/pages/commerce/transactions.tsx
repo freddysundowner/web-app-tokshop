@@ -338,6 +338,7 @@ export default function Transactions() {
                   const serviceFee = parseFloat(selectedTransaction.serviceFee) || 0;
                   const shippingFee = parseFloat(selectedTransaction.shippingFee) || 0;
                   const combined = stripeFee + extraCharges;
+                  const isOwner = user?.id && selectedTransaction.to?._id && user.id === selectedTransaction.to._id;
 
                   return (
                     <>
@@ -357,7 +358,7 @@ export default function Transactions() {
                           <span className="text-destructive">-${serviceFee.toFixed(2)}</span>
                         </div>
                       )}
-                      {shippingFee > 0 && (
+                      {!isOwner && shippingFee > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Shipping Fee:</span>
                           <span className="text-destructive">-${shippingFee.toFixed(2)}</span>
