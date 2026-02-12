@@ -647,6 +647,7 @@ export default function AdminTransactions() {
                 {(() => {
                   const total = parseFloat(selectedTransaction.total) || 0;
                   const shippingFee = parseFloat(selectedTransaction.shippingFee) || 0;
+                  const discount = parseFloat(selectedTransaction.discount) || 0;
                   const totalWithShipping = total + shippingFee;
                   const stripeFee = parseFloat(selectedTransaction.stripe_fee) || 0;
                   const extraCharges = parseFloat(selectedTransaction.extra_charges) || 0;
@@ -673,6 +674,12 @@ export default function AdminTransactions() {
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Shipping Fee:</span>
                           <span className="text-destructive">-${shippingFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {discount > 0 && (
+                        <div className="flex justify-between">
+                          <span style={{ color: 'hsl(var(--primary))' }}>Discount:</span>
+                          <span style={{ color: 'hsl(var(--primary))' }}>-${discount.toFixed(2)}</span>
                         </div>
                       )}
                     </>

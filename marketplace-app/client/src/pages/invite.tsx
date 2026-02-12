@@ -60,9 +60,9 @@ export default function InvitePage() {
           const profileData = await profileRes.json();
           const userData = profileData.user || profileData.data || profileData;
           setReferrer({
-            firstName: '',
-            lastName: '',
-            userName: userData.userName,
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            userName: userData.userName || '',
             profilePhoto: userData.profilePhoto || '',
             bio: userData.bio || '',
           });
@@ -97,16 +97,14 @@ export default function InvitePage() {
   }, [referrerId, setLocation]);
 
   const handleJoin = () => {
-    setLocation("/signup");
+    setLocation(`/signup?ref=${referrerId}`);
   };
 
   const handleLogin = () => {
-    setLocation("/login");
+    setLocation(`/login?ref=${referrerId}`);
   };
 
-  const referrerName = referrer
-    ? referrer.userName || 'Someone'
-    : 'Someone';
+  const referrerName = referrer?.userName || 'Someone';
 
   const profilePhotoUrl = referrer?.profilePhoto
     ? (referrer.profilePhoto.startsWith('http') ? referrer.profilePhoto : `/api/proxy-image?url=${encodeURIComponent(referrer.profilePhoto)}`)

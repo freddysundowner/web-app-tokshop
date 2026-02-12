@@ -77,6 +77,7 @@ export default function AdminSettings() {
     stripe_webhook_key: '',
     stripe_platform_webhook_key: '',
     stripe_connect_account: '',
+    stripe_service_fee_account: '',
     livekit_url: '',
     livekit_api_key: '',
     livekit_api_secret: '',
@@ -135,6 +136,7 @@ export default function AdminSettings() {
       stripe_webhook_key: settings?.stripe_webhook_key || '',
       stripe_platform_webhook_key: settings?.stripe_platform_webhook_key || '',
       stripe_connect_account: settings?.stripe_connect_account || '',
+      stripe_service_fee_account: settings?.stripe_service_fee_account || '',
       livekit_url: settings?.livekit_url || '',
       livekit_api_key: settings?.livekit_api_key || '',
       livekit_api_secret: settings?.livekit_api_secret || '',
@@ -664,6 +666,21 @@ export default function AdminSettings() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Stripe Connect account ID to receive shipping fees
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripe_service_fee_account">Stripe Connect Account (Service Fees)</Label>
+                  <Input
+                    id="stripe_service_fee_account"
+                    value={formData.stripe_service_fee_account}
+                    onChange={(e) => handleInputChange('stripe_service_fee_account', e.target.value)}
+                    placeholder="acct_..."
+                    data-testid="input-stripe-service-fee-account"
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Stripe Connect account ID to receive service fees
                   </p>
                 </div>
               </CardContent>

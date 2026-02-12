@@ -420,6 +420,12 @@ export default function Purchases() {
                 <span>${formatCurrency(orderBreakdown.shippingFee)}</span>
               </div>
             ` : ''}
+            ${orderBreakdown.discount > 0 ? `
+              <div class="total-line" style="color: hsl(var(--primary))">
+                <span>Discount:</span>
+                <span>-${formatCurrency(orderBreakdown.discount)}</span>
+              </div>
+            ` : ''}
             <div class="total-line final-total">
               <span>Total:</span>
               <span>${formatCurrency(orderBreakdown.total)}</span>
@@ -900,6 +906,12 @@ export default function Purchases() {
                         <div className="flex justify-between">
                           <span>Shipping:</span>
                           <span>{formatCurrency(breakdown.shippingFee)}</span>
+                        </div>
+                      )}
+                      {breakdown.discount > 0 && (
+                        <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
+                          <span>Discount:</span>
+                          <span>-{formatCurrency(breakdown.discount)}</span>
                         </div>
                       )}
                       <div className="border-t pt-2 flex justify-between font-semibold text-lg">

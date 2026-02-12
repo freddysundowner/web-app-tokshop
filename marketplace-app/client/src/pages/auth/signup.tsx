@@ -33,6 +33,11 @@ export default function Signup() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refFromUrl = urlParams.get('ref');
+    if (refFromUrl && !localStorage.getItem('referredBy')) {
+      localStorage.setItem('referredBy', refFromUrl);
+    }
     const referredBy = localStorage.getItem('referredBy');
     if (referredBy) {
       fetch(`/api/users/public/profile/${referredBy}`)

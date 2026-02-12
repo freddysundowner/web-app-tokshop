@@ -23,6 +23,14 @@ export default function Login() {
   const { toast } = useToast();
   const { emailLogin, loginWithGoogle, loginWithApple, isLoading: authLoading } = useAuth();
   
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refFromUrl = urlParams.get('ref');
+    if (refFromUrl && !localStorage.getItem('referredBy')) {
+      localStorage.setItem('referredBy', refFromUrl);
+    }
+  }, []);
+
   // Fetch Firebase keys on mount to initialize Firebase for auth (no token required)
   useEffect(() => {
     const fetchFirebaseKeys = async () => {

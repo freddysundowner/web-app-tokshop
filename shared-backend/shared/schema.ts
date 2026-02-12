@@ -184,6 +184,7 @@ export const tokshopOrderSchema = z.object({
   shipping_fee: z.number().optional(),
   seller_shipping_fee_pay: z.number().optional(), // Seller's shipping cost (always use this for total shipping)
   total_shipping_cost: z.number().optional(), // Total shipping cost for bundle
+  discount: z.number().optional(),
   invoice: z.number().optional(),
   // Status and tracking
   status: z.string().optional(),

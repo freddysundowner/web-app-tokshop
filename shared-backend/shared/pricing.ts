@@ -20,9 +20,10 @@ export function calculateOrderTotal(order: TokshopOrder): number {
   const serviceFee = order.servicefee || 0;
   const tax = order.tax || 0;
   const shippingFee = order.shipping_fee || 0;
+  const discount = order.discount || 0;
   
-  // Calculate the total: items subtotal + fees + tax + shipping
-  const total = itemsSubtotal + serviceFee + tax + shippingFee;
+  // Calculate the total: items subtotal + fees + tax + shipping - discount
+  const total = itemsSubtotal + serviceFee + tax + shippingFee - discount;
   
   return total;
 }
@@ -60,6 +61,7 @@ export function getOrderBreakdown(order: TokshopOrder) {
   const serviceFee = order.servicefee || 0;
   const tax = order.tax || 0;
   const shippingFee = order.shipping_fee || 0;
+  const discount = order.discount || 0;
   const total = calculateOrderTotal(order);
   
   return {
@@ -67,6 +69,7 @@ export function getOrderBreakdown(order: TokshopOrder) {
     serviceFee,
     tax,
     shippingFee,
+    discount,
     total,
   };
 }

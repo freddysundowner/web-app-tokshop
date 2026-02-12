@@ -120,8 +120,8 @@ export default function AdminReferralLogs() {
                           {log.ip || '-'}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={log.creditRedeemed ? "default" : "secondary"}>
-                            {log.creditRedeemed ? "Yes" : "No"}
+                          <Badge variant={log.referredUserId?.awarded_referal_credit ? "default" : "secondary"}>
+                            {log.referredUserId?.awarded_referal_credit ? "Yes" : "No"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">

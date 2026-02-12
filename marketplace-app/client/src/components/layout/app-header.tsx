@@ -173,7 +173,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
     <>
       <header className={`sticky top-0 z-50 border-b ${isShowPage ? 'bg-black border-zinc-800' : 'bg-background border-border'}`}>
         <div className={`flex w-full ${isDashboard ? '' : 'justify-center'}`}>
-          <div className={`flex items-center justify-between h-14 px-3 sm:px-6 w-full ${isDashboard ? '' : 'lg:w-[90%]'}`}>
+          <div className={`flex items-center justify-between h-14 w-full ${isDashboard ? 'px-3 sm:px-6' : 'lg:w-[90%]'}`}>
           {/* Left Section */}
           <div className="flex items-center gap-2">
             {/* Mobile Menu Button - Only show when authenticated */}

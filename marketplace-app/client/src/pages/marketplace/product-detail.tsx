@@ -738,7 +738,7 @@ export default function ProductDetail() {
                   <span className="text-muted-foreground line-through text-sm">
                     US${(product.price || 0).toFixed(2)}
                   </span>
-                  <span className="font-semibold text-green-600">
+                  <span className="font-semibold" style={{ color: 'hsl(var(--primary))' }}>
                     US${offerPrice.toFixed(2)}
                   </span>
                 </>
@@ -837,7 +837,7 @@ export default function ProductDetail() {
               </div>
             )}
             {referralDiscountApplies && (
-              <div className="flex justify-between text-sm text-green-600">
+              <div className="flex justify-between text-sm" style={{ color: 'hsl(var(--primary))' }}>
                 <span>Referral Credit</span>
                 <span className="font-medium">-US${referralDiscount.toFixed(2)}</span>
               </div>

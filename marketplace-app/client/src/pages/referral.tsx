@@ -108,14 +108,11 @@ export default function ReferralPage() {
 
 
   return (
-    <div className="w-full px-4 md:px-6 lg:px-8 py-6 space-y-6">
+    <div className="w-full lg:w-[90%] mx-auto py-6 space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-foreground">
           Get new followers with your referral link!
         </h1>
-        <p className="text-muted-foreground">
-          Referrals will auto-follow you and will see your shows first on the app for 7 days
-        </p>
       </div>
 
       <div className="space-y-1">
@@ -191,7 +188,7 @@ export default function ReferralPage() {
                       {log.referredUserId?.userName || log.referredUserId?.email || 'Unknown'}
                     </td>
                     <td className="px-4 py-3">
-                      {log.creditRedeemed ? (
+                      {log.referredUserId?.awarded_referal_credit ? (
                         <span className="text-green-600 font-medium flex items-center gap-1">
                           <CheckCircle className="h-3.5 w-3.5" />
                           ${referralCredit}

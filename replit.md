@@ -6,7 +6,7 @@ TokShop is a live streaming e-commerce platform that enables sellers to host liv
 
 The platform supports live video streaming, real-time auctions, flash sales, giveaways, chat, product management, order processing, and seller/buyer dashboards.
 
-**Note:** The `Archivezipzip/` directory is an archived copy of the project — always work from the root-level files and directories.
+**Note:** The `Archivezipzipzip/` directory is an archived copy of the project — always work from the root-level files and directories.
 
 ## User Preferences
 
@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 ├── drizzle.config.ts            # Root Drizzle config (PostgreSQL)
 ├── package.json                 # Root dependencies & dev scripts
 ├── vite.config.ts               # Root Vite config
-└── Archivezipzip/               # Archived copy — ignore this directory
+└── Archivezipzipzip/            # Archived copy — ignore this directory
 ```
 
 ### Development vs Production

@@ -154,10 +154,8 @@ export default function AdminOrderDetail() {
   const subtotal = calculateSubtotal();
   const shippingFee = order.shipping_fee || order.shippingFee || order.shipping || 0;
   const tax = order.tax || 0;
-  const total = subtotal + shippingFee + tax;
-  
-  // Debug: log values to see what's being used
-  console.log(`[Order Detail ${order._id}] subtotal: ${subtotal}, shipping: ${shippingFee}, tax: ${tax}, total: ${total}`);
+  const discount = order.discount || 0;
+  const total = subtotal + shippingFee + tax - discount;
 
   return (
     <AdminLayout>
@@ -353,6 +351,12 @@ export default function AdminOrderDetail() {
                     <span className="text-muted-foreground">Tax</span>
                     <span>${tax.toFixed(2)}</span>
                   </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between text-sm" style={{ color: 'hsl(var(--primary))' }}>
+                      <span>Discount</span>
+                      <span>-${discount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-lg pt-2 border-t">
                     <span>Total</span>
                     <span data-testid="text-order-total">${total.toFixed(2)}</span>

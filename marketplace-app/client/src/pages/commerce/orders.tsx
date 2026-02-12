@@ -361,7 +361,8 @@ export default function Orders() {
     const serviceFee = item.service_fee ?? item.servicefee ?? 0;
     const processingFee = item.stripe_fees ?? 0;
     const sellerShippingCost = item.seller_shipping_fee_pay ?? 0;
-    return subtotal - serviceFee - processingFee - sellerShippingCost;
+    const discount = item.discount ?? 0;
+    return subtotal - serviceFee - processingFee - sellerShippingCost - discount;
   };
 
   // Order items are now filtered server-side, just sort by newest first

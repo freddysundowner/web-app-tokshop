@@ -212,11 +212,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
         
         if (referredBy) {
-          localStorage.setItem('referral_signup_done', 'true');
           localStorage.removeItem('referredBy');
-          document.cookie = 'referral_signup_done=true; path=/; max-age=31536000; SameSite=Lax';
-          sessionStorage.setItem('show_referral_banner', 'true');
-          sessionStorage.setItem('referral_referrer_id', referredBy);
         }
         
         // Clear any pending auth state
@@ -282,6 +278,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('user', JSON.stringify(userData));
         if (loginResponse.accessToken) {
           localStorage.setItem('accessToken', loginResponse.accessToken);
+        }
+
+        const referredBy = localStorage.getItem('referredBy');
+        if (referredBy) {
+          localStorage.removeItem('referredBy');
         }
       } else {
         // Use the actual API message first, fallback to friendly error, then generic message
