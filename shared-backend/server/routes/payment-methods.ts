@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 
 export function registerPaymentMethodRoutes(app: Express) {
   // Get all payment methods for a user
@@ -20,8 +20,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API
@@ -81,8 +82,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API
@@ -142,8 +144,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API - forward body as-is
@@ -203,8 +206,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API
@@ -263,8 +267,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API
@@ -324,8 +329,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API
@@ -389,8 +395,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API stripe setup intent endpoint
@@ -460,8 +467,9 @@ export function registerPaymentMethodRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send to Tokshop API stripe endpoint

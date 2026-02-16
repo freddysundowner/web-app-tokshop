@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 
 export function registerCategoryRoutes(app: Express) {
   // Categories proxy route with parameter mapping (userId → userid)
@@ -33,13 +33,14 @@ export function registerCategoryRoutes(app: Express) {
       
       console.log('Final API URL being called:', url);
       
-      // Include authentication token from session
+      const accessToken = getAccessToken(req);
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {

@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import multer from "multer";
 import FormData from "form-data";
 import axios from "axios";
@@ -11,7 +11,8 @@ export function registerGiveawayRoutes(app: Express) {
   // Upload giveaway images - using themes/upload-resource endpoint
   app.post("/api/giveaways/upload-image", upload.single('image'), async (req, res) => {
     try {
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: 'Unauthorized - no access token' });
       }
 
@@ -39,7 +40,7 @@ export function registerGiveawayRoutes(app: Express) {
       const response = await axios.post(uploadUrl, formData, {
         headers: {
           ...formData.getHeaders(),
-          'Authorization': `Bearer ${req.session.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
@@ -84,9 +85,9 @@ export function registerGiveawayRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/giveaways?${queryParams.toString()}`;
@@ -118,9 +119,9 @@ export function registerGiveawayRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // First try direct fetch
@@ -170,7 +171,8 @@ export function registerGiveawayRoutes(app: Express) {
     try {
       console.log('Creating giveaway with data:', req.body);
       
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: 'Unauthorized - no access token' });
       }
 
@@ -194,7 +196,7 @@ export function registerGiveawayRoutes(app: Express) {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.session.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       };
 
       const url = `${BASE_URL}/giveaways`;
@@ -235,7 +237,8 @@ export function registerGiveawayRoutes(app: Express) {
       const { id } = req.params;
       console.log('Updating giveaway:', id, 'with data:', req.body);
       
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: 'Unauthorized - no access token' });
       }
 
@@ -254,7 +257,7 @@ export function registerGiveawayRoutes(app: Express) {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.session.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       };
 
       const url = `${BASE_URL}/giveaways/${id}`;
@@ -296,7 +299,8 @@ export function registerGiveawayRoutes(app: Express) {
       const userId = req.session?.user?._id || req.session?.user?.id;
       console.log('Entering giveaway:', id, 'for user:', userId);
       
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: 'Please sign in to enter giveaways' });
       }
 
@@ -306,7 +310,7 @@ export function registerGiveawayRoutes(app: Express) {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.session.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       };
 
       const url = `${BASE_URL}/giveaways/${id}/join`;
@@ -343,7 +347,8 @@ export function registerGiveawayRoutes(app: Express) {
       const userId = req.session?.user?._id || req.session?.user?.id;
       console.log('Bookmarking giveaway:', id, 'for user:', userId);
       
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: 'Please sign in to bookmark giveaways' });
       }
 
@@ -353,7 +358,7 @@ export function registerGiveawayRoutes(app: Express) {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.session.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       };
 
       const url = `${BASE_URL}/giveaways/${id}/bookmark`;
@@ -389,13 +394,14 @@ export function registerGiveawayRoutes(app: Express) {
       const { id } = req.params;
       console.log('Deleting giveaway:', id);
       
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: 'Unauthorized - no access token' });
       }
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.session.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       };
 
       const url = `${BASE_URL}/giveaways/${id}`;

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 
 export function registerOfferRoutes(app: Express) {
   // Create offer (POST /api/offers)
@@ -13,8 +13,9 @@ export function registerOfferRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/offers`, {
@@ -77,8 +78,9 @@ export function registerOfferRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -115,8 +117,9 @@ export function registerOfferRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/offers/counter`, {
@@ -154,8 +157,9 @@ export function registerOfferRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/offers/accept`, {
@@ -193,8 +197,9 @@ export function registerOfferRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/offers/reject`, {
@@ -232,8 +237,9 @@ export function registerOfferRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/offers/cancel`, {

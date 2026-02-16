@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import { z } from "zod";
 
 export function registerOrderRoutes(app: Express) {
@@ -42,8 +42,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -89,8 +90,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -208,8 +210,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
         console.log('[Orders] Adding Authorization header to external API request');
       } else {
         console.warn('[Orders] No session accessToken found - request will fail!');
@@ -281,8 +284,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/orders/${req.params.id}`, {
@@ -337,8 +341,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/orders/${orderId}`, {
@@ -378,8 +383,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/orders/${orderId}`, {
@@ -417,8 +423,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Fetch all orders for this user
@@ -513,8 +520,9 @@ export function registerOrderRoutes(app: Express) {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
       
       const response = await fetch(`${BASE_URL}/orders/bundle/orders`, {
@@ -572,8 +580,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Call external API unbundling endpoint
@@ -632,8 +641,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/orders/cancel/order`, {
@@ -693,8 +703,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const payload: any = {
@@ -756,8 +767,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const payload: any = {

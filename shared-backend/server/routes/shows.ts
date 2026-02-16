@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import { deleteImagesFromStorage } from "../firebase-admin";
 
 export function registerShowRoutes(app: Express) {
@@ -27,8 +27,9 @@ export function registerShowRoutes(app: Express) {
     try {
       const { userId } = req.params;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/users/referalstats/${userId}`, {
@@ -55,8 +56,9 @@ export function registerShowRoutes(app: Express) {
       const page = req.query.page as string || '1';
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       let url = `${BASE_URL}/users/referal/stats/logs?page=${encodeURIComponent(page)}`;
@@ -90,8 +92,9 @@ export function registerShowRoutes(app: Express) {
       }
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/users/referal/stats/logs?referrerId=${encodeURIComponent(userId)}`, {
@@ -123,8 +126,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/users/${id}`, {
@@ -156,8 +160,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/rooms/features/${roomId}`;
@@ -201,8 +206,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/rooms/${id}?${queryParams.toString()}`;
@@ -244,8 +250,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Note: External API uses /rooms without /api prefix
@@ -285,8 +292,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Step 1: Fetch the room to get its thumbnail and preview_videos
@@ -369,8 +377,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/rooms`;
@@ -425,8 +434,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -462,7 +472,8 @@ export function registerShowRoutes(app: Express) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         console.error('❌ No access token in session');
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -472,7 +483,7 @@ export function registerShowRoutes(app: Express) {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.session.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       };
 
       // Fetch room details to determine if user is owner

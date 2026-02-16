@@ -2,7 +2,7 @@ import type { Express } from "express";
 import fetch from "node-fetch";
 import https from 'https';
 import { URL } from 'url';
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import type { 
   TokshopOrdersResponse, 
   ShippingEstimateRequest, 
@@ -84,8 +84,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/shipping/general/profiles`;
@@ -119,8 +120,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/shipping/general/profiles`, {
@@ -156,8 +158,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -194,8 +197,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -233,8 +237,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/shipping/profiles/${userId}`, {
@@ -269,8 +274,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/shipping/profiles/${id}`, {
@@ -305,8 +311,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/shipping/profiles/${id}`, {
@@ -342,8 +349,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Build query string with filters
@@ -395,7 +403,7 @@ export function registerShippingRoutes(app: Express) {
         buying_label: req.body.buying_label ?? true,
       };
 
-      const accessToken = req.session?.accessToken || req.headers['x-access-token'] as string || (req.headers['authorization'] as string)?.replace('Bearer ', '');
+      const accessToken = getAccessToken(req);
       const headers: Record<string, string> = {};
       if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
@@ -486,8 +494,9 @@ export function registerShippingRoutes(app: Express) {
 
       // Build auth headers
       const headers: Record<string, string> = {};
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const rawEstimate = await makeGetWithBody(`${BASE_URL}/shipping/profiles/estimate/rates`, requestBody, headers);
@@ -570,8 +579,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        fetchHeaders['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        fetchHeaders['Authorization'] = `Bearer ${accessToken}`;
       }
 
       let orderIdToSend = validatedData.order;
@@ -614,8 +624,8 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/shipping/profiles/buy/label`, {
@@ -725,8 +735,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/shipping/refund/label/shippo`, {
@@ -789,8 +800,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        fetchHeaders['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        fetchHeaders['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const orderFetchPromises = orderIds.map(async (orderId: string) => {
@@ -944,8 +956,8 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        labelHeaders['Authorization'] = `Bearer ${req.session.accessToken}`;
+      if (accessToken) {
+        labelHeaders['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Purchase label from external API
@@ -988,8 +1000,8 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        updateHeaders['Authorization'] = `Bearer ${req.session.accessToken}`;
+      if (accessToken) {
+        updateHeaders['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const updatePromises = orderIds.map(async (orderId: string) => {
@@ -1103,8 +1115,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Send directly to external API - same as single label purchase
@@ -1160,8 +1173,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Build request body - for giveaway type, pass type instead of tokshow
@@ -1210,8 +1224,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Build query parameters for external API
@@ -1280,8 +1295,9 @@ export function registerShippingRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Build query params - for giveaway type, pass type instead of tokshow
