@@ -54,6 +54,8 @@ export default function AdminSettings() {
     commission: '',
     stripe_fee: '',
     extra_charges: '',
+    referral_credit: '',
+    referral_credit_limit: '',
     currency: '$',
     support_email: '',
     forceUpdate: false,
@@ -73,7 +75,9 @@ export default function AdminSettings() {
     stripeSecretKey: '',
     stripepublickey: '',
     stripe_webhook_key: '',
+    stripe_platform_webhook_key: '',
     stripe_connect_account: '',
+    stripe_service_fee_account: '',
     livekit_url: '',
     livekit_api_key: '',
     livekit_api_secret: '',
@@ -109,6 +113,8 @@ export default function AdminSettings() {
       commission: settings?.commission || '',
       stripe_fee: settings?.stripe_fee || '',
       extra_charges: settings?.extra_charges || '',
+      referral_credit: settings?.referral_credit || '',
+      referral_credit_limit: settings?.referral_credit_limit || '',
       currency: settings?.currency || '$',
       support_email: settings?.support_email || '',
       forceUpdate: settings?.forceUpdate || false,
@@ -128,7 +134,9 @@ export default function AdminSettings() {
       stripeSecretKey: settings?.stripeSecretKey || '',
       stripepublickey: settings?.stripepublickey || '',
       stripe_webhook_key: settings?.stripe_webhook_key || '',
+      stripe_platform_webhook_key: settings?.stripe_platform_webhook_key || '',
       stripe_connect_account: settings?.stripe_connect_account || '',
+      stripe_service_fee_account: settings?.stripe_service_fee_account || '',
       livekit_url: settings?.livekit_url || '',
       livekit_api_key: settings?.livekit_api_key || '',
       livekit_api_secret: settings?.livekit_api_secret || '',
@@ -156,19 +164,7 @@ export default function AdminSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Settings update failed:', errorData);
-        throw new Error(errorData?.error || 'Failed to update settings');
-      }
+      const response = await apiRequest('POST', '/api/settings', data);
       return response.json();
     },
     onSuccess: () => {
@@ -192,19 +188,7 @@ export default function AdminSettings() {
   // Mutation for updating themes via POST /themes
   const updateThemeMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/themes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Theme update failed:', errorData);
-        throw new Error(errorData?.error || 'Failed to update theme');
-      }
+      const response = await apiRequest('POST', '/api/themes', data);
       return response.json();
     },
     onSuccess: () => {
@@ -511,6 +495,39 @@ export default function AdminSettings() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="referral_credit">Referral Credit ($)</Label>
+                    <Input
+                      id="referral_credit"
+                      type="number"
+                      step="0.01"
+                      value={formData.referral_credit}
+                      onChange={(e) => handleInputChange('referral_credit', e.target.value)}
+                      placeholder="15"
+                      data-testid="input-referral-credit"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Credit amount given to referred users
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="referral_credit_limit">Referral Credit Limit ($)</Label>
+                    <Input
+                      id="referral_credit_limit"
+                      type="number"
+                      step="0.01"
+                      value={formData.referral_credit_limit}
+                      onChange={(e) => handleInputChange('referral_credit_limit', e.target.value)}
+                      placeholder="25"
+                      data-testid="input-referral-credit-limit"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Minimum order amount to apply the referral credit
+                    </p>
+                  </div>
+                </div>
+
               </CardContent>
             </Card>
 
@@ -613,7 +630,27 @@ export default function AdminSettings() {
                     className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Used for verifying webhook events from Stripe
+                    Used for verifying webhook events from Stripe Connected Account
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripe_platform_webhook_key">Stripe Platform Webhook Key</Label>
+                  <Input
+                    id="stripe_platform_webhook_key"
+                    type={themeFormData.demoMode ? 'text' : 'password'}
+                    value={themeFormData.demoMode ? maskKey(formData.stripe_platform_webhook_key) : formData.stripe_platform_webhook_key}
+                    onChange={(e) => handleInputChange('stripe_platform_webhook_key', e.target.value)}
+                    placeholder="whsec_..."
+                    data-testid="input-stripe-platform-webhook-key"
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
+                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
+                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for verifying webhook events from Stripe Platform
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -629,6 +666,21 @@ export default function AdminSettings() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Stripe Connect account ID to receive shipping fees
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripe_service_fee_account">Stripe Connect Account (Service Fees)</Label>
+                  <Input
+                    id="stripe_service_fee_account"
+                    value={formData.stripe_service_fee_account}
+                    onChange={(e) => handleInputChange('stripe_service_fee_account', e.target.value)}
+                    placeholder="acct_..."
+                    data-testid="input-stripe-service-fee-account"
+                    readOnly={themeFormData.demoMode}
+                    disabled={themeFormData.demoMode}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Stripe Connect account ID to receive service fees
                   </p>
                 </div>
               </CardContent>

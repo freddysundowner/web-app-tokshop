@@ -222,8 +222,23 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const token = localStorage.getItem('accessToken');
       const response = await fetch('/api/settings', { 
         credentials: 'include',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: token ? { 
+          'Authorization': `Bearer ${token}`,
+          'x-access-token': token
+        } : {}
       });
+      if (response.status === 401 || response.status === 404) {
+        if (token) {
+          console.log('[Settings] Token expired or user not found, logging out');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userId');
+          if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
+            window.location.href = '/login';
+          }
+          return;
+        }
+      }
       if (response.ok) {
         const data = await response.json();
         console.log('⚙️ Settings fetched:', data);

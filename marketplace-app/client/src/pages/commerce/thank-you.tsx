@@ -80,7 +80,8 @@ export default function ThankYou() {
                       }, 0) || 0;
                       const shipping = order.shipping_fee || 0;
                       const tax = order.tax || 0;
-                      return (itemsTotal + shipping + tax).toFixed(2);
+                      const discount = order.discount || 0;
+                      return (itemsTotal + shipping + tax - discount).toFixed(2);
                     })()}
                   </span>
                 </div>

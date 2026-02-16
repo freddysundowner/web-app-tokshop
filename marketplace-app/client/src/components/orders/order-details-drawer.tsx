@@ -579,9 +579,10 @@ export function OrderDetailsDrawer({
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
             {onCancelOrder && 
-             order.status !== "cancelled" && 
-             order.status !== "delivered" && 
-             order.status !== "shipped" &&
+             order.status?.toLowerCase() !== "cancelled" && 
+             order.status?.toLowerCase() !== "delivered" && 
+             order.status?.toLowerCase() !== "shipped" &&
+             order.status?.toLowerCase() !== "refunded" &&
              !order.tracking_number && 
              !(order as any).tracking_url && (
               <Button

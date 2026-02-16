@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import { z } from "zod";
 import { deleteImagesFromStorage } from "../firebase-admin";
 
@@ -74,8 +74,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -125,8 +126,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -218,8 +220,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -350,8 +353,9 @@ export function registerProductRoutes(app: Express) {
           : "NO TOKEN",
       });
 
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
         console.log("Authorization header added");
       } else {
         console.log("WARNING: No access token found in session");
@@ -454,8 +458,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
         console.log("Authorization header added for bulk upload");
       } else {
         console.log(
@@ -518,8 +523,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(
@@ -676,8 +682,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(
@@ -720,8 +727,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
       }
 
       // Step 1: Fetch the product to get its images
@@ -832,8 +840,9 @@ export function registerProductRoutes(app: Express) {
         "Content-Type": "application/json",
       };
 
-      if (req.session?.accessToken) {
-        headers["Authorization"] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
         console.log("Authorization header added for bulk edit");
       } else {
         console.log("WARNING: No access token found in session for bulk edit");
@@ -874,7 +883,8 @@ export function registerProductRoutes(app: Express) {
       const { ids } = req.body;
       console.log("Bulk deleting products:", ids);
 
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: "Unauthorized - no access token" });
       }
 
@@ -884,7 +894,7 @@ export function registerProductRoutes(app: Express) {
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${req.session.accessToken}`,
+        "Authorization": `Bearer ${accessToken}`,
       };
 
       const url = `${BASE_URL}/products/deletemany`;
@@ -928,13 +938,14 @@ export function registerProductRoutes(app: Express) {
       const { id } = req.params;
       console.log("Deleting product:", id);
 
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         return res.status(401).json({ error: "Unauthorized - no access token" });
       }
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${req.session.accessToken}`,
+        "Authorization": `Bearer ${accessToken}`,
       };
 
       const url = `${BASE_URL}/products/products/${id}`;

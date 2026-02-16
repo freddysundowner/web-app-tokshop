@@ -203,6 +203,7 @@ export default function MarketplaceHome() {
   }, []); // Run on mount only
 
   const rooms = data?.pages?.flatMap(page => page.rooms || []) || [];
+  const firstPageRoomCount = data?.pages?.[0]?.rooms?.length || 0;
 
   // Infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -310,56 +311,66 @@ export default function MarketplaceHome() {
                     </div>
                   )}
 
-                  {/* Live Shows Section */}
-                  {rooms.length > 0 && (
-                    <div>
-                      <h2 className="text-lg font-bold mb-3">Live Shows</h2>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4" data-testid="grid-giveaways">
-                        {/* Show first 12 shows, or all shows if no trending products */}
-                        {(trendingProducts.length > 0 ? rooms.slice(0, 12) : rooms.slice(0, 24)).map((room) => (
-                          <ShowCard
-                            key={room._id || room.id}
-                            show={room as any}
-                            currentUserId={currentUserId || ''}
-                            variant="grid"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* Live Shows & Trending Products with smart splitting */}
+                  {(() => {
+                    const splitAt = 12;
+                    const minSecondBatch = 8;
+                    const shouldSplit = trendingProducts.length > 0 && firstPageRoomCount >= splitAt + minSecondBatch;
+                    const firstBatchEnd = shouldSplit ? splitAt : firstPageRoomCount;
+                    const firstBatch = rooms.slice(0, firstBatchEnd);
+                    const secondBatch = shouldSplit ? rooms.slice(splitAt, 24) : [];
 
-                  {/* Trending Products Section */}
-                  {trendingProducts.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-bold">Trending Products</h2>
-                        <Link href="/trending/products">
-                          <Button variant="ghost" size="sm" className="text-primary">
-                            See all <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </Link>
-                      </div>
-                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-                        {trendingProducts.map((product: any) => (
-                          <ProductCard key={product._id || product.id} product={product} layout="carousel" />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    return (
+                      <>
+                        {firstBatch.length > 0 && (
+                          <div>
+                            <h2 className="text-lg font-bold mb-3">Live Shows</h2>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4" data-testid="grid-giveaways">
+                              {firstBatch.map((room) => (
+                                <ShowCard
+                                  key={room._id || room.id}
+                                  show={room as any}
+                                  currentUserId={currentUserId || ''}
+                                  variant="grid"
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                  {/* Second Section: More Live Shows - Only shown when trending products exist */}
-                  {trendingProducts.length > 0 && rooms.slice(12, 24).length > 0 && (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4">
-                      {rooms.slice(12, 24).map((room) => (
-                        <ShowCard
-                          key={room._id || room.id}
-                          show={room as any}
-                          currentUserId={currentUserId || ''}
-                          variant="grid"
-                        />
-                      ))}
-                    </div>
-                  )}
+                        {trendingProducts.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <h2 className="text-lg font-bold">Trending Products</h2>
+                              <Link href="/trending/products">
+                                <Button variant="ghost" size="sm" className="text-primary">
+                                  See all <ChevronRight className="h-4 w-4 ml-1" />
+                                </Button>
+                              </Link>
+                            </div>
+                            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                              {trendingProducts.map((product: any) => (
+                                <ProductCard key={product._id || product.id} product={product} layout="carousel" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {secondBatch.length > 0 && (
+                          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4">
+                            {secondBatch.map((room) => (
+                              <ShowCard
+                                key={room._id || room.id}
+                                show={room as any}
+                                currentUserId={currentUserId || ''}
+                                variant="grid"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Trending Auctions Section */}
                   {trendingAuctions.length > 0 && (
@@ -409,19 +420,27 @@ export default function MarketplaceHome() {
                     </div>
                   )}
 
-                  {/* Remaining Live Shows */}
-                  {rooms.slice(24).length > 0 && (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4">
-                      {rooms.slice(24).map((room) => (
-                        <ShowCard
-                          key={room._id || room.id}
-                          show={room as any}
-                          currentUserId={currentUserId || ''}
-                          variant="grid"
-                        />
-                      ))}
-                    </div>
-                  )}
+                  {/* Remaining Live Shows - shows loaded via infinite scroll */}
+                  {(() => {
+                    const splitAt = 12;
+                    const minSecondBatch = 8;
+                    const shouldSplit = trendingProducts.length > 0 && firstPageRoomCount >= splitAt + minSecondBatch;
+                    const remainStart = shouldSplit ? 24 : firstPageRoomCount;
+                    const remaining = rooms.slice(remainStart);
+                    if (remaining.length === 0) return null;
+                    return (
+                      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-4">
+                        {remaining.map((room) => (
+                          <ShowCard
+                            key={room._id || room.id}
+                            show={room as any}
+                            currentUserId={currentUserId || ''}
+                            variant="grid"
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
                   
                   {/* Infinite scroll trigger */}
                   <div ref={observerTarget} className="h-20 flex items-center justify-center">

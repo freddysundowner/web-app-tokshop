@@ -1,8 +1,120 @@
 import type { Express } from "express";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import { deleteImagesFromStorage } from "../firebase-admin";
 
 export function registerShowRoutes(app: Express) {
+  app.get("/api/users/public/profile/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const response = await fetch(`${BASE_URL}/users/public/profile/${id}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: 'User not found' });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching public user profile:", error);
+      res.status(500).json({ error: "Failed to fetch user profile" });
+    }
+  });
+
+  app.get("/api/referral/stats/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/users/referalstats/${userId}`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch referral stats' }));
+        return res.status(response.status).json(errorData);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching referral stats:", error);
+      res.status(500).json({ error: "Failed to fetch referral stats" });
+    }
+  });
+
+  app.get("/api/admin/referral-logs", async (req, res) => {
+    try {
+      const username = req.query.username as string;
+      const page = req.query.page as string || '1';
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      let url = `${BASE_URL}/users/referal/stats/logs?page=${encodeURIComponent(page)}`;
+      if (username) {
+        url += `&username=${encodeURIComponent(username)}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch referral logs' }));
+        return res.status(response.status).json(errorData);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching admin referral logs:", error);
+      res.status(500).json({ error: "Failed to fetch referral logs" });
+    }
+  });
+
+  app.get("/api/referral/logs", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: 'userId query parameter is required' });
+      }
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/users/referal/stats/logs?referrerId=${encodeURIComponent(userId)}`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch referral logs' }));
+        return res.status(response.status).json(errorData);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching referral logs:", error);
+      res.status(500).json({ error: "Failed to fetch referral logs" });
+    }
+  });
+
   // Get public user profile by ID - proxy to external API
   app.get("/api/profile/:id", async (req, res) => {
     try {
@@ -14,8 +126,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/users/${id}`, {
@@ -47,8 +160,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/rooms/features/${roomId}`;
@@ -92,8 +206,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/rooms/${id}?${queryParams.toString()}`;
@@ -135,8 +250,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Note: External API uses /rooms without /api prefix
@@ -176,8 +292,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Step 1: Fetch the room to get its thumbnail and preview_videos
@@ -260,8 +377,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const url = `${BASE_URL}/rooms`;
@@ -316,8 +434,9 @@ export function registerShowRoutes(app: Express) {
       };
 
       // Include auth token if available
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -326,8 +445,10 @@ export function registerShowRoutes(app: Express) {
       });
 
       if (!response.ok) {
-        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
-        throw new Error(`Tokshop API returned ${response.status}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
 
       const data = await response.json();
@@ -351,7 +472,8 @@ export function registerShowRoutes(app: Express) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      if (!req.session?.accessToken) {
+      const accessToken = getAccessToken(req);
+      if (!accessToken) {
         console.error('❌ No access token in session');
         return res.status(401).json({ error: 'Authentication required' });
       }
@@ -361,7 +483,7 @@ export function registerShowRoutes(app: Express) {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.session.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       };
 
       // Fetch room details to determine if user is owner

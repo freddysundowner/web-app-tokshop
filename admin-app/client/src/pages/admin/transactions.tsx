@@ -28,6 +28,7 @@ export default function AdminTransactions() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [transactionsPage, setTransactionsPage] = useState(1);
   const [refundsPage, setRefundsPage] = useState(1);
+  const [initiatePage, setInitiatePage] = useState(1);
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {
@@ -92,6 +93,21 @@ export default function AdminTransactions() {
       });
       if (!response.ok) {
         throw new Error('Failed to fetch refunds');
+      }
+      const result = await response.json();
+      return result.success ? result.data : result;
+    },
+  });
+
+  const { data: initiateData, isLoading: initiateLoading } = useQuery<any>({
+    queryKey: ['admin-initiate-transactions', initiatePage],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/transactions?limit=10&page=${initiatePage}&type=initiate`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch initiate transactions');
       }
       const result = await response.json();
       return result.success ? result.data : result;
@@ -213,6 +229,9 @@ export default function AdminTransactions() {
             </TabsTrigger>
             <TabsTrigger value="refunds" data-testid="tab-refunds">
               Refunds
+            </TabsTrigger>
+            <TabsTrigger value="initiate" data-testid="tab-initiate">
+              Initiate
             </TabsTrigger>
           </TabsList>
 
@@ -583,6 +602,131 @@ export default function AdminTransactions() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="initiate">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <CreditCard className="h-5 w-5 text-primary" />
+                <div>
+                  <CardTitle>Initiate Transactions</CardTitle>
+                  <CardDescription>
+                    View all transactions with type initiate
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {initiateLoading ? (
+                <div className="text-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading initiate transactions...</p>
+                </div>
+              ) : !(initiateData?.transactions || initiateData?.data) || (initiateData?.transactions || initiateData?.data || []).length === 0 ? (
+                <div className="text-center py-12">
+                  <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No initiate transactions found</p>
+                </div>
+              ) : (
+                <>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Transaction ID</TableHead>
+                        <TableHead>From</TableHead>
+                        <TableHead>To</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(initiateData?.transactions || initiateData?.data || []).map((txn: any) => {
+                        const txnId = txn._id || txn.id;
+                        const amount = Math.round((Number(txn.amount) || 0) * 100) / 100;
+                        const fromName = typeof txn.from === 'object'
+                          ? `${txn.from.firstName || ''} ${txn.from.lastName || ''}`.trim() || txn.from.email || 'Unknown'
+                          : 'Unknown';
+                        const fromUsername = typeof txn.from === 'object'
+                          ? txn.from.userName || ''
+                          : '';
+                        const toName = typeof txn.to === 'object'
+                          ? `${txn.to.firstName || ''} ${txn.to.lastName || ''}`.trim() || txn.to.email || 'Unknown'
+                          : 'Unknown';
+                        const toUsername = typeof txn.to === 'object'
+                          ? txn.to.userName || ''
+                          : '';
+
+                        return (
+                          <TableRow key={txnId}>
+                            <TableCell className="font-mono text-xs" data-testid={`text-initiate-id-${txnId}`}>
+                              {String(txnId).slice(-8)}
+                            </TableCell>
+                            <TableCell data-testid={`text-initiate-from-${txnId}`}>
+                              <div>
+                                {fromName}
+                                {fromUsername && (
+                                  <div className="text-xs text-muted-foreground">@{fromUsername}</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell data-testid={`text-initiate-to-${txnId}`}>
+                              <div>
+                                {toName}
+                                {toUsername && (
+                                  <div className="text-xs text-muted-foreground">@{toUsername}</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell data-testid={`text-initiate-amount-${txnId}`}>
+                              ${amount.toFixed(2)}
+                            </TableCell>
+                            <TableCell data-testid={`text-initiate-date-${txnId}`}>
+                              {formatDate(txn.createdAt || txn.date)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusColor(txn.status)} data-testid={`badge-initiate-status-${txnId}`}>
+                                {txn.status?.replace(/_/g, ' ')}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {initiateData?.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Page {initiateData.currentPage || initiatePage} of {initiateData.totalPages} ({initiateData.totalDocuments} total)
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setInitiatePage(p => Math.max(1, p - 1))}
+                        disabled={initiatePage <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setInitiatePage(p => Math.min(initiateData.totalPages, p + 1))}
+                        disabled={initiatePage >= initiateData.totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
         </Tabs>
       </div>
 
@@ -644,33 +788,47 @@ export default function AdminTransactions() {
               </div>
 
               <div className="border-t pt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total:</span>
-                  <span>${(parseFloat(selectedTransaction.total) || 0).toFixed(2)}</span>
-                </div>
                 {(() => {
+                  const total = parseFloat(selectedTransaction.total) || 0;
+                  const shippingFee = parseFloat(selectedTransaction.shippingFee) || 0;
+                  const discount = parseFloat(selectedTransaction.discount) || 0;
+                  const totalWithShipping = total + shippingFee;
                   const stripeFee = parseFloat(selectedTransaction.stripe_fee) || 0;
                   const extraCharges = parseFloat(selectedTransaction.extra_charges) || 0;
                   const combined = stripeFee + extraCharges;
-                  return combined > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Service Charge ({settingsStripeFee}% + {settingsExtraCharges}%):</span>
-                      <span className="text-destructive">-${combined.toFixed(2)}</span>
-                    </div>
+                  return (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total:</span>
+                        <span>${totalWithShipping.toFixed(2)}</span>
+                      </div>
+                      {combined > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Service Charge{parseFloat(settingsStripeFee) > 0 || parseFloat(settingsExtraCharges) > 0 ? ` (${settingsStripeFee}% + ${settingsExtraCharges}%)` : ''}:</span>
+                          <span className="text-destructive">-${combined.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {selectedTransaction.serviceFee && parseFloat(selectedTransaction.serviceFee) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Service Fee:</span>
+                          <span className="text-destructive">-${parseFloat(selectedTransaction.serviceFee).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {shippingFee > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Shipping Fee:</span>
+                          <span className="text-destructive">-${shippingFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {discount > 0 && (
+                        <div className="flex justify-between">
+                          <span style={{ color: 'hsl(var(--primary))' }}>Discount:</span>
+                          <span style={{ color: 'hsl(var(--primary))' }}>-${discount.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </>
                   );
                 })()}
-                {selectedTransaction.serviceFee && parseFloat(selectedTransaction.serviceFee) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Service Fee:</span>
-                    <span className="text-destructive">-${parseFloat(selectedTransaction.serviceFee).toFixed(2)}</span>
-                  </div>
-                )}
-                {selectedTransaction.shippingFee && parseFloat(selectedTransaction.shippingFee) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Shipping Fee:</span>
-                    <span className="text-destructive">-${parseFloat(selectedTransaction.shippingFee).toFixed(2)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
                   <span>Amount:</span>
                   <span>${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>

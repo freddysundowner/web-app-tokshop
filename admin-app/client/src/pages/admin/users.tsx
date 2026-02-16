@@ -31,6 +31,7 @@ export default function AdminUsers() {
   const [selectedUserForSuspend, setSelectedUserForSuspend] = useState<any>(null);
   const [suspendEndDate, setSuspendEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<any>(null);
 
@@ -50,13 +51,14 @@ export default function AdminUsers() {
       pages: number;
     };
   }>({
-    queryKey: ['/api/admin/users', page, limit, searchQuery],
+    queryKey: ['/api/admin/users', page, limit, searchQuery, typeFilter],
     queryFn: async () => {
       // Build query string
       const queryParams = new URLSearchParams();
       queryParams.set('page', String(page));
       queryParams.set('limit', String(limit));
       if (searchQuery) queryParams.set('title', searchQuery);
+      if (typeFilter !== 'all') queryParams.set('type', typeFilter);
       
       const url = `/api/admin/users?${queryParams.toString()}`;
       const response = await apiRequest('GET', url);
@@ -281,6 +283,17 @@ export default function AdminUsers() {
                 <CardDescription>View and manage all registered users</CardDescription>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <Users className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="seller">Sellers</SelectItem>
+                    <SelectItem value="customer">Customers</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-full sm:w-[140px]">
                     <Filter className="h-4 w-4 mr-2" />

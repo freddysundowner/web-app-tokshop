@@ -9,6 +9,7 @@ import { SettingsProvider } from "@/lib/settings-context";
 import { SocketProvider } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { ReferralBanner } from "@/components/referral-banner";
 
 // Import age verification (not lazy loaded since it needs to run immediately)
 import { AgeVerificationDialog } from "@/components/age-verification-dialog";
@@ -76,6 +77,8 @@ const ScheduleShow = lazy(() => import("@/pages/seller/schedule-show"));
 const Payouts = lazy(() => import("@/pages/seller/payouts"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const DeepLink = lazy(() => import("@/pages/deep-link"));
+const InvitePage = lazy(() => import("@/pages/invite"));
+const ReferralPage = lazy(() => import("@/pages/referral"));
 
 // Loading component
 function LoadingSpinner() {
@@ -188,7 +191,7 @@ function Router() {
   // Use window.location.pathname and decode it (handles URL-encoded characters)
   const rawPathname = typeof window !== 'undefined' ? window.location.pathname : location;
   const currentPathname = decodeURIComponent(rawPathname).split('?')[0];
-  const isPublicPage = publicPages.includes(currentPathname) || currentPathname.startsWith('/help-center/') || currentPathname.startsWith('/link/') || currentPathname.startsWith('/show') || currentPathname.startsWith('/user') || currentPathname.startsWith('/profile/');
+  const isPublicPage = publicPages.includes(currentPathname) || currentPathname.startsWith('/help-center/') || currentPathname.startsWith('/link/') || currentPathname.startsWith('/show') || currentPathname.startsWith('/user') || currentPathname.startsWith('/profile/') || currentPathname.startsWith('/invite/');
 
   // Redirect to login if trying to access protected pages without authentication
   if (!isAuthenticated && !isPublicPage) {
@@ -224,7 +227,7 @@ function Router() {
   }
 
   // Check if we're on a landing page that has its own header
-  const isLandingPageWithCustomHeader = currentPathname === '/' || currentPathname === '/landing-8' || currentPathname === '/seller/login';
+  const isLandingPageWithCustomHeader = currentPathname === '/' || currentPathname === '/landing-8' || currentPathname === '/seller/login' || currentPathname.startsWith('/invite/');
 
   // Show public pages for unauthenticated users
   if (!isAuthenticated) {
@@ -260,6 +263,7 @@ function Router() {
               <Route path="/seller/login" component={SellerLogin} />
               <Route path="/login" component={Login} />
               <Route path="/signup" component={Signup} />
+              <Route path="/invite/:userId" component={InvitePage} />
               <Route path="/forgot-password" component={ForgotPassword} />
               <Route path="/reset-password" component={ResetPassword} />
               <Route path="/link/:type/:id" component={DeepLink} />
@@ -342,6 +346,7 @@ function Router() {
             hideSearch={true}
             isDashboard={true}
           />
+          <ReferralBanner settings={null} />
           <div className="flex flex-1 min-h-0">
             <div className="hidden lg:block">
               <Sidebar 
@@ -422,6 +427,8 @@ function Router() {
           />
         </div>
         
+        <ReferralBanner settings={null} />
+        
         {/* Mobile Sidebar Sheet for non-dashboard pages - hide desktop version */}
         <div className="lg:hidden">
           <Sidebar 
@@ -453,10 +460,12 @@ function Router() {
             <Route path="/auction/:auctionId" component={AuctionDetail} />
             <Route path="/user" component={ProfileViewWrapper} />
             <Route path="/profile/:userId" component={ProfileViewWrapper} />
+            <Route path="/referral" component={ReferralPage} />
             <Route path="/inbox/:userId?" component={Inbox} />
             <Route path="/seller/setup" component={SellerSetup} />
             <Route path="/login" component={MarketplaceHome} />
             <Route path="/signup" component={MarketplaceHome} />
+            <Route path="/invite/:userId" component={MarketplaceHome} />
             <Route path="/forgot-password" component={ForgotPassword} />
             <Route path="/reset-password" component={ResetPassword} />
             <Route path="/seller/login" component={MarketplaceHome} />

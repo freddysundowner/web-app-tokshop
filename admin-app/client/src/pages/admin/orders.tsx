@@ -478,8 +478,8 @@ export default function AdminOrders() {
                         }, 0);
                         const shippingFee = order.shipping_fee || order.shippingFee || order.shipping || 0;
                         const tax = order.tax || 0;
-                        console.log(`[Order ${order._id}] subtotal: ${subtotal}, shipping: ${shippingFee}, tax: ${tax}, total: ${subtotal + shippingFee + tax}`);
-                        return subtotal + shippingFee + tax;
+                        const discount = order.discount || 0;
+                        return subtotal + shippingFee + tax - discount;
                       };
                       
                       const total = calculateTotal();
@@ -542,7 +542,7 @@ export default function AdminOrders() {
                                     </DropdownMenuItem>
                                   </>
                                 )}
-                                {activeTab !== "giveaways" && (
+                                {activeTab !== "giveaways" && order.status?.toLowerCase() !== 'refunded' && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem

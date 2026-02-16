@@ -1,10 +1,20 @@
 import crypto from "crypto";
+import type { Request } from "express";
 import type { TokshopOrder, Bundle } from "../shared/schema";
 
 // API Configuration - Load from environment variable
 // Remove trailing slash to prevent double slashes in URLs
 // Note: The BASE_URL validation happens in index.ts before routes are registered
 export const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/, "");
+
+export function getAccessToken(req: Request): string | null {
+  return (req.headers['x-admin-token'] as string) ||
+         (req.headers['x-access-token'] as string) ||
+         (req as any).session?.accessToken ||
+         (req.headers['authorization']?.startsWith('Bearer ') ? 
+          req.headers['authorization'].substring(7) : null) ||
+         null;
+}
 
 // Bundle utility functions
 export function generateBundleId(orderIds: string[]): string {

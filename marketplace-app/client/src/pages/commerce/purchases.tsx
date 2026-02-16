@@ -219,7 +219,7 @@ export default function Purchases() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          order: itemId,  // Send item ID in the order field for item-level cancellation
+          order: orderId,
           relist: false,
           initiator: "buyer",
           type: "item",
@@ -418,6 +418,12 @@ export default function Purchases() {
               <div class="total-line">
                 <span>Shipping:</span>
                 <span>${formatCurrency(orderBreakdown.shippingFee)}</span>
+              </div>
+            ` : ''}
+            ${orderBreakdown.discount > 0 ? `
+              <div class="total-line" style="color: hsl(var(--primary))">
+                <span>Discount:</span>
+                <span>-${formatCurrency(orderBreakdown.discount)}</span>
               </div>
             ` : ''}
             <div class="total-line final-total">
@@ -900,6 +906,12 @@ export default function Purchases() {
                         <div className="flex justify-between">
                           <span>Shipping:</span>
                           <span>{formatCurrency(breakdown.shippingFee)}</span>
+                        </div>
+                      )}
+                      {breakdown.discount > 0 && (
+                        <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
+                          <span>Discount:</span>
+                          <span>-{formatCurrency(breakdown.discount)}</span>
                         </div>
                       )}
                       <div className="border-t pt-2 flex justify-between font-semibold text-lg">

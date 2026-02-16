@@ -162,6 +162,12 @@ const navigationItems: NavSection[] = [
         icon: Package,
       },
       {
+        id: "referral-logs",
+        name: "Referral Logs",
+        href: "/admin/referral-logs",
+        icon: Users,
+      },
+      {
         id: "address",
         name: "Business Address",
         href: "/admin/address",

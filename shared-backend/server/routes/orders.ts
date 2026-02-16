@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import { z } from "zod";
 
 export function registerOrderRoutes(app: Express) {
@@ -42,8 +42,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -52,7 +53,10 @@ export function registerOrderRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;
@@ -86,8 +90,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -96,13 +101,10 @@ export function registerOrderRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        if (response.status === 404) {
-          return res.status(404).json({ 
-            success: false,
-            error: "Order not found" 
-          });
-        }
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;
@@ -208,8 +210,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
         console.log('[Orders] Adding Authorization header to external API request');
       } else {
         console.warn('[Orders] No session accessToken found - request will fail!');
@@ -221,7 +224,10 @@ export function registerOrderRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;
@@ -267,6 +273,8 @@ export function registerOrderRoutes(app: Express) {
         color: z.string().optional(),
         size: z.string().optional(),
         tokshow: z.string().optional(),
+        referralDiscount: z.union([z.string(), z.number()]).optional(),
+        referredBy: z.string().optional(),
       });
 
       const orderData = checkoutSchema.parse(req.body);
@@ -276,8 +284,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/orders/${req.params.id}`, {
@@ -332,8 +341,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/orders/${orderId}`, {
@@ -373,8 +383,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${BASE_URL}/orders/${orderId}`, {
@@ -412,8 +423,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Fetch all orders for this user
@@ -508,8 +520,9 @@ export function registerOrderRoutes(app: Express) {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
       
       const response = await fetch(`${BASE_URL}/orders/bundle/orders`, {
@@ -567,8 +580,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       // Call external API unbundling endpoint
@@ -627,26 +641,11 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
-      // First, fetch the order to get its items
-      let orderData: any = null;
-      try {
-        const orderResponse = await fetch(`${BASE_URL}/orders/${order}`, {
-          method: 'GET',
-          headers,
-        });
-        if (orderResponse.ok) {
-          orderData = await orderResponse.json();
-          console.log('Fetched order for cancellation:', { orderId: order, itemCount: orderData?.items?.length || 0 });
-        }
-      } catch (fetchError) {
-        console.log('Could not fetch order details, proceeding with order cancellation only');
-      }
-
-      // Cancel the order itself
       const response = await fetch(`${BASE_URL}/orders/cancel/order`, {
         method: 'POST',
         headers,
@@ -671,29 +670,6 @@ export function registerOrderRoutes(app: Express) {
 
       const result = await response.json();
       console.log('Order cancelled successfully:', result);
-
-      // Also cancel each item in the order
-      if (orderData?.items && orderData.items.length > 0) {
-        console.log(`Cancelling ${orderData.items.length} items in order ${order}`);
-        const itemCancelResults = await Promise.allSettled(
-          orderData.items.map((item: any) => 
-            fetch(`${BASE_URL}/orders/cancel/order`, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                order: item._id,
-                relist: relist || false,
-                initiator: initiator || 'buyer',
-                type: 'item',
-                description: description || 'Item cancelled with order'
-              })
-            })
-          )
-        );
-        
-        const successCount = itemCancelResults.filter(r => r.status === 'fulfilled').length;
-        console.log(`Cancelled ${successCount}/${orderData.items.length} items`);
-      }
 
       res.json({
         success: true,
@@ -727,8 +703,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const payload: any = {
@@ -790,8 +767,9 @@ export function registerOrderRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const payload: any = {

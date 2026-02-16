@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Loader2,
   AlertTriangle,
-  Zap
+  Zap,
+  Gift
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -173,6 +174,29 @@ export function BuyNowDialog({
     enabled: shouldFetchTax,
   });
 
+  // Read referral data from localStorage user data
+  const storedUser = (() => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+  const hasReferralCredit = storedUser?.referredBy && storedUser?.awarded_referal_credit === false;
+  const referredByUserId = storedUser?.referredBy || '';
+
+  // Fetch referral settings for credit amount and minimum
+  const { data: referralSettings } = useQuery({
+    queryKey: ['referral-settings-for-checkout'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings', { credentials: 'include' });
+      if (!res.ok) return null;
+      const result = await res.json();
+      return result.data || result;
+    },
+    enabled: Boolean(open && hasReferralCredit),
+    staleTime: 60000,
+  });
+
   useEffect(() => {
     if (open) {
       setQuantity(1);
@@ -200,7 +224,42 @@ export function BuyNowDialog({
   const shippingErrorMessage = (shippingEstimate as any)?.message || '';
   const shippingCost = hasShippingError ? 0 : parseFloat((shippingEstimate as any)?.amount || '0');
   const taxAmount = parseFloat((taxEstimate as any)?.tax || '0');
-  const total = subtotal + shippingCost + taxAmount;
+
+  // Referral credit logic
+  const referralCredit = referralSettings?.referral_credit ?? 15;
+  const referralMinimum = referralSettings?.referral_credit_limit ?? 25;
+  const sellerId = (() => {
+    if (typeof product?.owner === 'string') return product.owner;
+    if (product?.owner) return product.owner._id || product.owner.id || '';
+    if (product?.ownerId) return typeof product.ownerId === 'string' ? product.ownerId : (product.ownerId._id || product.ownerId.id || '');
+    return '';
+  })();
+  const referrerIdNorm = String(referredByUserId || '').trim();
+  const sellerIdNorm = String(sellerId || '').trim();
+  const isFromReferrer = hasReferralCredit && referrerIdNorm && sellerIdNorm && referrerIdNorm === sellerIdNorm;
+  const referralDiscountApplies = isFromReferrer && subtotal >= referralMinimum;
+
+  const referralDiscount = referralDiscountApplies ? Math.min(referralCredit, subtotal + shippingCost + taxAmount) : 0;
+
+  if (open) {
+    console.log('[BuyNow Referral Debug]', {
+      storedReferredBy: storedUser?.referredBy,
+      storedAwardedCredit: storedUser?.awarded_referal_credit,
+      hasReferralCredit,
+      referrerIdNorm,
+      sellerIdNorm,
+      sellerId,
+      productOwner: product?.owner,
+      productOwnerId: product?.ownerId,
+      isFromReferrer,
+      subtotal,
+      referralMinimum,
+      referralDiscountApplies,
+      referralDiscount
+    });
+  }
+
+  const total = Math.max(0, subtotal + shippingCost + taxAmount - referralDiscount);
 
   const buyNowMutation = useMutation({
     mutationFn: async () => {
@@ -285,6 +344,12 @@ export function BuyNowDialog({
       // Add flash_sale flag if this is a flash sale purchase
       if (isFlashSale) {
         payload.flash_sale = true;
+      }
+      
+      // Add referral discount if applicable
+      if (referralDiscountApplies) {
+        payload.referralDiscount = referralDiscount;
+        payload.referralCredit = true;
       }
       
       console.log('📦 BUY NOW DIALOG - Full payload before sending:', JSON.stringify(payload, null, 2));
@@ -394,6 +459,12 @@ export function BuyNowDialog({
             )}
             <div className="flex-1">
               <h3 className="font-bold text-base leading-tight mb-1">{product?.name}</h3>
+              {referralDiscountApplies && (
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-sm text-zinc-400 line-through">${originalPrice.toFixed(2)}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>${(originalPrice - referralDiscount).toFixed(2)}</span>
+                </div>
+              )}
               {availableStock > 0 && (
                 <p className="text-sm text-zinc-400">{availableStock} available</p>
               )}
@@ -551,6 +622,14 @@ export function BuyNowDialog({
                 ) : (
                   <span className="font-medium">${taxAmount.toFixed(2)}</span>
                 )}
+              </div>
+            )}
+            {referralDiscount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-primary flex items-center gap-1">
+                  <Gift className="h-3 w-3" /> Referral Credit
+                </span>
+                <span className="font-medium text-primary">-${referralDiscount.toFixed(2)}</span>
               </div>
             )}
             <Separator className="bg-zinc-700 my-2" />

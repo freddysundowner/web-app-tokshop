@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAccessToken } from "../utils";
 import { tokshopOrderSchema, Bundle } from "../../shared/schema";
 
 export function registerBundleRoutes(app: Express) {
@@ -31,8 +31,9 @@ export function registerBundleRoutes(app: Express) {
         'Content-Type': 'application/json',
       };
 
-      if (req.session?.accessToken) {
-        headers['Authorization'] = `Bearer ${req.session.accessToken}`;
+      const accessToken = getAccessToken(req);
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(url, {
@@ -41,7 +42,10 @@ export function registerBundleRoutes(app: Express) {
       });
       
       if (!response.ok) {
-        throw new Error(`Tokshop API returned ${response.status}: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        let errorData;
+        try { errorData = JSON.parse(errorBody); } catch { errorData = { error: errorBody || response.statusText }; }
+        return res.status(response.status).json(errorData);
       }
       
       const data = await response.json() as any;
