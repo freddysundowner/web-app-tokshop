@@ -8,6 +8,15 @@ import type { TokshopOrder, Bundle } from "../shared/schema";
 export const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/, "");
 
 export function getAccessToken(req: Request): string | null {
+  return (req.headers['x-access-token'] as string) ||
+         (req as any).session?.accessToken ||
+         (req.headers['x-admin-token'] as string) ||
+         (req.headers['authorization']?.startsWith('Bearer ') ? 
+          req.headers['authorization'].substring(7) : null) ||
+         null;
+}
+
+export function getAdminToken(req: Request): string | null {
   return (req.headers['x-admin-token'] as string) ||
          (req.headers['x-access-token'] as string) ||
          (req as any).session?.accessToken ||

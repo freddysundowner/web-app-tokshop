@@ -30,11 +30,13 @@ export default function Payouts() {
     queryKey: [`/api/profile/${userId}`],
     enabled: !!userId,
     staleTime: 0,
+    refetchOnMount: 'always',
+    gcTime: 0,
   });
 
   const currentUser = freshUserData || user;
   const walletBalance = (currentUser as any)?.wallet || 0;
-  const walletPending = (currentUser as any)?.walletPending || 0;
+  const walletPending = (currentUser as any)?.walletPending || (currentUser as any)?.wallet_pending || (currentUser as any)?.pendingBalance || (currentUser as any)?.pending_balance || 0;
 
   const { data: banksData } = useQuery<any>({
     queryKey: ['user-banks', userId],

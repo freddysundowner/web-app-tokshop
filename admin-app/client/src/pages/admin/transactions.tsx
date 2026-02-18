@@ -63,6 +63,7 @@ export default function AdminTransactions() {
       const params = new URLSearchParams();
       params.append('limit', '10');
       params.append('page', String(transactionsPage));
+      params.append('usertype', 'admin');
       if (appliedSearch.trim()) {
         params.append('username', appliedSearch.trim());
       }
@@ -87,7 +88,7 @@ export default function AdminTransactions() {
   const { data: refundsData, isLoading: refundsLoading } = useQuery<any>({
     queryKey: ['admin-refunds', refundsPage],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/transactions?limit=10&page=${refundsPage}&status=Refunded`, {
+      const response = await fetch(`/api/admin/transactions?limit=10&page=${refundsPage}&status=Refunded&usertype=admin`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -102,7 +103,7 @@ export default function AdminTransactions() {
   const { data: initiateData, isLoading: initiateLoading } = useQuery<any>({
     queryKey: ['admin-initiate-transactions', initiatePage],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/transactions?limit=10&page=${initiatePage}&type=initiate`, {
+      const response = await fetch(`/api/admin/transactions?limit=10&page=${initiatePage}&type=initiate&usertype=admin`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -137,10 +138,15 @@ export default function AdminTransactions() {
   // Refund mutation
   const refundMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: 'order' | 'transaction' }) => {
+      toast({
+        title: "Processing",
+        description: "Processing refund...",
+      });
       return apiRequest("PUT", `/api/admin/refund/${id}`, { type });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-refunds'] });
       toast({
         title: "Success",
         description: "Refund processed successfully",
@@ -148,8 +154,8 @@ export default function AdminTransactions() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to process refund",
+        title: "Refund Failed",
+        description: error.message || "Failed to process refund. Please try again.",
         variant: "destructive",
       });
     },
@@ -307,9 +313,7 @@ export default function AdminTransactions() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Transaction ID</TableHead>
-                      <TableHead>From</TableHead>
-                      <TableHead>To</TableHead>
-                      <TableHead>Type</TableHead>
+                      <TableHead>Info</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
@@ -320,22 +324,14 @@ export default function AdminTransactions() {
                     {filteredTransactions.map((transaction: any) => {
                       const transactionId = transaction._id || transaction.id;
                       
-                      // Get from and to names and usernames
-                      const fromName = typeof transaction.from === 'object'
-                        ? `${transaction.from.firstName || ''} ${transaction.from.lastName || ''}`.trim() || transaction.from.email || 'Unknown'
-                        : 'Unknown';
-                      const fromUsername = typeof transaction.from === 'object'
+                      const fromUser = typeof transaction.from === 'object' && transaction.from
                         ? transaction.from.userName || ''
                         : '';
-                      const toName = typeof transaction.to === 'object'
-                        ? `${transaction.to.firstName || ''} ${transaction.to.lastName || ''}`.trim() || transaction.to.email || 'Unknown'
-                        : 'Unknown';
-                      const toUsername = typeof transaction.to === 'object'
+                      const toUser = typeof transaction.to === 'object' && transaction.to
                         ? transaction.to.userName || ''
                         : '';
                       
                       const amount = Math.round((Number(transaction.amount) || 0) * 100) / 100;
-                      const type = transaction.type || 'N/A';
                       const status = transaction.status || 'pending';
 
                       return (
@@ -343,24 +339,27 @@ export default function AdminTransactions() {
                           <TableCell className="font-mono text-xs" data-testid={`text-transaction-id-${transactionId}`}>
                             {String(transactionId).slice(-8)}
                           </TableCell>
-                          <TableCell data-testid={`text-from-${transactionId}`}>
-                            <div>
-                              {fromName}
-                              {fromUsername && (
-                                <div className="text-xs text-muted-foreground">@{fromUsername}</div>
+                          <TableCell data-testid={`text-info-${transactionId}`}>
+                            <div className="space-y-1">
+                              {fromUser && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-muted-foreground shrink-0">From:</span>
+                                  <span className="text-sm">{fromUser}</span>
+                                </div>
+                              )}
+                              {toUser && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-muted-foreground shrink-0">To:</span>
+                                  <span className="text-sm">{toUser}</span>
+                                </div>
+                              )}
+                              {transaction.reason && (
+                                <div className="text-xs text-muted-foreground">{transaction.reason}</div>
+                              )}
+                              {!fromUser && !toUser && !transaction.reason && (
+                                <span className="text-sm text-muted-foreground">-</span>
                               )}
                             </div>
-                          </TableCell>
-                          <TableCell data-testid={`text-to-${transactionId}`}>
-                            <div>
-                              {toName}
-                              {toUsername && (
-                                <div className="text-xs text-muted-foreground">@{toUsername}</div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell data-testid={`text-type-${transactionId}`}>
-                            <span className="capitalize">{type.replace(/_/g, ' ')}</span>
                           </TableCell>
                           <TableCell data-testid={`text-amount-${transactionId}`}>
                             <div>
@@ -423,18 +422,27 @@ export default function AdminTransactions() {
                                   <Printer className="h-4 w-4 mr-2" />
                                   Print Receipt
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    refundMutation.mutate({ id: transactionId, type: 'transaction' });
-                                  }}
-                                  disabled={refundMutation.isPending}
-                                  data-testid={`menu-refund-transaction-${transactionId}`}
-                                  className="text-orange-600 focus:text-orange-600"
-                                >
-                                  <DollarSign className="h-4 w-4 mr-2" />
-                                  Refund Transaction
-                                </DropdownMenuItem>
+                                {transaction.type !== 'service_fee' && transaction.type !== 'shipping_deduction' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        const confirmed = window.confirm(
+                                          `Are you sure you want to refund this transaction?\n\nTransaction ID: ${String(transactionId).slice(-8)}\nAmount: $${parseFloat(String(transaction.amount || 0)).toFixed(2)}\n\nThis action cannot be undone.`
+                                        );
+                                        if (confirmed) {
+                                          refundMutation.mutate({ id: transactionId, type: 'transaction' });
+                                        }
+                                      }}
+                                      disabled={refundMutation.isPending}
+                                      data-testid={`menu-refund-transaction-${transactionId}`}
+                                      className="text-orange-600 focus:text-orange-600"
+                                    >
+                                      <DollarSign className="h-4 w-4 mr-2" />
+                                      Refund Transaction
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -508,8 +516,7 @@ export default function AdminTransactions() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Transaction ID</TableHead>
-                        <TableHead>From</TableHead>
-                        <TableHead>To</TableHead>
+                        <TableHead>Info</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
@@ -519,16 +526,10 @@ export default function AdminTransactions() {
                       {refundsData.data.map((refund: any) => {
                         const refundId = refund._id || refund.id;
                         const amount = Math.round((Number(refund.amount) || 0) * 100) / 100;
-                        const fromName = typeof refund.from === 'object'
-                          ? `${refund.from.firstName || ''} ${refund.from.lastName || ''}`.trim() || refund.from.email || 'Unknown'
-                          : 'Unknown';
-                        const fromUsername = typeof refund.from === 'object'
+                        const fromUser = typeof refund.from === 'object' && refund.from
                           ? refund.from.userName || ''
                           : '';
-                        const toName = typeof refund.to === 'object'
-                          ? `${refund.to.firstName || ''} ${refund.to.lastName || ''}`.trim() || refund.to.email || 'Unknown'
-                          : 'Unknown';
-                        const toUsername = typeof refund.to === 'object'
+                        const toUser = typeof refund.to === 'object' && refund.to
                           ? refund.to.userName || ''
                           : '';
                         
@@ -537,19 +538,25 @@ export default function AdminTransactions() {
                             <TableCell className="font-mono text-xs" data-testid={`text-refund-id-${refundId}`}>
                               {String(refundId).slice(-8)}
                             </TableCell>
-                            <TableCell data-testid={`text-from-${refundId}`}>
-                              <div>
-                                {fromName}
-                                {fromUsername && (
-                                  <div className="text-xs text-muted-foreground">@{fromUsername}</div>
+                            <TableCell data-testid={`text-info-${refundId}`}>
+                              <div className="space-y-1">
+                                {fromUser && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground shrink-0">From:</span>
+                                    <span className="text-sm">{fromUser}</span>
+                                  </div>
                                 )}
-                              </div>
-                            </TableCell>
-                            <TableCell data-testid={`text-to-${refundId}`}>
-                              <div>
-                                {toName}
-                                {toUsername && (
-                                  <div className="text-xs text-muted-foreground">@{toUsername}</div>
+                                {toUser && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground shrink-0">To:</span>
+                                    <span className="text-sm">{toUser}</span>
+                                  </div>
+                                )}
+                                {refund.reason && (
+                                  <div className="text-xs text-muted-foreground">{refund.reason}</div>
+                                )}
+                                {!fromUser && !toUser && !refund.reason && (
+                                  <span className="text-sm text-muted-foreground">-</span>
                                 )}
                               </div>
                             </TableCell>
@@ -634,8 +641,7 @@ export default function AdminTransactions() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Transaction ID</TableHead>
-                        <TableHead>From</TableHead>
-                        <TableHead>To</TableHead>
+                        <TableHead>Info</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
@@ -645,16 +651,10 @@ export default function AdminTransactions() {
                       {(initiateData?.transactions || initiateData?.data || []).map((txn: any) => {
                         const txnId = txn._id || txn.id;
                         const amount = Math.round((Number(txn.amount) || 0) * 100) / 100;
-                        const fromName = typeof txn.from === 'object'
-                          ? `${txn.from.firstName || ''} ${txn.from.lastName || ''}`.trim() || txn.from.email || 'Unknown'
-                          : 'Unknown';
-                        const fromUsername = typeof txn.from === 'object'
+                        const fromUser = typeof txn.from === 'object' && txn.from
                           ? txn.from.userName || ''
                           : '';
-                        const toName = typeof txn.to === 'object'
-                          ? `${txn.to.firstName || ''} ${txn.to.lastName || ''}`.trim() || txn.to.email || 'Unknown'
-                          : 'Unknown';
-                        const toUsername = typeof txn.to === 'object'
+                        const toUser = typeof txn.to === 'object' && txn.to
                           ? txn.to.userName || ''
                           : '';
 
@@ -663,19 +663,25 @@ export default function AdminTransactions() {
                             <TableCell className="font-mono text-xs" data-testid={`text-initiate-id-${txnId}`}>
                               {String(txnId).slice(-8)}
                             </TableCell>
-                            <TableCell data-testid={`text-initiate-from-${txnId}`}>
-                              <div>
-                                {fromName}
-                                {fromUsername && (
-                                  <div className="text-xs text-muted-foreground">@{fromUsername}</div>
+                            <TableCell data-testid={`text-initiate-info-${txnId}`}>
+                              <div className="space-y-1">
+                                {fromUser && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground shrink-0">From:</span>
+                                    <span className="text-sm">{fromUser}</span>
+                                  </div>
                                 )}
-                              </div>
-                            </TableCell>
-                            <TableCell data-testid={`text-initiate-to-${txnId}`}>
-                              <div>
-                                {toName}
-                                {toUsername && (
-                                  <div className="text-xs text-muted-foreground">@{toUsername}</div>
+                                {toUser && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground shrink-0">To:</span>
+                                    <span className="text-sm">{toUser}</span>
+                                  </div>
+                                )}
+                                {txn.reason && (
+                                  <div className="text-xs text-muted-foreground">{txn.reason}</div>
+                                )}
+                                {!fromUser && !toUser && !txn.reason && (
+                                  <span className="text-sm text-muted-foreground">-</span>
                                 )}
                               </div>
                             </TableCell>
@@ -734,111 +740,268 @@ export default function AdminTransactions() {
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Transaction Receipt</DialogTitle>
+            <DialogTitle>
+              {selectedTransaction?.type === 'shipping_deduction' ? 'Shipping Deduction Receipt' :
+               selectedTransaction?.type === 'service_fee' ? 'Service Fee Receipt' :
+               'Transaction Receipt'}
+            </DialogTitle>
           </DialogHeader>
           {selectedTransaction && (
             <div id="receipt-content" className="space-y-4 p-4">
-              <div className="text-center border-b pb-4">
-                <h2 className="text-2xl font-bold">{settings.app_name}</h2>
-                <p className="text-sm text-muted-foreground">Transaction Receipt</p>
-              </div>
+              {(() => {
+                const txType = (selectedTransaction.type || '').toLowerCase();
+                const receiptFromName = typeof selectedTransaction.from === 'object' && selectedTransaction.from
+                  ? `${selectedTransaction.from.firstName || ''} ${selectedTransaction.from.lastName || ''}`.trim() || 
+                    selectedTransaction.from.userName || 
+                    selectedTransaction.from.email || ''
+                  : '';
+                const receiptToName = typeof selectedTransaction.to === 'object' && selectedTransaction.to
+                  ? `${selectedTransaction.to.firstName || ''} ${selectedTransaction.to.lastName || ''}`.trim() || 
+                    selectedTransaction.to.userName || 
+                    selectedTransaction.to.email || ''
+                  : '';
+                const amount = parseFloat(selectedTransaction.amount) || 0;
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Transaction ID:</span>
-                  <span className="font-mono">{String(selectedTransaction._id || selectedTransaction.id).slice(-8)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Date:</span>
-                  <span>{formatDate(selectedTransaction.createdAt || selectedTransaction.date)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type:</span>
-                  <span className="capitalize">{(selectedTransaction.type || 'N/A').replace(/_/g, ' ')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status:</span>
-                  <Badge variant={getStatusColor(selectedTransaction.status || 'pending')}>
-                    {(selectedTransaction.status || 'pending').replace(/_/g, ' ')}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="border-t pt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">From:</span>
-                  <span className="font-medium">
-                    {typeof selectedTransaction.from === 'object'
-                      ? `${selectedTransaction.from.firstName || ''} ${selectedTransaction.from.lastName || ''}`.trim() || 
-                        selectedTransaction.from.userName || 
-                        selectedTransaction.from.email || 'Unknown'
-                      : 'Unknown'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">To:</span>
-                  <span className="font-medium">
-                    {typeof selectedTransaction.to === 'object'
-                      ? `${selectedTransaction.to.firstName || ''} ${selectedTransaction.to.lastName || ''}`.trim() || 
-                        selectedTransaction.to.userName || 
-                        selectedTransaction.to.email || 'Unknown'
-                      : 'Unknown'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-t pt-4 space-y-2 text-sm">
-                {(() => {
-                  const total = parseFloat(selectedTransaction.total) || 0;
-                  const shippingFee = parseFloat(selectedTransaction.shippingFee) || 0;
-                  const discount = parseFloat(selectedTransaction.discount) || 0;
-                  const totalWithShipping = total + shippingFee;
-                  const stripeFee = parseFloat(selectedTransaction.stripe_fee) || 0;
-                  const extraCharges = parseFloat(selectedTransaction.extra_charges) || 0;
-                  const combined = stripeFee + extraCharges;
+                if (txType === 'shipping_deduction') {
                   return (
                     <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total:</span>
-                        <span>${totalWithShipping.toFixed(2)}</span>
+                      <div className="text-center border-b pb-4">
+                        <h2 className="text-2xl font-bold">{settings.app_name}</h2>
+                        <p className="text-sm text-muted-foreground">Shipping Deduction Receipt</p>
                       </div>
-                      {combined > 0 && (
+                      <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Service Charge{parseFloat(settingsStripeFee) > 0 || parseFloat(settingsExtraCharges) > 0 ? ` (${settingsStripeFee}% + ${settingsExtraCharges}%)` : ''}:</span>
-                          <span className="text-destructive">-${combined.toFixed(2)}</span>
+                          <span className="text-muted-foreground">Transaction ID:</span>
+                          <span className="font-mono">{String(selectedTransaction._id || selectedTransaction.id).slice(-8)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Date:</span>
+                          <span>{formatDate(selectedTransaction.createdAt || selectedTransaction.date)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Type:</span>
+                          <span className="capitalize">Shipping Deduction</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Status:</span>
+                          <Badge variant={getStatusColor(selectedTransaction.status || 'pending')}>
+                            {(selectedTransaction.status || 'pending').replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                        {selectedTransaction.reason && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Reason:</span>
+                            <span>{selectedTransaction.reason}</span>
+                          </div>
+                        )}
+                      </div>
+                      {(receiptFromName || receiptToName) && (
+                        <div className="border-t pt-4 space-y-2 text-sm">
+                          {receiptFromName && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Charged To:</span>
+                              <span className="font-medium">{receiptFromName}</span>
+                            </div>
+                          )}
+                          {receiptToName && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Shipping Provider:</span>
+                              <span className="font-medium">{receiptToName}</span>
+                            </div>
+                          )}
                         </div>
                       )}
-                      {selectedTransaction.serviceFee && parseFloat(selectedTransaction.serviceFee) > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Service Fee:</span>
-                          <span className="text-destructive">-${parseFloat(selectedTransaction.serviceFee).toFixed(2)}</span>
+                      <div className="border-t pt-4 space-y-2 text-sm">
+                        {selectedTransaction.shippingFee && parseFloat(selectedTransaction.shippingFee) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Shipping Cost:</span>
+                            <span>${parseFloat(selectedTransaction.shippingFee).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
+                          <span>Amount Deducted:</span>
+                          <span className="text-destructive">-${amount.toFixed(2)}</span>
                         </div>
-                      )}
-                      {shippingFee > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Shipping Fee:</span>
-                          <span className="text-destructive">-${shippingFee.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {discount > 0 && (
-                        <div className="flex justify-between">
-                          <span style={{ color: 'hsl(var(--primary))' }}>Discount:</span>
-                          <span style={{ color: 'hsl(var(--primary))' }}>-${discount.toFixed(2)}</span>
-                        </div>
-                      )}
+                      </div>
+                      <div className="text-center text-xs text-muted-foreground border-t pt-4">
+                        <p>Shipping cost deducted from seller balance.</p>
+                        <p>For support, please contact {supportEmail}</p>
+                      </div>
                     </>
                   );
-                })()}
-                <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
-                  <span>Amount:</span>
-                  <span>${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>
-                </div>
-              </div>
+                }
 
-              <div className="text-center text-xs text-muted-foreground border-t pt-4">
-                <p>Thank you for your business!</p>
-                <p>For support, please contact {supportEmail}</p>
-              </div>
+                if (txType === 'service_fee') {
+                  return (
+                    <>
+                      <div className="text-center border-b pb-4">
+                        <h2 className="text-2xl font-bold">{settings.app_name}</h2>
+                        <p className="text-sm text-muted-foreground">Service Fee Receipt</p>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Transaction ID:</span>
+                          <span className="font-mono">{String(selectedTransaction._id || selectedTransaction.id).slice(-8)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Date:</span>
+                          <span>{formatDate(selectedTransaction.createdAt || selectedTransaction.date)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Type:</span>
+                          <span className="capitalize">Platform Commission</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Status:</span>
+                          <Badge variant={getStatusColor(selectedTransaction.status || 'pending')}>
+                            {(selectedTransaction.status || 'pending').replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                        {selectedTransaction.reason && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Reason:</span>
+                            <span>{selectedTransaction.reason}</span>
+                          </div>
+                        )}
+                      </div>
+                      {(receiptFromName || receiptToName) && (
+                        <div className="border-t pt-4 space-y-2 text-sm">
+                          {receiptFromName && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Seller:</span>
+                              <span className="font-medium">{receiptFromName}</span>
+                            </div>
+                          )}
+                          {receiptToName && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Platform:</span>
+                              <span className="font-medium">{receiptToName}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="border-t pt-4 space-y-2 text-sm">
+                        {selectedTransaction.total && parseFloat(selectedTransaction.total) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Order Total:</span>
+                            <span>${parseFloat(selectedTransaction.total).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {selectedTransaction.serviceFee && parseFloat(selectedTransaction.serviceFee) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Commission Rate:</span>
+                            <span>${parseFloat(selectedTransaction.serviceFee).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
+                          <span>Commission Collected:</span>
+                          <span>${amount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="text-center text-xs text-muted-foreground border-t pt-4">
+                        <p>Platform commission deducted from seller earnings.</p>
+                        <p>For support, please contact {supportEmail}</p>
+                      </div>
+                    </>
+                  );
+                }
+
+                return (
+                  <>
+                    <div className="text-center border-b pb-4">
+                      <h2 className="text-2xl font-bold">{settings.app_name}</h2>
+                      <p className="text-sm text-muted-foreground">Transaction Receipt</p>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Transaction ID:</span>
+                        <span className="font-mono">{String(selectedTransaction._id || selectedTransaction.id).slice(-8)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Date:</span>
+                        <span>{formatDate(selectedTransaction.createdAt || selectedTransaction.date)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Type:</span>
+                        <span className="capitalize">{(selectedTransaction.type || 'N/A').replace(/_/g, ' ')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Status:</span>
+                        <Badge variant={getStatusColor(selectedTransaction.status || 'pending')}>
+                          {(selectedTransaction.status || 'pending').replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                    </div>
+                    {(receiptFromName || receiptToName) && (
+                      <div className="border-t pt-4 space-y-2 text-sm">
+                        {receiptFromName && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">From:</span>
+                            <span className="font-medium">{receiptFromName}</span>
+                          </div>
+                        )}
+                        {receiptToName && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">To:</span>
+                            <span className="font-medium">{receiptToName}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="border-t pt-4 space-y-2 text-sm">
+                      {(() => {
+                        const total = parseFloat(selectedTransaction.total) || 0;
+                        const shippingFee = parseFloat(selectedTransaction.shippingFee) || 0;
+                        const discount = parseFloat(selectedTransaction.discount) || 0;
+                        const totalWithShipping = total + shippingFee;
+                        const stripeFee = parseFloat(selectedTransaction.stripe_fee) || 0;
+                        const extraCharges = parseFloat(selectedTransaction.extra_charges) || 0;
+                        const combined = stripeFee + extraCharges;
+                        return (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total:</span>
+                              <span>${totalWithShipping.toFixed(2)}</span>
+                            </div>
+                            {combined > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Service Charge{parseFloat(settingsStripeFee) > 0 || parseFloat(settingsExtraCharges) > 0 ? ` (${settingsStripeFee}% + ${settingsExtraCharges}%)` : ''}:</span>
+                                <span className="text-destructive">-${combined.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {selectedTransaction.serviceFee && parseFloat(selectedTransaction.serviceFee) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Service Fee:</span>
+                                <span className="text-destructive">-${parseFloat(selectedTransaction.serviceFee).toFixed(2)}</span>
+                              </div>
+                            )}
+                            {shippingFee > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Shipping Fee:</span>
+                                <span className="text-destructive">-${shippingFee.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {discount > 0 && (
+                              <div className="flex justify-between">
+                                <span style={{ color: 'hsl(var(--primary))' }}>Discount:</span>
+                                <span style={{ color: 'hsl(var(--primary))' }}>-${discount.toFixed(2)}</span>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                      <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
+                        <span>Amount:</span>
+                        <span>${amount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="text-center text-xs text-muted-foreground border-t pt-4">
+                      <p>Thank you for your business!</p>
+                      <p>For support, please contact {supportEmail}</p>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
           <div className="flex justify-end gap-2 mt-4">

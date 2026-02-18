@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { BASE_URL, getAccessToken } from "../utils";
+import { BASE_URL, getAccessToken, getAdminToken } from "../utils";
 import multer from "multer";
 import FormData from "form-data";
 import axios from "axios";
@@ -66,7 +66,7 @@ function requireSuperAdmin(req: any, res: any, next: any) {
 // Demo mode check middleware - prevents CRUD operations in demo mode
 async function checkDemoMode(req: any, res: any, next: any) {
   try {
-    const accessToken = getAccessToken(req);
+    const accessToken = getAdminToken(req);
     
     if (!accessToken) {
       return next();
@@ -290,7 +290,7 @@ export function registerAdminRoutes(app: Express) {
   // Get all users with pagination and search
   app.get("/api/admin/users", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -376,7 +376,7 @@ export function registerAdminRoutes(app: Express) {
   // Get orders stats
   app.get("/api/admin/orders/stats/all", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -424,7 +424,7 @@ export function registerAdminRoutes(app: Express) {
   // Get all orders (admin)
   app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -479,7 +479,7 @@ export function registerAdminRoutes(app: Express) {
   // Get shows/rooms stats
   app.get("/api/admin/rooms/stats/all", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -526,7 +526,7 @@ export function registerAdminRoutes(app: Express) {
   // Get user stats
   app.get("/api/admin/users/stats/all", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -575,7 +575,7 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/users/:userId/addresses", requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!accessToken) {
         return res.status(401).json({
@@ -623,7 +623,7 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/users/:userId/shipping-profiles", requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!accessToken) {
         return res.status(401).json({
@@ -671,7 +671,7 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/products/:productId", requireAdmin, async (req, res) => {
     try {
       const { productId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -754,7 +754,7 @@ export function registerAdminRoutes(app: Express) {
   // Get all products (must be after specific product route)
   app.get("/api/admin/products", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -840,7 +840,7 @@ export function registerAdminRoutes(app: Express) {
   app.patch("/api/admin/products/:productId", requireAdmin, checkDemoMode, async (req, res) => {
     try {
       const { productId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -907,7 +907,7 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/users/:userId/inventory", requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!accessToken) {
         return res.status(401).json({
@@ -955,7 +955,7 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/users/:userId/orders", requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!accessToken) {
         return res.status(401).json({
@@ -1003,7 +1003,7 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/users/:userId", requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!accessToken) {
         return res.status(401).json({
@@ -1068,7 +1068,7 @@ export function registerAdminRoutes(app: Express) {
     try {
       const { userId } = req.params;
       const { email, action } = req.body;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!accessToken) {
         return res.status(401).json({
@@ -1255,7 +1255,7 @@ If you have any questions, feel free to reach out to our support team.
   app.patch("/api/admin/users/:userId", requireAdmin, checkDemoMode, async (req, res) => {
     try {
       const { userId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!accessToken) {
         return res.status(401).json({
@@ -1320,7 +1320,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get all transactions
   app.get("/api/admin/transactions", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1336,6 +1336,7 @@ If you have any questions, feel free to reach out to our support team.
       if (req.query.status) queryParams.append("status", req.query.status as string);
       if (req.query.username) queryParams.append("username", req.query.username as string);
       if (req.query.type) queryParams.append("type", req.query.type as string);
+      if (req.query.usertype) queryParams.append("usertype", req.query.usertype as string);
 
       const url = `${BASE_URL}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log(`Fetching transactions from: ${url}`);
@@ -1389,7 +1390,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get all shows/rooms with pagination and filters
   app.get("/api/admin/shows", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1472,7 +1473,7 @@ If you have any questions, feel free to reach out to our support team.
   app.get("/api/admin/shows/:showId", requireAdmin, async (req, res) => {
     try {
       const { showId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1519,7 +1520,7 @@ If you have any questions, feel free to reach out to our support team.
   app.get("/api/admin/shows/:showId/auctions", requireAdmin, async (req, res) => {
     try {
       const { showId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1578,7 +1579,7 @@ If you have any questions, feel free to reach out to our support team.
   app.get("/api/admin/shows/:showId/giveaways", requireAdmin, async (req, res) => {
     try {
       const { showId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1632,7 +1633,7 @@ If you have any questions, feel free to reach out to our support team.
   app.get("/api/admin/shows/:showId/buy-now", requireAdmin, async (req, res) => {
     try {
       const { showId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1688,7 +1689,7 @@ If you have any questions, feel free to reach out to our support team.
   app.get("/api/admin/shows/:showId/sold", requireAdmin, async (req, res) => {
     try {
       const { showId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1741,7 +1742,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get demo mode status (lightweight endpoint for permission checking)
   app.get("/api/admin/demo-mode", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1784,7 +1785,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get app settings
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1829,7 +1830,7 @@ If you have any questions, feel free to reach out to our support team.
   // Update app settings
   app.post("/api/admin/settings", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1879,7 +1880,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get themes
   app.get("/api/themes", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1934,7 +1935,7 @@ If you have any questions, feel free to reach out to our support team.
   // Update themes
   app.post("/api/themes", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -1984,7 +1985,7 @@ If you have any questions, feel free to reach out to our support team.
   // Upload app logo
   app.post("/api/admin/upload-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2036,7 +2037,7 @@ If you have any questions, feel free to reach out to our support team.
   // Upload theme logo (POST to /themes/upload-logo)
   app.post("/api/themes/upload-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2088,7 +2089,7 @@ If you have any questions, feel free to reach out to our support team.
   // Upload header logo for landing page (uses /themes/upload-resource with key "header_logo")
   app.post("/api/themes/upload-header-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2141,7 +2142,7 @@ If you have any questions, feel free to reach out to our support team.
   // Upload landing page logo (uses /themes/upload-resource with key "landing_page_logo")
   app.post("/api/themes/upload-landing-logo", requireAdmin, checkDemoMode, upload.single('logo'), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2194,7 +2195,7 @@ If you have any questions, feel free to reach out to our support team.
   // Upload theme resource image (POST to /themes/upload-resource)
   app.post("/api/themes/upload-resource", requireAdmin, checkDemoMode, upload.single('file'), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2257,7 +2258,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get admin profile data
   app.get("/api/admin/profile/:userId", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { userId } = req.params;
       
       if (!accessToken) {
@@ -2304,7 +2305,7 @@ If you have any questions, feel free to reach out to our support team.
   // Update admin profile
   app.patch("/api/admin/profile", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2360,7 +2361,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get application fees with filters
   app.get("/api/admin/application-fees", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2420,7 +2421,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get Stripe revenue data
   app.get("/api/admin/revenue", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2476,7 +2477,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get Stripe transactions/payouts for a specific user
   app.get("/api/admin/stripe-payouts", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2550,7 +2551,7 @@ If you have any questions, feel free to reach out to our support team.
   // Initiate Stripe transfer
   app.post("/api/stripe/transfer", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2608,7 +2609,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get pending payouts
   app.get("/api/users/payouts/pending", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2665,7 +2666,7 @@ If you have any questions, feel free to reach out to our support team.
   app.get("/api/admin/categories/:categoryId", requireAdmin, async (req, res) => {
     try {
       const { categoryId } = req.params;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2712,7 +2713,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get categories (list with pagination)
   app.get("/api/admin/categories", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2773,7 +2774,7 @@ If you have any questions, feel free to reach out to our support team.
   // Add single category with image
   app.post("/api/admin/categories", requireAdmin, checkDemoMode, upload.array('images', 5), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2845,7 +2846,7 @@ If you have any questions, feel free to reach out to our support team.
   // Update category with image
   app.put("/api/admin/categories/:id", requireAdmin, checkDemoMode, upload.array('images', 5), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       
       if (!accessToken) {
@@ -2917,7 +2918,7 @@ If you have any questions, feel free to reach out to our support team.
   // Bulk import categories
   app.post("/api/admin/categories/bulk", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -2977,7 +2978,7 @@ If you have any questions, feel free to reach out to our support team.
   // Add single subcategory with image
   app.post("/api/admin/subcategories", requireAdmin, checkDemoMode, upload.array('images', 5), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -3053,7 +3054,7 @@ If you have any questions, feel free to reach out to our support team.
   // Update subcategory with image
   app.put("/api/admin/subcategories/:id", requireAdmin, checkDemoMode, upload.array('images', 5), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       
       if (!accessToken) {
@@ -3129,7 +3130,7 @@ If you have any questions, feel free to reach out to our support team.
   // Bulk import subcategories
   app.post("/api/admin/categories/:categoryId/subcategories/bulk", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { categoryId } = req.params;
       
       if (!accessToken) {
@@ -3190,7 +3191,7 @@ If you have any questions, feel free to reach out to our support team.
   // Convert category type (child to parent or parent to child)
   app.put("/api/admin/categories/:id/convert", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       const { targetType, parentId } = req.body;
       
@@ -3277,7 +3278,7 @@ If you have any questions, feel free to reach out to our support team.
   // Delete subcategory
   app.delete("/api/admin/subcategories/:id", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       
       if (!accessToken) {
@@ -3325,7 +3326,7 @@ If you have any questions, feel free to reach out to our support team.
   // Delete category
   app.delete("/api/admin/categories/:id", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       
       if (!accessToken) {
@@ -3373,7 +3374,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get all disputes with pagination
   app.get("/api/admin/disputes", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -3428,7 +3429,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get single dispute by ID
   app.get("/api/admin/disputes/:disputeId", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { disputeId } = req.params;
       
       if (!accessToken) {
@@ -3486,7 +3487,7 @@ If you have any questions, feel free to reach out to our support team.
   // Resolve a dispute
   app.post("/api/admin/disputes/:disputeId/resolve", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { disputeId } = req.params;
       const { favored, final_comments } = req.body;
       
@@ -3544,7 +3545,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get all reported cases
   app.get("/api/admin/reported-cases", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -3600,7 +3601,7 @@ If you have any questions, feel free to reach out to our support team.
   // Block/Unblock a user
   app.patch("/api/admin/users/:userId/block", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { userId } = req.params;
       const { blocked } = req.body;
       
@@ -3664,7 +3665,7 @@ If you have any questions, feel free to reach out to our support team.
   // Delete a user
   app.delete("/api/admin/users/:userId", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { userId } = req.params;
       
       console.log(`[Delete User] Request to delete user: ${userId}`);
@@ -3718,7 +3719,7 @@ If you have any questions, feel free to reach out to our support team.
   // Suspend a user for a period of time
   app.patch("/api/admin/users/:userId/suspend", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { userId } = req.params;
       const { suspended, suspend_end } = req.body;
       
@@ -3785,7 +3786,7 @@ If you have any questions, feel free to reach out to our support team.
   // Refund order or transaction
   app.put("/api/admin/refund/:id", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       const { type, orderId, itemId, amount, fromDispute } = req.body;
       
@@ -3828,7 +3829,7 @@ If you have any questions, feel free to reach out to our support team.
         console.error(`[Refund] API error:`, errorData);
         return res.status(response.status).json({
           success: false,
-          error: errorData.message || "Failed to process refund",
+          error: errorData.error || errorData.message || "Failed to process refund",
         });
       }
 
@@ -3852,7 +3853,7 @@ If you have any questions, feel free to reach out to our support team.
   // Get refunds list
   app.get("/api/admin/refunds", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -3904,7 +3905,7 @@ If you have any questions, feel free to reach out to our support team.
   // Send email to users
   app.post("/api/admin/send-email", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -4147,7 +4148,7 @@ If you have any questions, feel free to reach out to our support team.
   // Send app update notification to all users
   app.post("/api/admin/send-update-notification", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -4727,7 +4728,7 @@ Thank you for using ${appName}!
   // Get translations from settings
   app.get("/api/admin/translations", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -4781,7 +4782,7 @@ Thank you for using ${appName}!
   // Save translations
   app.post("/api/admin/translations", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -4881,7 +4882,7 @@ Thank you for using ${appName}!
   // Download translations as XML
   app.get("/api/admin/translations/download", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -4956,7 +4957,7 @@ Thank you for using ${appName}!
   // Upload translations from XML
   app.post("/api/admin/translations/upload", requireAdmin, checkDemoMode, upload.single('file'), async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -5057,7 +5058,7 @@ Thank you for using ${appName}!
   // Get all articles
   app.get("/api/admin/articles", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -5099,7 +5100,7 @@ Thank you for using ${appName}!
   // Get published articles (public)
   app.get("/api/admin/articles/published/articles", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -5141,7 +5142,7 @@ Thank you for using ${appName}!
   // Get article by slug (published)
   app.get("/api/admin/articles/published/articles/:slug", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { slug } = req.params;
       
       if (!accessToken) {
@@ -5184,7 +5185,7 @@ Thank you for using ${appName}!
   // Get single article by ID
   app.get("/api/admin/articles/:id", requireAdmin, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       
       if (!accessToken) {
@@ -5227,7 +5228,7 @@ Thank you for using ${appName}!
   // Create new article
   app.post("/api/admin/articles", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       
       if (!accessToken) {
         return res.status(401).json({
@@ -5270,7 +5271,7 @@ Thank you for using ${appName}!
   // Update article
   app.put("/api/admin/articles/:id", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       
       if (!accessToken) {
@@ -5314,7 +5315,7 @@ Thank you for using ${appName}!
   // Delete article
   app.delete("/api/admin/articles/:id", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { id } = req.params;
       
       if (!accessToken) {
@@ -5426,7 +5427,7 @@ Thank you for using ${appName}!
   // Change admin password
   app.post("/api/admin/change-password", requireAdmin, checkDemoMode, async (req, res) => {
     try {
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       const { currentPassword, newPassword } = req.body;
       
       if (!accessToken) {
@@ -5785,7 +5786,7 @@ Thank you for using ${appName}!
   app.post("/api/admin/email/send-bulk", requireAdmin, async (req, res) => {
     try {
       const { recipients, subject, html, fromEmail, useWrapper } = req.body;
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
 
       if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
         return res.status(400).json({
@@ -6026,7 +6027,7 @@ Thank you for using ${appName}!
         });
       }
 
-      const accessToken = getAccessToken(req);
+      const accessToken = getAdminToken(req);
       if (!accessToken) {
         return res.status(401).json({
           success: false,

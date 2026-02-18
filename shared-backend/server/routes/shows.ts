@@ -119,32 +119,34 @@ export function registerShowRoutes(app: Express) {
   app.get("/api/profile/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      console.log('Fetching public user profile:', id);
       
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      // Include auth token if available
-      const accessToken = getAccessToken(req);
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+      const accessToken = (req.headers['x-access-token'] as string) ||
+                          (req as any).session?.accessToken ||
+                          (req.headers['authorization']?.startsWith('Bearer ') ? 
+                           (req.headers['authorization'] as string).substring(7) : null);
+      
+      if (!accessToken) {
+        return res.status(401).json({ error: 'No access token available' });
       }
 
       const response = await fetch(`${BASE_URL}/users/${id}`, {
         method: 'GET',
-        headers
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        }
       });
       
       if (!response.ok) {
-        console.error(`Tokshop API returned ${response.status}: ${response.statusText}`);
-        return res.status(response.status).json({ error: 'User not found' });
+        const errorText = await response.text();
+        console.error(`Profile API returned ${response.status} for user ${id}`);
+        return res.status(response.status).json({ error: 'Failed to fetch user profile' });
       }
 
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error fetching user from Tokshop API:", error);
+      console.error("Error fetching user profile:", error);
       res.status(500).json({ error: "Failed to fetch user" });
     }
   });
