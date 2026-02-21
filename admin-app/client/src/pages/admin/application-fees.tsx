@@ -172,7 +172,7 @@ export default function AdminApplicationFees() {
                       <Loader2 className="h-5 w-5 animate-spin" />
                     </span>
                   ) : (
-                    `$${parseFloat(String(pendingServiceData?.totalPending || pendingServiceData?.total || pendingServiceData?.amount || pendingServiceData?.value || pendingServiceData || 0)).toFixed(2)}`
+                    `$${parseFloat(String(pendingServiceData?.total ?? 0)).toFixed(2)}`
                   )}
                 </p>
               </div>
