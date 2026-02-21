@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, ChevronDown, Wallet, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminApplicationFees() {
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
@@ -22,6 +23,50 @@ export default function AdminApplicationFees() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pendingOpen, setPendingOpen] = useState(true);
+  const [transferringType, setTransferringType] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const transferMutation = useMutation({
+    mutationFn: async ({ type, amount }: { type: string; amount: number }) => {
+      const response = await fetch('/api/admin/shipping-service-transfer', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type, amount }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Transfer failed');
+      }
+      return response.json();
+    },
+    onSuccess: (_data, variables) => {
+      toast({
+        title: "Transfer initiated",
+        description: `${variables.type === 'shipping_deduction' ? 'Shipping deduction' : 'Service fee'} transfer of $${variables.amount.toFixed(2)} submitted.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin-shipping-service-pending'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Transfer failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setTransferringType(null);
+    },
+  });
+
+  const handleTransfer = (type: string, amount: number) => {
+    setTransferringType(type);
+    transferMutation.mutate({ type, amount });
+  };
 
   // Build query string for revenue
   const buildRevenueQueryString = () => {
@@ -218,8 +263,13 @@ export default function AdminApplicationFees() {
                       )}
                     </div>
                   </div>
-                  <Button data-testid="button-transfer-shipping" className="gap-2">
-                    <ArrowRightLeft className="h-4 w-4" />
+                  <Button
+                    data-testid="button-transfer-shipping"
+                    className="gap-2"
+                    disabled={transferringType === 'shipping_deduction' || pendingShippingLoading || !pendingShippingData?.total}
+                    onClick={() => handleTransfer('shipping_deduction', parseFloat(String(pendingShippingData?.total ?? 0)))}
+                  >
+                    {transferringType === 'shipping_deduction' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
                     Transfer
                   </Button>
                 </div>
@@ -243,8 +293,13 @@ export default function AdminApplicationFees() {
                       )}
                     </div>
                   </div>
-                  <Button data-testid="button-transfer-service-fee" className="gap-2">
-                    <ArrowRightLeft className="h-4 w-4" />
+                  <Button
+                    data-testid="button-transfer-service-fee"
+                    className="gap-2"
+                    disabled={transferringType === 'service_fee' || pendingServiceFeeLoading || !pendingServiceFeeData?.total}
+                    onClick={() => handleTransfer('service_fee', parseFloat(String(pendingServiceFeeData?.total ?? 0)))}
+                  >
+                    {transferringType === 'service_fee' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
                     Transfer
                   </Button>
                 </div>

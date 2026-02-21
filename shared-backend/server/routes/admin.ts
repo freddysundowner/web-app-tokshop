@@ -1452,6 +1452,76 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  app.post("/api/admin/shipping-service-transfer", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = getAdminToken(req);
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const { type, amount } = req.body;
+      if (!type || amount === undefined) {
+        return res.status(400).json({
+          success: false,
+          error: "type and amount are required",
+        });
+      }
+
+      const url = `${BASE_URL}/users/shipping/service/transfer`;
+      console.log(`Posting shipping service transfer to: ${url}`, { type, amount });
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ type, amount }),
+      });
+
+      console.log(`Shipping service transfer API response status: ${response.status}`);
+      const contentType = response.headers.get("content-type");
+
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.error(`Non-JSON response from shipping service transfer API: ${textResponse.substring(0, 500)}`);
+        return res.status(500).json({
+          success: false,
+          error: "Shipping service transfer API returned non-JSON response",
+          details: `Status: ${response.status}`,
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(`Shipping service transfer API error:`, data);
+        return res.status(response.status).json({
+          success: false,
+          error: data.message || "Failed to transfer shipping service",
+          details: data,
+        });
+      }
+
+      console.log(`Shipping service transfer result:`, JSON.stringify(data, null, 2));
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error transferring shipping service:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to transfer shipping service",
+        details: error.message,
+      });
+    }
+  });
+
   // Get all shows/rooms with pagination and filters
   app.get("/api/admin/shows", requireAdmin, async (req, res) => {
     try {
