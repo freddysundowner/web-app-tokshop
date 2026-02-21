@@ -1,10 +1,11 @@
 /**
- * Admin App Development Server
+ * Dual App Development Server
  *
- * Serves the Admin app on port 5000:
- *   - /*  → Admin App
+ * Serves BOTH the Admin and Marketplace apps simultaneously on port 5000:
+ *   - /*           → Admin App (default)
+ *   - /marketplace/*  → Marketplace App
  *
- * API routes are shared.
+ * API routes are shared between both apps.
  * This is for DEVELOPMENT ONLY. Production builds are unaffected.
  */
 
@@ -21,6 +22,7 @@ import { nanoid } from "nanoid";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, "..");
+const marketplaceAppDir = path.join(rootDir, "marketplace-app");
 const adminAppDir = path.join(rootDir, "admin-app");
 
 dotenv.config({ path: path.join(adminAppDir, ".env") });
@@ -28,8 +30,9 @@ dotenv.config({ path: path.join(adminAppDir, ".env") });
 if (!process.env.BASE_URL) {
   throw new Error("BASE_URL environment variable is required");
 }
-console.log(`[Server] BASE_URL: ${process.env.BASE_URL}`);
-console.log(`[Server] Admin App: ${adminAppDir}`);
+console.log(`[Dual Server] BASE_URL: ${process.env.BASE_URL}`);
+console.log(`[Dual Server] Admin (default): ${adminAppDir}`);
+console.log(`[Dual Server] Marketplace: ${marketplaceAppDir}`);
 
 process.chdir(adminAppDir);
 
@@ -132,22 +135,56 @@ app.use((req, res, next) => {
     appType: "custom",
   });
 
+  const marketplaceVite = await createViteServer({
+    root: path.join(marketplaceAppDir, "client"),
+    configFile: path.join(marketplaceAppDir, "vite.config.ts"),
+    base: "/marketplace/",
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+      },
+    },
+    server: {
+      middlewareMode: true,
+      hmr: { server: httpServer, path: "/__marketplace_hmr" },
+      allowedHosts: true,
+    },
+    appType: "custom",
+  });
+
+  app.use("/marketplace", marketplaceVite.middlewares);
   app.use(adminVite.middlewares);
 
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
     try {
-      const clientTemplate = path.join(adminAppDir, "client", "index.html");
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
-      const page = await adminVite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      if (url.startsWith("/marketplace")) {
+        const clientTemplate = path.join(marketplaceAppDir, "client", "index.html");
+        let template = await fs.promises.readFile(clientTemplate, "utf-8");
+        template = template.replace(
+          `src="/src/main.tsx"`,
+          `src="/marketplace/src/main.tsx?v=${nanoid()}"`,
+        );
+        const page = await marketplaceVite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      } else {
+        const clientTemplate = path.join(adminAppDir, "client", "index.html");
+        let template = await fs.promises.readFile(clientTemplate, "utf-8");
+        template = template.replace(
+          `src="/src/main.tsx"`,
+          `src="/src/main.tsx?v=${nanoid()}"`,
+        );
+        const page = await adminVite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      }
     } catch (e) {
-      adminVite.ssrFixStacktrace(e as Error);
+      if (url.startsWith("/marketplace")) {
+        marketplaceVite.ssrFixStacktrace(e as Error);
+      } else {
+        adminVite.ssrFixStacktrace(e as Error);
+      }
       next(e);
     }
   });
@@ -160,7 +197,9 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, async () => {
-    console.log(`[Server] ✅ Admin App serving on port ${port}`);
+    console.log(`[Dual Server] ✅ Serving on port ${port}`);
+    console.log(`[Dual Server] 🔧 Admin App → / (default)`);
+    console.log(`[Dual Server] 📦 Marketplace App → /marketplace`);
 
     try {
       await socketListener.initialize();
