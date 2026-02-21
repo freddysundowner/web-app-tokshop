@@ -125,6 +125,8 @@ export default function AdminApplicationFees() {
       const result = await response.json();
       return result.success ? result.data : result;
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const revenue = revenueData?.data || {};
