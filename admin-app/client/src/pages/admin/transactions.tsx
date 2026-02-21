@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminLayout } from "@/components/admin-layout";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { CreditCard, Search, X, Printer, MoreVertical, DollarSign } from "lucide-react";
+import { CreditCard, Search, X, Printer, MoreVertical, DollarSign, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/lib/settings-context";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -24,6 +25,7 @@ export default function AdminTransactions() {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [transactionsPage, setTransactionsPage] = useState(1);
@@ -58,7 +60,7 @@ export default function AdminTransactions() {
   };
 
   const { data: transactionsData, isLoading } = useQuery<any>({
-    queryKey: ['admin-transactions', transactionsPage, appliedSearch],
+    queryKey: ['admin-transactions', transactionsPage, appliedSearch, typeFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('limit', '10');
@@ -66,6 +68,9 @@ export default function AdminTransactions() {
       params.append('usertype', 'admin');
       if (appliedSearch.trim()) {
         params.append('username', appliedSearch.trim());
+      }
+      if (typeFilter !== 'all') {
+        params.append('type', typeFilter);
       }
       const response = await fetch(`/api/admin/transactions?${params.toString()}`, {
         credentials: 'include',
@@ -194,10 +199,11 @@ export default function AdminTransactions() {
   const clearFilters = () => {
     setSearchTerm("");
     setAppliedSearch("");
+    setTypeFilter("all");
     setTransactionsPage(1);
   };
 
-  const hasActiveFilters = appliedSearch;
+  const hasActiveFilters = appliedSearch || typeFilter !== "all";
 
   if (isLoading) {
     return (
@@ -251,12 +257,12 @@ export default function AdminTransactions() {
                   <CardTitle>Transaction History</CardTitle>
                   <CardDescription>
                     {transactionsData?.totalDocuments || allTransactions.length} transactions
-                    {hasActiveFilters && ` (filtered by: ${appliedSearch})`}
+                    {hasActiveFilters && ` (filtered${appliedSearch ? ` by: ${appliedSearch}` : ''}${typeFilter !== 'all' ? `, type: ${typeFilter.replace(/_/g, ' ')}` : ''})`}
                   </CardDescription>
                 </div>
               </div>
               
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center flex-wrap">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -272,6 +278,23 @@ export default function AdminTransactions() {
                     data-testid="input-search-transactions"
                   />
                 </div>
+                <Select
+                  value={typeFilter}
+                  onValueChange={(value) => {
+                    setTypeFilter(value);
+                    setTransactionsPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]" data-testid="select-type-filter">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" data-testid="select-type-all">All</SelectItem>
+                    <SelectItem value="shipping_deduction" data-testid="select-type-shipping">Shipping Deduction</SelectItem>
+                    <SelectItem value="service_fee" data-testid="select-type-service-fee">Service Fee</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button
                   onClick={handleSearch}
                   data-testid="button-search-transactions"
