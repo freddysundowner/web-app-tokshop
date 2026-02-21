@@ -795,7 +795,7 @@ export default function AdminTransactions() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Transaction ID:</span>
-                          <span className="font-mono">{String(selectedTransaction._id || selectedTransaction.id).slice(-8)}</span>
+                          <span className="font-mono text-xs break-all">{String(selectedTransaction._id || selectedTransaction.id)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Date:</span>
@@ -864,7 +864,7 @@ export default function AdminTransactions() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Transaction ID:</span>
-                          <span className="font-mono">{String(selectedTransaction._id || selectedTransaction.id).slice(-8)}</span>
+                          <span className="font-mono text-xs break-all">{String(selectedTransaction._id || selectedTransaction.id)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Date:</span>
@@ -938,7 +938,7 @@ export default function AdminTransactions() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Transaction ID:</span>
-                        <span className="font-mono">{String(selectedTransaction._id || selectedTransaction.id).slice(-8)}</span>
+                        <span className="font-mono text-xs break-all">{String(selectedTransaction._id || selectedTransaction.id)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Date:</span>
