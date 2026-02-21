@@ -251,6 +251,7 @@ export default function AdminApplicationFees() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Pending Shipping Deduction</p>
+                      <Badge variant="outline" className="text-xs mt-1">shipping_deduction</Badge>
                       <p className="text-2xl font-bold" data-testid="text-pending-shipping-value">
                         {pendingShippingLoading ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
@@ -281,6 +282,7 @@ export default function AdminApplicationFees() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Pending Service Fee</p>
+                      <Badge variant="outline" className="text-xs mt-1">service_fee</Badge>
                       <p className="text-2xl font-bold" data-testid="text-pending-service-fee-value">
                         {pendingServiceFeeLoading ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
