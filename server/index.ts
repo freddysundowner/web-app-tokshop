@@ -1,11 +1,10 @@
 /**
- * Dual App Development Server
+ * Admin App Development Server
  *
- * Serves BOTH the Marketplace and Admin apps simultaneously on port 5000:
- *   - /admin/*  → Admin App
- *   - /*        → Marketplace App
+ * Serves the Admin app on port 5000:
+ *   - /*  → Admin App
  *
- * API routes are shared between both apps.
+ * API routes are shared.
  * This is for DEVELOPMENT ONLY. Production builds are unaffected.
  */
 
@@ -22,7 +21,6 @@ import { nanoid } from "nanoid";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, "..");
-const marketplaceAppDir = path.join(rootDir, "marketplace-app");
 const adminAppDir = path.join(rootDir, "admin-app");
 
 dotenv.config({ path: path.join(adminAppDir, ".env") });
@@ -30,11 +28,10 @@ dotenv.config({ path: path.join(adminAppDir, ".env") });
 if (!process.env.BASE_URL) {
   throw new Error("BASE_URL environment variable is required");
 }
-console.log(`[Dual Server] BASE_URL: ${process.env.BASE_URL}`);
-console.log(`[Dual Server] Marketplace: ${marketplaceAppDir}`);
-console.log(`[Dual Server] Admin: ${adminAppDir}`);
+console.log(`[Server] BASE_URL: ${process.env.BASE_URL}`);
+console.log(`[Server] Admin App: ${adminAppDir}`);
 
-process.chdir(marketplaceAppDir);
+process.chdir(adminAppDir);
 
 const app = express();
 
@@ -118,9 +115,9 @@ app.use((req, res, next) => {
 
   const viteLogger = createLogger();
 
-  const marketplaceVite = await createViteServer({
-    root: path.join(marketplaceAppDir, "client"),
-    configFile: path.join(marketplaceAppDir, "vite.config.ts"),
+  const adminVite = await createViteServer({
+    root: path.join(adminAppDir, "client"),
+    configFile: path.join(adminAppDir, "vite.config.ts"),
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
@@ -135,56 +132,22 @@ app.use((req, res, next) => {
     appType: "custom",
   });
 
-  const adminVite = await createViteServer({
-    root: path.join(adminAppDir, "client"),
-    configFile: path.join(adminAppDir, "vite.config.ts"),
-    base: "/admin/",
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-      },
-    },
-    server: {
-      middlewareMode: true,
-      hmr: { server: httpServer, path: "/__admin_hmr" },
-      allowedHosts: true,
-    },
-    appType: "custom",
-  });
-
-  app.use("/admin", adminVite.middlewares);
-  app.use(marketplaceVite.middlewares);
+  app.use(adminVite.middlewares);
 
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
     try {
-      if (url.startsWith("/admin")) {
-        const clientTemplate = path.join(adminAppDir, "client", "index.html");
-        let template = await fs.promises.readFile(clientTemplate, "utf-8");
-        template = template.replace(
-          `src="/src/main.tsx"`,
-          `src="/admin/src/main.tsx?v=${nanoid()}"`,
-        );
-        const page = await adminVite.transformIndexHtml(url, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(page);
-      } else {
-        const clientTemplate = path.join(marketplaceAppDir, "client", "index.html");
-        let template = await fs.promises.readFile(clientTemplate, "utf-8");
-        template = template.replace(
-          `src="/src/main.tsx"`,
-          `src="/src/main.tsx?v=${nanoid()}"`,
-        );
-        const page = await marketplaceVite.transformIndexHtml(url, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(page);
-      }
+      const clientTemplate = path.join(adminAppDir, "client", "index.html");
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`,
+      );
+      const page = await adminVite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      if (url.startsWith("/admin")) {
-        adminVite.ssrFixStacktrace(e as Error);
-      } else {
-        marketplaceVite.ssrFixStacktrace(e as Error);
-      }
+      adminVite.ssrFixStacktrace(e as Error);
       next(e);
     }
   });
@@ -197,9 +160,7 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, async () => {
-    console.log(`[Dual Server] ✅ Serving on port ${port}`);
-    console.log(`[Dual Server] 📦 Marketplace App → /`);
-    console.log(`[Dual Server] 🔧 Admin App → /admin`);
+    console.log(`[Server] ✅ Admin App serving on port ${port}`);
 
     try {
       await socketListener.initialize();
