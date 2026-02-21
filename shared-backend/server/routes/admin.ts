@@ -1400,6 +1400,8 @@ If you have any questions, feel free to reach out to our support team.
 
       const queryParams = new URLSearchParams();
       if (req.query.type) queryParams.append("type", req.query.type as string);
+      if (req.query.from) queryParams.append("from", req.query.from as string);
+      if (req.query.to) queryParams.append("to", req.query.to as string);
       const url = `${BASE_URL}/users/shipping/service/pending${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log(`Fetching shipping service pending from: ${url}`);
       

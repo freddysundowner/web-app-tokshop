@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, Wallet, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Loader2 } from "lucide-react";
+import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, ChevronDown, Wallet, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function AdminApplicationFees() {
@@ -21,6 +21,7 @@ export default function AdminApplicationFees() {
     limit: '50',
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [pendingOpen, setPendingOpen] = useState(true);
 
   // Build query string for revenue
   const buildRevenueQueryString = () => {
@@ -57,10 +58,18 @@ export default function AdminApplicationFees() {
     return headers;
   };
 
+  const buildPendingParams = (type: string) => {
+    const params = new URLSearchParams();
+    params.append('type', type);
+    if (filters.from) params.append('from', filters.from);
+    if (filters.to) params.append('to', filters.to);
+    return params.toString();
+  };
+
   const { data: pendingShippingData, isLoading: pendingShippingLoading } = useQuery<any>({
-    queryKey: ['admin-shipping-service-pending', 'shipping_deduction'],
+    queryKey: ['admin-shipping-service-pending', 'shipping_deduction', filters.from, filters.to],
     queryFn: async () => {
-      const response = await fetch('/api/admin/shipping-service-pending?type=shipping_deduction', {
+      const response = await fetch(`/api/admin/shipping-service-pending?${buildPendingParams('shipping_deduction')}`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -73,9 +82,9 @@ export default function AdminApplicationFees() {
   });
 
   const { data: pendingServiceFeeData, isLoading: pendingServiceFeeLoading } = useQuery<any>({
-    queryKey: ['admin-shipping-service-pending', 'service_fee'],
+    queryKey: ['admin-shipping-service-pending', 'service_fee', filters.from, filters.to],
     queryFn: async () => {
-      const response = await fetch('/api/admin/shipping-service-pending?type=service_fee', {
+      const response = await fetch(`/api/admin/shipping-service-pending?${buildPendingParams('service_fee')}`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -173,61 +182,76 @@ export default function AdminApplicationFees() {
           <p className="text-muted-foreground">Platform revenue and financial overview</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Card>
-            <CardContent className="flex items-center justify-between py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Shipping Deduction</p>
-                  <p className="text-2xl font-bold" data-testid="text-pending-shipping-value">
-                    {pendingShippingLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      `$${parseFloat(String(pendingShippingData?.total ?? 0)).toFixed(2)}`
-                    )}
-                  </p>
-                  {!pendingShippingLoading && pendingShippingData?.count > 0 && (
-                    <p className="text-xs text-muted-foreground">{pendingShippingData.count} pending</p>
-                  )}
-                </div>
+        <Card className="mb-6">
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setPendingOpen(!pendingOpen)}
+            data-testid="button-toggle-pending"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Pending Transfers</CardTitle>
+                <CardDescription>Pending shipping deductions and service fees</CardDescription>
               </div>
-              <Button data-testid="button-transfer-shipping" className="gap-2">
-                <ArrowRightLeft className="h-4 w-4" />
-                Transfer
-              </Button>
-            </CardContent>
-          </Card>
+              <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", pendingOpen && "rotate-180")} />
+            </div>
+          </CardHeader>
+          {pendingOpen && (
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pending Shipping Deduction</p>
+                      <p className="text-2xl font-bold" data-testid="text-pending-shipping-value">
+                        {pendingShippingLoading ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          `$${parseFloat(String(pendingShippingData?.total ?? 0)).toFixed(2)}`
+                        )}
+                      </p>
+                      {!pendingShippingLoading && pendingShippingData?.count > 0 && (
+                        <p className="text-xs text-muted-foreground">{pendingShippingData.count} pending</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button data-testid="button-transfer-shipping" className="gap-2">
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Transfer
+                  </Button>
+                </div>
 
-          <Card>
-            <CardContent className="flex items-center justify-between py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Service Fee</p>
-                  <p className="text-2xl font-bold" data-testid="text-pending-service-fee-value">
-                    {pendingServiceFeeLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      `$${parseFloat(String(pendingServiceFeeData?.total ?? 0)).toFixed(2)}`
-                    )}
-                  </p>
-                  {!pendingServiceFeeLoading && pendingServiceFeeData?.count > 0 && (
-                    <p className="text-xs text-muted-foreground">{pendingServiceFeeData.count} pending</p>
-                  )}
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <CreditCard className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pending Service Fee</p>
+                      <p className="text-2xl font-bold" data-testid="text-pending-service-fee-value">
+                        {pendingServiceFeeLoading ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          `$${parseFloat(String(pendingServiceFeeData?.total ?? 0)).toFixed(2)}`
+                        )}
+                      </p>
+                      {!pendingServiceFeeLoading && pendingServiceFeeData?.count > 0 && (
+                        <p className="text-xs text-muted-foreground">{pendingServiceFeeData.count} pending</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button data-testid="button-transfer-service-fee" className="gap-2">
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Transfer
+                  </Button>
                 </div>
               </div>
-              <Button data-testid="button-transfer-service-fee" className="gap-2">
-                <ArrowRightLeft className="h-4 w-4" />
-                Transfer
-              </Button>
             </CardContent>
-          </Card>
-        </div>
+          )}
+        </Card>
 
         {/* Revenue Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
