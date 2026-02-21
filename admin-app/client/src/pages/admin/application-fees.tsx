@@ -89,6 +89,8 @@ export default function AdminApplicationFees() {
       if (!response.ok) throw new Error('Failed to fetch revenue');
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const getAuthHeaders = () => {
