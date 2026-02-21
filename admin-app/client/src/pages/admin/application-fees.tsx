@@ -57,15 +57,30 @@ export default function AdminApplicationFees() {
     return headers;
   };
 
-  const { data: pendingServiceData, isLoading: pendingServiceLoading } = useQuery<any>({
-    queryKey: ['admin-shipping-service-pending'],
+  const { data: pendingShippingData, isLoading: pendingShippingLoading } = useQuery<any>({
+    queryKey: ['admin-shipping-service-pending', 'shipping_deduction'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/shipping-service-pending', {
+      const response = await fetch('/api/admin/shipping-service-pending?type=shipping_deduction', {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch pending service data');
+        throw new Error('Failed to fetch pending shipping deduction');
+      }
+      const result = await response.json();
+      return result.success ? result.data : result;
+    },
+  });
+
+  const { data: pendingServiceFeeData, isLoading: pendingServiceFeeLoading } = useQuery<any>({
+    queryKey: ['admin-shipping-service-pending', 'service_fee'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/shipping-service-pending?type=service_fee', {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch pending service fee');
       }
       const result = await response.json();
       return result.success ? result.data : result;
@@ -158,31 +173,61 @@ export default function AdminApplicationFees() {
           <p className="text-muted-foreground">Platform revenue and financial overview</p>
         </div>
 
-        <Card className="mb-6">
-          <CardContent className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <DollarSign className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Shipping Service</p>
-                <p className="text-2xl font-bold" data-testid="text-pending-service-value">
-                  {pendingServiceLoading ? (
-                    <span className="flex items-center gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Card>
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending Shipping Deduction</p>
+                  <p className="text-2xl font-bold" data-testid="text-pending-shipping-value">
+                    {pendingShippingLoading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
-                    </span>
-                  ) : (
-                    `$${parseFloat(String(pendingServiceData?.total ?? 0)).toFixed(2)}`
+                    ) : (
+                      `$${parseFloat(String(pendingShippingData?.total ?? 0)).toFixed(2)}`
+                    )}
+                  </p>
+                  {!pendingShippingLoading && pendingShippingData?.count > 0 && (
+                    <p className="text-xs text-muted-foreground">{pendingShippingData.count} pending</p>
                   )}
-                </p>
+                </div>
               </div>
-            </div>
-            <Button data-testid="button-transfer" className="gap-2">
-              <ArrowRightLeft className="h-4 w-4" />
-              Transfer
-            </Button>
-          </CardContent>
-        </Card>
+              <Button data-testid="button-transfer-shipping" className="gap-2">
+                <ArrowRightLeft className="h-4 w-4" />
+                Transfer
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending Service Fee</p>
+                  <p className="text-2xl font-bold" data-testid="text-pending-service-fee-value">
+                    {pendingServiceFeeLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      `$${parseFloat(String(pendingServiceFeeData?.total ?? 0)).toFixed(2)}`
+                    )}
+                  </p>
+                  {!pendingServiceFeeLoading && pendingServiceFeeData?.count > 0 && (
+                    <p className="text-xs text-muted-foreground">{pendingServiceFeeData.count} pending</p>
+                  )}
+                </div>
+              </div>
+              <Button data-testid="button-transfer-service-fee" className="gap-2">
+                <ArrowRightLeft className="h-4 w-4" />
+                Transfer
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Revenue Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

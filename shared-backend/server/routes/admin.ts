@@ -1398,7 +1398,9 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const url = `${BASE_URL}/users/shipping/service/pending`;
+      const queryParams = new URLSearchParams();
+      if (req.query.type) queryParams.append("type", req.query.type as string);
+      const url = `${BASE_URL}/users/shipping/service/pending${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log(`Fetching shipping service pending from: ${url}`);
       
       const response = await fetch(url, {
