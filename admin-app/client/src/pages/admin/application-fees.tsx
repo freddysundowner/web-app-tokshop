@@ -228,11 +228,11 @@ export default function AdminApplicationFees() {
             </div>
           </CardHeader>
           {pendingOpen && (
-            <CardContent>
+            <CardContent onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                   <Label className="text-sm font-medium">Type</Label>
-                  <Select value={pendingType} onValueChange={setPendingType}>
+                  <Select value={pendingType} onValueChange={(val) => { setPendingType(val); }}>
                     <SelectTrigger className="w-[220px]" data-testid="select-pending-type">
                       <SelectValue />
                     </SelectTrigger>
