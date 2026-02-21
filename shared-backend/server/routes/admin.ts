@@ -1433,6 +1433,7 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
+      console.log(`Shipping service pending data:`, JSON.stringify(data, null, 2));
       res.json({
         success: true,
         data: data,
