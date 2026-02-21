@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminLayout } from "@/components/admin-layout";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { CreditCard, Search, X, Printer, MoreVertical, DollarSign, Filter } from "lucide-react";
+import { CreditCard, Search, X, Printer, MoreVertical, DollarSign, Filter, ArrowRightLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/lib/settings-context";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -114,6 +114,21 @@ export default function AdminTransactions() {
       });
       if (!response.ok) {
         throw new Error('Failed to fetch initiate transactions');
+      }
+      const result = await response.json();
+      return result.success ? result.data : result;
+    },
+  });
+
+  const { data: pendingServiceData, isLoading: pendingServiceLoading } = useQuery<any>({
+    queryKey: ['admin-shipping-service-pending'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/shipping-service-pending', {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch pending service data');
       }
       const result = await response.json();
       return result.success ? result.data : result;
@@ -233,6 +248,32 @@ export default function AdminTransactions() {
           <h2 className="text-3xl font-bold text-foreground">Transactions</h2>
           <p className="text-muted-foreground">Monitor all financial transactions and refunds</p>
         </div>
+
+        <Card className="mb-6">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <DollarSign className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending Shipping Service</p>
+                <p className="text-2xl font-bold" data-testid="text-pending-service-value">
+                  {pendingServiceLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </span>
+                  ) : (
+                    `$${parseFloat(String(pendingServiceData?.totalPending || pendingServiceData?.total || pendingServiceData?.amount || pendingServiceData?.value || pendingServiceData || 0)).toFixed(2)}`
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button data-testid="button-transfer" className="gap-2">
+              <ArrowRightLeft className="h-4 w-4" />
+              Transfer
+            </Button>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="transactions" className="space-y-4">
           <TabsList>

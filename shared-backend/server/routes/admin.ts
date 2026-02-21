@@ -1387,6 +1387,66 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  app.get("/api/admin/shipping-service-pending", requireAdmin, async (req, res) => {
+    try {
+      const accessToken = getAdminToken(req);
+      
+      if (!accessToken) {
+        return res.status(401).json({
+          success: false,
+          error: "No access token found",
+        });
+      }
+
+      const url = `${BASE_URL}/users/shipping/service/pending`;
+      console.log(`Fetching shipping service pending from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log(`Shipping service pending API response status: ${response.status}`);
+      const contentType = response.headers.get("content-type");
+
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.error(`Non-JSON response from shipping service pending API: ${textResponse.substring(0, 500)}`);
+        return res.status(500).json({
+          success: false,
+          error: "Shipping service pending API returned non-JSON response",
+          details: `Status: ${response.status}`,
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(`Shipping service pending API error:`, data);
+        return res.status(response.status).json({
+          success: false,
+          error: data.message || "Failed to fetch shipping service pending",
+          details: data,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: data,
+      });
+    } catch (error: any) {
+      console.error("Error fetching shipping service pending:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch shipping service pending",
+        details: error.message,
+      });
+    }
+  });
+
   // Get all shows/rooms with pagination and filters
   app.get("/api/admin/shows", requireAdmin, async (req, res) => {
     try {
