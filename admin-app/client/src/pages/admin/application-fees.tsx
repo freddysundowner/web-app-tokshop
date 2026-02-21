@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, Wallet, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function AdminApplicationFees() {
@@ -41,6 +41,34 @@ export default function AdminApplicationFees() {
       const response = await fetch(`/api/admin/revenue?${revenueQueryString}`);
       if (!response.ok) throw new Error('Failed to fetch revenue');
       return response.json();
+    },
+  });
+
+  const getAuthHeaders = () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const adminToken = localStorage.getItem('adminAccessToken');
+    const userToken = localStorage.getItem('accessToken');
+    const userData = localStorage.getItem('user');
+    if (adminToken) headers['x-admin-token'] = adminToken;
+    if (userToken) headers['x-access-token'] = userToken;
+    if (userData) headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+    return headers;
+  };
+
+  const { data: pendingServiceData, isLoading: pendingServiceLoading } = useQuery<any>({
+    queryKey: ['admin-shipping-service-pending'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/shipping-service-pending', {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch pending service data');
+      }
+      const result = await response.json();
+      return result.success ? result.data : result;
     },
   });
 
@@ -129,6 +157,32 @@ export default function AdminApplicationFees() {
           <h2 className="text-3xl font-bold text-foreground">Revenue</h2>
           <p className="text-muted-foreground">Platform revenue and financial overview</p>
         </div>
+
+        <Card className="mb-6">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <DollarSign className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending Shipping Service</p>
+                <p className="text-2xl font-bold" data-testid="text-pending-service-value">
+                  {pendingServiceLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </span>
+                  ) : (
+                    `$${parseFloat(String(pendingServiceData?.totalPending || pendingServiceData?.total || pendingServiceData?.amount || pendingServiceData?.value || pendingServiceData || 0)).toFixed(2)}`
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button data-testid="button-transfer" className="gap-2">
+              <ArrowRightLeft className="h-4 w-4" />
+              Transfer
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Revenue Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
