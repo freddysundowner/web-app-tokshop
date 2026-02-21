@@ -22,7 +22,8 @@ export default function AdminApplicationFees() {
     limit: '50',
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [pendingOpen, setPendingOpen] = useState(true);
+  const [pendingOpen, setPendingOpen] = useState(false);
+  const [pendingType, setPendingType] = useState<string>('shipping_deduction');
   const [transferringType, setTransferringType] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -111,30 +112,15 @@ export default function AdminApplicationFees() {
     return params.toString();
   };
 
-  const { data: pendingShippingData, isLoading: pendingShippingLoading } = useQuery<any>({
-    queryKey: ['admin-shipping-service-pending', 'shipping_deduction', filters.from, filters.to],
+  const { data: pendingData, isLoading: pendingLoading } = useQuery<any>({
+    queryKey: ['admin-shipping-service-pending', pendingType, filters.from, filters.to],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/shipping-service-pending?${buildPendingParams('shipping_deduction')}`, {
+      const response = await fetch(`/api/admin/shipping-service-pending?${buildPendingParams(pendingType)}`, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch pending shipping deduction');
-      }
-      const result = await response.json();
-      return result.success ? result.data : result;
-    },
-  });
-
-  const { data: pendingServiceFeeData, isLoading: pendingServiceFeeLoading } = useQuery<any>({
-    queryKey: ['admin-shipping-service-pending', 'service_fee', filters.from, filters.to],
-    queryFn: async () => {
-      const response = await fetch(`/api/admin/shipping-service-pending?${buildPendingParams('service_fee')}`, {
-        credentials: 'include',
-        headers: getAuthHeaders(),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch pending service fee');
+        throw new Error('Failed to fetch pending data');
       }
       const result = await response.json();
       return result.success ? result.data : result;
@@ -243,65 +229,53 @@ export default function AdminApplicationFees() {
           </CardHeader>
           {pendingOpen && (
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pending Shipping Deduction</p>
-                      <Badge variant="outline" className="text-xs mt-1">shipping_deduction</Badge>
-                      <p className="text-2xl font-bold" data-testid="text-pending-shipping-value">
-                        {pendingShippingLoading ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          `$${parseFloat(String(pendingShippingData?.total ?? 0)).toFixed(2)}`
-                        )}
-                      </p>
-                      {!pendingShippingLoading && pendingShippingData?.count > 0 && (
-                        <p className="text-xs text-muted-foreground">{pendingShippingData.count} pending</p>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    data-testid="button-transfer-shipping"
-                    className="gap-2"
-                    disabled={transferringType === 'shipping_deduction' || pendingShippingLoading || !pendingShippingData?.total}
-                    onClick={() => handleTransfer('shipping_deduction', parseFloat(String(pendingShippingData?.total ?? 0)))}
-                  >
-                    {transferringType === 'shipping_deduction' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
-                    Transfer
-                  </Button>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm font-medium">Type</Label>
+                  <Select value={pendingType} onValueChange={setPendingType}>
+                    <SelectTrigger className="w-[220px]" data-testid="select-pending-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="shipping_deduction">Shipping Deduction</SelectItem>
+                      <SelectItem value="service_fee">Service Fee</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <CreditCard className="h-5 w-5 text-primary" />
+                      {pendingType === 'shipping_deduction' ? (
+                        <DollarSign className="h-5 w-5 text-primary" />
+                      ) : (
+                        <CreditCard className="h-5 w-5 text-primary" />
+                      )}
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Pending Service Fee</p>
-                      <Badge variant="outline" className="text-xs mt-1">service_fee</Badge>
-                      <p className="text-2xl font-bold" data-testid="text-pending-service-fee-value">
-                        {pendingServiceFeeLoading ? (
+                      <p className="text-sm text-muted-foreground">
+                        {pendingType === 'shipping_deduction' ? 'Pending Shipping Deduction' : 'Pending Service Fee'}
+                      </p>
+                      <Badge variant="outline" className="text-xs mt-1">{pendingType}</Badge>
+                      <p className="text-2xl font-bold" data-testid="text-pending-value">
+                        {pendingLoading ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                          `$${parseFloat(String(pendingServiceFeeData?.total ?? 0)).toFixed(2)}`
+                          `$${parseFloat(String(pendingData?.total ?? 0)).toFixed(2)}`
                         )}
                       </p>
-                      {!pendingServiceFeeLoading && pendingServiceFeeData?.count > 0 && (
-                        <p className="text-xs text-muted-foreground">{pendingServiceFeeData.count} pending</p>
+                      {!pendingLoading && pendingData?.count > 0 && (
+                        <p className="text-xs text-muted-foreground">{pendingData.count} pending</p>
                       )}
                     </div>
                   </div>
                   <Button
-                    data-testid="button-transfer-service-fee"
+                    data-testid="button-transfer"
                     className="gap-2"
-                    disabled={transferringType === 'service_fee' || pendingServiceFeeLoading || !pendingServiceFeeData?.total}
-                    onClick={() => handleTransfer('service_fee', parseFloat(String(pendingServiceFeeData?.total ?? 0)))}
+                    disabled={transferringType === pendingType || pendingLoading || !pendingData?.total}
+                    onClick={() => handleTransfer(pendingType, parseFloat(String(pendingData?.total ?? 0)))}
                   >
-                    {transferringType === 'service_fee' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
+                    {transferringType === pendingType ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
                     Transfer
                   </Button>
                 </div>
