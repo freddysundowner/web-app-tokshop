@@ -24,6 +24,8 @@ export default function AdminApplicationFees() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [pendingType, setPendingType] = useState<string>('shipping_deduction');
+  const [pendingFromDate, setPendingFromDate] = useState<Date | undefined>(undefined);
+  const [pendingToDate, setPendingToDate] = useState<Date | undefined>(undefined);
   const [transferringType, setTransferringType] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -106,16 +108,19 @@ export default function AdminApplicationFees() {
     return headers;
   };
 
+  const pendingFrom = pendingFromDate ? format(pendingFromDate, 'yyyy-MM-dd') : '';
+  const pendingTo = pendingToDate ? format(pendingToDate, 'yyyy-MM-dd') : '';
+
   const buildPendingParams = (type: string) => {
     const params = new URLSearchParams();
     params.append('type', type);
-    if (filters.from) params.append('from', filters.from);
-    if (filters.to) params.append('to', filters.to);
+    if (pendingFrom) params.append('from', pendingFrom);
+    if (pendingTo) params.append('to', pendingTo);
     return params.toString();
   };
 
   const { data: pendingData, isLoading: pendingLoading } = useQuery<any>({
-    queryKey: ['admin-shipping-service-pending', pendingType, filters.from, filters.to],
+    queryKey: ['admin-shipping-service-pending', pendingType, pendingFrom, pendingTo],
     queryFn: async () => {
       const response = await fetch(`/api/admin/shipping-service-pending?${buildPendingParams(pendingType)}`, {
         credentials: 'include',
@@ -234,17 +239,55 @@ export default function AdminApplicationFees() {
           {pendingOpen && (
             <CardContent onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                  <Label className="text-sm font-medium">Type</Label>
-                  <Select value={pendingType} onValueChange={(val) => { setPendingType(val); }}>
-                    <SelectTrigger className="w-[220px]" data-testid="select-pending-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="shipping_deduction">Shipping Deduction</SelectItem>
-                      <SelectItem value="service_fee">Service Fee</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Type</Label>
+                    <Select value={pendingType} onValueChange={(val) => { setPendingType(val); }}>
+                      <SelectTrigger className="w-[220px]" data-testid="select-pending-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="shipping_deduction">Shipping Deduction</SelectItem>
+                        <SelectItem value="service_fee">Service Fee</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">From</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-[160px] justify-start text-left font-normal", !pendingFromDate && "text-muted-foreground")} data-testid="button-pending-from-date">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {pendingFromDate ? format(pendingFromDate, 'MMM dd, yyyy') : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={pendingFromDate} onSelect={setPendingFromDate} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">To</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-[160px] justify-start text-left font-normal", !pendingToDate && "text-muted-foreground")} data-testid="button-pending-to-date">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {pendingToDate ? format(pendingToDate, 'MMM dd, yyyy') : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={pendingToDate} onSelect={setPendingToDate} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {(pendingFromDate || pendingToDate) && (
+                    <Button variant="ghost" size="sm" onClick={() => { setPendingFromDate(undefined); setPendingToDate(undefined); }} data-testid="button-clear-pending-dates">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border p-4">
