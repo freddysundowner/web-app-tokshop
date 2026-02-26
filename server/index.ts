@@ -22,6 +22,15 @@ import { nanoid } from "nanoid";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, "..");
+
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException] Unhandled exception:', err.message, err.stack);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection] Unhandled promise rejection:', reason);
+});
+
 const marketplaceAppDir = path.join(rootDir, "marketplace-app");
 const adminAppDir = path.join(rootDir, "admin-app");
 
@@ -105,8 +114,10 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-    throw err;
+    console.error(`[Server Error] ${_req.method} ${_req.path} → ${status}: ${message}`, err.stack || '');
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   app.use('/api', (req, res) => {
@@ -135,56 +146,27 @@ app.use((req, res, next) => {
     appType: "custom",
   });
 
-  const marketplaceVite = await createViteServer({
-    root: path.join(marketplaceAppDir, "client"),
-    configFile: path.join(marketplaceAppDir, "vite.config.ts"),
-    base: "/marketplace/",
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-      },
-    },
-    server: {
-      middlewareMode: true,
-      hmr: { server: httpServer, path: "/__marketplace_hmr" },
-      allowedHosts: true,
-    },
-    appType: "custom",
+  // Marketplace is disabled in this dev session to conserve memory.
+  // Re-enable by restoring the marketplace Vite block when needed.
+  app.use("/marketplace", (_req, res) => {
+    res.status(503).send("Marketplace app is not running in this dev session.");
   });
 
-  app.use("/marketplace", marketplaceVite.middlewares);
   app.use(adminVite.middlewares);
 
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
-
     try {
-      if (url.startsWith("/marketplace")) {
-        const clientTemplate = path.join(marketplaceAppDir, "client", "index.html");
-        let template = await fs.promises.readFile(clientTemplate, "utf-8");
-        template = template.replace(
-          `src="/src/main.tsx"`,
-          `src="/marketplace/src/main.tsx?v=${nanoid()}"`,
-        );
-        const page = await marketplaceVite.transformIndexHtml(url, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(page);
-      } else {
-        const clientTemplate = path.join(adminAppDir, "client", "index.html");
-        let template = await fs.promises.readFile(clientTemplate, "utf-8");
-        template = template.replace(
-          `src="/src/main.tsx"`,
-          `src="/src/main.tsx?v=${nanoid()}"`,
-        );
-        const page = await adminVite.transformIndexHtml(url, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(page);
-      }
+      const clientTemplate = path.join(adminAppDir, "client", "index.html");
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`,
+      );
+      const page = await adminVite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      if (url.startsWith("/marketplace")) {
-        marketplaceVite.ssrFixStacktrace(e as Error);
-      } else {
-        adminVite.ssrFixStacktrace(e as Error);
-      }
+      adminVite.ssrFixStacktrace(e as Error);
       next(e);
     }
   });
