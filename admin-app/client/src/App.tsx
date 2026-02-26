@@ -14,6 +14,7 @@ import AdminUsers from "@/pages/admin/users";
 import AdminPendingApprovals from "@/pages/admin/pending-approvals";
 import AdminUserDetail from "@/pages/admin/user-detail";
 import AdminUserItemDetail from "@/pages/admin/user-item-detail";
+import AdminSellerShipments from "@/pages/admin/seller-shipments";
 import AdminInventory from "@/pages/admin/inventory";
 import AdminProductDetail from "@/pages/admin/product-detail";
 import AdminOrders from "@/pages/admin/orders";
@@ -195,6 +196,7 @@ function Router() {
           <Switch>
             <Route path="/" component={AdminDashboard} />
             <Route path="/admin" component={AdminDashboard} />
+            <Route path="/admin/users/:userId/shipments" component={AdminSellerShipments} />
             <Route path="/admin/users/:userId/details/:itemType/:itemId" component={AdminUserItemDetail} />
             <Route path="/admin/users/:userId" component={AdminUserDetail} />
             <Route path="/admin/users" component={AdminUsers} />
