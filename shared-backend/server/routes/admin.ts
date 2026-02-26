@@ -999,6 +999,126 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  // Get shows for a specific seller
+  app.get("/api/admin/users/:userId/shows", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const accessToken = getAdminToken(req);
+
+      if (!accessToken) {
+        return res.status(401).json({ success: false, error: "No access token found" });
+      }
+
+      const queryParams = new URLSearchParams();
+      queryParams.append("userId", userId);
+      queryParams.append("sort", "-1");
+      if (req.query.page) queryParams.append("page", req.query.page as string);
+      if (req.query.limit) queryParams.append("limit", req.query.limit as string);
+      if (req.query.status) queryParams.append("status", req.query.status as string);
+
+      const response = await fetch(`${BASE_URL}/rooms?${queryParams.toString()}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ success: false, error: "Failed to fetch seller shows" });
+      }
+
+      const data = await response.json();
+      res.json({
+        success: true,
+        data: data.data || data.rooms || [],
+        total: data.totalDoc || 0,
+      });
+    } catch (error: any) {
+      console.error("Error fetching seller shows:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch seller shows" });
+    }
+  });
+
+  // Get shipping metrics for a specific seller (admin view)
+  app.get("/api/admin/users/:userId/shipping-metrics", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const accessToken = getAdminToken(req);
+
+      if (!accessToken) {
+        return res.status(401).json({ success: false, error: "No access token found" });
+      }
+
+      const queryParams = new URLSearchParams();
+      if (req.query.startDate) queryParams.append("startDate", req.query.startDate as string);
+      if (req.query.endDate) queryParams.append("endDate", req.query.endDate as string);
+      if (req.query.tokshow) queryParams.append("tokshow", req.query.tokshow as string);
+      if (req.query.marketplace) queryParams.append("marketplace", req.query.marketplace as string);
+
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+
+      const response = await fetch(`${BASE_URL}/orders/shipments/metrics/${userId}${queryString}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ success: false, error: "Failed to fetch shipping metrics" });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching shipping metrics:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch shipping metrics" });
+    }
+  });
+
+  // Get seller orders with filters (admin view)
+  app.get("/api/admin/users/:userId/seller-orders", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const accessToken = getAdminToken(req);
+
+      if (!accessToken) {
+        return res.status(401).json({ success: false, error: "No access token found" });
+      }
+
+      const queryParams = new URLSearchParams();
+      queryParams.append("userId", userId);
+      if (req.query.status) queryParams.append("status", req.query.status as string);
+      if (req.query.tokshow) queryParams.append("tokshow", req.query.tokshow as string);
+      if (req.query.marketplace) queryParams.append("marketplace", req.query.marketplace as string);
+      if (req.query.search) queryParams.append("search", req.query.search as string);
+      if (req.query.page) queryParams.append("page", req.query.page as string);
+      if (req.query.limit) queryParams.append("limit", req.query.limit as string);
+      if (req.query.startDate) queryParams.append("startDate", req.query.startDate as string);
+      if (req.query.endDate) queryParams.append("endDate", req.query.endDate as string);
+
+      const response = await fetch(`${BASE_URL}/orders?${queryParams.toString()}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ success: false, error: "Failed to fetch seller orders" });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching seller orders:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch seller orders" });
+    }
+  });
+
   // Get specific user details
   app.get("/api/admin/users/:userId", requireAdmin, async (req, res) => {
     try {
