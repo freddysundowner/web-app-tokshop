@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical, Clock, CalendarIcon, Loader2, Filter, Trash2 } from "lucide-react";
+import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical, Clock, CalendarIcon, Loader2, Filter, Trash2, LogIn } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
