@@ -146,10 +146,47 @@ app.use((req, res, next) => {
     appType: "custom",
   });
 
-  // Marketplace is disabled in this dev session to conserve memory.
-  // Re-enable by restoring the marketplace Vite block when needed.
-  app.use("/marketplace", (_req, res) => {
-    res.status(503).send("Marketplace app is not running in this dev session.");
+  // Marketplace Vite is lazily initialized on first request to avoid memory spikes
+  // from both apps compiling simultaneously at startup.
+  let _marketplaceVite: Awaited<ReturnType<typeof createViteServer>> | null = null;
+  let _marketplaceVitePromise: Promise<Awaited<ReturnType<typeof createViteServer>>> | null = null;
+
+  const getMarketplaceVite = () => {
+    if (_marketplaceVite) return Promise.resolve(_marketplaceVite);
+    if (!_marketplaceVitePromise) {
+      console.log('[Dual Server] 🚀 Lazily initializing Marketplace Vite...');
+      _marketplaceVitePromise = createViteServer({
+        root: path.join(marketplaceAppDir, "client"),
+        configFile: path.join(marketplaceAppDir, "vite.config.ts"),
+        base: "/marketplace/",
+        customLogger: {
+          ...viteLogger,
+          error: (msg, options) => {
+            viteLogger.error(msg, options);
+          },
+        },
+        server: {
+          middlewareMode: true,
+          hmr: { server: httpServer, path: "/__marketplace_hmr" },
+          allowedHosts: true,
+        },
+        appType: "custom",
+      }).then(v => {
+        _marketplaceVite = v;
+        console.log('[Dual Server] ✅ Marketplace Vite ready');
+        return v;
+      });
+    }
+    return _marketplaceVitePromise;
+  };
+
+  app.use("/marketplace", async (req, res, next) => {
+    try {
+      const mv = await getMarketplaceVite();
+      mv.middlewares(req, res, next);
+    } catch (e) {
+      next(e);
+    }
   });
 
   app.use(adminVite.middlewares);
@@ -157,16 +194,32 @@ app.use((req, res, next) => {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
     try {
-      const clientTemplate = path.join(adminAppDir, "client", "index.html");
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
-      const page = await adminVite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      if (url.startsWith("/marketplace")) {
+        const mv = await getMarketplaceVite();
+        const clientTemplate = path.join(marketplaceAppDir, "client", "index.html");
+        let template = await fs.promises.readFile(clientTemplate, "utf-8");
+        template = template.replace(
+          `src="/src/main.tsx"`,
+          `src="/marketplace/src/main.tsx?v=${nanoid()}"`,
+        );
+        const page = await mv.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      } else {
+        const clientTemplate = path.join(adminAppDir, "client", "index.html");
+        let template = await fs.promises.readFile(clientTemplate, "utf-8");
+        template = template.replace(
+          `src="/src/main.tsx"`,
+          `src="/src/main.tsx?v=${nanoid()}"`,
+        );
+        const page = await adminVite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      }
     } catch (e) {
-      adminVite.ssrFixStacktrace(e as Error);
+      if (url.startsWith("/marketplace")) {
+        if (_marketplaceVite) _marketplaceVite.ssrFixStacktrace(e as Error);
+      } else {
+        adminVite.ssrFixStacktrace(e as Error);
+      }
       next(e);
     }
   });
