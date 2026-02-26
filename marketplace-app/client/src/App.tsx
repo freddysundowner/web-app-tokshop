@@ -138,7 +138,7 @@ function Router() {
   // Redirect after social auth completion
   useEffect(() => {
     if (justCompletedSocialAuth && isAuthenticated && !pendingSocialAuth && user) {
-      setLocation('/marketplace');
+      setLocation('/');
       setJustCompletedSocialAuth(false);
     }
   }, [justCompletedSocialAuth, isAuthenticated, pendingSocialAuth, user, setLocation]);
