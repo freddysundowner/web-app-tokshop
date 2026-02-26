@@ -1010,11 +1010,11 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const queryParams = new URLSearchParams();
-      queryParams.append("userId", userId);
+      queryParams.append("userid", userId);
+      queryParams.append("status", "ended");
       queryParams.append("sort", "-1");
       if (req.query.page) queryParams.append("page", req.query.page as string);
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
-      if (req.query.status) queryParams.append("status", req.query.status as string);
 
       const response = await fetch(`${BASE_URL}/rooms?${queryParams.toString()}`, {
         method: "GET",
