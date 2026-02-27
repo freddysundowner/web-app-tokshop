@@ -233,6 +233,7 @@ function Router() {
             <Route path="/admin/pages/terms" component={AdminTermsPage} />
             <Route path="/admin/pages/contact" component={AdminContactPage} />
             <Route path="/admin/setup" component={AdminSetup} />
+            <Route path="/admin/login" component={AdminLogin} />
             <Route path="/admin/settings" component={AdminSettings} />
             <Route path="/admin/profile" component={AdminProfile} />
             <Route component={NotFound} />
