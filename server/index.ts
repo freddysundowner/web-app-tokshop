@@ -16,17 +16,17 @@ const marketplaceAppDir = path.join(__dirname, "..", "marketplace-app");
 const adminAppDir = path.join(__dirname, "..", "admin-app");
 
 // Load .env from the target app directory BEFORE changing directory
-dotenv.config({ path: path.join(marketplaceAppDir, ".env") });
+dotenv.config({ path: path.join(adminAppDir, ".env") });
 
 // Change to the target app directory so Vite picks up the right config
-process.chdir(marketplaceAppDir);
-console.log("[Marketplace Server] Changed directory to:", process.cwd());
+process.chdir(adminAppDir);
+console.log("[Admin Server] Changed directory to:", process.cwd());
 
 // Import the app server using an absolute path
 const serverPath = path.join(process.cwd(), "server.ts");
-console.log("[Marketplace Server] Loading server from:", serverPath);
+console.log("[Admin Server] Loading server from:", serverPath);
 
 import(serverPath).catch((err) => {
-  console.error("[Marketplace Server] Failed to load server:", err);
+  console.error("[Admin Server] Failed to load server:", err);
   process.exit(1);
 });
