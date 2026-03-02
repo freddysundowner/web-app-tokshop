@@ -1782,12 +1782,19 @@ export default function ShowViewNew() {
         }
       }
       
-      // Check 2: User must be following host if giveaway requires it
+      // Check 2: User country must match the room owner's country
+      const currentUserCountry = (user as any)?.country;
+      const ownerCountry = show?.owner?.country;
+      if (currentUserCountry && ownerCountry && currentUserCountry !== ownerCountry) {
+        throw new Error('You cannot join international giveaways. This giveaway is only available to participants in the same country as the host.');
+      }
+
+      // Check 3: User must be following host if giveaway requires it
       if (activeGiveaway.whocanenter === 'followers' && !isFollowingHost) {
         throw new Error('You must follow the host to enter this giveaway');
       }
       
-      // Check 3: User cannot enter the same giveaway twice
+      // Check 4: User cannot enter the same giveaway twice
       const participants = activeGiveaway.participants || [];
       const isAlreadyParticipant = participants.some((p: any) => 
         (typeof p === 'string' ? p : p.id || p._id) === currentUserId
