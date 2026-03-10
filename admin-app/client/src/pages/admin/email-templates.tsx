@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1450,26 +1450,57 @@ export default function EmailTemplates() {
   const [activeTab, setActiveTab] = useState("payment_available");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewContent, setPreviewContent] = useState({ subject: "", body: "" });
+  const hasSeededRef = useRef(false);
 
   const { data: savedTemplatesData, isLoading } = useQuery<any>({
     queryKey: ['/api/templates'],
   });
 
   useEffect(() => {
-    if (savedTemplatesData?.success && savedTemplatesData?.data) {
-      const apiTemplates = Array.isArray(savedTemplatesData.data) ? savedTemplatesData.data : [savedTemplatesData.data];
-      if (apiTemplates.length > 0) {
-        setTemplates(prev => prev.map(defaultTemplate => {
-          const savedTemplate = apiTemplates.find((t: any) => t.slug === defaultTemplate.id);
-          if (savedTemplate) {
-            return {
-              ...defaultTemplate,
-              body: savedTemplate.htmlContent || defaultTemplate.body,
-            };
+    if (!savedTemplatesData?.success) return;
+
+    const apiTemplates = Array.isArray(savedTemplatesData.data)
+      ? savedTemplatesData.data
+      : savedTemplatesData.data
+        ? [savedTemplatesData.data]
+        : [];
+
+    if (apiTemplates.length === 0 && !hasSeededRef.current) {
+      hasSeededRef.current = true;
+      const seedTemplates = async () => {
+        for (const template of defaultTemplates) {
+          const payload = {
+            name: template.name,
+            slug: template.id,
+            htmlContent: template.body,
+            placeholders: template.variables.map(v => v.name),
+          };
+          try {
+            await apiRequest("POST", "/api/templates", payload);
+          } catch {
           }
-          return defaultTemplate;
-        }));
-      }
+        }
+        queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
+        toast({
+          title: "Templates initialised",
+          description: "Default email templates have been saved for this installation.",
+        });
+      };
+      seedTemplates();
+      return;
+    }
+
+    if (apiTemplates.length > 0) {
+      setTemplates(prev => prev.map(defaultTemplate => {
+        const savedTemplate = apiTemplates.find((t: any) => t.slug === defaultTemplate.id);
+        if (savedTemplate) {
+          return {
+            ...defaultTemplate,
+            body: savedTemplate.htmlContent || defaultTemplate.body,
+          };
+        }
+        return defaultTemplate;
+      }));
     }
   }, [savedTemplatesData]);
 
