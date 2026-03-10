@@ -1879,6 +1879,284 @@ export const getKnowledgeBaseSections = (appName: string = 'TokshopLive'): Knowl
     ]
   },
   {
+    id: "offers-system",
+    title: "Making & Managing Offers",
+    icon: DollarSign,
+    description: "Negotiate prices directly with sellers",
+    content: [
+      {
+        title: "What is the Offers System?",
+        body: `The offers system lets buyers propose a lower price on a product instead of paying the full listed amount. Sellers can then accept, decline, or send back a counter-offer. It's a way to negotiate directly — similar to haggling at a market, but done in the app. Not all products accept offers; it depends on the seller enabling it for that listing.`
+      },
+      {
+        title: "How to Make an Offer (Buyers)",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">When you see a product with an "Make Offer" button:</p>
+            <ol className="space-y-2 text-sm text-muted-foreground ml-4">
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">1.</span>
+                <span>Click <strong>Make Offer</strong> on the product page</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">2.</span>
+                <span>Choose a preset discount (5%, 10%, 15%, or 20% off) or enter a custom price</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">3.</span>
+                <span>Review your offer amount and click <strong>Submit Offer</strong></span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">4.</span>
+                <span>The seller is notified and will accept, decline, or counter your offer</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">5.</span>
+                <span>Track the status of your offer in <strong>My Offers</strong></span>
+              </li>
+            </ol>
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mt-2">
+              <p className="text-sm font-medium mb-1">💡 Tips for successful offers</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Be reasonable — very low offers are likely to be declined</li>
+                <li>• The seller can see your offer history so be consistent</li>
+                <li>• You can cancel an offer before the seller responds</li>
+              </ul>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Responding to Offers (Sellers)",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">When a buyer makes an offer on one of your products, you have three options:</p>
+            <div className="space-y-3">
+              <div className="border-l-4 border-green-500 pl-4">
+                <h5 className="font-semibold mb-1">Accept</h5>
+                <p className="text-sm text-muted-foreground">Agree to the buyer's proposed price. The buyer is charged at the offer price and the order is created automatically.</p>
+              </div>
+              <div className="border-l-4 border-red-500 pl-4">
+                <h5 className="font-semibold mb-1">Decline</h5>
+                <p className="text-sm text-muted-foreground">Reject the offer. The buyer is notified and can make a new offer or purchase at full price.</p>
+              </div>
+              <div className="border-l-4 border-blue-500 pl-4">
+                <h5 className="font-semibold mb-1">Counter Offer</h5>
+                <p className="text-sm text-muted-foreground">Propose a different price — typically somewhere between the buyer's offer and your list price. The buyer then gets to accept or decline your counter.</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">Find all incoming offers in your <strong>Offers</strong> page under seller tools. You can filter by status (pending, accepted, declined) and search by product or buyer name.</p>
+          </div>
+        )
+      },
+      {
+        title: "Counter Offers & Negotiation",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">When a seller sends a counter offer:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>You'll receive a notification with the seller's proposed price</li>
+              <li>Go to <strong>My Offers</strong> to review the counter</li>
+              <li><strong>Accept</strong> — you'll be charged at the counter price and the order is created</li>
+              <li><strong>Decline</strong> — the offer ends; you can try a new offer or purchase at list price</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">There is one round of counter-offer — buyers cannot counter the counter. If you decline, the negotiation ends.</p>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "account-profile",
+    title: "Account & Profile Management",
+    icon: Users,
+    description: "Managing your profile, security, and account settings",
+    content: [
+      {
+        title: "Editing Your Profile",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Your profile is visible to other users. Keep it up to date:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Go to <strong>Profile</strong> from the navigation menu</li>
+              <li>Update your display name, profile photo, and bio</li>
+              <li>Your profile photo and name are visible to sellers and other buyers in show chats</li>
+              <li>Sellers see your profile when you make offers or place orders</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Account Settings",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Access full account settings from the <strong>Account</strong> page in the navigation:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li><strong>Personal Information:</strong> Update name, email, and contact details</li>
+              <li><strong>Security:</strong> Change password, manage login methods</li>
+              <li><strong>Notifications:</strong> Control which emails and push notifications you receive</li>
+              <li><strong>Privacy:</strong> Manage what others can see on your profile</li>
+              <li><strong>Payment Methods:</strong> Add, update, or remove saved cards</li>
+              <li><strong>Shipping Addresses:</strong> Manage your saved delivery addresses</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Resetting Your Password",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">If you forget your password or want to change it:</p>
+            <div className="border-l-4 border-blue-500 pl-4 mb-3">
+              <h5 className="font-semibold mb-1">Forgot your password?</h5>
+              <ol className="space-y-1 text-sm text-muted-foreground">
+                <li>1. Click <strong>Forgot Password</strong> on the login page</li>
+                <li>2. Enter the email address on your account</li>
+                <li>3. Check your email for a reset link (check spam if it doesn't arrive)</li>
+                <li>4. Click the link and set a new password</li>
+                <li>5. The reset link expires after 1 hour — request a new one if it expires</li>
+              </ol>
+            </div>
+            <div className="border-l-4 border-green-500 pl-4">
+              <h5 className="font-semibold mb-1">Already logged in?</h5>
+              <p className="text-sm text-muted-foreground">Go to <strong>Account → Security</strong> to change your password without needing the reset flow.</p>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Viewing Other Profiles",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">You can view any user's public profile:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Click on a seller's name in a show or product listing to view their public profile</li>
+              <li>Seller profiles show their active products, past shows, and reviews</li>
+              <li>From a profile you can follow the seller, browse their shop, and message them directly</li>
+              <li>Buyer profiles show basic info only — other buyers cannot see your purchase history</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "following-social",
+    title: "Following & Social Features",
+    icon: Users,
+    description: "Building your community and connecting with others",
+    content: [
+      {
+        title: "Following Sellers",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Following a seller is the best way to stay connected with them:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Click <strong>Follow</strong> on any seller's profile or during their live show</li>
+              <li>You'll get a notification whenever they go live</li>
+              <li>Their shows appear in your <strong>Following</strong> tab on the homepage</li>
+              <li>Sellers can see their follower count — your support helps them grow</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Managing Who You Follow",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The <strong>Following</strong> page shows everyone you currently follow:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Search through your following list to find a specific person</li>
+              <li>See their follower count to gauge their popularity</li>
+              <li>Send them a direct message from the following list</li>
+              <li>Unfollow anyone by visiting their profile and clicking <strong>Unfollow</strong></li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Direct Messaging",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Send private messages to sellers or other users you follow:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Use the message icon on a profile or from your following list</li>
+              <li>Great for asking about custom orders, stock availability, or post-sale questions</li>
+              <li>Sellers typically respond within a few hours</li>
+              <li>Message history is stored so you can refer back to past conversations</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Seller Follower Count & Growth",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">For sellers, your follower count is an important metric:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>New followers gained during each show appear in your show analytics</li>
+              <li>Higher follower counts mean more viewers automatically notified when you go live</li>
+              <li>Engaging in chat and hosting giveaways are proven ways to grow your following</li>
+              <li>Consistent show schedules help — followers know when to tune in</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "help-center",
+    title: "Help Center & Support Articles",
+    icon: BookOpen,
+    description: "Finding step-by-step guides and support articles",
+    content: [
+      {
+        title: "Knowledge Base vs Help Center",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The platform offers two different support resources:</p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="border rounded-lg p-4">
+                <h5 className="font-semibold mb-2">Knowledge Base (this page)</h5>
+                <p className="text-sm text-muted-foreground">A comprehensive reference covering all platform features. Good for understanding how things work in depth.</p>
+              </div>
+              <div className="border rounded-lg p-4">
+                <h5 className="font-semibold mb-2">Help Center</h5>
+                <p className="text-sm text-muted-foreground">Short, focused how-to articles on specific tasks. Good for step-by-step guidance on a particular action.</p>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Using the Help Center",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Access the Help Center from the footer or the support menu:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Browse articles by category or use the search bar to find your topic</li>
+              <li>Articles cover specific tasks like "How to create a shipping label" or "How to set up Stripe Connect"</li>
+              <li>Each article is focused on one task with clear numbered steps</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Still Need Help?",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">If you can't find what you need in the Help Center or Knowledge Base:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Use the <strong>Contact</strong> page to send a message to the support team</li>
+              <li>Include as much detail as possible — order numbers, screenshots, and a clear description help us resolve issues faster</li>
+              <li>The support team typically responds within 24 hours</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
     id: "faq",
     title: "Common Questions",
     icon: MessageSquare,
