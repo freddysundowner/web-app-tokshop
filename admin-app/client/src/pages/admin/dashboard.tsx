@@ -25,6 +25,48 @@ import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { defaultTemplates } from "@/lib/email-template-defaults";
 
+const DEFAULT_LANDING_CONTENT = {
+  hero: {
+    title: 'The Live Shopping Marketplace',
+    subtitle: 'Shop, sell, and connect around the things you love.',
+    primaryButtonText: 'Get Started',
+    primaryButtonLink: '/signup',
+    secondaryButtonText: 'Browse Shows',
+    secondaryButtonLink: '/marketplace',
+    downloadText: 'Download',
+    phoneImage1: '',
+    phoneImage2: '',
+    qrCodeImage: ''
+  },
+  joinFun: {
+    title: 'Join In the Fun',
+    subtitle: 'Take part in fast-paced auctions, incredible flash sales, live show giveaways, and so much more.',
+    downloadText: 'Download',
+    phoneImage: '',
+    qrCodeImage: ''
+  },
+  gotItAll: {
+    title: "We've Got It All",
+    subtitle: "Search our marketplace to find the exact product you're looking for",
+    downloadText: 'Download',
+    phoneImage: '',
+    qrCodeImage: ''
+  },
+  deals: {
+    title: 'Find Incredible Deals on Name Brands',
+    subtitle: "From the brands you love, to hard-to-find specialty products. There's a deal on whatever you're looking for.",
+    buttonText: 'Start Shopping',
+    buttonLink: '/signup',
+    downloadText: 'Download',
+    trustBadgeText: 'PEACE OF MIND',
+    phoneImage: '',
+    qrCodeImage: ''
+  },
+  footer: {
+    copyrightText: '2025'
+  }
+};
+
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
@@ -41,6 +83,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!user?.admin || hasSeededRef.current) return;
     hasSeededRef.current = true;
+
     const seedMissingTemplates = async () => {
       try {
         const res = await fetch("/api/templates", { credentials: "include" });
@@ -63,7 +106,24 @@ export default function AdminDashboard() {
         console.warn("[Dashboard] Failed to seed email templates:", err);
       }
     };
+
+    const seedLandingPage = async () => {
+      try {
+        const res = await fetch("/api/content/landing", { credentials: "include" });
+        const data = await res.json();
+        const existing = data?.data;
+        const hasValidContent =
+          existing?.hero && existing?.joinFun && existing?.gotItAll && existing?.deals && existing?.hero?.title;
+        if (hasValidContent) return;
+        await apiRequest("PUT", "/api/admin/content/landing", DEFAULT_LANDING_CONTENT);
+        queryClient.invalidateQueries({ queryKey: ["/api/content/landing"] });
+      } catch (err) {
+        console.warn("[Dashboard] Failed to seed landing page:", err);
+      }
+    };
+
     seedMissingTemplates();
+    seedLandingPage();
   }, [user?.admin]);
 
   const { data: userStatsData } = useQuery<{

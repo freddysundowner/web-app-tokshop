@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminLayout } from "@/components/admin-layout";
@@ -72,7 +72,6 @@ export default function AdminLandingPage() {
 
   // Initialize with default content
   const [content, setContent] = useState(DEFAULT_LANDING_CONTENT);
-  const hasAutoSeededRef = useRef(false);
 
   // Update form when data loads
   useEffect(() => {
@@ -93,25 +92,6 @@ export default function AdminLandingPage() {
       }
     }
   }, [landingContent]);
-
-  // Auto-seed default content on first install when the API has no saved landing page
-  useEffect(() => {
-    if (landingLoading || hasAutoSeededRef.current || isDemoMode || !canManageSettings) return;
-
-    const hasNewStructure = landingContent?.hero && landingContent?.joinFun && landingContent?.gotItAll && landingContent?.deals;
-    const hasValidContent = hasNewStructure && landingContent?.hero?.title;
-
-    if (!hasValidContent) {
-      hasAutoSeededRef.current = true;
-      apiRequest('PUT', '/api/admin/content/landing', DEFAULT_LANDING_CONTENT)
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ['/api/content/landing'] });
-        })
-        .catch((err) => {
-          console.warn('Landing page auto-seed failed:', err);
-        });
-    }
-  }, [landingLoading, landingContent, isDemoMode, canManageSettings]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
