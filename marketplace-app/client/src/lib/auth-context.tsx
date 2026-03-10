@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef, useC
 import { onAuthStateChange, signInWithGoogle, signInWithApple, firebaseSignOut, handleAuthRedirect } from "./firebase";
 import type { User as FirebaseUser } from "firebase/auth";
 import { loginSchema, signupSchema, socialAuthSchema, socialAuthCompleteSchema, type LoginData, type SignupData, type SocialAuthData, type SocialAuthCompleteData } from "@shared/schema";
-import { apiRequest, queryClient } from "./queryClient";
+import { apiRequest, queryClient, setLogoutCallback } from "./queryClient";
 import { useSettings } from "./settings-context";
 
 interface User {
@@ -544,6 +544,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       queryClient.clear();
     }
   };
+
+  useEffect(() => {
+    setLogoutCallback(logout);
+  }, []);
 
   const checkAuthRef = useRef<() => Promise<void>>();
   

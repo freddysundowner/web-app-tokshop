@@ -1,5 +1,11 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+let _logoutCallback: (() => Promise<void>) | null = null;
+
+export function setLogoutCallback(fn: () => Promise<void>) {
+  _logoutCallback = fn;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -43,6 +49,12 @@ async function throwIfResNotOk(res: Response) {
       }
     }
     
+    // If the user has a token and gets a 401/404, their session has expired — log them out
+    if ((res.status === 401 || res.status === 404) && localStorage.getItem('accessToken')) {
+      console.warn(`[Auth] Received ${res.status} with active token — logging out`);
+      _logoutCallback?.();
+    }
+
     // Fallback: show user-friendly message based on status code instead of technical details
     if (res.status === 400) {
       throw new Error("Please check your information and try again.");
