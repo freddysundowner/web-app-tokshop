@@ -20,20 +20,47 @@ import {
   AlertCircle,
   ArrowRight
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { format } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { defaultTemplates } from "@/lib/email-template-defaults";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { settings } = useSettings();
   const currency = settings.currency || '$';
+  const hasSeededRef = useRef(false);
 
   useEffect(() => {
     if (!user?.admin) {
       setLocation("/");
     }
   }, [user?.admin, setLocation]);
+
+  useEffect(() => {
+    if (!user?.admin || hasSeededRef.current) return;
+    hasSeededRef.current = true;
+    const seedIfEmpty = async () => {
+      try {
+        const res = await fetch("/api/templates", { credentials: "include" });
+        const data = await res.json();
+        const existing = Array.isArray(data?.data) ? data.data : data?.data ? [data.data] : [];
+        if (existing.length > 0) return;
+        for (const template of defaultTemplates) {
+          await apiRequest("POST", "/api/templates", {
+            name: template.name,
+            slug: template.id,
+            htmlContent: template.body,
+            placeholders: template.variables.map((v: any) => v.name),
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
+      } catch {
+      }
+    };
+    seedIfEmpty();
+  }, [user?.admin]);
 
   const { data: userStatsData } = useQuery<{
     success: boolean;
