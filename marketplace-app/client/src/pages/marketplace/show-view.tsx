@@ -2630,6 +2630,7 @@ export default function ShowViewNew() {
           handleSendMessage={handleSendMessage}
           currentUserId={currentUserId}
           giveaways={giveaways}
+          giveawayTimeLeft={giveawayTimeLeft}
         />
         
         <DialogsContainer

@@ -1,4 +1,4 @@
-import { Send, X, Share2, Gift, DollarSign, ShoppingBag, Loader2 } from 'lucide-react';
+import { Send, X, Share2, Gift, DollarSign, ShoppingBag, Loader2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -31,6 +31,7 @@ interface ChatSidebarProps {
   handleSendMessage: (msg: string) => void;
   currentUserId: string;
   giveaways: any[];
+  giveawayTimeLeft: number;
 }
 
 export function ChatSidebar(props: ChatSidebarProps) {
@@ -59,7 +60,8 @@ export function ChatSidebar(props: ChatSidebarProps) {
     handleMessageChange,
     handleSendMessage,
     currentUserId,
-    giveaways
+    giveaways,
+    giveawayTimeLeft
   } = props;
 
   return (
@@ -141,14 +143,24 @@ export function ChatSidebar(props: ChatSidebarProps) {
 
             {/* Action Buttons */}
             {isShowOwner ? (
-              // Host sees "End Giveaway" button
-              <button
-                onClick={handleEndGiveaway}
-                className="w-full h-11 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors"
-                data-testid="button-end-giveaway"
-              >
-                End Giveaway
-              </button>
+              // Host sees countdown + "End Giveaway" button
+              <div className="space-y-2">
+                {giveawayTimeLeft > 0 && (
+                  <div className="flex items-center justify-center gap-1.5 text-zinc-300 text-sm font-medium">
+                    <Clock className="h-4 w-4 text-zinc-400" />
+                    <span>
+                      {Math.floor(giveawayTimeLeft / 60)}:{(giveawayTimeLeft % 60).toString().padStart(2, '0')} remaining
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={handleEndGiveaway}
+                  className="w-full h-11 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors"
+                  data-testid="button-end-giveaway"
+                >
+                  End Giveaway
+                </button>
+              </div>
             ) : (() => {
               // Check if user already entered (handle both string IDs and objects)
               const participants = activeGiveaway.participants || [];
