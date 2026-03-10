@@ -41,25 +41,29 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!user?.admin || hasSeededRef.current) return;
     hasSeededRef.current = true;
-    const seedIfEmpty = async () => {
+    const seedMissingTemplates = async () => {
       try {
         const res = await fetch("/api/templates", { credentials: "include" });
         const data = await res.json();
-        const existing = Array.isArray(data?.data) ? data.data : data?.data ? [data.data] : [];
-        if (existing.length > 0) return;
-        for (const template of defaultTemplates) {
+        const existing: any[] = Array.isArray(data?.data) ? data.data : data?.data ? [data.data] : [];
+        const existingSlugs = new Set(existing.map((t: any) => t.slug));
+        const missing = defaultTemplates.filter(t => !existingSlugs.has(t.id));
+        if (missing.length === 0) return;
+        for (const template of missing) {
           await apiRequest("POST", "/api/templates", {
             name: template.name,
             slug: template.id,
+            subject: template.subject,
             htmlContent: template.body,
             placeholders: template.variables.map((v: any) => v.name),
           });
         }
         queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
-      } catch {
+      } catch (err) {
+        console.warn("[Dashboard] Failed to seed email templates:", err);
       }
     };
-    seedIfEmpty();
+    seedMissingTemplates();
   }, [user?.admin]);
 
   const { data: userStatsData } = useQuery<{

@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Mail, Save, Eye, RotateCcw, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { type EmailTemplate, defaultTemplates } from "@/lib/email-template-defaults";
 
 export default function EmailTemplates() {
@@ -35,6 +37,7 @@ export default function EmailTemplates() {
         if (savedTemplate) {
           return {
             ...defaultTemplate,
+            subject: savedTemplate.subject || defaultTemplate.subject,
             body: savedTemplate.htmlContent || defaultTemplate.body,
           };
         }
@@ -48,6 +51,7 @@ export default function EmailTemplates() {
       const payload = {
         name: template.name,
         slug: template.id,
+        subject: template.subject,
         htmlContent: template.body,
         placeholders: template.variables.map(v => v.name),
       };
@@ -74,6 +78,7 @@ export default function EmailTemplates() {
       const payload = {
         name: template.name,
         slug: template.id,
+        subject: template.subject,
         htmlContent: template.body,
         placeholders: template.variables.map(v => v.name),
       };
