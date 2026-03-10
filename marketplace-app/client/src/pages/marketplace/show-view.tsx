@@ -1470,7 +1470,11 @@ export default function ShowViewNew() {
     if (!activeGiveaway || activeGiveaway.ended) return;
     
     const interval = setInterval(() => {
-      const startTime = activeGiveaway.startedTime || 0;
+      // API returns startedtime (lowercase), normalise to both camelCase and lowercase variants
+      const rawStart = activeGiveaway.startedTime ?? activeGiveaway.startedtime;
+      const startTime = rawStart
+        ? (typeof rawStart === 'string' ? new Date(rawStart).getTime() : Number(rawStart))
+        : 0;
       const duration = activeGiveaway.duration || 60; // Default 60 seconds
       const endTime = startTime + (duration * 1000);
       const now = Date.now();
