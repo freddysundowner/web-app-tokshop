@@ -247,6 +247,9 @@ export function registerSettingsRoutes(app: Express) {
         // Legal page URLs
         privacy_url: settings?.privacy_url || "",
         terms_url: settings?.terms_url || "",
+        // Referral program
+        referral_credit: settings?.referral_credit ?? 0,
+        referral_credit_limit: settings?.referral_credit_limit ?? 0,
       };
       
       res.json({

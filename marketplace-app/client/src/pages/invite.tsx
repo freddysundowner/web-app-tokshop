@@ -47,7 +47,7 @@ export default function InvitePage() {
           fetch(`/api/users/public/profile/${referrerId}`),
           fetch('/api/public/themes'),
           fetch('/api/config'),
-          fetch('/api/settings/full', { credentials: 'include' })
+          fetch('/api/settings')
         ]);
 
         let apiBaseUrl = '';
