@@ -174,6 +174,141 @@ A **separate** Stripe Connect account ID that receives the platform's service/co
 
 ---
 
+## How to Create Your Two Stripe Webhooks
+
+This platform requires exactly two separate webhook endpoints registered in your Stripe account. They serve different purposes and produce different signing secrets. Both secrets must be entered in the Payment tab as described above.
+
+---
+
+### Why Two Webhooks?
+
+Stripe has two types of events:
+
+1. **Platform events** — things that happen on your main Stripe account (the account you log in to at dashboard.stripe.com), such as payouts completing and account balance changes.
+2. **Connected Account events** — things that happen on your sellers' individual Stripe accounts (created when sellers complete Stripe Connect onboarding), such as a seller's payout being sent or a payment being processed on their behalf.
+
+Stripe fires these events to different endpoints, and each endpoint has its own signing secret. If you only set up one webhook, the platform will fail to process one category of events — usually causing seller payouts to not trigger correctly.
+
+---
+
+### Before You Start
+
+You will need:
+- Access to your Stripe Dashboard (dashboard.stripe.com)
+- Your platform's backend API URL (the live URL where your API server is running, e.g. `https://api.yourplatform.com`)
+- Admin access to that Stripe account
+
+> Webhooks must point to a **publicly accessible URL**. They will not work with localhost or a local development server. Use your production API URL.
+
+---
+
+### Webhook 1 — Platform Webhook
+
+This webhook listens for events on your **main Stripe account**.
+
+**Step 1:** Log in to [dashboard.stripe.com](https://dashboard.stripe.com)
+
+**Step 2:** In the left sidebar, click **Developers**
+
+**Step 3:** Click **Webhooks**
+
+**Step 4:** Click **Add endpoint** (top right)
+
+**Step 5:** In the **Endpoint URL** field, enter:
+```
+https://your-api-domain.com/webhook/stripe/platform
+```
+Replace `your-api-domain.com` with your actual backend API URL.
+
+**Step 6:** Under **Listen to**, make sure **Events on your account** is selected (not "Events on Connected accounts")
+
+**Step 7:** Click **Select events** and add the following events:
+
+| Event | Purpose |
+|---|---|
+| `account.updated` | Tracks changes to your Stripe account |
+| `payout.paid` | Confirms a payout has been sent |
+| `payout.failed` | Alerts when a payout fails |
+| `transfer.created` | Tracks transfers to connected accounts |
+| `transfer.updated` | Tracks transfer status changes |
+| `payment_intent.succeeded` | Confirms a payment was completed |
+| `payment_intent.payment_failed` | Alerts when a payment fails |
+| `charge.refunded` | Tracks refund events |
+
+> If you are unsure, you can select **All events** for initial setup and narrow it down later.
+
+**Step 8:** Click **Add endpoint**
+
+**Step 9:** You are now on the endpoint detail page. Under **Signing secret**, click **Reveal** and copy the value — it starts with `whsec_`.
+
+**Step 10:** Paste this value into the **Stripe Platform Webhook Key** field in your Admin Panel → Settings → Payment tab.
+
+---
+
+### Webhook 2 — Connected Account Webhook
+
+This webhook listens for events on your **sellers' connected Stripe accounts**.
+
+**Step 1:** In Stripe Dashboard, go to **Developers → Webhooks** again
+
+**Step 2:** Click **Add endpoint**
+
+**Step 3:** In the **Endpoint URL** field, enter:
+```
+https://your-api-domain.com/webhook/stripe
+```
+Replace `your-api-domain.com` with your actual backend API URL.
+
+> Note this URL is different from the platform webhook. It does not have `/platform` at the end.
+
+**Step 4:** Under **Listen to**, select **Events on Connected accounts** (this is the critical difference from Webhook 1)
+
+**Step 5:** Click **Select events** and add the following events:
+
+| Event | Purpose |
+|---|---|
+| `account.updated` | Tracks when a seller's connected account is updated or verified |
+| `payout.paid` | Confirms a payout has been sent to a seller |
+| `payout.failed` | Alerts when a seller payout fails |
+| `payment_intent.succeeded` | Confirms a payment processed on a seller's account |
+| `payment_intent.payment_failed` | Alerts when a payment on a seller's account fails |
+| `charge.succeeded` | Confirms a charge on a seller's account |
+| `charge.refunded` | Tracks refunds on seller accounts |
+| `transfer.created` | Tracks incoming transfers to a seller's account |
+
+> If you are unsure, you can select **All events** and filter later.
+
+**Step 6:** Click **Add endpoint**
+
+**Step 7:** On the endpoint detail page, click **Reveal** under **Signing secret** and copy the value.
+
+**Step 8:** Paste this value into the **Stripe Webhook Secret (Connected Account)** field in your Admin Panel → Settings → Payment tab.
+
+---
+
+### Verifying Your Setup
+
+After saving both secrets in the admin panel, you can test each webhook from the Stripe Dashboard:
+
+1. Go to **Developers → Webhooks**
+2. Click on one of your endpoints
+3. Click **Send test webhook**
+4. Choose any event from the list and click **Send test webhook**
+5. Scroll down to the **Recent deliveries** section — if the response shows a `200` status, your endpoint is receiving and correctly verifying the signature
+
+If you see a `400` or `500` error on the test event, the most common cause is the signing secret in the admin panel not matching the one shown in Stripe.
+
+---
+
+### Summary — Which Secret Goes Where
+
+| Admin Panel Field | Stripe Setting | Endpoint URL Pattern |
+|---|---|---|
+| **Stripe Platform Webhook Key** | Events on **your account** | `/webhook/stripe/platform` |
+| **Stripe Webhook Secret (Connected Account)** | Events on **Connected accounts** | `/webhook/stripe` |
+
+---
+
 ## Tab 3 — Theme
 
 The Theme tab controls all visual branding for both the web platform and mobile apps. Changes here affect how your platform looks to end users.
