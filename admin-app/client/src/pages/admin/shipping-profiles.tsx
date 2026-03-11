@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { Truck, Plus, Trash2, Edit, Search, ChevronLeft, ChevronRight, Package, Scale, Ruler } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -44,10 +44,7 @@ export default function AdminShippingProfiles() {
   const { data: profilesData, isLoading } = useQuery<any>({
     queryKey: ['/api/shipping/profiles'],
     queryFn: async () => {
-      const response = await fetch('/api/shipping/profiles', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const response = await fetchWithAuth('/api/shipping/profiles', { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to fetch shipping profiles');
       return response.json();
     },

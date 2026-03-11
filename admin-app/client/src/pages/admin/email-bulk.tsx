@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth } from "@/lib/queryClient";
 import { Upload, Send, FileText, Users, AlertCircle, CheckCircle2, X, Eye, Search, Mail, Save, UserPlus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -545,9 +545,7 @@ export default function AdminEmailBulk() {
       while (hasMore) {
         setAllUsersProgress(`Loading page ${page}...`);
         
-        const response = await fetch(`/api/admin/users?page=${page}&limit=${limit}`, {
-          credentials: 'include',
-        });
+        const response = await fetchWithAuth(`/api/admin/users?page=${page}&limit=${limit}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch users');

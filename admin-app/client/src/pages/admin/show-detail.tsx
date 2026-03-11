@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Video, User, Eye, DollarSign, Gavel, Pin, ShoppingCart, Gift, Package, TrendingUp, ChevronLeft, ChevronRight, PlayCircle, X } from "lucide-react";
+import { fetchWithAuth } from "@/lib/queryClient";
 
 export default function AdminShowDetail() {
   const [, setLocation] = useLocation();
@@ -24,9 +25,7 @@ export default function AdminShowDetail() {
   const { data: showData, isLoading } = useQuery<any>({
     queryKey: [`admin-show-${showId}`],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/shows/${showId}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/admin/shows/${showId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch show');
       }
@@ -40,9 +39,7 @@ export default function AdminShowDetail() {
   const { data: auctionsData, isLoading: auctionsLoading } = useQuery<any>({
     queryKey: [`admin-show-${showId}-auctions`],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/shows/${showId}/auctions?page=1&limit=15`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/admin/shows/${showId}/auctions?page=1&limit=15`);
       if (!response.ok) throw new Error('Failed to fetch auctions');
       const result = await response.json();
       return result;
@@ -54,9 +51,7 @@ export default function AdminShowDetail() {
   const { data: giveawaysData, isLoading: giveawaysLoading } = useQuery<any>({
     queryKey: [`admin-show-${showId}-giveaways`],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/shows/${showId}/giveaways?page=1&limit=20`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/admin/shows/${showId}/giveaways?page=1&limit=20`);
       if (!response.ok) throw new Error('Failed to fetch giveaways');
       const result = await response.json();
       return result;
@@ -68,9 +63,7 @@ export default function AdminShowDetail() {
   const { data: buyNowData, isLoading: buyNowLoading } = useQuery<any>({
     queryKey: [`admin-show-${showId}-buy-now`],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/shows/${showId}/buy-now?page=1&limit=15`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/admin/shows/${showId}/buy-now?page=1&limit=15`);
       if (!response.ok) throw new Error('Failed to fetch buy now items');
       const result = await response.json();
       return result;
@@ -82,9 +75,7 @@ export default function AdminShowDetail() {
   const { data: soldData, isLoading: soldLoading } = useQuery<any>({
     queryKey: [`admin-show-${showId}-sold`, soldPage],
     queryFn: async () => {
-      const response = await fetch(`/api/orders/items/all?tokshow=${showId}&page=${soldPage}&limit=${soldLimit}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/orders/items/all?tokshow=${showId}&page=${soldPage}&limit=${soldLimit}`);
       if (!response.ok) throw new Error('Failed to fetch sold items');
       const result = await response.json();
       return result;

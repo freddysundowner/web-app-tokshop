@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { Gift, Search, ChevronLeft, ChevronRight, Plus, Edit, Trash2, Eye, Calendar, Users, Image as ImageIcon, Upload, Loader2, X, Bookmark, Truck } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithAuth } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 import { Badge } from "@/components/ui/badge";
@@ -110,9 +110,7 @@ export default function AdminGiveaways() {
   const { data: giveawaysData, isLoading } = useQuery<any>({
     queryKey: ['/api/giveaways', queryString],
     queryFn: async () => {
-      const response = await fetch(`/api/giveaways?${queryString}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/giveaways?${queryString}`);
       if (!response.ok) throw new Error('Failed to fetch giveaways');
       return response.json();
     },
@@ -157,10 +155,7 @@ export default function AdminGiveaways() {
   const { data: shippingData } = useQuery<any>({
     queryKey: ['/api/shipping/profiles'],
     queryFn: async () => {
-      const response = await fetch('/api/shipping/profiles', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const response = await fetchWithAuth('/api/shipping/profiles', { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to fetch shipping profiles');
       return response.json();
     },

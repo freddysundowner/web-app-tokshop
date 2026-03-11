@@ -28,7 +28,7 @@ import {
   Video,
 } from "lucide-react";
 import { format } from "date-fns";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const statusColors: Record<string, string> = {

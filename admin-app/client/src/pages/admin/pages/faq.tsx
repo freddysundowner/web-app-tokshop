@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { Save, Plus, Trash2, HelpCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { faqContentSchema, type FAQContent } from "@shared/schema";
@@ -52,7 +52,7 @@ export default function AdminFAQPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: FAQContent) => {
-      const response = await fetch('/api/admin/content/faq', {
+      const response = await fetchWithAuth('/api/admin/content/faq', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export default function AdminFAQPage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/admin/content/faq/reset', {
+      const response = await fetchWithAuth('/api/admin/content/faq/reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { Save, Plus, Trash2, FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { sectionBasedPageSchema, type SectionBasedPage } from "@shared/schema";
@@ -52,7 +52,7 @@ export default function AdminTermsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: SectionBasedPage) => {
-      const response = await fetch('/api/admin/content/terms', {
+      const response = await fetchWithAuth('/api/admin/content/terms', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export default function AdminTermsPage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/admin/content/terms/reset', {
+      const response = await fetchWithAuth('/api/admin/content/terms/reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

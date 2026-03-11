@@ -12,6 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, ChevronDown, Wallet, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { fetchWithAuth } from "@/lib/queryClient";
 
 export default function AdminApplicationFees() {
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
@@ -87,7 +88,7 @@ export default function AdminApplicationFees() {
   const { data: revenueData, isLoading: revenueLoading } = useQuery<any>({
     queryKey: ['/api/admin/revenue', revenueQueryString],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/revenue?${revenueQueryString}`);
+      const response = await fetchWithAuth(`/api/admin/revenue?${revenueQueryString}`);
       if (!response.ok) throw new Error('Failed to fetch revenue');
       return response.json();
     },
@@ -122,10 +123,7 @@ export default function AdminApplicationFees() {
   const { data: pendingData, isLoading: pendingLoading } = useQuery<any>({
     queryKey: ['admin-shipping-service-pending', pendingType, pendingFrom, pendingTo],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/shipping-service-pending?${buildPendingParams(pendingType)}`, {
-        credentials: 'include',
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth(`/api/admin/shipping-service-pending?${buildPendingParams(pendingType)}`);
       if (!response.ok) {
         throw new Error('Failed to fetch pending data');
       }

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { defaultTemplates } from "@/lib/email-template-defaults";
 
 import { DEFAULT_LANDING_CONTENT, DEFAULT_CONTENT_PAGES } from "@/lib/content-defaults";
@@ -109,9 +109,7 @@ export default function AdminDashboard() {
   }>({
     queryKey: ['/api/admin/users/stats/all'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/users/stats/all', {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth('/api/admin/users/stats/all');
       if (!response.ok) {
         throw new Error('Failed to fetch user stats');
       }
@@ -130,9 +128,7 @@ export default function AdminDashboard() {
   }>({
     queryKey: ['/api/admin/rooms/stats/all'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/rooms/stats/all', {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth('/api/admin/rooms/stats/all');
       if (!response.ok) {
         return { success: false, data: { total: 0, live: 0, upcoming: 0 } };
       }
@@ -146,9 +142,7 @@ export default function AdminDashboard() {
   }>({
     queryKey: ['/api/admin/orders/stats/all'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/orders/stats/all', {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth('/api/admin/orders/stats/all');
       if (!response.ok) {
         return { success: false, data: {} };
       }
@@ -164,9 +158,7 @@ export default function AdminDashboard() {
   }>({
     queryKey: ['/api/admin/users', 'dashboard'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/users?limit=5', {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth('/api/admin/users?limit=5');
       if (!response.ok) {
         throw new Error('Failed to fetch users');
       }
@@ -180,9 +172,7 @@ export default function AdminDashboard() {
   }>({
     queryKey: ['/api/admin/disputes', 'dashboard'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/disputes?page=1&limit=5', {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth('/api/admin/disputes?page=1&limit=5');
       if (!response.ok) {
         return { success: false, data: { disputes: [] } };
       }

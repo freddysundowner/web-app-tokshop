@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { Save, Plus, Trash2, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { sectionBasedPageSchema, type SectionBasedPage } from "@shared/schema";
@@ -52,7 +52,7 @@ export default function AdminPrivacyPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: SectionBasedPage) => {
-      const response = await fetch('/api/admin/content/privacy', {
+      const response = await fetchWithAuth('/api/admin/content/privacy', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export default function AdminPrivacyPage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/admin/content/privacy/reset', {
+      const response = await fetchWithAuth('/api/admin/content/privacy/reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

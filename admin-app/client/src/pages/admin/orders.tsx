@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { ShoppingCart, Eye, Search, Filter, X, MoreVertical, DollarSign, Gift, Truck, FileText, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithAuth } from "@/lib/queryClient";
 import { AdminShippingDrawer } from "@/components/shipping/shipping-drawer";
 import { ScanFormViewerDialog } from "@/components/shipping/scan-form-viewer-dialog";
 
@@ -56,10 +56,7 @@ export default function AdminOrders() {
       }
       const queryString = params.toString();
       const url = queryString ? `/api/orders?${queryString}` : `/api/orders`;
-      const response = await fetch(url, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const response = await fetchWithAuth(url, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
       }
@@ -83,10 +80,7 @@ export default function AdminOrders() {
         params.set("search", appliedSearch.trim());
         params.set("searchBy", appliedSearchBy);
       }
-      const response = await fetch(`/api/orders?${params.toString()}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const response = await fetchWithAuth(`/api/orders?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error('Failed to fetch giveaway orders');
       }

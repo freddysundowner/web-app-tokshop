@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Clock, Search, Eye, ChevronLeft, ChevronRight, CheckCircle, XCircle, MoreVertical, UserCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithAuth } from "@/lib/queryClient";
 
 export default function AdminPendingApprovals() {
   const [, setLocation] = useLocation();

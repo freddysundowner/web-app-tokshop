@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag, Search, X, Ban, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithAuth } from "@/lib/queryClient";
 
 interface ReportedCase {
   _id: string;
@@ -41,9 +41,7 @@ export default function AdminReportedCases() {
   const { data: casesData, isLoading } = useQuery<any>({
     queryKey: ['/api/admin/reported-cases', page],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/reported-cases?page=${page}&limit=${limit}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/admin/reported-cases?page=${page}&limit=${limit}`);
       if (!response.ok) {
         throw new Error('Failed to fetch reported cases');
       }

@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { fetchWithAuth } from "@/lib/queryClient";
 
 export default function AdminPayouts() {
   const { toast } = useToast();
@@ -60,7 +61,7 @@ export default function AdminPayouts() {
     queryFn: async () => {
       const url = `/api/admin/stripe-payouts${queryParams ? '?' + queryParams : ''}`;
       console.log('Fetching payouts from:', url);
-      const response = await fetch(url, { credentials: 'include' });
+      const response = await fetchWithAuth(url);
       return response.json();
     },
     staleTime: 0,
@@ -70,9 +71,7 @@ export default function AdminPayouts() {
   const { data: pendingPayoutsData, isLoading: pendingLoading } = useQuery<any>({
     queryKey: ['pending-payouts', pendingPage],
     queryFn: async () => {
-      const response = await fetch(`/api/users/payouts/pending?page=${pendingPage}&limit=10`, { 
-        credentials: 'include' 
-      });
+      const response = await fetchWithAuth(`/api/users/payouts/pending?page=${pendingPage}&limit=10`);
       return response.json();
     },
     staleTime: 0,
