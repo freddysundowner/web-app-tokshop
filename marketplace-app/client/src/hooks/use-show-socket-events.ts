@@ -711,7 +711,10 @@ export function useShowSocketEvents({
   // Memoized handler: Giveaway ended
   const handleGiveawayEnded = useCallback((giveaway: any) => {
     console.log('Giveaway ended:', giveaway);
-    
+
+    // Always clear the giveaway widget immediately
+    setActiveGiveaway(null);
+
     if (giveaway.winner) {
       const winnerName = giveaway.winner.userName || giveaway.winner.firstName || 'Someone';
       const winnerProfile = giveaway.winner.profilePhoto || giveaway.winner.profileUrl || giveaway.winner.profilePicture;
@@ -727,10 +730,7 @@ export function useShowSocketEvents({
       
       setTimeout(() => {
         setShowGiveawayWinnerDialog(false);
-        setActiveGiveaway(null);
       }, 10000);
-    } else {
-      setActiveGiveaway(null);
     }
     
     debouncedRefetchGiveaways();
