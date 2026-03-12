@@ -102,6 +102,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { CompletePagination } from "@/components/ui/pagination";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const statusColors = {
   unfulfilled:
@@ -202,7 +203,7 @@ export default function Shipping() {
       orderId: string;
       relist: boolean;
     }) => {
-      const response = await fetch("/api/orders/cancel/order", {
+      const response = await fetchWithAuth("/api/orders/cancel/order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -245,7 +246,7 @@ export default function Shipping() {
   // Mark as shipped mutation
   const markAsShippedMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await fetchWithAuth(`/api/orders/${orderId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -306,7 +307,7 @@ export default function Shipping() {
         payload.item = itemId;
       }
 
-      const response = await fetch("/api/orders/cancel/approve", {
+      const response = await fetchWithAuth("/api/orders/cancel/approve", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -347,7 +348,7 @@ export default function Shipping() {
         payload.item = itemId;
       }
 
-      const response = await fetch("/api/orders/cancel/decline", {
+      const response = await fetchWithAuth("/api/orders/cancel/decline", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -397,7 +398,7 @@ export default function Shipping() {
   // Unbundle items mutation
   const unbundleItemsMutation = useMutation({
     mutationFn: async ({ orderId, itemIds }: { orderId: string; itemIds: string[] }) => {
-      const response = await fetch('/api/orders/unbundle/orders', {
+      const response = await fetchWithAuth('/api/orders/unbundle/orders', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -439,7 +440,7 @@ export default function Shipping() {
   // Generate scan form mutation
   const generateScanFormMutation = useMutation({
     mutationFn: async ({ tokshow, carrierAccount, ownerId }: { tokshow: string; carrierAccount?: string; ownerId?: string }) => {
-      const response = await fetch('/api/shipping/generate/manifest', {
+      const response = await fetchWithAuth('/api/shipping/generate/manifest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -521,7 +522,7 @@ export default function Shipping() {
         params.set('orderIds', JSON.stringify(orderIds));
       }
       
-      const response = await fetch(`/api/shipping/generate/manifest/${manifestId}?${params.toString()}`, {
+      const response = await fetchWithAuth(`/api/shipping/generate/manifest/${manifestId}?${params.toString()}`, {
         method: 'GET',
       });
 
@@ -618,7 +619,7 @@ export default function Shipping() {
       if (user?.id) {
         params.set("userid", user.id);
       }
-      const response = await fetch(`/api/rooms?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/rooms?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch ended shows");
       return response.json();
     },
@@ -694,7 +695,7 @@ export default function Shipping() {
       }
 
       // Call POST /api/shipping/generate/manifest/view
-      const response = await fetch('/api/shipping/generate/manifest/view', {
+      const response = await fetchWithAuth('/api/shipping/generate/manifest/view', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -753,7 +754,7 @@ export default function Shipping() {
           }
         }
 
-        const response = await fetch(`/api/shipping/metrics?${params.toString()}`, {
+        const response = await fetchWithAuth(`/api/shipping/metrics?${params.toString()}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -802,7 +803,7 @@ export default function Shipping() {
         params.set("page", currentPage.toString());
         params.set("limit", itemsPerPage.toString());
 
-        const response = await fetch(
+        const response = await fetchWithAuth(
           `/api/orders?${params.toString()}`,
           {
             method: "GET",
@@ -866,7 +867,7 @@ export default function Shipping() {
     queryKey: ["/api/bundles", user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
-      const response = await fetch(`/api/bundles?userId=${user.id}`);
+      const response = await fetchWithAuth(`/api/bundles?userId=${user.id}`);
       if (!response.ok) throw new Error("Failed to fetch bundles");
       return response.json();
     },
@@ -989,7 +990,7 @@ export default function Shipping() {
     mutationFn: async (data: { orderIds: string[] }) => {
       if (!user?.id) throw new Error("User ID required");
 
-      const response = await fetch("/api/orders/bundle/orders", {
+      const response = await fetchWithAuth("/api/orders/bundle/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...data, userId: user.id }),
@@ -1023,7 +1024,7 @@ export default function Shipping() {
   const unbundleMutation = useMutation({
     mutationFn: async ({ bundleId, orderIds }: { bundleId: string; orderIds?: string[] }) => {
       if (!user?.id) throw new Error("User ID required");
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/bundles/${bundleId}?userId=${user.id}`,
         {
           method: "DELETE",
@@ -1103,7 +1104,7 @@ export default function Shipping() {
 
   const shipOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await fetchWithAuth(`/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1137,7 +1138,7 @@ export default function Shipping() {
       if (!user?.id) throw new Error("User ID required");
 
       // Call backend endpoint to mark all orders in bundle as shipped
-      const response = await fetch(`/api/orders/bundle/${bundleId}/ship`, {
+      const response = await fetchWithAuth(`/api/orders/bundle/${bundleId}/ship`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id }),
@@ -1200,7 +1201,7 @@ export default function Shipping() {
       for (const orderId of orderIds) {
         const itemIds = itemsByOrder[orderId];
         
-        const response = await fetch('/api/orders/unbundle/orders', {
+        const response = await fetchWithAuth('/api/orders/unbundle/orders', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1242,7 +1243,7 @@ export default function Shipping() {
   // Bulk label purchase mutation
   const bulkLabelMutation = useMutation({
     mutationFn: async ({ rates }: { rates: Array<{ rate_id: string; label_file_type: string; order: string }> }) => {
-      const response = await fetch("/api/shipping/bulk-labels", {
+      const response = await fetchWithAuth("/api/shipping/bulk-labels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rates }),

@@ -42,6 +42,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronRight, Clock, Zap, Percent, DollarSign } from "lucide-react";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ProductFormProps {
   listingType?: ListingType;
@@ -133,7 +134,7 @@ export function ProductForm({
   const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories", user?.id],
     queryFn: async () => {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/categories?userId=${user?.id}&status=active&page=1&limit=100`,
         {
           method: "GET",
@@ -157,7 +158,7 @@ export function ProductForm({
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/shipping/profiles/${user.id}`,
         {
           method: "GET",

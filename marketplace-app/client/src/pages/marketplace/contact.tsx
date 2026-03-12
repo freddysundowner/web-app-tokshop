@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/use-page-title';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function ContactUs() {
   const { toast } = useToast();
@@ -38,7 +39,7 @@ export default function ContactUs() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/contact', {
+      const response = await fetchWithAuth('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

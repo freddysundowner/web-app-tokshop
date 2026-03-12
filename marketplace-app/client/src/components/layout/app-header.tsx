@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface AppHeaderProps {
   onMobileMenuToggle?: () => void;
@@ -99,7 +100,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
       if (!debouncedQuery.trim()) {
         return { results: { products: { data: [] }, rooms: { data: [] }, users: { data: [] } } };
       }
-      const response = await fetch(`/api/products/search?q=${encodeURIComponent(debouncedQuery)}`);
+      const response = await fetchWithAuth(`/api/products/search?q=${encodeURIComponent(debouncedQuery)}`);
       if (!response.ok) {
         throw new Error('Search failed');
       }
@@ -446,7 +447,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                       
                       try {
                         // Fetch fresh user data to check current seller status
-                        const response = await fetch(`/api/profile/${userId}`, {
+                        const response = await fetchWithAuth(`/api/profile/${userId}`, {
                           credentials: 'include',
                         });
                         

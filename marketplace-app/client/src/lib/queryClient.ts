@@ -72,6 +72,34 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+export function getAuthHeaders(): Record<string, string> {
+  const adminToken = localStorage.getItem('adminAccessToken');
+  const userToken = localStorage.getItem('accessToken');
+  const userData = localStorage.getItem('user');
+  const headers: Record<string, string> = {};
+  if (adminToken) headers['x-admin-token'] = adminToken;
+  if (userToken) {
+    headers['x-access-token'] = userToken;
+    headers['Authorization'] = `Bearer ${userToken}`;
+  }
+  if (userData) {
+    headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+  }
+  return headers;
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const authHeaders = getAuthHeaders();
+  return fetch(url, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...authHeaders,
+      ...(options.headers as Record<string, string> || {}),
+    },
+  });
+}
+
 export async function apiRequest(
   method: string,
   url: string,

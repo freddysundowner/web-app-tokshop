@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { uploadShowThumbnail, uploadShowPreviewVideo } from "@/lib/upload-images";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const scheduleShowSchema = z.object({
   title: z.string().min(1, "Show title is required"),
@@ -74,7 +75,7 @@ export default function ScheduleShow() {
     queryKey: ['/api/rooms', editShowId],
     queryFn: async () => {
       if (!editShowId) return null;
-      const response = await fetch(`/api/rooms/${editShowId}`);
+      const response = await fetchWithAuth(`/api/rooms/${editShowId}`);
       if (!response.ok) throw new Error('Failed to fetch show');
       return response.json();
     },
@@ -85,7 +86,7 @@ export default function ScheduleShow() {
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
     queryKey: ['/api/categories'],
     queryFn: async () => {
-      const response = await fetch('/api/categories?status=active&page=1&limit=100');
+      const response = await fetchWithAuth('/api/categories?status=active&page=1&limit=100');
       if (!response.ok) throw new Error('Failed to fetch categories');
       return response.json();
     },
@@ -116,7 +117,7 @@ export default function ScheduleShow() {
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/shipping/profiles/${user.id}`,
         {
           method: "GET",
@@ -386,7 +387,7 @@ export default function ScheduleShow() {
         // Update existing show
         console.log("Updating show with data:", roomData);
 
-        const response = await fetch(`/api/rooms/${editShowId}`, {
+        const response = await fetchWithAuth(`/api/rooms/${editShowId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -413,7 +414,7 @@ export default function ScheduleShow() {
         // Create new show
         console.log("Creating show with data:", roomData);
 
-        const response = await fetch("/api/rooms", {
+        const response = await fetchWithAuth("/api/rooms", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

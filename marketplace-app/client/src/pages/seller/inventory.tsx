@@ -63,6 +63,7 @@ import type { TokshopProduct, TokshopProductsResponse, TokshopCategoriesResponse
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
 import { CSVUploadModal } from "@/components/inventory/csv-upload-modal";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const statusColors = {
   active:
@@ -165,7 +166,7 @@ export default function Inventory() {
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/products?${params.toString()}`,
         {
           method: "GET",
@@ -189,7 +190,7 @@ export default function Inventory() {
   const { data: categoriesResponse } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories"],
     queryFn: async () => {
-      const response = await fetch(`/api/categories`);
+      const response = await fetchWithAuth(`/api/categories`);
       if (!response.ok) throw new Error("Failed to fetch categories");
       return response.json();
     },
@@ -220,7 +221,7 @@ export default function Inventory() {
   } = useQuery({
     queryKey: ["shipping-profiles", user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/shipping/profiles/${user?.id}`);
+      const response = await fetchWithAuth(`/api/shipping/profiles/${user?.id}`);
       if (!response.ok) throw new Error("Failed to fetch shipping profiles");
       return response.json();
     },

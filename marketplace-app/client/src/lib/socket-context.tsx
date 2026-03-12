@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, useCallback, Re
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
 import { useSettings } from './settings-context';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const DEVICE_UUID_KEY = 'device_uuid';
 
@@ -68,7 +69,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     const initializeSocket = async () => {
       try {
         // Get the external API URL from backend configuration
-        const response = await fetch('/api/config');
+        const response = await fetchWithAuth('/api/config');
         const config = await response.json();
         
         if (!config.success || !config.data?.externalApiUrl) {

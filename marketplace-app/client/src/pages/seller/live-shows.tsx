@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TokshopCategoriesResponse } from "@shared/schema";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface Show {
   _id: string;
@@ -67,7 +68,7 @@ export default function LiveShows() {
   const { data: categoriesData } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["/api/categories"],
     queryFn: async () => {
-      const response = await fetch(`/api/categories`);
+      const response = await fetchWithAuth(`/api/categories`);
       if (!response.ok) throw new Error("Failed to fetch categories");
       return response.json();
     },
@@ -109,7 +110,7 @@ export default function LiveShows() {
         status: statusFilter
       });
       
-      const response = await fetch(`/api/rooms?${params.toString()}`, {
+      const response = await fetchWithAuth(`/api/rooms?${params.toString()}`, {
         credentials: "include",
       });
       

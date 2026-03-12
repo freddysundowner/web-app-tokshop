@@ -57,6 +57,7 @@ import {
   Ruler,
 } from "lucide-react";
 import type { TokshopShippingProfile, TokshopShippingProfilesResponse } from "@shared/schema";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const WEIGHT_UNIT_OPTIONS = [
   { key: "lb", label: "Pound (lb)" },
@@ -107,7 +108,7 @@ export default function ShippingProfiles() {
   } = useQuery<TokshopShippingProfilesResponse>({
     queryKey: ["shipping-profiles", user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/shipping/profiles/${user?.id}`);
+      const response = await fetchWithAuth(`/api/shipping/profiles/${user?.id}`);
       if (!response.ok) {
         throw new Error("Failed to fetch shipping profiles");
       }

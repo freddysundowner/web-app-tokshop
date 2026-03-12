@@ -58,6 +58,7 @@ import {
   type TokshopCategoriesResponse,
   type TokshopShippingProfilesResponse,
 } from "@shared/schema";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 // Predefined color options
 const availableColors = [
@@ -167,7 +168,7 @@ export function InventoryProductForm({
   const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories", user?.id],
     queryFn: async () => {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/categories?userId=${user?.id}&status=active&page=1&limit=100`,
         {
           method: "GET",
@@ -191,7 +192,7 @@ export function InventoryProductForm({
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/shipping/profiles/${user.id}`,
         {
           method: "GET",
@@ -215,7 +216,7 @@ export function InventoryProductForm({
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/rooms?userid=${user.id}&status=active`,
         {
           method: "GET",

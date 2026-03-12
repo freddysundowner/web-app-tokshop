@@ -29,7 +29,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { useSocket } from '@/lib/socket-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { queryClient, apiRequest } from '@/lib/queryClient';
+import { queryClient, apiRequest , fetchWithAuth} from '@/lib/queryClient';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -429,7 +429,7 @@ export default function ShowViewNew() {
         params.set('currentUserId', currentUserId);
       }
       const url = `/api/rooms/${id}${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) throw new Error('Failed to fetch show');
       return response.json();
     },
@@ -448,7 +448,7 @@ export default function ShowViewNew() {
         limit: '50'
       });
       const url = `/api/products?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { products: [] };
       return response.json();
     },
@@ -467,7 +467,7 @@ export default function ShowViewNew() {
         limit: '50'
       });
       const url = `/api/products?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { products: [] };
       return response.json();
     },
@@ -484,7 +484,7 @@ export default function ShowViewNew() {
         limit: '50'
       });
       const url = `/api/orders/items/all?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { orders: [] };
       return response.json();
     },
@@ -503,7 +503,7 @@ export default function ShowViewNew() {
         limit: '20'
       });
       const url = `/api/giveaways?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { giveaways: [] };
       return response.json();
     },
@@ -522,7 +522,7 @@ export default function ShowViewNew() {
         limit: '100'
       });
       const url = `/api/offers?${params.toString()}`;
-      const response = await fetch(url, { credentials: 'include' });
+      const response = await fetchWithAuth(url, { credentials: 'include' });
       if (!response.ok) return { offers: [] };
       return response.json();
     },
@@ -672,7 +672,7 @@ export default function ShowViewNew() {
         shippingHeaders['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
       }
       
-      const response = await fetch('/api/shipping/estimate', {
+      const response = await fetchWithAuth('/api/shipping/estimate', {
         method: 'POST',
         headers: shippingHeaders,
         body: JSON.stringify(payload),
@@ -1101,7 +1101,7 @@ export default function ShowViewNew() {
           status: "active"
         });
         
-        const response = await fetch(`/api/rooms?${params.toString()}`, {
+        const response = await fetchWithAuth(`/api/rooms?${params.toString()}`, {
           credentials: "include",
         });
         
@@ -1266,7 +1266,7 @@ export default function ShowViewNew() {
     
     setIsSearchingUsers(true);
     try {
-      const response = await fetch(`/users?title=${encodeURIComponent(query)}&page=1&limit=10`, {
+      const response = await fetchWithAuth(`/users?title=${encodeURIComponent(query)}&page=1&limit=10`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -1427,7 +1427,7 @@ export default function ShowViewNew() {
       if (mentionsToSend.length > 0) {
         console.log('Sending notifications to:', mentionsToSend.map(m => m.id));
         try {
-          const notifResponse = await fetch('/notifications', {
+          const notifResponse = await fetchWithAuth('/notifications', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1778,7 +1778,7 @@ export default function ShowViewNew() {
       if (!socket || !activeGiveaway) throw new Error('Cannot join giveaway');
       
       // Check 1: User must have a shipping address
-      const addressResponse = await fetch(`/api/address/all/${currentUserId}`);
+      const addressResponse = await fetchWithAuth(`/api/address/all/${currentUserId}`);
       if (addressResponse.ok) {
         const addresses = await addressResponse.json();
         if (!addresses || addresses.length === 0) {

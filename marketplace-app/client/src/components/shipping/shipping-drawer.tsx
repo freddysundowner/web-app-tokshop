@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { BulkLabelDialog } from "./bulk-label-dialog";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ShippingDrawerProps {
   order?: TokshopOrder;
@@ -229,7 +230,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
       }
 
-      const response = await fetch(`/api/shipping/profiles/estimate/rates`, {
+      const response = await fetchWithAuth(`/api/shipping/profiles/estimate/rates`, {
         method: 'POST',
         headers,
         credentials: 'include',

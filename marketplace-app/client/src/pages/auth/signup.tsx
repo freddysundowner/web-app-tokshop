@@ -17,6 +17,7 @@ import type { SignupData } from "@shared/schema";
 import { signupSchema } from "@shared/schema";
 import { CountrySelect } from "react-country-state-city";
 import "react-country-state-city/dist/react-country-state-city.css";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Signup() {
   const { settings } = useSettings();
@@ -59,7 +60,7 @@ export default function Signup() {
   useEffect(() => {
     const fetchFirebaseKeys = async () => {
       try {
-        const response = await fetch('/api/settings/keys');
+        const response = await fetchWithAuth('/api/settings/keys');
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {

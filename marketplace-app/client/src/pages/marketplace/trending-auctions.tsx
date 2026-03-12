@@ -4,6 +4,7 @@ import { AuctionCard } from '@/components/auction-card';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function TrendingAuctions() {
   usePageTitle('Trending Auctions');
@@ -20,7 +21,7 @@ export default function TrendingAuctions() {
         featured: 'true', // Keep same filter as homepage
         type: 'scheduled' // Keep same filter as homepage
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });

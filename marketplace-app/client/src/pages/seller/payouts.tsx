@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Payouts() {
   const { user } = useAuth();
@@ -41,7 +42,7 @@ export default function Payouts() {
   const { data: banksData } = useQuery<any>({
     queryKey: ['user-banks', userId],
     queryFn: async () => {
-      const response = await fetch('/api/user/banks', { credentials: 'include' });
+      const response = await fetchWithAuth('/api/user/banks', { credentials: 'include' });
       if (!response.ok) return { banks: [] };
       const result = await response.json();
       return result.success ? result.data : result;
@@ -61,7 +62,7 @@ export default function Payouts() {
         limit: limit.toString(),
       });
       
-      const response = await fetch(`/api/user/payouts?${params.toString()}`, {
+      const response = await fetchWithAuth(`/api/user/payouts?${params.toString()}`, {
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch payouts');
@@ -118,7 +119,7 @@ export default function Payouts() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/user/payouts', {
+      const response = await fetchWithAuth('/api/user/payouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

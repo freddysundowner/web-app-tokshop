@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ export default function Transactions() {
         params.append('status', statusFilter);
       }
       
-      const response = await fetch(`/api/user/transactions?${params.toString()}`, {
+      const response = await fetchWithAuth(`/api/user/transactions?${params.toString()}`, {
         credentials: 'include',
       });
       if (!response.ok) {
@@ -54,7 +55,7 @@ export default function Transactions() {
   const { data: settingsData } = useQuery<any>({
     queryKey: ['public-settings'],
     queryFn: async () => {
-      const response = await fetch('/api/public/settings', {
+      const response = await fetchWithAuth('/api/public/settings', {
         credentials: 'include',
       });
       if (!response.ok) {

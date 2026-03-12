@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { initializeFirebase } from './firebase';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface FirebaseConfig {
   apiKey: string;
@@ -220,7 +221,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/settings', { 
+      const response = await fetchWithAuth('/api/settings', { 
         credentials: 'include',
         headers: token ? { 
           'Authorization': `Bearer ${token}`,
@@ -291,7 +292,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function fetchThemes() {
       try {
-        const response = await fetch('/api/public/themes');
+        const response = await fetchWithAuth('/api/public/themes');
         if (response.ok) {
           const data = await response.json();
           console.log('🎨 Themes fetched:', data);

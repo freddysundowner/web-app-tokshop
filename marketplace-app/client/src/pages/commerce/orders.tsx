@@ -42,6 +42,7 @@ import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
 import { OrderDetailsDrawer } from "@/components/orders/order-details-drawer";
 import { getOrCreateChat } from "@/lib/firebase-chat";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const statusColors = {
   processing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -117,7 +118,7 @@ export default function Orders() {
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      const response = await fetch(`/api/orders/items/all?${params.toString()}`, {
+      const response = await fetchWithAuth(`/api/orders/items/all?${params.toString()}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -143,7 +144,7 @@ export default function Orders() {
       if (user?.id) {
         params.set("hostId", user.id);
       }
-      const response = await fetch(`/api/rooms?${params}`);
+      const response = await fetchWithAuth(`/api/rooms?${params}`);
       return response.json();
     },
     enabled: !!user?.id,
@@ -154,7 +155,7 @@ export default function Orders() {
   // Ship order mutation
   const shipOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await fetchWithAuth(`/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -182,7 +183,7 @@ export default function Orders() {
   // Cancel order mutation
   const cancelOrderMutation = useMutation({
     mutationFn: async ({ orderId, relist }: { orderId: string; relist: boolean }) => {
-      const response = await fetch("/api/orders/cancel/order", {
+      const response = await fetchWithAuth("/api/orders/cancel/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

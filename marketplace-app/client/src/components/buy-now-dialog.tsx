@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface BuyNowDialogProps {
   open: boolean;
@@ -188,7 +189,7 @@ export function BuyNowDialog({
   const { data: referralSettings } = useQuery({
     queryKey: ['referral-settings-for-checkout'],
     queryFn: async () => {
-      const res = await fetch('/api/settings', { credentials: 'include' });
+      const res = await fetchWithAuth('/api/settings', { credentials: 'include' });
       if (!res.ok) return null;
       const result = await res.json();
       return result.data || result;

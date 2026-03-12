@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function FeaturedShows() {
   usePageTitle('Featured Shows');
@@ -27,7 +28,7 @@ export default function FeaturedShows() {
         `status=active`
       ];
       const queryString = params.join('&');
-      const response = await fetch(`/api/rooms?${queryString}`);
+      const response = await fetchWithAuth(`/api/rooms?${queryString}`);
       return response.json();
     }
   });

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSocket } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 import { CustomBidDialog } from "@/components/custom-bid-dialog";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 // Lazy load payment/shipping components (same as live show)
 const PaymentShippingAlertDialog = lazy(() => import('@/components/payment-shipping-alert-dialog').then(m => ({ default: m.PaymentShippingAlertDialog })));
@@ -106,7 +107,7 @@ export default function AuctionDetail() {
         if (storedUserData) {
           shippingHeaders['x-user-data'] = btoa(unescape(encodeURIComponent(storedUserData)));
         }
-        const response = await fetch('/api/shipping/estimate', {
+        const response = await fetchWithAuth('/api/shipping/estimate', {
           method: 'POST',
           headers: shippingHeaders,
           credentials: 'include',

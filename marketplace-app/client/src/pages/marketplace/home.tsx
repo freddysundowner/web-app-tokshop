@@ -14,6 +14,7 @@ import { ProductCard } from '@/components/product-card';
 import { AuctionCard } from '@/components/auction-card';
 import { GiveawayCard } from '@/components/giveaway-card';
 import { ChevronRight, Gift } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function MarketplaceHome() {
   const { settings } = useSettings();
@@ -61,7 +62,7 @@ export default function MarketplaceHome() {
         sortBy: 'views', // Sort by views for trending
         featured: 'true'
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });
@@ -78,7 +79,7 @@ export default function MarketplaceHome() {
         featured: 'true',
         type: 'scheduled'
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });
@@ -95,7 +96,7 @@ export default function MarketplaceHome() {
         type: 'icona',
         status: 'active',
       });
-      const response = await fetch(`/api/giveaways?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/giveaways?${params.toString()}`);
       return response.json();
     }
   });
@@ -125,7 +126,7 @@ export default function MarketplaceHome() {
         `status=active`
       ];
       const queryString = params.join('&');
-      const response = await fetch(`/api/rooms?${queryString}`);
+      const response = await fetchWithAuth(`/api/rooms?${queryString}`);
       return response.json();
     }
   });
@@ -155,7 +156,7 @@ export default function MarketplaceHome() {
       ];
       
       const queryString = params.join('&');
-      const response = await fetch(`/api/rooms?${queryString}`);
+      const response = await fetchWithAuth(`/api/rooms?${queryString}`);
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {

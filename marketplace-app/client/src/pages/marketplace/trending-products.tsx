@@ -4,6 +4,7 @@ import { ProductCard } from '@/components/product-card';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function TrendingProducts() {
   usePageTitle('Trending Products');
@@ -19,7 +20,7 @@ export default function TrendingProducts() {
         sortBy: 'views',
         featured: 'true' // Keep same filter as homepage
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });

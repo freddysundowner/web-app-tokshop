@@ -12,6 +12,7 @@ import { CustomBidDialog } from '@/components/custom-bid-dialog';
 import { RaidShowDialog } from '@/components/raid-show-dialog';
 import { UserBadge } from '@/components/user-badge';
 import { CameraSettingsModal, CameraSettings } from '@/components/camera-settings-modal';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
@@ -71,7 +72,7 @@ export function VideoCenter(props: any) {
   const { data: referralSettings } = useQuery({
     queryKey: ['referral-settings-show-view'],
     queryFn: async () => {
-      const res = await fetch('/api/settings', { credentials: 'include' });
+      const res = await fetchWithAuth('/api/settings', { credentials: 'include' });
       if (!res.ok) return null;
       const result = await res.json();
       return result.data || result;
@@ -492,7 +493,7 @@ export function VideoCenter(props: any) {
                               setShowMoreOptionsSheet(false);
                               
                               try {
-                                const endResponse = await fetch(`/api/rooms/${id}`, {
+                                const endResponse = await fetchWithAuth(`/api/rooms/${id}`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   credentials: 'include',
@@ -564,7 +565,7 @@ export function VideoCenter(props: any) {
                               setShowMoreOptionsSheet(false);
                               
                               try {
-                                const deleteResponse = await fetch(`/api/rooms/${id}?destroy=true`, {
+                                const deleteResponse = await fetchWithAuth(`/api/rooms/${id}?destroy=true`, {
                                   method: 'DELETE',
                                   credentials: 'include',
                                 });
@@ -1434,7 +1435,7 @@ export function VideoCenter(props: any) {
                             
                             console.log('🔔 Notification update:', { currentInvitedIds, isAlreadySaved, invitedhostIds });
                             
-                            const response = await fetch(`/api/rooms/${id}`, {
+                            const response = await fetchWithAuth(`/api/rooms/${id}`, {
                               method: 'PUT',
                               headers: {
                                 'Content-Type': 'application/json',
@@ -1796,7 +1797,7 @@ export function VideoCenter(props: any) {
               try {
                 // End the SOURCE show via API (using captured ID, not reactive `id`)
                 console.log('🔴 Ending source show:', sourceShowId);
-                await fetch(`/api/rooms/${sourceShowId}`, {
+                await fetchWithAuth(`/api/rooms/${sourceShowId}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   credentials: 'include',

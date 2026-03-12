@@ -10,6 +10,7 @@ import {
   type TokshopProduct,
 } from "@shared/schema";
 import { InventoryProductForm } from "@/components/inventory/inventory-product-form";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function EditProduct() {
   const [, params] = useRoute("/edit-product/:id");
@@ -25,7 +26,7 @@ export default function EditProduct() {
     queryFn: async () => {
       if (!productId) throw new Error("Product ID required");
       
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/products/${productId}?userId=${user?.id}`,
         {
           method: "GET",
@@ -95,7 +96,7 @@ export default function EditProduct() {
         }
       }
       
-      const response = await fetch(endpoint, {
+      const response = await fetchWithAuth(endpoint, {
         method,
         headers: {
           "Content-Type": "application/json",

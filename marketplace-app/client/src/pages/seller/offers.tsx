@@ -44,6 +44,7 @@ import { Search, Tag, Check, X, ArrowUpDown, Clock, ChevronDown, ChevronRight, C
 import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -85,7 +86,7 @@ export default function Offers() {
       if (statusFilter !== 'all') {
         params.set('status', statusFilter);
       }
-      const response = await fetch(`/api/offers?${params}`);
+      const response = await fetchWithAuth(`/api/offers?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch offers');
       }

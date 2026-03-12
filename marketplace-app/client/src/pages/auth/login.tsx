@@ -14,6 +14,7 @@ import { initializeFirebase } from "@/lib/firebase";
 import { Link } from "wouter";
 import type { LoginData } from "@shared/schema";
 import { loginSchema } from "@shared/schema";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +36,7 @@ export default function Login() {
   useEffect(() => {
     const fetchFirebaseKeys = async () => {
       try {
-        const response = await fetch('/api/settings/keys');
+        const response = await fetchWithAuth('/api/settings/keys');
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {

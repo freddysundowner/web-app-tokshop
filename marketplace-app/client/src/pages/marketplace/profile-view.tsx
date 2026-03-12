@@ -32,6 +32,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { getOrCreateChat, blockUser, unblockUser } from "@/lib/firebase-chat";
 import { ShowCard } from "@/components/show-card";
 import { ShareDialog } from "@/components/share-dialog";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 // Review Card Component with expandable details
 function ReviewCard({ review }: { review: any }) {
@@ -183,7 +184,7 @@ export default function ProfileView() {
     queryFn: async () => {
       const userIdToFetch = userId || currentUserId;
       if (!userIdToFetch) throw new Error('No user ID available');
-      const response = await fetch(`/api/profile/${userIdToFetch}`);
+      const response = await fetchWithAuth(`/api/profile/${userIdToFetch}`);
       if (!response.ok) throw new Error('Failed to fetch user');
       const data = await response.json();
       // API returns data directly or nested under 'data' key
@@ -200,7 +201,7 @@ export default function ProfileView() {
       const userIdToFetch = userId || currentUserId;
       if (!userIdToFetch) return { reviews: [] };
       
-      const response = await fetch(`/api/users/review/${userIdToFetch}`);
+      const response = await fetchWithAuth(`/api/users/review/${userIdToFetch}`);
       if (!response.ok) return { reviews: [] };
       return response.json();
     },
@@ -224,7 +225,7 @@ export default function ProfileView() {
       const endpoint = followersDialogType === 'followers' 
         ? `/api/users/followers/${userIdToFetch}?page=${pageParam}&limit=20` 
         : `/api/users/following/${userIdToFetch}?page=${pageParam}&limit=20`;
-      const response = await fetch(endpoint);
+      const response = await fetchWithAuth(endpoint);
       if (!response.ok) return { users: [], totalDoc: 0, page: pageParam };
       const json = await response.json();
       // Handle various response formats
@@ -290,7 +291,7 @@ export default function ProfileView() {
         status: 'active',
       });
       
-      const response = await fetch(`/api/products/?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products/?${params.toString()}`);
       if (!response.ok) return { products: [] };
       return response.json();
     },
@@ -321,7 +322,7 @@ export default function ProfileView() {
         params.set('currentUserId', currentUserId);
       }
       
-      const response = await fetch(`/api/rooms?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/rooms?${params.toString()}`);
       if (!response.ok) return { rooms: [], pages: 0 };
       return response.json();
     },

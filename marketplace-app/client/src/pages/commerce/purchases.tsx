@@ -39,6 +39,7 @@ import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal, formatCurrency, getOrderBreakdown } from "@shared/pricing";
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const statusColors = {
   processing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -108,7 +109,7 @@ export default function Purchases() {
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/orders?${params.toString()}`,
         {
           method: "GET",
@@ -153,7 +154,7 @@ export default function Purchases() {
       orderId: string;
       reason: string;
     }) => {
-      const response = await fetch(`/api/orders/cancel/order`, {
+      const response = await fetchWithAuth(`/api/orders/cancel/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -215,7 +216,7 @@ export default function Purchases() {
       itemId: string;
       reason: string;
     }) => {
-      const response = await fetch(`/api/orders/cancel/order`, {
+      const response = await fetchWithAuth(`/api/orders/cancel/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

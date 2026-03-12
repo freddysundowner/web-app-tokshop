@@ -22,6 +22,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CountrySelect, StateSelect, CitySelect } from "react-country-state-city";
 import "react-country-state-city/dist/react-country-state-city.css";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface Step {
   id: 'address' | 'bank' | 'complete';
@@ -103,7 +104,7 @@ export default function SellerSetup() {
   // Create address mutation
   const createAddressMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/address', {
+      const response = await fetchWithAuth('/api/address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -170,7 +171,7 @@ export default function SellerSetup() {
   // Create bank account mutation
   const createBankAccountMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`/api/stripe/connect/${userId}`, {
+      const response = await fetchWithAuth(`/api/stripe/connect/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

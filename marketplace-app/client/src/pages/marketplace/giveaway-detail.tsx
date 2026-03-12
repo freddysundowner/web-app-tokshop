@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { queryClient, apiRequest } from '@/lib/queryClient';
+import { queryClient, apiRequest , fetchWithAuth} from '@/lib/queryClient';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +24,7 @@ export default function GiveawayDetail() {
   const { data: giveawayData, isLoading } = useQuery({
     queryKey: ['/api/giveaways', giveawayId],
     queryFn: async () => {
-      const response = await fetch(`/api/giveaways/${giveawayId}`, {
+      const response = await fetchWithAuth(`/api/giveaways/${giveawayId}`, {
         credentials: 'include',
       });
       return response.json();

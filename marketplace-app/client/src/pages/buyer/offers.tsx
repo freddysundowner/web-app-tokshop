@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface Offer {
   _id: string;
@@ -123,7 +124,7 @@ export default function BuyerOffers() {
   const { data, isLoading, error, refetch } = useQuery<OffersResponse>({
     queryKey: ['/api/offers', { user: userId, role: 'buyer', page: currentPage, limit: ITEMS_PER_PAGE }],
     queryFn: async () => {
-      const response = await fetch(`/api/offers?user=${userId}&role=buyer&page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
+      const response = await fetchWithAuth(`/api/offers?user=${userId}&role=buyer&page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
       if (!response.ok) throw new Error('Failed to fetch offers');
       return response.json();
     },
