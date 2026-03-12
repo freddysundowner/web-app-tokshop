@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface MobileAppRedirectProps {
   type: "user" | "show" | "product";
@@ -21,7 +22,7 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
   const [appScheme, setAppScheme] = useState("app://");
 
   useEffect(() => {
-    fetch("/api/themes")
+    fetchWithAuth("/api/themes")
       .then(res => res.json())
       .then(data => {
         const themes = data.data || data;

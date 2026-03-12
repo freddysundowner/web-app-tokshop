@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +42,6 @@ import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
 import { OrderDetailsDrawer } from "@/components/orders/order-details-drawer";
 import { getOrCreateChat } from "@/lib/firebase-chat";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 const statusColors = {
   processing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",

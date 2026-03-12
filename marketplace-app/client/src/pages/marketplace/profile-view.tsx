@@ -28,11 +28,10 @@ import { BadgeDescription } from "@/components/badge-description";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth } from '@/lib/queryClient';
 import { getOrCreateChat, blockUser, unblockUser } from "@/lib/firebase-chat";
 import { ShowCard } from "@/components/show-card";
 import { ShareDialog } from "@/components/share-dialog";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 // Review Card Component with expandable details
 function ReviewCard({ review }: { review: any }) {

@@ -31,7 +31,7 @@ export default function MarketplaceHome() {
     }>;
   }>({
     queryKey: ['/api/categories'],
-    queryFn: () => fetch('/api/categories').then(res => res.json()),
+    queryFn: () => fetchWithAuth('/api/categories').then(res => res.json()),
   });
 
   const apiCategories = categoriesData?.categories || [];

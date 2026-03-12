@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { Loader2, UserPlus, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ReferrerInfo {
   firstName?: string;
@@ -44,9 +45,9 @@ export default function InvitePage() {
     const fetchData = async () => {
       try {
         const [profileRes, themesRes, configRes] = await Promise.all([
-          fetch(`/api/users/public/profile/${referrerId}`),
-          fetch('/api/public/themes'),
-          fetch('/api/config'),
+          fetchWithAuth(`/api/users/public/profile/${referrerId}`),
+          fetchWithAuth('/api/public/themes'),
+          fetchWithAuth('/api/config'),
         ]);
 
         let apiBaseUrl = '';

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef, useC
 import { onAuthStateChange, signInWithGoogle, signInWithApple, firebaseSignOut, handleAuthRedirect } from "./firebase";
 import type { User as FirebaseUser } from "firebase/auth";
 import { loginSchema, signupSchema, socialAuthSchema, socialAuthCompleteSchema, type LoginData, type SignupData, type SocialAuthData, type SocialAuthCompleteData } from "@shared/schema";
-import { apiRequest, queryClient, setLogoutCallback } from "./queryClient";
+import { apiRequest, fetchWithAuth, queryClient, setLogoutCallback } from './queryClient';
 import { useSettings } from "./settings-context";
 
 interface User {
@@ -672,7 +672,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('[checkAuth] Fetching fresh user data from API...');
           
           // Use fetch directly (not apiRequest) so we can check 404 status before it throws
-          fetch(`/api/profile/${userData.id}`, {
+          fetchWithAuth(`/api/profile/${userData.id}`, {
             method: 'GET',
             credentials: 'include'
           })
@@ -702,10 +702,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
               
               // User exists, fetch additional data
               const [addressRes, paymentRes] = await Promise.all([
-                fetch(`/api/address/default/address/${userData.id}`, { credentials: 'include' })
+                fetchWithAuth(`/api/address/default/address/${userData.id}`, { credentials: 'include' })
                   .then(res => res.ok ? res.json() : { address: null })
                   .catch(() => ({ address: null })),
-                fetch(`/api/users/paymentmethod/${userData.id}`, { credentials: 'include' })
+                fetchWithAuth(`/api/users/paymentmethod/${userData.id}`, { credentials: 'include' })
                   .then(res => res.ok ? res.json() : [])
                   .catch(() => [])
               ]);

@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient , fetchWithAuth} from '@/lib/queryClient';
 import { timeSync } from '@/lib/time-sync';
 
 interface UseShowSocketEventsProps {
@@ -220,7 +220,7 @@ export function useShowSocketEvents({
           if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
           const ud = localStorage.getItem('user');
           if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
-          return fetch('/api/shipping/estimate', {
+          return fetchWithAuth('/api/shipping/estimate', {
             method: 'POST',
             headers: hdrs,
             body: JSON.stringify(pinnedPayload),

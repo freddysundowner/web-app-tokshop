@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth } from '@/lib/queryClient';
 import {
   Card,
   CardContent,
@@ -57,7 +57,6 @@ import {
   Ruler,
 } from "lucide-react";
 import type { TokshopShippingProfile, TokshopShippingProfilesResponse } from "@shared/schema";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 const WEIGHT_UNIT_OPTIONS = [
   { key: "lb", label: "Pound (lb)" },

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Gift, X } from "lucide-react";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ReferralBannerProps {
   settings: any;
@@ -20,12 +21,12 @@ export function ReferralBanner({ settings }: ReferralBannerProps) {
     const fetchData = async () => {
       try {
         const promises: Promise<any>[] = [
-          fetch('/api/settings').then(r => r.ok ? r.json() : null)
+          fetchWithAuth('/api/settings').then(r => r.ok ? r.json() : null)
         ];
 
         if (referrerId) {
           promises.push(
-            fetch(`/api/users/public/profile/${referrerId}`).then(r => r.ok ? r.json() : null)
+            fetchWithAuth(`/api/users/public/profile/${referrerId}`).then(r => r.ok ? r.json() : null)
           );
         }
 

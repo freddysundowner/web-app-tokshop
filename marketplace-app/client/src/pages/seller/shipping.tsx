@@ -1062,7 +1062,7 @@ export default function Shipping() {
 
       // Cancel each order in the bundle with relist option
       const cancelPromises = bundleOrders.map((order) =>
-        fetch(`/api/orders/${order._id}`, {
+        fetchWithAuth(`/api/orders/${order._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

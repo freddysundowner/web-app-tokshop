@@ -1,7 +1,7 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronRight, Clock, Zap, Percent, DollarSign } from "lucide-react";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ProductFormProps {
   listingType?: ListingType;

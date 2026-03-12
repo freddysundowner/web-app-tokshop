@@ -15,11 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { z } from "zod";
 import { getFirebaseStorage } from "@/lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 const profileUpdateSchema = z.object({
   firstName: z.string().min(1, "First name is required"),

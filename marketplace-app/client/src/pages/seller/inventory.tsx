@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useApiConfig } from "@/lib/use-api-config";
 import {
@@ -63,7 +63,6 @@ import type { TokshopProduct, TokshopProductsResponse, TokshopCategoriesResponse
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
 import { CSVUploadModal } from "@/components/inventory/csv-upload-modal";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 const statusColors = {
   active:

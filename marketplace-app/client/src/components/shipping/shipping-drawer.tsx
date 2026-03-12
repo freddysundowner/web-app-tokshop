@@ -32,9 +32,8 @@ import {
 import type { TokshopOrder, ShippingEstimateRequest, ShippingEstimateResponse, ShippingLabelPurchaseRequest, ShippingLabelPurchaseResponse, ShipmentBundle } from "@shared/schema";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth } from '@/lib/queryClient';
 import { BulkLabelDialog } from "./bulk-label-dialog";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ShippingDrawerProps {
   order?: TokshopOrder;

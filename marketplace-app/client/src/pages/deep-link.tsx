@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "wouter";
 import { Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function DeepLink() {
   const params = useParams<{ type: string; id: string }>();
@@ -16,7 +17,7 @@ export default function DeepLink() {
   const [appScheme, setAppScheme] = useState("app://");
 
   useEffect(() => {
-    fetch("/api/themes")
+    fetchWithAuth("/api/themes")
       .then(res => res.json())
       .then(data => {
         const themes = data.data || data;

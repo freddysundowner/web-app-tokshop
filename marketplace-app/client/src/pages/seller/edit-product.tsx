@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import {
   type TokshopProduct,
 } from "@shared/schema";
 import { InventoryProductForm } from "@/components/inventory/inventory-product-form";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function EditProduct() {
   const [, params] = useRoute("/edit-product/:id");

@@ -41,7 +41,7 @@ export default function Signup() {
     }
     const referredBy = localStorage.getItem('referredBy');
     if (referredBy) {
-      fetch(`/api/users/public/profile/${referredBy}`)
+      fetchWithAuth(`/api/users/public/profile/${referredBy}`)
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data) {

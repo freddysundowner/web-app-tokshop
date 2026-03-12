@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -58,7 +58,6 @@ import {
   type TokshopCategoriesResponse,
   type TokshopShippingProfilesResponse,
 } from "@shared/schema";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 // Predefined color options
 const availableColors = [

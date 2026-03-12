@@ -9,9 +9,8 @@ import { Copy, Video, Plus, ChevronLeft, ChevronRight, Search } from "lucide-rea
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { format } from "date-fns";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import type { TokshopCategoriesResponse } from "@shared/schema";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 interface Show {
   _id: string;

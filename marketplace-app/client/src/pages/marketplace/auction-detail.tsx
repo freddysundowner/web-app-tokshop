@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,7 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useSocket } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 import { CustomBidDialog } from "@/components/custom-bid-dialog";
-import { fetchWithAuth } from '@/lib/queryClient';
 
 // Lazy load payment/shipping components (same as live show)
 const PaymentShippingAlertDialog = lazy(() => import('@/components/payment-shipping-alert-dialog').then(m => ({ default: m.PaymentShippingAlertDialog })));

@@ -3,6 +3,7 @@ import { X, Plus, Clock, Gift, Package, Tag, Loader2, ChevronDown, ChevronUp, Us
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export function ProductsSidebar(props: any) {
   const [expandedOfferProducts, setExpandedOfferProducts] = useState<Set<string>>(new Set());
@@ -183,7 +184,7 @@ export function ProductsSidebar(props: any) {
                               if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
                               const ud = localStorage.getItem('user');
                               if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
-                              return fetch('/api/shipping/estimate', {
+                              return fetchWithAuth('/api/shipping/estimate', {
                                 method: 'POST',
                                 headers: hdrs,
                                 body: JSON.stringify(payload),
@@ -310,7 +311,7 @@ export function ProductsSidebar(props: any) {
                                   if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
                                   const ud = localStorage.getItem('user');
                                   if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
-                                  return fetch('/api/shipping/estimate', {
+                                  return fetchWithAuth('/api/shipping/estimate', {
                                     method: 'POST',
                                     headers: hdrs,
                                     body: JSON.stringify(payload),
