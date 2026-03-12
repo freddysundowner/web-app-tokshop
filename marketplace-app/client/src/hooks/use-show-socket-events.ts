@@ -35,6 +35,10 @@ interface UseShowSocketEventsProps {
   findWinner: (bids: any[]) => any;
   startTimerWithEndTime: (auction: any) => void;
   getShippingEstimate: (auction: any) => void;
+  refetchAuction: () => void;
+  refetchBuyNow: () => void;
+  refetchGiveaways: () => void;
+  refetchOffers: () => void;
   shownWinnerAlertsRef: React.MutableRefObject<Set<string>>;
   setActiveFlashSale: React.Dispatch<React.SetStateAction<any>>;
   setFlashSaleTimeLeft: React.Dispatch<React.SetStateAction<number>>;
@@ -73,21 +77,66 @@ export function useShowSocketEvents({
   findWinner,
   startTimerWithEndTime,
   getShippingEstimate,
+  refetchAuction,
+  refetchBuyNow,
+  refetchGiveaways,
+  refetchOffers,
   shownWinnerAlertsRef,
   setActiveFlashSale,
   setFlashSaleTimeLeft,
   setIsEndingGiveaway,
 }: UseShowSocketEventsProps) {
   const { toast } = useToast();
+  const lastAuctionRefetchRef = useRef<number>(0);
+  const lastGiveawayRefetchRef = useRef<number>(0);
+  const lastOffersRefetchRef = useRef<number>(0);
   
   // Track the current running auction ID to prevent stale ended flags from previous auctions
   // This is used to sanitize incoming room data that might have stale ended: true
   const currentRunningAuctionIdRef = useRef<string | null>(null);
 
+  // Debounced refetch functions to prevent duplicate calls
+  const debouncedRefetchAuction = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastRefetch = now - lastAuctionRefetchRef.current;
+    
+    // Only refetch if it's been more than 500ms since the last refetch
+    if (timeSinceLastRefetch > 500) {
+      lastAuctionRefetchRef.current = now;
+      refetchAuction();
+    }
+  }, [refetchAuction]);
+
+  const debouncedRefetchGiveaways = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastRefetch = now - lastGiveawayRefetchRef.current;
+    
+    // Only refetch if it's been more than 500ms since the last refetch
+    if (timeSinceLastRefetch > 500) {
+      lastGiveawayRefetchRef.current = now;
+      refetchGiveaways();
+    }
+  }, [refetchGiveaways]);
+
+  const debouncedRefetchOffers = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastRefetch = now - lastOffersRefetchRef.current;
+    
+    // Only refetch if it's been more than 500ms since the last refetch
+    if (timeSinceLastRefetch > 500) {
+      lastOffersRefetchRef.current = now;
+      console.log('🔄 Refetching offers via socket event');
+      refetchOffers();
+    }
+  }, [refetchOffers]);
+
   // Memoized handler: Fetch offers (triggered by socket event)
   const handleFetchOffers = useCallback((data: any) => {
     console.log('📬 fetch_offers socket event received:', data);
-  }, []);
+    debouncedRefetchOffers();
+    // Also refetch buy now products since offer acceptance affects product quantity
+    refetchBuyNow();
+  }, [debouncedRefetchOffers, refetchBuyNow]);
 
   // Memoized handler: User connected
   const handleUserConnected = useCallback((data: any) => {
@@ -219,7 +268,8 @@ export function useShowSocketEvents({
     }
     
     // Refetch Buy Now products to keep the list in sync
-  }, [setPinnedProduct]);
+    refetchBuyNow();
+  }, [setPinnedProduct, refetchBuyNow]);
 
   // Memoized handler: Auction started
   const handleAuctionStarted = useCallback((auction: any) => {
@@ -622,7 +672,8 @@ export function useShowSocketEvents({
     
     // Refetch the auction products list to update the tab
     // This won't affect activeAuction state because we have validation in the initialization effect
-  }, [setActiveAuction, setCurrentUserBid, findWinner, setWinnerData, setShowWinnerDialog, shownWinnerAlertsRef, roomId, currentUserId]);
+    debouncedRefetchAuction();
+  }, [setActiveAuction, setCurrentUserBid, findWinner, setWinnerData, setShowWinnerDialog, debouncedRefetchAuction, shownWinnerAlertsRef, roomId, currentUserId]);
 
   // Memoized handler: Auction updated
   const handleAuctionUpdate = useCallback(() => {
@@ -635,7 +686,8 @@ export function useShowSocketEvents({
     queryClient.invalidateQueries({ queryKey: ['/api/orders', roomId, 'sold'] });
     
     // Refetch the auction products list to update the tab
-  }, [roomId, currentUserId]);
+    debouncedRefetchAuction();
+  }, [debouncedRefetchAuction, roomId, currentUserId]);
 
   // Memoized handler: Giveaway started
   const handleGiveawayStarted = useCallback((roomData: any) => {
@@ -683,7 +735,9 @@ export function useShowSocketEvents({
         setShowGiveawayWinnerDialog(false);
       }, 10000);
     }
-  }, [setActiveGiveaway, setIsEndingGiveaway, setGiveawayWinnerData, setShowGiveawayWinnerDialog]);
+    
+    debouncedRefetchGiveaways();
+  }, [setActiveGiveaway, setIsEndingGiveaway, setGiveawayWinnerData, setShowGiveawayWinnerDialog, debouncedRefetchGiveaways]);
 
   // Memoized handler: Marketplace order (buy-now purchase)
   const handleMarketplaceOrder = useCallback((data: any) => {
@@ -816,6 +870,7 @@ export function useShowSocketEvents({
           flash_sale_started: false,
           flash_sale_ended: true
         } : null);
+        refetchBuyNow();
       }
     }, 1000);
     
@@ -824,7 +879,7 @@ export function useShowSocketEvents({
       description: "Limited time deal - act fast!",
       duration: 3000,
     });
-  }, [setActiveFlashSale, setFlashSaleTimeLeft, setPinnedProduct, toast]);
+  }, [setActiveFlashSale, setFlashSaleTimeLeft, setPinnedProduct, refetchBuyNow, toast]);
 
   // Memoized handler: Flash sale ended
   const handleFlashSaleEnded = useCallback((data: any) => {
@@ -838,13 +893,14 @@ export function useShowSocketEvents({
     
     setActiveFlashSale(null);
     setFlashSaleTimeLeft(0);
+    refetchBuyNow();
     
     toast({
       title: "Flash Sale Ended",
       description: "The flash sale has ended.",
       duration: 3000,
     });
-  }, [setActiveFlashSale, setFlashSaleTimeLeft, toast]);
+  }, [setActiveFlashSale, setFlashSaleTimeLeft, refetchBuyNow, toast]);
 
   // Memoized handler: Flash sale product update (quantity changed)
   const handleFlashSaleProductUpdate = useCallback((product: any) => {
@@ -866,8 +922,9 @@ export function useShowSocketEvents({
       }
       setActiveFlashSale(null);
       setFlashSaleTimeLeft(0);
+      refetchBuyNow();
     }
-  }, [setPinnedProduct, setActiveFlashSale, setFlashSaleTimeLeft]);
+  }, [setPinnedProduct, setActiveFlashSale, setFlashSaleTimeLeft, refetchBuyNow]);
 
   // Memoized handler: Prebid - update product prebids in real-time
   const handlePrebid = useCallback((data: any) => {
