@@ -926,8 +926,22 @@ export default function ShowViewNew() {
       
       const showActiveGiveaway = show.pinned_giveaway || show.pinnedGiveaway || show.activegiveaway || show.activeGiveaway || show.active_giveaway;
       if (showActiveGiveaway) {
+        const isGiveawayEnded = showActiveGiveaway.status === 'ended' || showActiveGiveaway.ended === true;
         console.log('📦 Initializing active giveaway from show data:', showActiveGiveaway);
-        setActiveGiveaway(showActiveGiveaway);
+        setActiveGiveaway((currentGiveaway: any) => {
+          // If we've already cleared the giveaway (via socket event) and the show
+          // data shows it as ended, don't re-set it — the socket event is fresher
+          if (!currentGiveaway && isGiveawayEnded) {
+            console.log('🛡️ Skipping ended giveaway from show data - already cleared by socket');
+            return null;
+          }
+          // If the giveaway is ended, don't initialize it as active
+          if (isGiveawayEnded) {
+            console.log('⏰ Giveaway in show data has ended - not setting as active');
+            return currentGiveaway;
+          }
+          return showActiveGiveaway;
+        });
       }
       
       // Initialize pinned product from show data
@@ -2031,7 +2045,7 @@ export default function ShowViewNew() {
   const soldProducts = soldOrdersData?.items || [];
   
   const soldOrders = soldOrdersData?.items || [];
-  const giveaways = giveawaysData?.giveaways || [];
+  const giveaways = (giveawaysData?.giveaways || []).filter((g: any) => g.status !== 'ended' && !g.ended);
   
   // Sync pinned product with latest buy now products data (e.g., after editing a product)
   useEffect(() => {
