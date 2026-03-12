@@ -18,6 +18,7 @@ interface ChatSidebarProps {
   handleFollowAndJoinGiveaway: () => void;
   setShowShareDialog: (show: boolean) => void;
   handleEndGiveaway: () => void;
+  isEndingGiveaway?: boolean;
   chatMessages: any[];
   chatScrollRef: any;
   renderMessageWithMentions: (message: string, mentions: any[]) => any;
@@ -48,6 +49,7 @@ export function ChatSidebar(props: ChatSidebarProps) {
     handleFollowAndJoinGiveaway,
     setShowShareDialog,
     handleEndGiveaway,
+    isEndingGiveaway = false,
     chatMessages,
     chatScrollRef,
     renderMessageWithMentions,
@@ -155,10 +157,18 @@ export function ChatSidebar(props: ChatSidebarProps) {
                 )}
                 <button
                   onClick={handleEndGiveaway}
-                  className="w-full h-11 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors"
+                  disabled={isEndingGiveaway}
+                  className="w-full h-11 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-70 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
                   data-testid="button-end-giveaway"
                 >
-                  End Giveaway
+                  {isEndingGiveaway ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Ending...
+                    </>
+                  ) : (
+                    'End Giveaway'
+                  )}
                 </button>
               </div>
             ) : (() => {

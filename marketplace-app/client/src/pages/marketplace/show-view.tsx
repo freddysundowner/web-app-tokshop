@@ -131,6 +131,7 @@ export default function ShowViewNew() {
   const [pinnedProduct, setPinnedProduct] = useState<any>(null);
   const [activeAuction, setActiveAuction] = useState<any>(null);
   const [activeGiveaway, setActiveGiveaway] = useState<any>(null);
+  const [isEndingGiveaway, setIsEndingGiveaway] = useState<boolean>(false);
   const [auctionTimeLeft, setAuctionTimeLeft] = useState<number>(0);
   const [giveawayTimeLeft, setGiveawayTimeLeft] = useState<number>(0);
   const [bidAmount, setBidAmount] = useState('');
@@ -1187,6 +1188,7 @@ export default function ShowViewNew() {
     shownWinnerAlertsRef,
     setActiveFlashSale,
     setFlashSaleTimeLeft,
+    setIsEndingGiveaway,
   });
 
 
@@ -2357,6 +2359,8 @@ export default function ShowViewNew() {
       showId: id
     });
     
+    setIsEndingGiveaway(true);
+    
     // Emit draw-giveaway event matching Flutter app structure
     socket.emit('draw-giveaway', {
       giveawayId: activeGiveaway._id,
@@ -2543,6 +2547,7 @@ export default function ShowViewNew() {
           isJoiningGiveaway={joinGiveawayMutation?.isPending}
           currentUserId={currentUserId}
           handleEndGiveaway={handleEndGiveaway}
+          isEndingGiveaway={isEndingGiveaway}
           setShowMobileProducts={setShowMobileProducts}
           setShowMobileChat={setShowMobileChat}
           handleUnfollowHost={handleUnfollowHost}
@@ -2617,6 +2622,7 @@ export default function ShowViewNew() {
           handleFollowAndJoinGiveaway={handleFollowAndJoinGiveaway}
           setShowShareDialog={setShowShareDialog}
           handleEndGiveaway={handleEndGiveaway}
+          isEndingGiveaway={isEndingGiveaway}
           chatMessages={chatMessages}
           chatScrollRef={chatScrollRef}
           renderMessageWithMentions={renderMessageWithMentions}

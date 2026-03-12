@@ -42,6 +42,7 @@ interface UseShowSocketEventsProps {
   shownWinnerAlertsRef: React.MutableRefObject<Set<string>>;
   setActiveFlashSale: React.Dispatch<React.SetStateAction<any>>;
   setFlashSaleTimeLeft: React.Dispatch<React.SetStateAction<number>>;
+  setIsEndingGiveaway: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function useShowSocketEvents({
@@ -83,6 +84,7 @@ export function useShowSocketEvents({
   shownWinnerAlertsRef,
   setActiveFlashSale,
   setFlashSaleTimeLeft,
+  setIsEndingGiveaway,
 }: UseShowSocketEventsProps) {
   const { toast } = useToast();
   const lastAuctionRefetchRef = useRef<number>(0);
@@ -712,8 +714,9 @@ export function useShowSocketEvents({
   const handleGiveawayEnded = useCallback((giveaway: any) => {
     console.log('Giveaway ended:', giveaway);
 
-    // Always clear the giveaway widget immediately
+    // Always clear the giveaway widget and loading state immediately
     setActiveGiveaway(null);
+    setIsEndingGiveaway(false);
 
     if (giveaway.winner) {
       const winnerName = giveaway.winner.userName || giveaway.winner.firstName || 'Someone';
@@ -734,7 +737,7 @@ export function useShowSocketEvents({
     }
     
     debouncedRefetchGiveaways();
-  }, [setActiveGiveaway, setGiveawayWinnerData, setShowGiveawayWinnerDialog, debouncedRefetchGiveaways]);
+  }, [setActiveGiveaway, setIsEndingGiveaway, setGiveawayWinnerData, setShowGiveawayWinnerDialog, debouncedRefetchGiveaways]);
 
   // Memoized handler: Marketplace order (buy-now purchase)
   const handleMarketplaceOrder = useCallback((data: any) => {

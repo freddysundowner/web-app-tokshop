@@ -38,7 +38,7 @@ export function VideoCenter(props: any) {
     auctionTimeLeft, currentBid, bidAmount, setBidAmount, handlePlaceBid,
     isPlacingBid, isUserWinning, pinnedProduct, activeGiveaway,
     giveawayTimeLeft, handleJoinGiveaway, handleFollowAndJoinGiveaway, isJoiningGiveaway, currentUserId,
-    handleEndGiveaway, setShowMobileProducts, setShowMobileChat,
+    handleEndGiveaway, isEndingGiveaway, setShowMobileProducts, setShowMobileChat,
     handleUnfollowHost, isLive, viewerCount, showTipDialog, setShowTipDialog, showThumbnail,
     showMobileProducts, showMobileChat, chatMessagesRef, chatMessages,
     imageError, setImageError, toast, user, show, viewers, isAuthenticated, navigate,
@@ -407,10 +407,15 @@ export function VideoCenter(props: any) {
                     {isShowOwner ? (
                       <button
                         onClick={handleEndGiveaway}
-                        className="w-full px-2 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold text-[10px] rounded-lg transition-colors"
+                        disabled={isEndingGiveaway}
+                        className="w-full px-2 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm disabled:opacity-70 text-white font-semibold text-[10px] rounded-lg transition-colors flex items-center justify-center gap-1"
                         data-testid="button-end-giveaway-mobile"
                       >
-                        End
+                        {isEndingGiveaway ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          'End'
+                        )}
                       </button>
                     ) : (() => {
                       // Check if user already entered (handle both string IDs and objects)
