@@ -422,7 +422,7 @@ export default function ShowViewNew() {
     }
   }, [activeAuction?._id, activeAuction?.id, currentUserId]); // Watch both _id and id
   
-  const { data: show, isLoading, refetch: refetchShow } = useQuery<any>({
+  const { data: show, isLoading, isError: isShowError, refetch: refetchShow } = useQuery<any>({
     queryKey: ['/api/rooms', id, currentUserId],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -435,6 +435,7 @@ export default function ShowViewNew() {
       return response.json();
     },
     enabled: !!id,
+    retry: false,
   });
 
   // Fetch auction products for this show
@@ -2446,6 +2447,20 @@ export default function ShowViewNew() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-lg">Loading show...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!show && isShowError && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4 px-4">
+          <h1 className="text-2xl font-bold mb-2">Sign In to Watch</h1>
+          <p className="text-gray-400 text-sm">Please log in to view this show.</p>
+          <Link href={`/login?redirect=/show/${id}`}>
+            <Button className="mt-2">Log In</Button>
+          </Link>
         </div>
       </div>
     );
