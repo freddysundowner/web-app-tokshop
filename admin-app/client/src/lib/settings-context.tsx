@@ -158,106 +158,107 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
-  useEffect(() => {
-    async function fetchSettings() {
+  async function fetchSettings() {
+    try {
+      // Fetch public themes for colors (works without auth - for login page)
       try {
-        // First, fetch public themes for colors (works without auth - for login page)
-        try {
-          const themesResponse = await fetch('/themes');
-          if (themesResponse.ok) {
-            const themesData = await themesResponse.json();
-            console.log('🎨 Themes fetched:', themesData);
-            if (themesData.success && themesData.data) {
-              const themes = themesData.data;
-              // Apply theme colors immediately
-              if (themes.primary_color) {
-                applyThemeColors(themes.primary_color, themes.secondary_color || defaultSettings.secondary_color);
-              }
-              // Set app_name and demoMode from themes (for login page before auth)
-              setSettings(prev => ({ 
-                ...prev, 
-                app_name: themes.app_name || prev.app_name,
-                demoMode: themes.demoMode !== undefined ? themes.demoMode : prev.demoMode 
-              }));
+        const themesResponse = await fetch('/themes');
+        if (themesResponse.ok) {
+          const themesData = await themesResponse.json();
+          console.log('🎨 Themes fetched:', themesData);
+          if (themesData.success && themesData.data) {
+            const themes = themesData.data;
+            if (themes.primary_color) {
+              applyThemeColors(themes.primary_color, themes.secondary_color || defaultSettings.secondary_color);
             }
+            setSettings(prev => ({
+              ...prev,
+              app_name: themes.app_name || prev.app_name,
+              demoMode: themes.demoMode !== undefined ? themes.demoMode : prev.demoMode,
+            }));
           }
-        } catch (themesError) {
-          console.warn('Failed to fetch public themes:', themesError);
         }
-
-        // Fetch full settings with Firebase config (requires auth)
-        try {
-          const adminToken = localStorage.getItem('adminAccessToken');
-          const userToken = localStorage.getItem('accessToken');
-          const settingsHeaders: Record<string, string> = {};
-          if (adminToken) {
-            settingsHeaders['Authorization'] = `Bearer ${adminToken}`;
-            settingsHeaders['x-admin-token'] = adminToken;
-          } else if (userToken) {
-            settingsHeaders['Authorization'] = `Bearer ${userToken}`;
-            settingsHeaders['x-access-token'] = userToken;
-          }
-          const settingsResponse = await fetch('/api/settings', {
-            credentials: 'include',
-            headers: settingsHeaders,
-          });
-          if (settingsResponse.status === 401 || settingsResponse.status === 404) {
-            const hasToken = !!(adminToken || userToken);
-            if (hasToken) {
-              console.log('[Settings] Token expired or user not found, logging out');
-              localStorage.removeItem('adminAccessToken');
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('user');
-              localStorage.removeItem('adminUser');
-              localStorage.removeItem('userId');
-              if (!window.location.pathname.includes('/login')) {
-                window.location.href = '/admin/login';
-              }
-              return;
-            }
-          }
-          if (settingsResponse.ok) {
-            const settingsData = await settingsResponse.json();
-            console.log('🔧 Settings fetched:', settingsData);
-            if (settingsData.success && settingsData.data) {
-              const apiSettings = settingsData.data;
-              setSettings(prev => ({
-                ...prev,
-                ...apiSettings,
-              }));
-              
-              // Initialize Firebase if config is available
-              if (apiSettings.firebase_api_key && 
-                  apiSettings.firebase_project_id && 
-                  apiSettings.firebase_storage_bucket) {
-                const firebaseConfig = {
-                  apiKey: apiSettings.firebase_api_key,
-                  authDomain: apiSettings.firebase_auth_domain,
-                  projectId: apiSettings.firebase_project_id,
-                  storageBucket: apiSettings.firebase_storage_bucket,
-                  appId: apiSettings.firebase_app_id,
-                };
-                console.log('🔥 Initializing auth with config from settings');
-                initializeFirebase(firebaseConfig);
-                setIsFirebaseReady(true);
-              } else {
-                console.warn('⚠️ Auth config not available in settings');
-                setIsFirebaseReady(false);
-              }
-            }
-          }
-        } catch (settingsError) {
-          console.warn('Failed to fetch settings:', settingsError);
-        }
-      } catch (error) {
-        console.error('Failed to fetch app settings:', error);
-        console.warn('⚠️ Cannot initialize auth without settings');
-      } finally {
-        setIsLoading(false);
+      } catch (themesError) {
+        console.warn('Failed to fetch public themes:', themesError);
       }
-    }
 
+      // Fetch full settings with Firebase config (sends token if available)
+      try {
+        const adminToken = localStorage.getItem('adminAccessToken');
+        const userToken = localStorage.getItem('accessToken');
+        const settingsHeaders: Record<string, string> = {};
+        if (adminToken) {
+          settingsHeaders['Authorization'] = `Bearer ${adminToken}`;
+          settingsHeaders['x-admin-token'] = adminToken;
+        } else if (userToken) {
+          settingsHeaders['Authorization'] = `Bearer ${userToken}`;
+          settingsHeaders['x-access-token'] = userToken;
+        }
+        const settingsResponse = await fetch('/api/settings', {
+          credentials: 'include',
+          headers: settingsHeaders,
+        });
+        if (settingsResponse.status === 401 || settingsResponse.status === 404) {
+          const hasToken = !!(adminToken || userToken);
+          if (hasToken) {
+            console.log('[Settings] Token expired or user not found, logging out');
+            localStorage.removeItem('adminAccessToken');
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            localStorage.removeItem('adminUser');
+            localStorage.removeItem('userId');
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = '/admin/login';
+            }
+            return;
+          }
+        }
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          console.log('🔧 Settings fetched:', settingsData);
+          if (settingsData.success && settingsData.data) {
+            const apiSettings = settingsData.data;
+            setSettings(prev => ({ ...prev, ...apiSettings }));
+
+            if (apiSettings.firebase_api_key &&
+              apiSettings.firebase_project_id &&
+              apiSettings.firebase_storage_bucket) {
+              const firebaseConfig = {
+                apiKey: apiSettings.firebase_api_key,
+                authDomain: apiSettings.firebase_auth_domain,
+                projectId: apiSettings.firebase_project_id,
+                storageBucket: apiSettings.firebase_storage_bucket,
+                appId: apiSettings.firebase_app_id,
+              };
+              console.log('🔥 Initializing auth with config from settings');
+              initializeFirebase(firebaseConfig);
+              setIsFirebaseReady(true);
+            } else {
+              console.warn('⚠️ Auth config not available in settings');
+              setIsFirebaseReady(false);
+            }
+          }
+        }
+      } catch (settingsError) {
+        console.warn('Failed to fetch settings:', settingsError);
+      }
+    } catch (error) {
+      console.error('Failed to fetch app settings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Fetch on mount
+  useEffect(() => {
     fetchSettings();
+  }, []);
+
+  // Re-fetch whenever the user logs in (auth-context dispatches this event after login)
+  useEffect(() => {
+    const handleRefetch = () => fetchSettings();
+    window.addEventListener('settings:refetch', handleRefetch);
+    return () => window.removeEventListener('settings:refetch', handleRefetch);
   }, []);
 
   // Apply theme colors whenever settings change

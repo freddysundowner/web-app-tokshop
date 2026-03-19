@@ -177,6 +177,8 @@ export default function AdminLogin() {
       // Store access token in localStorage for API calls
       if (result.accessToken) {
         localStorage.setItem('adminAccessToken', result.accessToken);
+        // Trigger SettingsProvider to re-fetch with the new token
+        window.dispatchEvent(new Event('settings:refetch'));
       }
 
       // Refresh auth context to pick up the new user from localStorage

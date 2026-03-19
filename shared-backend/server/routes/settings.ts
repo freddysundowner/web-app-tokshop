@@ -157,33 +157,13 @@ export function registerSettingsRoutes(app: Express) {
         ? authHeader.substring(7) 
         : req.session?.accessToken;
       
-      // If no auth, return defaults immediately - don't call external API
-      if (!accessToken) {
-        return res.json({
-          success: true,
-          data: {
-            app_name: "App",
-            seo_title: "",
-            support_email: "support@example.com",
-            primary_color: "#F4D03F",
-            secondary_color: "#1A1A1A",
-            stripe_publishable_key: "",
-            commission_rate: 0,
-            firebase_api_key: "",
-            firebase_auth_domain: "",
-            firebase_project_id: "",
-            firebase_storage_bucket: "",
-            firebase_app_id: "",
-            demoMode: false,
-          },
-        });
-      }
-      
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
       };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
       
       const response = await fetch(url, {
         method: "GET",
