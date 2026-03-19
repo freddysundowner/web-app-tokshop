@@ -152,13 +152,7 @@ export function registerSettingsRoutes(app: Express) {
   app.get("/api/settings", async (req, res) => {
     try {
       const accessToken = getAdminToken(req);
-      console.log(`[/api/settings] token: ${accessToken ? 'present (' + accessToken.substring(0, 20) + '...)' : 'MISSING'}`);
-      console.log(`[/api/settings] x-admin-token header: ${req.headers['x-admin-token'] ? 'present' : 'missing'}`);
-      console.log(`[/api/settings] authorization header: ${req.headers['authorization'] ? 'present' : 'missing'}`);
-      console.log(`[/api/settings] session.accessToken: ${(req as any).session?.accessToken ? 'present' : 'missing'}`);
-      
       const url = `${BASE_URL}/settings`;
-      console.log(`[/api/settings] calling external API: ${url}`);
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
@@ -170,11 +164,9 @@ export function registerSettingsRoutes(app: Express) {
         method: "GET",
         headers,
       });
-      console.log(`[/api/settings] external API responded: ${response.status}`);
-
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        console.warn(`[/api/settings] Failed to fetch settings from API (${response.status}): ${errorText}`);
+        console.warn(`Settings API error (${response.status}): ${errorText.substring(0, 100)}`);
         // Pass through 401/404 so the frontend can handle token expiry
         if (response.status === 401 || response.status === 404) {
           return res.status(response.status).json({
@@ -268,9 +260,6 @@ export function registerSettingsRoutes(app: Express) {
   app.get("/api/settings/full", async (req, res) => {
     try {
       const accessToken = getAdminToken(req);
-      console.log(`[/api/settings/full] token: ${accessToken ? 'present' : 'MISSING'}`);
-      console.log(`[/api/settings/full] x-admin-token header: ${req.headers['x-admin-token'] ? 'present' : 'missing'}`);
-
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",

@@ -36,7 +36,7 @@ const defaultSettings: AppSettings = {
   primary_color: '#F4D03F',
   secondary_color: '#1A1A1A',
   stripe_publishable_key: '',
-  commission_rate: 0, // Default 0% commission
+  commission_rate: 0,
   demoMode: false,
 };
 
@@ -47,90 +47,53 @@ const SettingsContext = createContext<SettingsContextType>({
   appName: 'TokshopLive',
 });
 
-// Helper function to convert hex to HSL
 function hexToHSL(hex: string): string {
-  // Remove # if present
   hex = hex.replace('#', '');
-  
-  // Handle 8-character hex (AARRGGBB or RRGGBBAA format)
-  // Strip alpha channel if present
   if (hex.length === 8) {
-    // Check if it's AARRGGBB (alpha first) or RRGGBBAA (alpha last)
-    // Most mobile formats use AARRGGBB, so we'll handle that
-    hex = hex.substring(2); // Remove first 2 chars (alpha channel)
+    hex = hex.substring(2);
   }
-  
-  // Convert hex to RGB (now guaranteed to be 6 characters)
   const r = parseInt(hex.substring(0, 2), 16) / 255;
   const g = parseInt(hex.substring(2, 4), 16) / 255;
   const b = parseInt(hex.substring(4, 6), 16) / 255;
-  
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   let h = 0, s = 0, l = (max + min) / 2;
-  
   if (max !== min) {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    
     switch (max) {
       case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
       case g: h = ((b - r) / d + 2) / 6; break;
       case b: h = ((r - g) / d + 4) / 6; break;
     }
   }
-  
   h = Math.round(h * 360);
   s = Math.round(s * 100);
   l = Math.round(l * 100);
-  
   return `${h} ${s}% ${l}%`;
 }
 
-// Calculate luminance to determine if color is light or dark
 function getLuminance(hex: string): number {
   hex = hex.replace('#', '');
-  
-  // Handle 8-character hex (AARRGGBB format) - strip alpha
   if (hex.length === 8) {
-    hex = hex.substring(2); // Remove first 2 chars (alpha channel)
+    hex = hex.substring(2);
   }
-  
   const r = parseInt(hex.substring(0, 2), 16) / 255;
   const g = parseInt(hex.substring(2, 4), 16) / 255;
   const b = parseInt(hex.substring(4, 6), 16) / 255;
-  
-  // Apply gamma correction
   const rLin = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
   const gLin = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
   const bLin = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
-  
   return 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
 }
 
-// Apply theme colors to CSS variables
 function applyThemeColors(primaryColor: string, secondaryColor: string) {
-  console.log('🎨 Applying theme colors:', { primaryColor, secondaryColor });
-  
   const root = document.documentElement;
-  
-  // Convert colors to HSL
   const primaryHSL = hexToHSL(primaryColor);
   const secondaryHSL = hexToHSL(secondaryColor);
-  
-  console.log('🎨 Converted to HSL:', { primaryHSL, secondaryHSL });
-  
-  // Determine if primary color is light or dark
   const luminance = getLuminance(primaryColor);
-  const isLightColor = luminance > 0.5; // Threshold for light vs dark
-  
-  console.log('🎨 Luminance:', { luminance, isLightColor });
-  
-  // Set text color based on background luminance
-  // Light backgrounds need dark text, dark backgrounds need light text
-  const foregroundColor = isLightColor ? '0 0% 9%' : '0 0% 100%'; // dark or white
-  
-  // Apply primary color to all primary-related CSS variables
+  const isLightColor = luminance > 0.5;
+  const foregroundColor = isLightColor ? '0 0% 9%' : '0 0% 100%';
   root.style.setProperty('--primary', primaryHSL);
   root.style.setProperty('--primary-foreground', foregroundColor);
   root.style.setProperty('--ring', primaryHSL);
@@ -138,19 +101,14 @@ function applyThemeColors(primaryColor: string, secondaryColor: string) {
   root.style.setProperty('--sidebar-primary', primaryHSL);
   root.style.setProperty('--sidebar-primary-foreground', foregroundColor);
   root.style.setProperty('--sidebar-ring', primaryHSL);
-  
-  // Apply secondary color
   const secondaryLuminance = getLuminance(secondaryColor);
   const isSecondaryLight = secondaryLuminance > 0.5;
   const secondaryForeground = isSecondaryLight ? '0 0% 9%' : '0 0% 100%';
-  
   root.style.setProperty('--secondary', secondaryHSL);
   root.style.setProperty('--secondary-foreground', secondaryForeground);
   root.style.setProperty('--accent', secondaryHSL);
   root.style.setProperty('--accent-foreground', secondaryForeground);
   root.style.setProperty('--chart-2', secondaryHSL);
-  
-  console.log('✅ Theme colors applied successfully');
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
@@ -160,12 +118,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   async function fetchSettings() {
     try {
-      // Fetch public themes for colors (works without auth - for login page)
+      // Fetch public themes for branding/colors (works without auth)
       try {
         const themesResponse = await fetch('/themes');
         if (themesResponse.ok) {
           const themesData = await themesResponse.json();
-          console.log('🎨 Themes fetched:', themesData);
           if (themesData.success && themesData.data) {
             const themes = themesData.data;
             if (themes.primary_color) {
@@ -178,11 +135,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             }));
           }
         }
-      } catch (themesError) {
-        console.warn('Failed to fetch public themes:', themesError);
+      } catch {
+        // silently ignore themes fetch failure
       }
 
-      // Fetch full settings with Firebase config (sends token if available)
+      // Fetch full settings with Firebase/payment config (requires auth token)
       try {
         const adminToken = localStorage.getItem('adminAccessToken');
         const userToken = localStorage.getItem('accessToken');
@@ -201,7 +158,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         if (settingsResponse.status === 401 || settingsResponse.status === 404) {
           const hasToken = !!(adminToken || userToken);
           if (hasToken) {
-            console.log('[Settings] Token expired or user not found, logging out');
             localStorage.removeItem('adminAccessToken');
             localStorage.removeItem('accessToken');
             localStorage.removeItem('user');
@@ -215,13 +171,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         }
         if (settingsResponse.ok) {
           const settingsData = await settingsResponse.json();
-          console.log('🔧 Settings fetched:', settingsData);
           if (settingsData.success && settingsData.data) {
             const apiSettings = settingsData.data;
-            // app_name and seo_title are authoritative from /themes — never
-            // let /settings overwrite them, because the two endpoints can
-            // store different (stale) values in the external API's database.
-            // Also skip empty/null values to avoid wiping out good data.
+            // app_name, seo_title, and colors are authoritative from /themes —
+            // never let /settings overwrite them. Also skip empty/null values.
             const THEMES_ONLY_FIELDS = ['app_name', 'seo_title', 'slogan', 'primary_color', 'secondary_color'];
             setSettings(prev => ({
               ...prev,
@@ -242,17 +195,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
                 storageBucket: apiSettings.firebase_storage_bucket,
                 appId: apiSettings.firebase_app_id,
               };
-              console.log('🔥 Initializing auth with config from settings');
               initializeFirebase(firebaseConfig);
               setIsFirebaseReady(true);
             } else {
-              console.warn('⚠️ Auth config not available in settings');
               setIsFirebaseReady(false);
             }
           }
         }
-      } catch (settingsError) {
-        console.warn('Failed to fetch settings:', settingsError);
+      } catch {
+        // silently ignore settings fetch failure
       }
     } catch (error) {
       console.error('Failed to fetch app settings:', error);
@@ -261,19 +212,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Fetch on mount
   useEffect(() => {
     fetchSettings();
   }, []);
 
-  // Re-fetch whenever the user logs in (auth-context dispatches this event after login)
   useEffect(() => {
     const handleRefetch = () => fetchSettings();
     window.addEventListener('settings:refetch', handleRefetch);
     return () => window.removeEventListener('settings:refetch', handleRefetch);
   }, []);
 
-  // Apply theme colors whenever settings change
   useEffect(() => {
     if (settings.primary_color && settings.secondary_color) {
       applyThemeColors(settings.primary_color, settings.secondary_color);
