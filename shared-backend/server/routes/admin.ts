@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { BASE_URL, getAccessToken, getAdminToken } from "../utils";
+import { BASE_URL, getAccessToken, getAdminToken, unwrapApiResponse } from "../utils";
 import multer from "multer";
 import FormData from "form-data";
 import axios from "axios";
@@ -87,7 +87,7 @@ async function checkDemoMode(req: any, res: any, next: any) {
     }
 
     const data = await response.json();
-    const settings = Array.isArray(data) ? data[0] : data;
+    const settings = unwrapApiResponse(data);
     
     if (settings?.demoMode === true) {
       return res.status(403).json({
@@ -2021,7 +2021,7 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const data = await response.json();
-      const settings = Array.isArray(data) ? data[0] : data;
+      const settings = unwrapApiResponse(data);
       
       res.json({
         success: true,
@@ -2070,7 +2070,7 @@ If you have any questions, feel free to reach out to our support team.
       
       res.json({
         success: true,
-        data: Array.isArray(data) ? data[0] : data,
+        data: unwrapApiResponse(data),
       });
     } catch (error: any) {
       console.error("Error fetching app settings:", error);
@@ -2163,7 +2163,7 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const data = await response.json();
-      const themeData = Array.isArray(data) ? data[0] : data;
+      const themeData = unwrapApiResponse(data);
       
       // Extract landing_page_logo from resources array if present
       if (themeData.resources && Array.isArray(themeData.resources)) {

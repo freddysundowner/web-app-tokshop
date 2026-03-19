@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { BASE_URL, getAdminToken } from "../utils";
+import { BASE_URL, getAdminToken, unwrapApiResponse } from "../utils";
 
 export function registerSettingsRoutes(app: Express) {
   // Get Firebase auth keys only (no auth required) - for login page
@@ -28,7 +28,7 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      const settings = Array.isArray(data) ? data[0] : data;
+      const settings = unwrapApiResponse(data);
       
       // Return only Firebase auth keys needed for login
       res.json({
@@ -94,7 +94,7 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      const themes = Array.isArray(data) ? data[0] : data;
+      const themes = unwrapApiResponse(data);
       
       // Extract landing_page_logo from resources array if present
       let landingPageLogo = themes?.landing_page_logo || "";
@@ -204,7 +204,7 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      const settings = Array.isArray(data) ? data[0] : data;
+      const settings = unwrapApiResponse(data);
       
       // Extract public branding information, Stripe publishable key, and Firebase config
       const publicSettings = {
@@ -294,7 +294,7 @@ export function registerSettingsRoutes(app: Express) {
       
       res.json({
         success: true,
-        data: Array.isArray(data) ? data[0] : data,
+        data: unwrapApiResponse(data),
       });
     } catch (error: any) {
       console.error("Error fetching full app settings:", error);
