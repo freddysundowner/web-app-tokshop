@@ -182,9 +182,10 @@ export function registerSettingsRoutes(app: Express) {
             error: response.status === 401 ? "Unauthorized" : "Not found",
           });
         }
-        // For other errors, return defaults
-        return res.json({
-          success: true,
+        // For 5xx/other errors, return a real error so the frontend keeps existing data
+        return res.status(503).json({
+          success: false,
+          error: `External API unavailable (${response.status})`,
           data: {
             app_name: "App",
             seo_title: "",

@@ -218,7 +218,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           console.log('🔧 Settings fetched:', settingsData);
           if (settingsData.success && settingsData.data) {
             const apiSettings = settingsData.data;
-            setSettings(prev => ({ ...prev, ...apiSettings }));
+            // Only overwrite string fields if the new value is non-empty,
+            // so a failed/degraded API response doesn't wipe out good values
+            // already loaded from themes (e.g. app_name from /themes fetch above).
+            setSettings(prev => ({
+              ...prev,
+              ...Object.fromEntries(
+                Object.entries(apiSettings).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+              ),
+            }));
 
             if (apiSettings.firebase_api_key &&
               apiSettings.firebase_project_id &&
