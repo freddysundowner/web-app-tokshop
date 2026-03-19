@@ -15,6 +15,9 @@ import { socketListener } from "./services/socket-listener";
 
 const app = express();
 
+// Disable ETags entirely so Express never returns 304 Not Modified for API responses
+app.set('etag', false);
+
 // Trust proxy - important for sessions behind Nginx
 app.set('trust proxy', 1);
 
