@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAdminToken } from "../utils";
 
 export function registerSettingsRoutes(app: Express) {
   // Get Firebase auth keys only (no auth required) - for login page
@@ -58,8 +58,8 @@ export function registerSettingsRoutes(app: Express) {
       const url = `${BASE_URL}/themes`;
       console.log(`Fetching public themes from: ${url}`);
       
-      // Try to get access token from session if available
-      const accessToken = req.session?.accessToken;
+      // Try to get access token from session or headers if available
+      const accessToken = getAdminToken(req);
       
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -151,11 +151,7 @@ export function registerSettingsRoutes(app: Express) {
   // Get public app settings (branding information)
   app.get("/api/settings", async (req, res) => {
     try {
-      // Try to get access token from Authorization header first, then session
-      const authHeader = req.headers.authorization;
-      const accessToken = authHeader?.startsWith('Bearer ') 
-        ? authHeader.substring(7) 
-        : req.session?.accessToken;
+      const accessToken = getAdminToken(req);
       
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
@@ -264,10 +260,7 @@ export function registerSettingsRoutes(app: Express) {
   // Get full app settings (proxy to external API)
   app.get("/api/settings/full", async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      const accessToken = authHeader?.startsWith('Bearer ') 
-        ? authHeader.substring(7) 
-        : req.session?.accessToken;
+      const accessToken = getAdminToken(req);
 
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
@@ -308,10 +301,7 @@ export function registerSettingsRoutes(app: Express) {
   // Update app settings (proxy to external API)
   app.post("/api/settings", async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      const accessToken = authHeader?.startsWith('Bearer ') 
-        ? authHeader.substring(7) 
-        : req.session?.accessToken;
+      const accessToken = getAdminToken(req);
 
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
