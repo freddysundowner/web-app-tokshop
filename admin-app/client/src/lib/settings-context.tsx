@@ -218,13 +218,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           console.log('🔧 Settings fetched:', settingsData);
           if (settingsData.success && settingsData.data) {
             const apiSettings = settingsData.data;
-            // Only overwrite string fields if the new value is non-empty,
-            // so a failed/degraded API response doesn't wipe out good values
-            // already loaded from themes (e.g. app_name from /themes fetch above).
+            // app_name and seo_title are authoritative from /themes — never
+            // let /settings overwrite them, because the two endpoints can
+            // store different (stale) values in the external API's database.
+            // Also skip empty/null values to avoid wiping out good data.
+            const THEMES_ONLY_FIELDS = ['app_name', 'seo_title', 'slogan', 'primary_color', 'secondary_color'];
             setSettings(prev => ({
               ...prev,
               ...Object.fromEntries(
-                Object.entries(apiSettings).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+                Object.entries(apiSettings).filter(([k, v]) =>
+                  !THEMES_ONLY_FIELDS.includes(k) && v !== '' && v !== null && v !== undefined
+                )
               ),
             }));
 
