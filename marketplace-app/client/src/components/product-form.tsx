@@ -85,7 +85,7 @@ export function ProductForm({
       featured: false,
       list_individually: false,
       whocanenter: 'everyone',
-      local_only: false,
+      local_only: true,
       tokshow: roomId || "",
       acceptsOffers: false,
       flash_sale: false,
