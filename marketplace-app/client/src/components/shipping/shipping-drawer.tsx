@@ -283,11 +283,15 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
       orderId: displayOrder._id,
     });
     
-    // On first open, just store the initial signature without fetching
+    // On first open: giveaway orders have pre-filled dimensions so fetch immediately;
+    // regular orders wait for the user to enter/change values before fetching.
     if (initialSignatureRef.current === null) {
       initialSignatureRef.current = currentSignature;
       lastFetchedSignatureRef.current = currentSignature;
-      return; // Don't fetch on initial open
+      if (displayOrder.giveaway) {
+        shippingEstimatesQuery.refetch();
+      }
+      return;
     }
     
     // Only fetch if values changed from what we last fetched
