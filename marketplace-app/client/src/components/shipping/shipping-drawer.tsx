@@ -468,7 +468,9 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     onSuccess: (data) => {
       if (data.success !== false) {
         queryClient.invalidateQueries({ queryKey: ['/api/bundles'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
         queryClient.invalidateQueries({ queryKey: ['/api/shipping/metrics'] });
+        queryClient.invalidateQueries({ queryKey: ['external-orders'] });
         toast({ title: "Order marked as shipped!" });
         setIsOpen(false);
       } else {
