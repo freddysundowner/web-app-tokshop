@@ -267,8 +267,6 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
 
   const estimates = shippingEstimatesQuery.data || [];
   
-  // Only fetch estimates when dimensions/weight actually change (user edits inputs)
-  // NOT on drawer open - only on explicit changes or Refresh button click
   const initialSignatureRef = useRef<string | null>(null);
   
   useEffect(() => {
@@ -283,14 +281,11 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
       orderId: displayOrder._id,
     });
     
-    // On first open: giveaway orders have pre-filled dimensions so fetch immediately;
-    // regular orders wait for the user to enter/change values before fetching.
+    // On first open: always fetch estimates if we have valid dimensions
     if (initialSignatureRef.current === null) {
       initialSignatureRef.current = currentSignature;
       lastFetchedSignatureRef.current = currentSignature;
-      if (displayOrder.giveaway) {
-        shippingEstimatesQuery.refetch();
-      }
+      shippingEstimatesQuery.refetch();
       return;
     }
     
