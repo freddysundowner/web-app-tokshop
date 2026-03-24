@@ -47,4 +47,4 @@ expertMode = true
 [userenv]
 
 [userenv.shared]
-BASE_URL = "https://ff51cfde-c366-4b4d-a002-6380ec396a41-00-1xtvos9krmxf.kirk.replit.dev"
+BASE_URL = "https://api.lonerangerpoker.com"
