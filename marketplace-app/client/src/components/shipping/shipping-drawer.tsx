@@ -134,11 +134,21 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   
   // Extract dimensions from order data
   const getRealOrderDimensions = () => {
+    // Check top-level order dimensions first
     if (displayOrder.length && displayOrder.width && displayOrder.height) {
       return {
         length: displayOrder.length.toString(),
         width: displayOrder.width.toString(),
         height: displayOrder.height.toString(),
+      };
+    }
+    
+    // For giveaway orders, use dimensions stored directly on the giveaway object
+    if (displayOrder.giveaway?.length && displayOrder.giveaway?.width && displayOrder.giveaway?.height) {
+      return {
+        length: displayOrder.giveaway.length.toString(),
+        width: displayOrder.giveaway.width.toString(),
+        height: displayOrder.giveaway.height.toString(),
       };
     }
     
@@ -152,6 +162,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   
   // Extract weight from order data
   const getRealOrderWeight = () => {
+    // Check top-level order weight first
     if (displayOrder.weight) {
       return displayOrder.weight.toString();
     }
@@ -164,6 +175,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         }
       });
     }
+    // For giveaway orders: check the shipping profile weight
     if ((displayOrder as any).giveaway?.shipping_profile?.weight) {
       totalWeight += Number((displayOrder as any).giveaway.shipping_profile.weight);
     }
