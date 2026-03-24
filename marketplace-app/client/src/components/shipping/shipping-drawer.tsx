@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, fetchWithAuth } from '@/lib/queryClient';
 import { BulkLabelDialog } from "./bulk-label-dialog";
+import { useAuth } from "@/lib/auth-context";
 
 interface ShippingDrawerProps {
   order?: TokshopOrder;
@@ -196,8 +197,13 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   // Check if we have valid data for fetching estimates
   const hasValidDimensions = Boolean(dimensions.length && dimensions.width && dimensions.height && weight);
 
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Detect local pickup orders — no label needed, just mark as shipped
+  const isLocalPickup = (displayOrder as any).rate_id === 'LOCAL_PICKUP' ||
+    bundleOrders.some((o: any) => o.rate_id === 'LOCAL_PICKUP');
 
 
   // Shipping estimates API call - automatically fetch when drawer opens with valid data
@@ -449,6 +455,29 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     },
   });
 
+  const markAsShippedMutation = useMutation({
+    mutationFn: async () => {
+      const orderId = isBundle ? bundleOrders[0]?._id : displayOrder._id;
+      const response = await apiRequest('POST', `/api/orders/bundle/${orderId}/ship`, {
+        userId: user?._id,
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success !== false) {
+        queryClient.invalidateQueries({ queryKey: ['/api/bundles'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/shipping/metrics'] });
+        toast({ title: "Order marked as shipped!" });
+        setIsOpen(false);
+      } else {
+        toast({ title: "Failed to mark as shipped", description: data.error, variant: "destructive" });
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to mark as shipped", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handlePrintLabel = (estimate: ShippingEstimate) => {
     // Safety check: ensure objectId is present before purchasing
     if (!estimate.objectId || estimate.objectId.trim() === '') {
@@ -691,7 +720,33 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
             </Card>
           )}
 
+          {/* Local Pickup — no label needed */}
+          {isLocalPickup && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Package size={16} />
+                  Local Pickup
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  This order was selected for local pickup. No shipping label is required.
+                </p>
+                <Button
+                  onClick={() => markAsShippedMutation.mutate()}
+                  disabled={markAsShippedMutation.isPending}
+                  className="w-full"
+                  data-testid="button-mark-as-shipped"
+                >
+                  {markAsShippedMutation.isPending ? 'Marking as shipped...' : 'Mark as Shipped'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Package Dimensions */}
+          {!isLocalPickup && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -783,8 +838,10 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
 
             </CardContent>
           </Card>
+          )}
 
           {/* Shipping Estimates */}
+          {!isLocalPickup && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -907,6 +964,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Current Status */}
           {(displayOrder.tracking_number || (isBundle && bundleOrders.some(order => order.tracking_number))) && (
