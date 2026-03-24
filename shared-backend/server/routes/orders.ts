@@ -437,6 +437,7 @@ export function registerOrderRoutes(app: Express) {
         body: JSON.stringify({
           status: 'shipped',
           relist: false,
+          bundleId,
         }),
       });
 
