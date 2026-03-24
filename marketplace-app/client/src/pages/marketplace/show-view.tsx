@@ -1803,8 +1803,8 @@ export default function ShowViewNew() {
         }
       }
       
-      // Check 2: If domesticOnly is enabled, user country must match the room owner's country
-      if (activeGiveaway.domesticOnly) {
+      // Check 2: If local_only, user country must match the room owner's country
+      if (activeGiveaway.whocanenter === 'local_only') {
         const currentUserCountry = (user as any)?.country;
         const ownerCountry = show?.owner?.country;
         if (currentUserCountry && ownerCountry && currentUserCountry !== ownerCountry) {

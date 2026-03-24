@@ -119,7 +119,6 @@ export function InventoryProductForm({
       startTime: null,
       endTime: null,
       whocanenter: 'everyone',
-      domesticOnly: false,
       tokshow: "general",
       flash_sale: false,
       flash_sale_discount_type: 'percentage',
@@ -286,7 +285,6 @@ export function InventoryProductForm({
         sudden: (product as any).sudden ?? false,
         list_individually: (product as any).list_individually ?? false,
         whocanenter: (product as any).whocanenter || 'everyone',
-        domesticOnly: (product as any).domesticOnly ?? false,
         flash_sale: (product as any).flash_sale ?? false,
         flash_sale_discount_type: (product as any).flash_sale_discount_type ?? 'percentage',
         flash_sale_discount_value: (product as any).flash_sale_discount_value ?? 0,
@@ -814,30 +812,10 @@ export function InventoryProductForm({
                             <SelectContent>
                               <SelectItem value="everyone">Everyone</SelectItem>
                               <SelectItem value="followers">Followers Only</SelectItem>
+                              <SelectItem value="local_only">Local Only (same country)</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="domesticOnly"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Domestic Only</FormLabel>
-                            <p className="text-xs text-muted-foreground">
-                              Restrict to participants in the same country as you
-                            </p>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={!!field.value}
-                              onCheckedChange={field.onChange}
-                              data-testid="switch-domestic-only"
-                            />
-                          </FormControl>
                         </FormItem>
                       )}
                     />
