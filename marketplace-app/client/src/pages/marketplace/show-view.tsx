@@ -1803,11 +1803,13 @@ export default function ShowViewNew() {
         }
       }
       
-      // Check 2: User country must match the room owner's country
-      const currentUserCountry = (user as any)?.country;
-      const ownerCountry = show?.owner?.country;
-      if (currentUserCountry && ownerCountry && currentUserCountry !== ownerCountry) {
-        throw new Error('You cannot join international giveaways. This giveaway is only available to participants in the same country as the host.');
+      // Check 2: If domesticOnly is enabled, user country must match the room owner's country
+      if (activeGiveaway.domesticOnly) {
+        const currentUserCountry = (user as any)?.country;
+        const ownerCountry = show?.owner?.country;
+        if (currentUserCountry && ownerCountry && currentUserCountry !== ownerCountry) {
+          throw new Error('This giveaway is only available to participants in the same country as the host.');
+        }
       }
 
       // Check 3: User must be following host if giveaway requires it

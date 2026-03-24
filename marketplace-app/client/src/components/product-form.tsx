@@ -85,6 +85,7 @@ export function ProductForm({
       featured: false,
       list_individually: false,
       whocanenter: 'everyone',
+      domesticOnly: false,
       tokshow: roomId || "",
       acceptsOffers: false,
       flash_sale: false,
@@ -418,6 +419,7 @@ export function ProductForm({
       } else if (currentListingType === 'giveaway') {
         submitData.duration = 300; // Giveaway duration: 5 minutes (300 seconds)
         submitData.whocanenter = data.whocanenter;
+        submitData.domesticOnly = data.domesticOnly ?? false;
         submitData.shippingProfile = data.shippingProfile;
         submitData.featured = false; // Giveaways cannot be featured
         submitData.type = 'show'; // Giveaways created during a show have type 'show'
@@ -1421,6 +1423,27 @@ export function ProductForm({
                     </FormControl>
                   </FormItem>
                 </>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="domesticOnly"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border border-zinc-700 p-3 bg-zinc-800">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-sm text-white font-medium">Domestic Only</FormLabel>
+                    <FormDescription className="text-xs text-zinc-300">
+                      Restrict to participants in the same country as you
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={!!field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="switch-domestic-only"
+                    />
+                  </FormControl>
+                </FormItem>
               )}
             />
           </div>
