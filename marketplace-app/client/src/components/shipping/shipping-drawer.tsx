@@ -457,8 +457,10 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
 
   const markAsShippedMutation = useMutation({
     mutationFn: async () => {
-      const orderId = isBundle ? bundleOrders[0]?._id : displayOrder._id;
-      const response = await apiRequest('POST', `/api/orders/bundle/${orderId}/ship`, {
+      const bundleId = isBundle
+        ? (bundleOrders[0] as any)?.bundleId
+        : (displayOrder as any).bundleId;
+      const response = await apiRequest('POST', `/api/orders/bundle/${bundleId}/ship`, {
         userId: user?._id,
       });
       return await response.json();

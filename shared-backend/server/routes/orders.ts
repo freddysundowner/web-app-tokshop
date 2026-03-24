@@ -414,10 +414,10 @@ export function registerOrderRoutes(app: Express) {
   });
 
   // Mark all orders in a bundle as shipped
-  app.post("/api/orders/bundle/:idParam/ship", async (req, res) => {
+  app.post("/api/orders/bundle/:bundleId/ship", async (req, res) => {
     try {
-      const { idParam } = req.params;
-      console.log('Marking bundle as shipped, received ID:', idParam);
+      const { bundleId } = req.params;
+      console.log('Marking bundle as shipped, bundleId:', bundleId);
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -428,74 +428,28 @@ export function registerOrderRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
-      // Fetch all orders for this user
-      const userId = req.body.userId || req.query.userId;
-      if (!userId) {
-        return res.status(400).json({ 
-          success: false,
-          error: "User ID is required" 
-        });
-      }
+      const externalUrl = `${BASE_URL}/orders/${bundleId}`;
+      console.log(`Calling external API: PUT ${externalUrl}`);
 
-      const ordersResponse = await fetch(`${BASE_URL}/orders?userId=${userId}`, {
-        method: 'GET',
-        headers
+      const response = await fetch(externalUrl, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          status: 'shipped',
+          relist: false,
+        }),
       });
 
-      if (!ordersResponse.ok) {
-        throw new Error('Failed to fetch orders');
-      }
+      const data = await response.json() as any;
 
-      const ordersData = await ordersResponse.json() as any;
-      const allOrders = ordersData.orders || [];
-
-      // The parameter might be an order ID or a bundleId
-      // First, check if it's an order ID
-      const orderById = allOrders.find((order: any) => order._id === idParam);
-      
-      // If we found an order, use its bundleId. Otherwise, assume idParam is already a bundleId
-      const bundleId = orderById?.bundleId || idParam;
-      console.log(`Resolved bundleId: ${bundleId} (from ${orderById ? 'order' : 'direct bundleId'})`);
-
-      // Find all orders with this bundleId
-      const bundleOrders = allOrders.filter((order: any) => order.bundleId === bundleId);
-
-      if (bundleOrders.length === 0) {
-        return res.status(404).json({
+      if (!response.ok) {
+        return res.status(response.status).json({
           success: false,
-          error: "No orders found with this bundleId"
+          error: data?.message || 'Failed to mark bundle as shipped',
         });
       }
 
-      console.log(`Found ${bundleOrders.length} orders to ship for bundle ${bundleId}`);
-
-      // Ship each order with proper format
-      const shipPromises = bundleOrders.map((order: any) =>
-        fetch(`${BASE_URL}/orders/${order._id}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify({ 
-            status: 'shipped',
-            relist: false,
-            bundleId: bundleId
-          })
-        })
-      );
-
-      const results = await Promise.all(shipPromises);
-      const failedShipments = results.filter((response) => !response.ok);
-
-      if (failedShipments.length > 0) {
-        return res.status(500).json({
-          success: false,
-          error: `Failed to ship ${failedShipments.length} orders in bundle`
-        });
-      }
-
-      res.json({
-        success: true,
-        shippedOrders: bundleOrders.length
-      });
+      res.json({ success: true, data });
 
     } catch (error) {
       console.error('Bundle ship error:', error);
