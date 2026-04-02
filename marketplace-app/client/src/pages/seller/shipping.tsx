@@ -799,6 +799,8 @@ export default function Shipping() {
         if (dateTo) {
           params.set("endDate", format(dateTo, "yyyy-MM-dd"));
         }
+        // Add sort parameter
+        params.set("sort", "-1");
         // Add pagination parameters
         params.set("page", currentPage.toString());
         params.set("limit", itemsPerPage.toString());
