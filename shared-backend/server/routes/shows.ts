@@ -426,6 +426,7 @@ export function registerShowRoutes(app: Express) {
       if (req.query.live !== undefined) params.push(`live=${req.query.live}`);
       if (req.query.featured !== undefined) params.push(`featured=${req.query.featured}`);
       if (req.query.ownerUsername !== undefined) params.push(`ownerUsername=${req.query.ownerUsername}`);
+      if (req.query.sort !== undefined) params.push(`sort=${req.query.sort}`);
 
       const queryString = params.join('&');
       const url = `${BASE_URL}/rooms?${queryString}`;
