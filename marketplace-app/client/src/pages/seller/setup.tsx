@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import {
   MapPin,
   CreditCard,
@@ -103,7 +103,7 @@ export default function SellerSetup() {
   // Create address mutation
   const createAddressMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/address', {
+      const response = await fetchWithAuth('/api/address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -170,7 +170,7 @@ export default function SellerSetup() {
   // Create bank account mutation
   const createBankAccountMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`/api/stripe/connect/${userId}`, {
+      const response = await fetchWithAuth(`/api/stripe/connect/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

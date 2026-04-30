@@ -15,6 +15,9 @@ import { socketListener } from "./services/socket-listener";
 
 const app = express();
 
+// Disable ETags entirely so Express never returns 304 Not Modified for API responses
+app.set('etag', false);
+
 // Trust proxy - important for sessions behind Nginx
 app.set('trust proxy', 1);
 
@@ -84,6 +87,14 @@ app.use((req, res, next) => {
     }
   }
   
+  next();
+});
+
+// Disable HTTP caching for all API routes so browsers always fetch fresh data
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   next();
 });
 

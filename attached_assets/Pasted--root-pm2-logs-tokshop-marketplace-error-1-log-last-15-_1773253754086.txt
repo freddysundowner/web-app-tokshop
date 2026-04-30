@@ -1,0 +1,33 @@
+/root/.pm2/logs/tokshop-marketplace-error-1.log last 15 lines:
+1|tokshop- |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+1|tokshop- |     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+1|tokshop- |     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+1|tokshop- |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+1|tokshop- |     at ModuleJob._link (node:internal/modules/esm/module_job:168:49)
+1|tokshop- | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+1|tokshop- | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'dotenv' imported from /var/www/web-full-platform/marketplace-app/dist/server.js
+1|tokshop- |     at packageResolve (node:internal/modules/esm/resolve:873:9)
+1|tokshop- |     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+1|tokshop- |     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+1|tokshop- |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+1|tokshop- |     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+1|tokshop- |     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+1|tokshop- |     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+1|tokshop- |     at ModuleJob._link (node:internal/modules/esm/module_job:168:49)
+
+/root/.pm2/logs/tokshop-admin-error-0.log last 15 lines:
+0|tokshop- |     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+0|tokshop- |     at Module.load (node:internal/modules/cjs/loader:1266:32)
+0|tokshop- |     at Module._load (node:internal/modules/cjs/loader:1091:12)
+0|tokshop- | You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+0|tokshop- | Error: Cannot find module '/var/www/web-full-platform/admin-app/node_modules/iconv-lite/lib/index.js'. Please verify that the package.json has a valid "main" entry
+0|tokshop- |     at tryPackage (node:internal/modules/cjs/loader:491:19)
+0|tokshop- |     at Module._findPath (node:internal/modules/cjs/loader:758:18)
+0|tokshop- |     at Module._resolveFilename (node:internal/modules/cjs/loader:1193:27)
+0|tokshop- |     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+0|tokshop- |     at require (node:internal/modules/helpers:182:18)
+0|tokshop- |     at Object.<anonymous> (/var/www/web-full-platform/admin-app/node_modules/raw-body/index.js:18:13)
+0|tokshop- |     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+0|tokshop- |     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+0|tokshop- |     at Module.load (node:internal/modules/cjs/loader:1266:32)
+0|tokshop- |     at Module._load (node:internal/modules/cjs/loader:1091:12)

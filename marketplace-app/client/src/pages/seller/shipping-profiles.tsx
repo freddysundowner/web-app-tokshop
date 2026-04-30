@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth } from '@/lib/queryClient';
 import {
   Card,
   CardContent,
@@ -107,7 +107,7 @@ export default function ShippingProfiles() {
   } = useQuery<TokshopShippingProfilesResponse>({
     queryKey: ["shipping-profiles", user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/shipping/profiles/${user?.id}`);
+      const response = await fetchWithAuth(`/api/shipping/profiles/${user?.id}`);
       if (!response.ok) {
         throw new Error("Failed to fetch shipping profiles");
       }

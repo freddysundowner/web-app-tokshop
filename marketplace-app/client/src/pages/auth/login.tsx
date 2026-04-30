@@ -14,6 +14,7 @@ import { initializeFirebase } from "@/lib/firebase";
 import { Link } from "wouter";
 import type { LoginData } from "@shared/schema";
 import { loginSchema } from "@shared/schema";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,11 +24,20 @@ export default function Login() {
   const { toast } = useToast();
   const { emailLogin, loginWithGoogle, loginWithApple, isLoading: authLoading } = useAuth();
   
+  const getRedirectUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('redirect') || '/';
+  };
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const refFromUrl = urlParams.get('ref');
     if (refFromUrl && !localStorage.getItem('referredBy')) {
       localStorage.setItem('referredBy', refFromUrl);
+    }
+    const redirectUrl = urlParams.get('redirect');
+    if (redirectUrl) {
+      localStorage.setItem('loginRedirect', redirectUrl);
     }
   }, []);
 
@@ -35,7 +45,7 @@ export default function Login() {
   useEffect(() => {
     const fetchFirebaseKeys = async () => {
       try {
-        const response = await fetch('/api/settings/keys');
+        const response = await fetchWithAuth('/api/settings/keys');
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -76,7 +86,9 @@ export default function Login() {
       setIsLoading(true);
       setLoginError("");
       await loginWithGoogle();
-      // Success handled in auth context - no premature toast
+      const redirect = localStorage.getItem('loginRedirect') || getRedirectUrl();
+      localStorage.removeItem('loginRedirect');
+      window.location.replace(redirect);
     } catch (error: any) {
       let errorMessage = 'Google login failed';
       
@@ -109,7 +121,9 @@ export default function Login() {
       setIsLoading(true);
       setLoginError("");
       await loginWithApple();
-      // Success handled in auth context - no premature toast
+      const redirect = localStorage.getItem('loginRedirect') || getRedirectUrl();
+      localStorage.removeItem('loginRedirect');
+      window.location.replace(redirect);
     } catch (error: any) {
       let errorMessage = 'Apple login failed';
       
@@ -152,6 +166,9 @@ export default function Login() {
       setIsLoading(true);
       setLoginError("");
       await emailLogin(data.email, data.password);
+      const redirect = localStorage.getItem('loginRedirect') || getRedirectUrl();
+      localStorage.removeItem('loginRedirect');
+      window.location.replace(redirect);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       setLoginError(errorMessage);

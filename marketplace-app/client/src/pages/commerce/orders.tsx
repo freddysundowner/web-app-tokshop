@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,7 +117,7 @@ export default function Orders() {
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      const response = await fetch(`/api/orders/items/all?${params.toString()}`, {
+      const response = await fetchWithAuth(`/api/orders/items/all?${params.toString()}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -143,7 +143,7 @@ export default function Orders() {
       if (user?.id) {
         params.set("hostId", user.id);
       }
-      const response = await fetch(`/api/rooms?${params}`);
+      const response = await fetchWithAuth(`/api/rooms?${params}`);
       return response.json();
     },
     enabled: !!user?.id,
@@ -154,7 +154,7 @@ export default function Orders() {
   // Ship order mutation
   const shipOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await fetchWithAuth(`/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -182,7 +182,7 @@ export default function Orders() {
   // Cancel order mutation
   const cancelOrderMutation = useMutation({
     mutationFn: async ({ orderId, relist }: { orderId: string; relist: boolean }) => {
-      const response = await fetch("/api/orders/cancel/order", {
+      const response = await fetchWithAuth("/api/orders/cancel/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

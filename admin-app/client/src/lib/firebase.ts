@@ -43,25 +43,18 @@ let isInitialized = false;
 export function initializeFirebase(config?: FirebaseConfig) {
   // Don't re-initialize with placeholder config
   if (!config || config.projectId === 'your-project-id') {
-    console.warn('⚠️ Refusing to initialize auth with placeholder/missing config');
     return;
   }
 
-  // Allow re-initialization if config has changed (for development hot-reload)
   if (isInitialized) {
-    console.log('🔥 Auth already initialized, skipping re-initialization');
     return;
   }
-
-  console.log('🔥 Initializing auth with config:', { projectId: config.projectId });
 
   app = initializeApp(config);
   _auth = getAuth(app);
   _storage = getStorage(app);
   _db = getFirestore(app);
   isInitialized = true;
-
-  console.log('✅ Auth initialized successfully');
 }
 
 // Getters that ensure Firebase is initialized
@@ -123,7 +116,6 @@ export const signInWithGoogle = async () => {
   } catch (error: any) {
     // If popup is blocked, fall back to redirect
     if (error.code === "auth/popup-blocked") {
-      console.log("Popup blocked, falling back to redirect");
       return await signInWithGoogleRedirect();
     }
     throw error;
@@ -152,7 +144,6 @@ export const signInWithApple = async () => {
   } catch (error: any) {
     // If popup is blocked, fall back to redirect
     if (error.code === "auth/popup-blocked") {
-      console.log("Popup blocked, falling back to redirect");
       return await signInWithAppleRedirect();
     }
     throw error;

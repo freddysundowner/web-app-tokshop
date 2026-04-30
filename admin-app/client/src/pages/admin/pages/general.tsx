@@ -6,7 +6,7 @@ import { AdminLayout } from "@/components/admin-layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { Plus, Edit, Trash2, BookOpen, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { HelpArticle } from "@shared/schema";
@@ -37,7 +37,7 @@ export default function AdminGeneralPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/admin/articles/${id}`, {
+      const response = await fetchWithAuth(`/api/admin/articles/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -70,7 +70,7 @@ export default function AdminGeneralPage() {
   const togglePublishMutation = useMutation({
     mutationFn: async ({ id, published }: { id: string; published: boolean }) => {
       // First, fetch the current article data
-      const getResponse = await fetch(`/api/admin/articles/${id}`, {
+      const getResponse = await fetchWithAuth(`/api/admin/articles/${id}`, {
         credentials: 'include',
       });
       
@@ -83,7 +83,7 @@ export default function AdminGeneralPage() {
       const article = articleData.data;
       
       // Then update with the full payload
-      const response = await fetch(`/api/admin/articles/${id}`, {
+      const response = await fetchWithAuth(`/api/admin/articles/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

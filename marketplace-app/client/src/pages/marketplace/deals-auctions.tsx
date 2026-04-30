@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient , fetchWithAuth} from '@/lib/queryClient';
 import { Link } from 'wouter';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { AuctionCard } from '@/components/auction-card';
@@ -27,7 +27,7 @@ export default function DealsAuctions() {
         featured: 'true',
         type: 'scheduled'
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });

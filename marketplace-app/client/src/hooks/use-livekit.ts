@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Room, RoomEvent, Track, RemoteParticipant, RemoteTrackPublication } from 'livekit-client';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/lib/auth-context';
 
 export interface CameraSettings {
   deviceId?: string;
@@ -48,6 +49,7 @@ export function useLiveKit(config: LiveKitConfig) {
     hostParticipantCount: 0,
   });
   
+  const { logout } = useAuth();
   const hasAttemptedRef = useRef(false);
   const roomRef = useRef<Room | null>(null);
 
@@ -106,6 +108,12 @@ export function useLiveKit(config: LiveKitConfig) {
         userName: config.userName || config.userId,
         uuid,
       });
+
+      if (res.status === 404 || res.status === 401) {
+        console.warn('🔐 LiveKit token request returned', res.status, '— logging out');
+        await logout();
+        return;
+      }
 
       const response = await res.json() as { 
         token: string; 

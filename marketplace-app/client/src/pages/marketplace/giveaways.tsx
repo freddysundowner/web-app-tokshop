@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { GiveawayCard } from '@/components/giveaway-card';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { MarketplaceFooter } from '@/components/layout/marketplace-footer';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Giveaways() {
   usePageTitle('Giveaways');
@@ -25,7 +26,7 @@ export default function Giveaways() {
       });
       if (searchQuery) params.set('name', searchQuery);
       
-      const response = await fetch(`/api/giveaways?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/giveaways?${params.toString()}`);
       return response.json();
     }
   });

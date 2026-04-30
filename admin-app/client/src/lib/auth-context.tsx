@@ -47,8 +47,6 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  console.log('[AuthProvider] Initializing AuthProvider');
-  
   const { isFirebaseReady } = useSettings();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,8 +57,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const hasCheckedAuth = useRef(false);
   const lastRefreshTime = useRef<number>(0);
   const isRefreshing = useRef(false);
-
-  console.log('[AuthProvider] Current state - isLoading:', isLoading, 'user:', user ? user.id : 'null', 'isAuthenticated:', !!user, 'isFirebaseReady:', isFirebaseReady);
 
   const isAuthenticated = !!user;
 
@@ -309,17 +305,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const checkResponse = await apiRequest('GET', `/api/users/userexists/email?email=${encodeURIComponent(userEmail)}`);
         const checkData = await checkResponse.json();
         
-        console.log('[loginWithGoogle] User existence check:', checkData);
-        
         if (checkData.exists) {
-          // User exists - proceed with normal authentication
           await authenticateWithTokshop(result.user, (result as any)?.additionalUserInfo, true);
         } else {
-          // User doesn't exist - set pending auth state for data collection
           setPendingSocialAuth(true);
           setPendingSocialAuthEmail(userEmail);
           setPendingSocialAuthData(result.user);
-          console.log('[loginWithGoogle] New user detected, redirecting to data collection');
         }
       }
     } catch (error) {
@@ -455,7 +446,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkAuth = async () => {
     try {
-      console.log('[checkAuth] Starting auth check...');
       
       // Only handle Firebase redirects if Firebase is ready
       if (isFirebaseReady) {
@@ -475,39 +465,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
             return;
           }
-        } catch (firebaseError) {
-          console.log('[checkAuth] Firebase redirect handling skipped:', firebaseError);
+        } catch {
+          // Firebase redirect handling skipped silently
         }
-      } else {
-        console.log('[checkAuth] Skipping Firebase redirect - Firebase not ready');
       }
 
-      // Check if we have stored user data in localStorage
       const storedUser = localStorage.getItem('user');
-      console.log('[checkAuth] localStorage user:', storedUser ? 'EXISTS' : 'NONE');
       
       if (storedUser) {
         try {
-          // Parse stored user data first
           const userData = JSON.parse(storedUser);
-          console.log('[checkAuth] Setting user from localStorage:', userData.id);
-          
-          // Set user immediately from localStorage
           setUser(userData);
           
           // Validate session in background (non-blocking)
           apiRequest('GET', '/api/auth/session')
             .then(response => response.json())
-            .then(sessionData => {
-              if (!sessionData.success) {
-                console.log('Session validation failed but keeping localStorage user');
-              }
-            })
-            .catch(error => {
-              console.log('Session validation error but keeping localStorage user:', error);
-            });
+            .catch(() => {/* keep localStorage user on error */});
         } catch (parseError) {
-          // If we can't parse the stored data, clear it
           console.error('Failed to parse stored user data:', parseError);
           localStorage.removeItem('userId');
           localStorage.removeItem('user');
@@ -534,7 +508,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(null);
       }
     } finally {
-      console.log('[checkAuth] Auth check complete, setting hasCheckedAuth = true, isLoading = false');
       hasCheckedAuth.current = true;
       setIsLoading(false);
     }
@@ -542,28 +515,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUserData = async () => {
     try {
-      if (!user?.id) {
-        console.log('[refreshUserData] No user logged in');
-        return;
-      }
+      if (!user?.id) return;
 
-      // Prevent multiple simultaneous calls
-      if (isRefreshing.current) {
-        console.log('[refreshUserData] Already refreshing, skipping...');
-        return;
-      }
+      if (isRefreshing.current) return;
 
-      // Debounce: Don't refresh if we refreshed less than 2 seconds ago
       const now = Date.now();
-      if (now - lastRefreshTime.current < 2000) {
-        console.log('[refreshUserData] Refreshed recently, skipping...');
-        return;
-      }
+      if (now - lastRefreshTime.current < 2000) return;
 
       isRefreshing.current = true;
       lastRefreshTime.current = now;
-
-      console.log('[refreshUserData] Fetching latest user data for:', user.id);
 
       // Fetch default address from the correct endpoint
       const addressResponse = await apiRequest('GET', `/api/address/default/address/${user.id}`);
@@ -590,12 +550,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
-      console.log('[refreshUserData] User data updated:', {
-        hasAddress: !!updatedUser.address,
-        hasPayment: !!updatedUser.defaultpaymentmethod
-      });
     } catch (error) {
-      console.error('[refreshUserData] Failed to refresh user data:', error);
+      console.error('Failed to refresh user data:', error);
     } finally {
       isRefreshing.current = false;
     }
@@ -605,32 +561,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Admin app doesn't require Firebase to function (it's where Firebase gets configured!)
     // If Firebase isn't ready, still allow admin panel access
     if (!isFirebaseReady) {
-      console.log('[AuthProvider] Auth not configured yet - admin can still access panel to configure it');
-      // Still complete auth check without Firebase so admin panel loads
       if (!hasCheckedAuth.current) {
         checkAuth();
       }
       return;
     }
 
-    console.log('[AuthProvider] Auth ready, setting up auth listener');
-    
-    // Set up Firebase auth state listener (mainly for logout events now)
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
-      console.log('[Auth Listener] Auth state changed, user:', firebaseUser ? 'EXISTS' : 'NONE', 'hasCheckedAuth:', hasCheckedAuth.current);
-      
       if (!firebaseUser) {
         setUser(null);
       }
-      // Note: Sign-in authentication now handled directly in login functions
-      // to properly capture additionalUserInfo
-      
-      // Only set loading to false after checkAuth has completed
       if (hasCheckedAuth.current) {
-        console.log('[Auth Listener] Setting isLoading = false');
         setIsLoading(false);
-      } else {
-        console.log('[Auth Listener] Waiting for checkAuth to complete...');
       }
     });
 

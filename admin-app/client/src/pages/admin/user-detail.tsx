@@ -12,9 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, User, MapPin, Truck, CreditCard, ExternalLink, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, MapPin, Truck, CreditCard, ExternalLink, MoreHorizontal, Video, DollarSign, Package, ShoppingBag, CheckCircle2, Clock, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +32,12 @@ export default function AdminUserDetail() {
   const { toast } = useToast();
   const userId = params?.userId;
   const [activeTab, setActiveTab] = useState<string>("addresses");
+
+  // Shows & Shipments tab state
+  const [selectedShowId, setSelectedShowId] = useState<string>("all");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
+  const [ordersPage, setOrdersPage] = useState<number>(1);
+  const [orderSearch, setOrderSearch] = useState<string>("");
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -169,10 +177,77 @@ export default function AdminUserDetail() {
     enabled: !!userId && activeTab === 'payment-methods',
   });
 
+  // Fetch seller shows - only when Shows tab is active
+  const { data: showsData, isLoading: loadingShows } = useQuery<any>({
+    queryKey: [`/api/admin/users/${userId}/shows`],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/admin/users/${userId}/shows?limit=100`);
+      return await response.json();
+    },
+    enabled: !!userId && activeTab === 'shows-shipments',
+  });
+
+  // Fetch shipping metrics - only when Shows tab is active
+  const { data: metricsData, isLoading: loadingMetrics } = useQuery<any>({
+    queryKey: [`/api/admin/users/${userId}/shipping-metrics`, selectedShowId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedShowId && selectedShowId !== 'all') {
+        if (selectedShowId === 'marketplace') {
+          params.set('marketplace', 'true');
+        } else {
+          params.set('tokshow', selectedShowId);
+        }
+      }
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const response = await apiRequest('GET', `/api/admin/users/${userId}/shipping-metrics${qs}`);
+      return await response.json();
+    },
+    enabled: !!userId && activeTab === 'shows-shipments',
+  });
+
+  // Fetch seller orders - only when Shows tab is active
+  const { data: sellerOrdersData, isLoading: loadingSellerOrders } = useQuery<any>({
+    queryKey: [`/api/admin/users/${userId}/seller-orders`, selectedShowId, orderStatusFilter, ordersPage, orderSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedShowId && selectedShowId !== 'all') {
+        if (selectedShowId === 'marketplace') {
+          params.set('marketplace', 'true');
+        } else {
+          params.set('tokshow', selectedShowId);
+        }
+      }
+      if (orderStatusFilter && orderStatusFilter !== 'all') params.set('status', orderStatusFilter);
+      if (orderSearch.trim()) params.set('search', orderSearch.trim());
+      params.set('page', String(ordersPage));
+      params.set('limit', '20');
+      const response = await apiRequest('GET', `/api/admin/users/${userId}/seller-orders?${params.toString()}`);
+      return await response.json();
+    },
+    enabled: !!userId && activeTab === 'shows-shipments',
+  });
+
   const userInfo = userData?.data;
   const addresses = addressesData?.data || addressesData || [];
   const shippingProfiles = shippingData?.data || shippingData || [];
   const paymentMethods = paymentMethodsData?.data || paymentMethodsData || [];
+  const sellerShows = showsData?.data || [];
+  const metrics = metricsData || null;
+  const sellerOrders = sellerOrdersData?.orders || sellerOrdersData?.data?.orders || sellerOrdersData?.data || [];
+  const sellerOrdersTotal = sellerOrdersData?.total || sellerOrdersData?.totalDoc || 0;
+  const sellerOrdersTotalPages = sellerOrdersData?.totalPages || Math.ceil(sellerOrdersTotal / 20) || 1;
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'shipped': return 'bg-blue-100 text-blue-800';
+      case 'processing': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'unfulfilled': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   if (loadingUser) {
     return (
@@ -328,9 +403,9 @@ export default function AdminUserDetail() {
         </Card>
 
         {/* Tabs for different data sections */}
-        <Tabs defaultValue="addresses" className="w-full" onValueChange={setActiveTab}>
+        <Tabs defaultValue="addresses" className="w-full" onValueChange={(v) => { setActiveTab(v); setOrdersPage(1); }}>
           <div className="w-full overflow-x-auto pb-2">
-            <TabsList className={`inline-flex w-full min-w-max sm:w-full sm:min-w-0 sm:grid ${userInfo?.seller ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+            <TabsList className={`inline-flex w-full min-w-max sm:w-full sm:min-w-0 sm:grid ${userInfo?.seller ? 'sm:grid-cols-4' : 'sm:grid-cols-2'}`}>
               <TabsTrigger value="addresses" data-testid="tab-addresses" className="flex-shrink-0 sm:flex-shrink">
                 <MapPin className="h-4 w-4 mr-2 hidden sm:inline" />
                 Addresses ({addresses.length})
@@ -345,6 +420,12 @@ export default function AdminUserDetail() {
                 <CreditCard className="h-4 w-4 mr-2 hidden sm:inline" />
                 Payment Methods
               </TabsTrigger>
+              {userInfo?.seller && (
+                <TabsTrigger value="shows-shipments" data-testid="tab-shows-shipments" className="flex-shrink-0 sm:flex-shrink">
+                  <Video className="h-4 w-4 mr-2 hidden sm:inline" />
+                  Shows & Shipments
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -618,6 +699,277 @@ export default function AdminUserDetail() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Shows & Shipments Tab */}
+          {userInfo?.seller && (
+            <TabsContent value="shows-shipments">
+              <div className="space-y-6">
+                {/* Filters Row */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <Select
+                      value={selectedShowId}
+                      onValueChange={(v) => { setSelectedShowId(v); setOrdersPage(1); }}
+                    >
+                      <SelectTrigger data-testid="select-show-filter">
+                        <Video className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="All Shows" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Shows</SelectItem>
+                        <SelectItem value="marketplace">Marketplace (No Show)</SelectItem>
+                        {loadingShows ? (
+                          <SelectItem value="_loading" disabled>Loading shows...</SelectItem>
+                        ) : (
+                          sellerShows.map((show: any) => (
+                            <SelectItem key={show._id || show.id} value={show._id || show.id}>
+                              {show.title || show.name || 'Untitled Show'} — {show.createdAt ? new Date(show.createdAt).toLocaleDateString() : ''}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Select
+                    value={orderStatusFilter}
+                    onValueChange={(v) => { setOrderStatusFilter(v); setOrdersPage(1); }}
+                  >
+                    <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="unfulfilled">Unfulfilled</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="ready_to_ship">Ready to Ship</SelectItem>
+                      <SelectItem value="shipped">Shipped</SelectItem>
+                      <SelectItem value="delivered">Delivered</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search orders..."
+                      value={orderSearch}
+                      onChange={(e) => { setOrderSearch(e.target.value); setOrdersPage(1); }}
+                      className="pl-10"
+                      data-testid="input-order-search"
+                    />
+                  </div>
+                </div>
+
+                {/* Metrics Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {loadingMetrics ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <Card key={i}>
+                        <CardContent className="pt-6">
+                          <div className="h-8 bg-muted animate-pulse rounded" />
+                          <div className="h-4 bg-muted animate-pulse rounded mt-2 w-2/3" />
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DollarSign className="h-4 w-4 text-green-500" />
+                            <span className="text-xs text-muted-foreground">Total Sold</span>
+                          </div>
+                          <p className="text-2xl font-bold" data-testid="metric-total-sold">${metrics?.totalSold || '0'}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DollarSign className="h-4 w-4 text-blue-500" />
+                            <span className="text-xs text-muted-foreground">Total Earned</span>
+                          </div>
+                          <p className="text-2xl font-bold" data-testid="metric-total-earned">${metrics?.totalEarned || '0'}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Truck className="h-4 w-4 text-orange-500" />
+                            <span className="text-xs text-muted-foreground">Shipping Spend</span>
+                          </div>
+                          <p className="text-2xl font-bold" data-testid="metric-shipping-spend">${metrics?.totalShippingSpend || '0'}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Package className="h-4 w-4 text-purple-500" />
+                            <span className="text-xs text-muted-foreground">Items Sold</span>
+                          </div>
+                          <p className="text-2xl font-bold" data-testid="metric-items-sold">{metrics?.itemsSold || 0}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            <span className="text-xs text-muted-foreground">Delivered</span>
+                          </div>
+                          <p className="text-2xl font-bold" data-testid="metric-delivered">{metrics?.totalDelivered || 0}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-4 w-4 text-yellow-500" />
+                            <span className="text-xs text-muted-foreground">Pending</span>
+                          </div>
+                          <p className="text-2xl font-bold" data-testid="metric-pending">{metrics?.pendingDelivery || 0}</p>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </div>
+
+                {/* Orders Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Orders</CardTitle>
+                    <CardDescription>
+                      {sellerOrdersTotal > 0 ? `${sellerOrdersTotal} orders found` : 'Order list for this seller'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingSellerOrders ? (
+                      <div className="text-center py-12">
+                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+                        <p className="text-muted-foreground">Loading orders...</p>
+                      </div>
+                    ) : !Array.isArray(sellerOrders) || sellerOrders.length === 0 ? (
+                      <div className="text-center py-12">
+                        <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No orders found</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="rounded-md border overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Customer</TableHead>
+                                <TableHead className="hidden md:table-cell">Order ID</TableHead>
+                                <TableHead className="hidden lg:table-cell">Show</TableHead>
+                                <TableHead className="hidden sm:table-cell">Date</TableHead>
+                                <TableHead>Items</TableHead>
+                                <TableHead className="text-right">Total</TableHead>
+                                <TableHead>Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {sellerOrders.map((order: any) => {
+                                const orderId = order._id || order.id;
+                                const buyer = order.buyer || order.user || {};
+                                const buyerName = buyer.firstName
+                                  ? `${buyer.firstName} ${buyer.lastName || ''}`.trim()
+                                  : buyer.userName || buyer.email || 'Unknown';
+                                const items: any[] = order.items || order.products || [];
+                                const showName = order.room?.title || order.show?.title || order.tokshow?.title || null;
+                                return (
+                                  <TableRow key={orderId} data-testid={`row-order-${orderId}`}>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-7 w-7 flex-shrink-0">
+                                          <AvatarImage src={buyer.profilePhoto} />
+                                          <AvatarFallback className="text-xs">{buyerName?.[0]}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="font-medium text-sm truncate max-w-[120px]">{buyerName}</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground font-mono">
+                                      {String(orderId).slice(-8).toUpperCase()}
+                                    </TableCell>
+                                    <TableCell className="hidden lg:table-cell text-sm">
+                                      {showName ? (
+                                        <span className="flex items-center gap-1">
+                                          <Video className="h-3 w-3 text-muted-foreground" />
+                                          <span className="truncate max-w-[120px]">{showName}</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground text-xs">Marketplace</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex flex-col gap-1">
+                                        {items.slice(0, 2).map((item: any, i: number) => (
+                                          <div key={i} className="flex items-center gap-1 text-xs">
+                                            {(item.product?.photos?.[0] || item.photo || item.image) && (
+                                              <img
+                                                src={item.product?.photos?.[0] || item.photo || item.image}
+                                                className="h-5 w-5 rounded object-cover flex-shrink-0"
+                                                alt=""
+                                              />
+                                            )}
+                                            <span className="truncate max-w-[80px]">{item.product?.title || item.title || item.name || 'Item'}</span>
+                                            {item.quantity > 1 && <span className="text-muted-foreground">x{item.quantity}</span>}
+                                          </div>
+                                        ))}
+                                        {items.length > 2 && (
+                                          <span className="text-xs text-muted-foreground">+{items.length - 2} more</span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                      ${(order.total || order.totalAmount || 0).toFixed(2)}
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                                        {order.status || 'Unknown'}
+                                      </span>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* Pagination */}
+                        {sellerOrdersTotalPages > 1 && (
+                          <div className="flex items-center justify-between mt-4">
+                            <p className="text-sm text-muted-foreground">
+                              Page {ordersPage} of {sellerOrdersTotalPages} ({sellerOrdersTotal} orders)
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
+                                disabled={ordersPage <= 1}
+                                data-testid="button-orders-prev"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setOrdersPage(p => Math.min(sellerOrdersTotalPages, p + 1))}
+                                disabled={ordersPage >= sellerOrdersTotalPages}
+                                data-testid="button-orders-next"
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AdminLayout>

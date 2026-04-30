@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ArrowLeft, AlertTriangle, Package, User, ShoppingCart, Scale, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithAuth } from "@/lib/queryClient";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 
 interface Dispute {
@@ -63,9 +63,7 @@ export default function AdminDisputeDetail() {
   const { data: disputeData, isLoading } = useQuery<any>({
     queryKey: ['/api/admin/disputes', disputeId],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/disputes/${disputeId}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/admin/disputes/${disputeId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch dispute');
       }

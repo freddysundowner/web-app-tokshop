@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { Loader2, UserPlus, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ReferrerInfo {
   firstName?: string;
@@ -43,11 +44,10 @@ export default function InvitePage() {
 
     const fetchData = async () => {
       try {
-        const [profileRes, themesRes, configRes, settingsRes] = await Promise.all([
-          fetch(`/api/users/public/profile/${referrerId}`),
-          fetch('/api/public/themes'),
-          fetch('/api/config'),
-          fetch('/api/settings/full', { credentials: 'include' })
+        const [profileRes, themesRes, configRes] = await Promise.all([
+          fetchWithAuth(`/api/users/public/profile/${referrerId}`),
+          fetchWithAuth('/api/public/themes'),
+          fetchWithAuth('/api/config'),
         ]);
 
         let apiBaseUrl = '';
@@ -66,6 +66,8 @@ export default function InvitePage() {
             profilePhoto: userData.profilePhoto || '',
             bio: userData.bio || '',
           });
+          if (userData.referral_credit != null) setReferralCredit(userData.referral_credit);
+          if (userData.referral_credit_limit != null) setReferralCreditLimit(userData.referral_credit_limit);
         } else {
           setError(true);
         }
@@ -77,13 +79,6 @@ export default function InvitePage() {
           if (themes.app_logo) {
             setAppLogo(themes.app_logo.startsWith('http') ? themes.app_logo : `${apiBaseUrl}${themes.app_logo.startsWith('/') ? '' : '/'}${themes.app_logo}`);
           }
-        }
-
-        if (settingsRes.ok) {
-          const settingsData = await settingsRes.json();
-          const s = settingsData.data || settingsData;
-          if (s.referral_credit != null) setReferralCredit(s.referral_credit);
-          if (s.referral_credit_limit != null) setReferralCreditLimit(s.referral_credit_limit);
         }
       } catch (e) {
         console.error('Failed to fetch invite data:', e);

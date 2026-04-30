@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Folder, ArrowLeft, Upload, Trash2, Plus, ArrowUpFromLine, MoreVertical, Edit } from "lucide-react";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithAuth } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -78,7 +78,7 @@ export default function AdminSubCategories() {
   const { data: categoryData, isLoading } = useQuery<any>({
     queryKey: ['/api/admin/categories', categoryId],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/categories/${categoryId}`);
+      const response = await fetchWithAuth(`/api/admin/categories/${categoryId}`);
       if (!response.ok) throw new Error('Failed to fetch category');
       return response.json();
     },

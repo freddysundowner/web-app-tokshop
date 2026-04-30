@@ -29,7 +29,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { useSocket } from '@/lib/socket-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { queryClient, apiRequest } from '@/lib/queryClient';
+import { queryClient, apiRequest , fetchWithAuth} from '@/lib/queryClient';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -131,6 +131,7 @@ export default function ShowViewNew() {
   const [pinnedProduct, setPinnedProduct] = useState<any>(null);
   const [activeAuction, setActiveAuction] = useState<any>(null);
   const [activeGiveaway, setActiveGiveaway] = useState<any>(null);
+  const [isEndingGiveaway, setIsEndingGiveaway] = useState<boolean>(false);
   const [auctionTimeLeft, setAuctionTimeLeft] = useState<number>(0);
   const [giveawayTimeLeft, setGiveawayTimeLeft] = useState<number>(0);
   const [bidAmount, setBidAmount] = useState('');
@@ -421,7 +422,7 @@ export default function ShowViewNew() {
     }
   }, [activeAuction?._id, activeAuction?.id, currentUserId]); // Watch both _id and id
   
-  const { data: show, isLoading, refetch: refetchShow } = useQuery<any>({
+  const { data: show, isLoading, isError: isShowError, refetch: refetchShow } = useQuery<any>({
     queryKey: ['/api/rooms', id, currentUserId],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -429,11 +430,12 @@ export default function ShowViewNew() {
         params.set('currentUserId', currentUserId);
       }
       const url = `/api/rooms/${id}${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) throw new Error('Failed to fetch show');
       return response.json();
     },
     enabled: !!id,
+    retry: false,
   });
 
   // Fetch auction products for this show
@@ -448,7 +450,7 @@ export default function ShowViewNew() {
         limit: '50'
       });
       const url = `/api/products?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { products: [] };
       return response.json();
     },
@@ -467,7 +469,7 @@ export default function ShowViewNew() {
         limit: '50'
       });
       const url = `/api/products?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { products: [] };
       return response.json();
     },
@@ -484,7 +486,7 @@ export default function ShowViewNew() {
         limit: '50'
       });
       const url = `/api/orders/items/all?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { orders: [] };
       return response.json();
     },
@@ -503,7 +505,7 @@ export default function ShowViewNew() {
         limit: '20'
       });
       const url = `/api/giveaways?${params.toString()}`;
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) return { giveaways: [] };
       return response.json();
     },
@@ -522,7 +524,7 @@ export default function ShowViewNew() {
         limit: '100'
       });
       const url = `/api/offers?${params.toString()}`;
-      const response = await fetch(url, { credentials: 'include' });
+      const response = await fetchWithAuth(url, { credentials: 'include' });
       if (!response.ok) return { offers: [] };
       return response.json();
     },
@@ -672,7 +674,7 @@ export default function ShowViewNew() {
         shippingHeaders['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
       }
       
-      const response = await fetch('/api/shipping/estimate', {
+      const response = await fetchWithAuth('/api/shipping/estimate', {
         method: 'POST',
         headers: shippingHeaders,
         body: JSON.stringify(payload),
@@ -925,8 +927,22 @@ export default function ShowViewNew() {
       
       const showActiveGiveaway = show.pinned_giveaway || show.pinnedGiveaway || show.activegiveaway || show.activeGiveaway || show.active_giveaway;
       if (showActiveGiveaway) {
+        const isGiveawayEnded = showActiveGiveaway.status === 'ended' || showActiveGiveaway.ended === true;
         console.log('📦 Initializing active giveaway from show data:', showActiveGiveaway);
-        setActiveGiveaway(showActiveGiveaway);
+        setActiveGiveaway((currentGiveaway: any) => {
+          // If we've already cleared the giveaway (via socket event) and the show
+          // data shows it as ended, don't re-set it — the socket event is fresher
+          if (!currentGiveaway && isGiveawayEnded) {
+            console.log('🛡️ Skipping ended giveaway from show data - already cleared by socket');
+            return null;
+          }
+          // If the giveaway is ended, don't initialize it as active
+          if (isGiveawayEnded) {
+            console.log('⏰ Giveaway in show data has ended - not setting as active');
+            return currentGiveaway;
+          }
+          return showActiveGiveaway;
+        });
       }
       
       // Initialize pinned product from show data
@@ -1007,7 +1023,7 @@ export default function ShowViewNew() {
             if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
             const ud = localStorage.getItem('user');
             if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
-            return fetch('/api/shipping/estimate', {
+            return fetchWithAuth('/api/shipping/estimate', {
               method: 'POST',
               headers: hdrs,
               body: JSON.stringify(pinnedPayload),
@@ -1101,7 +1117,7 @@ export default function ShowViewNew() {
           status: "active"
         });
         
-        const response = await fetch(`/api/rooms?${params.toString()}`, {
+        const response = await fetchWithAuth(`/api/rooms?${params.toString()}`, {
           credentials: "include",
         });
         
@@ -1187,6 +1203,7 @@ export default function ShowViewNew() {
     shownWinnerAlertsRef,
     setActiveFlashSale,
     setFlashSaleTimeLeft,
+    setIsEndingGiveaway,
   });
 
 
@@ -1266,7 +1283,7 @@ export default function ShowViewNew() {
     
     setIsSearchingUsers(true);
     try {
-      const response = await fetch(`/users?title=${encodeURIComponent(query)}&page=1&limit=10`, {
+      const response = await fetchWithAuth(`/users?title=${encodeURIComponent(query)}&page=1&limit=10`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -1427,7 +1444,7 @@ export default function ShowViewNew() {
       if (mentionsToSend.length > 0) {
         console.log('Sending notifications to:', mentionsToSend.map(m => m.id));
         try {
-          const notifResponse = await fetch('/notifications', {
+          const notifResponse = await fetchWithAuth('/notifications', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1470,7 +1487,11 @@ export default function ShowViewNew() {
     if (!activeGiveaway || activeGiveaway.ended) return;
     
     const interval = setInterval(() => {
-      const startTime = activeGiveaway.startedTime || 0;
+      // API returns startedtime (lowercase), normalise to both camelCase and lowercase variants
+      const rawStart = activeGiveaway.startedTime ?? activeGiveaway.startedtime;
+      const startTime = rawStart
+        ? (typeof rawStart === 'string' ? new Date(rawStart).getTime() : Number(rawStart))
+        : 0;
       const duration = activeGiveaway.duration || 60; // Default 60 seconds
       const endTime = startTime + (duration * 1000);
       const now = Date.now();
@@ -1774,7 +1795,7 @@ export default function ShowViewNew() {
       if (!socket || !activeGiveaway) throw new Error('Cannot join giveaway');
       
       // Check 1: User must have a shipping address
-      const addressResponse = await fetch(`/api/address/all/${currentUserId}`);
+      const addressResponse = await fetchWithAuth(`/api/address/all/${currentUserId}`);
       if (addressResponse.ok) {
         const addresses = await addressResponse.json();
         if (!addresses || addresses.length === 0) {
@@ -1782,12 +1803,21 @@ export default function ShowViewNew() {
         }
       }
       
-      // Check 2: User must be following host if giveaway requires it
+      // Check 2: If local_only is true, user country must match the room owner's country
+      if (activeGiveaway.local_only === true) {
+        const currentUserCountry = (user as any)?.country;
+        const ownerCountry = show?.owner?.country;
+        if (currentUserCountry && ownerCountry && currentUserCountry !== ownerCountry) {
+          throw new Error('This giveaway is only available to participants in the same country as the host.');
+        }
+      }
+
+      // Check 3: User must be following host if giveaway requires it
       if (activeGiveaway.whocanenter === 'followers' && !isFollowingHost) {
         throw new Error('You must follow the host to enter this giveaway');
       }
       
-      // Check 3: User cannot enter the same giveaway twice
+      // Check 4: User cannot enter the same giveaway twice
       const participants = activeGiveaway.participants || [];
       const isAlreadyParticipant = participants.some((p: any) => 
         (typeof p === 'string' ? p : p.id || p._id) === currentUserId
@@ -2018,7 +2048,7 @@ export default function ShowViewNew() {
   const soldProducts = soldOrdersData?.items || [];
   
   const soldOrders = soldOrdersData?.items || [];
-  const giveaways = giveawaysData?.giveaways || [];
+  const giveaways = (giveawaysData?.giveaways || []).filter((g: any) => g.status !== 'ended' && !g.ended);
   
   // Sync pinned product with latest buy now products data (e.g., after editing a product)
   useEffect(() => {
@@ -2346,6 +2376,8 @@ export default function ShowViewNew() {
       showId: id
     });
     
+    setIsEndingGiveaway(true);
+    
     // Emit draw-giveaway event matching Flutter app structure
     socket.emit('draw-giveaway', {
       giveawayId: activeGiveaway._id,
@@ -2417,6 +2449,20 @@ export default function ShowViewNew() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-lg">Loading show...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!show && isShowError && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4 px-4">
+          <h1 className="text-2xl font-bold mb-2">Sign In to Watch</h1>
+          <p className="text-gray-400 text-sm">Please log in to view this show.</p>
+          <Link href={`/login?redirect=/show/${id}`}>
+            <Button className="mt-2">Log In</Button>
+          </Link>
         </div>
       </div>
     );
@@ -2532,6 +2578,7 @@ export default function ShowViewNew() {
           isJoiningGiveaway={joinGiveawayMutation?.isPending}
           currentUserId={currentUserId}
           handleEndGiveaway={handleEndGiveaway}
+          isEndingGiveaway={isEndingGiveaway}
           setShowMobileProducts={setShowMobileProducts}
           setShowMobileChat={setShowMobileChat}
           handleUnfollowHost={handleUnfollowHost}
@@ -2606,6 +2653,7 @@ export default function ShowViewNew() {
           handleFollowAndJoinGiveaway={handleFollowAndJoinGiveaway}
           setShowShareDialog={setShowShareDialog}
           handleEndGiveaway={handleEndGiveaway}
+          isEndingGiveaway={isEndingGiveaway}
           chatMessages={chatMessages}
           chatScrollRef={chatScrollRef}
           renderMessageWithMentions={renderMessageWithMentions}
@@ -2619,6 +2667,7 @@ export default function ShowViewNew() {
           handleSendMessage={handleSendMessage}
           currentUserId={currentUserId}
           giveaways={giveaways}
+          giveawayTimeLeft={giveawayTimeLeft}
         />
         
         <DialogsContainer

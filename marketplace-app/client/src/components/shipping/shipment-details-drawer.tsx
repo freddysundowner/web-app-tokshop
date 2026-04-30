@@ -7,6 +7,7 @@ import type { TokshopOrder } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ShipmentDetailsDrawerProps {
   open: boolean;
@@ -20,7 +21,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
     queryKey: ['/api/orders', order?._id],
     queryFn: async () => {
       if (!order?._id) return null;
-      const response = await fetch(`/api/orders/${order._id}`);
+      const response = await fetchWithAuth(`/api/orders/${order._id}`);
       if (!response.ok) throw new Error('Failed to fetch order details');
       const data = await response.json();
       return data.data || data;

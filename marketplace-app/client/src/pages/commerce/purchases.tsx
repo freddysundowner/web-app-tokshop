@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,7 +108,7 @@ export default function Purchases() {
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/orders?${params.toString()}`,
         {
           method: "GET",
@@ -153,7 +153,7 @@ export default function Purchases() {
       orderId: string;
       reason: string;
     }) => {
-      const response = await fetch(`/api/orders/cancel/order`, {
+      const response = await fetchWithAuth(`/api/orders/cancel/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -215,7 +215,7 @@ export default function Purchases() {
       itemId: string;
       reason: string;
     }) => {
-      const response = await fetch(`/api/orders/cancel/order`, {
+      const response = await fetchWithAuth(`/api/orders/cancel/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

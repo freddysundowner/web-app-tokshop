@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,7 +84,7 @@ export default function Offers() {
       if (statusFilter !== 'all') {
         params.set('status', statusFilter);
       }
-      const response = await fetch(`/api/offers?${params}`);
+      const response = await fetchWithAuth(`/api/offers?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch offers');
       }

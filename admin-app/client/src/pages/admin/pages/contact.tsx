@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { Save, Plus, Trash2, Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { contactContentSchema, type ContactContent } from "@shared/schema";
@@ -57,7 +57,7 @@ export default function AdminContactPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: ContactContent) => {
-      const response = await fetch('/api/admin/content/contact', {
+      const response = await fetchWithAuth('/api/admin/content/contact', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +91,7 @@ export default function AdminContactPage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/admin/content/contact/reset', {
+      const response = await fetchWithAuth('/api/admin/content/contact/reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

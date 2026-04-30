@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient , fetchWithAuth} from '@/lib/queryClient';
 import { Link } from 'wouter';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { ProductCard } from '@/components/product-card';
@@ -25,7 +25,7 @@ export default function DealsTrending() {
         limit: '100', // Get more products
         sortBy: 'views'
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });

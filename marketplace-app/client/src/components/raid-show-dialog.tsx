@@ -9,6 +9,7 @@ import { Loader2, Users, Radio, Zap } from 'lucide-react';
 import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
 import { useToast } from '@/hooks/use-toast';
 import { UserBadge } from '@/components/user-badge';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface RaidShowDialogProps {
   open: boolean;
@@ -52,7 +53,7 @@ export function RaidShowDialog({
   const { data: liveShows, isLoading, refetch } = useQuery<LiveShow[]>({
     queryKey: ['/api/rooms', 'live'],
     queryFn: async () => {
-      const response = await fetch('/api/rooms?live=true');
+      const response = await fetchWithAuth('/api/rooms?live=true');
       if (!response.ok) throw new Error('Failed to fetch live shows');
       const data = await response.json();
       // Handle different API response formats
@@ -119,7 +120,7 @@ export function RaidShowDialog({
     
     // Validate target show is still live before raiding
     try {
-      const response = await fetch(`/api/rooms/${selectedShow._id}`);
+      const response = await fetchWithAuth(`/api/rooms/${selectedShow._id}`);
       if (!response.ok) {
         throw new Error('Show not found');
       }

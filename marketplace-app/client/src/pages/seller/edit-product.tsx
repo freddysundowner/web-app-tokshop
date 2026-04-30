@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ export default function EditProduct() {
     queryFn: async () => {
       if (!productId) throw new Error("Product ID required");
       
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/products/${productId}?userId=${user?.id}`,
         {
           method: "GET",
@@ -95,7 +95,7 @@ export default function EditProduct() {
         }
       }
       
-      const response = await fetch(endpoint, {
+      const response = await fetchWithAuth(endpoint, {
         method,
         headers: {
           "Content-Type": "application/json",

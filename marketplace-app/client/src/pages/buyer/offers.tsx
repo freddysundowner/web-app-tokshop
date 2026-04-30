@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -123,7 +123,7 @@ export default function BuyerOffers() {
   const { data, isLoading, error, refetch } = useQuery<OffersResponse>({
     queryKey: ['/api/offers', { user: userId, role: 'buyer', page: currentPage, limit: ITEMS_PER_PAGE }],
     queryFn: async () => {
-      const response = await fetch(`/api/offers?user=${userId}&role=buyer&page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
+      const response = await fetchWithAuth(`/api/offers?user=${userId}&role=buyer&page=${currentPage}&limit=${ITEMS_PER_PAGE}`);
       if (!response.ok) throw new Error('Failed to fetch offers');
       return response.json();
     },

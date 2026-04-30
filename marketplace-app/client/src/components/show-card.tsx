@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bookmark, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient , fetchWithAuth} from '@/lib/queryClient';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { UserBadge } from '@/components/user-badge';
 import { BadgeDescription } from '@/components/badge-description';
@@ -117,7 +117,7 @@ export function ShowCard({ show, currentUserId, variant = 'grid', categoryName, 
         ? currentInvitedIds.filter((id: string) => id !== currentUserId)
         : [...currentInvitedIds, currentUserId];
       
-      const response = await fetch(`/api/rooms/${showId}`, {
+      const response = await fetchWithAuth(`/api/rooms/${showId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

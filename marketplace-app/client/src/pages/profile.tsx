@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { z } from "zod";
 import { getFirebaseStorage } from "@/lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -106,7 +106,7 @@ export default function Profile() {
         phonenumber: phone,
       };
       
-      const response = await fetch('/api/users/profile', {
+      const response = await fetchWithAuth('/api/users/profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -250,7 +250,7 @@ export default function Profile() {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
             const updateField = type === 'profile' ? 'profilePhoto' : 'coverPhoto';
-            const response = await fetch('/api/users/profile', {
+            const response = await fetchWithAuth('/api/users/profile', {
               method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',

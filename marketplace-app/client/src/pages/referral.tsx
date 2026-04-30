@@ -12,6 +12,7 @@ import {
   Users,
   CheckCircle,
 } from "lucide-react";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 
 export default function ReferralPage() {
@@ -33,7 +34,7 @@ export default function ReferralPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch('/api/settings/full', { credentials: 'include' });
+        const res = await fetchWithAuth('/api/settings/full', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const s = data.data || data;
@@ -46,7 +47,7 @@ export default function ReferralPage() {
     const fetchStats = async () => {
       if (!userId) return;
       try {
-        const res = await fetch(`/api/referral/stats/${userId}`, {
+        const res = await fetchWithAuth(`/api/referral/stats/${userId}`, {
           credentials: 'include',
         });
         if (res.ok) {
@@ -59,7 +60,7 @@ export default function ReferralPage() {
     const fetchLogs = async () => {
       if (!userId) return;
       try {
-        const res = await fetch(`/api/referral/logs?userId=${userId}`, {
+        const res = await fetchWithAuth(`/api/referral/logs?userId=${userId}`, {
           credentials: 'include',
         });
         if (res.ok) {

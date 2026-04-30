@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ChevronRight } from 'lucide-react';
 import { ShowCard } from '@/components/show-card';
 import { useApiConfig, getImageUrl } from '@/lib/use-api-config';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest , fetchWithAuth} from '@/lib/queryClient';
 
 interface Category {
   _id: string;
@@ -108,7 +108,7 @@ export default function Category() {
         queryParams.set('category', categoryId);
       }
 
-      const response = await fetch(`/api/rooms?${queryParams}`);
+      const response = await fetchWithAuth(`/api/rooms?${queryParams}`);
       return response.json();
     },
     getNextPageParam: (lastPage, allPages) => {

@@ -1,7 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -55,7 +55,7 @@ export default function ProductDetail() {
   const { data: product, isLoading } = useQuery<any>({
     queryKey: ['/api/products', productId],
     queryFn: async () => {
-      const response = await fetch(`/api/products/${productId}`);
+      const response = await fetchWithAuth(`/api/products/${productId}`);
       if (!response.ok) throw new Error('Failed to fetch product');
       const data = await response.json();
       return data.product || data;
@@ -74,7 +74,7 @@ export default function ProductDetail() {
     queryKey: ['/api/profile', sellerId],
     queryFn: async () => {
       if (!sellerId) return null;
-      const response = await fetch(`/api/profile/${sellerId}`);
+      const response = await fetchWithAuth(`/api/profile/${sellerId}`);
       if (!response.ok) return null;
       const data = await response.json();
       return data.data || data;
@@ -121,7 +121,7 @@ export default function ProductDetail() {
         if (storedUserData) {
           shippingHeaders['x-user-data'] = btoa(unescape(encodeURIComponent(storedUserData)));
         }
-        const response = await fetch('/api/shipping/estimate', {
+        const response = await fetchWithAuth('/api/shipping/estimate', {
           method: 'POST',
           headers: shippingHeaders,
           credentials: 'include',
@@ -172,7 +172,7 @@ export default function ProductDetail() {
         featured: 'true',
         status: 'active',
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       if (!response.ok) return { products: [] };
       return response.json();
     },
@@ -192,7 +192,7 @@ export default function ProductDetail() {
   const { data: referralSettings } = useQuery({
     queryKey: ['referral-settings-for-checkout'],
     queryFn: async () => {
-      const res = await fetch('/api/settings', { credentials: 'include' });
+      const res = await fetchWithAuth('/api/settings', { credentials: 'include' });
       if (!res.ok) return null;
       const result = await res.json();
       return result.data || result;

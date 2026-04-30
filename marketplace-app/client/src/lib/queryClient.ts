@@ -1,5 +1,11 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+let _logoutCallback: (() => Promise<void>) | null = null;
+
+export function setLogoutCallback(fn: () => Promise<void>) {
+  _logoutCallback = fn;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -43,6 +49,12 @@ async function throwIfResNotOk(res: Response) {
       }
     }
     
+    // If the user has a token and gets a 401/404, their session has expired — log them out
+    if ((res.status === 401 || res.status === 404) && localStorage.getItem('accessToken')) {
+      console.warn(`[Auth] Received ${res.status} with active token — logging out`);
+      _logoutCallback?.();
+    }
+
     // Fallback: show user-friendly message based on status code instead of technical details
     if (res.status === 400) {
       throw new Error("Please check your information and try again.");
@@ -58,6 +70,34 @@ async function throwIfResNotOk(res: Response) {
       throw new Error("Unable to complete request. Please try again.");
     }
   }
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  const adminToken = localStorage.getItem('adminAccessToken');
+  const userToken = localStorage.getItem('accessToken');
+  const userData = localStorage.getItem('user');
+  const headers: Record<string, string> = {};
+  if (adminToken) headers['x-admin-token'] = adminToken;
+  if (userToken) {
+    headers['x-access-token'] = userToken;
+    headers['Authorization'] = `Bearer ${userToken}`;
+  }
+  if (userData) {
+    headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+  }
+  return headers;
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const authHeaders = getAuthHeaders();
+  return fetch(url, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...authHeaders,
+      ...(options.headers as Record<string, string> || {}),
+    },
+  });
 }
 
 export async function apiRequest(

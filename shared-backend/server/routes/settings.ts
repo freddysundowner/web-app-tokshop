@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { BASE_URL } from "../utils";
+import { BASE_URL, getAdminToken, unwrapApiResponse } from "../utils";
 
 export function registerSettingsRoutes(app: Express) {
   // Get Firebase auth keys only (no auth required) - for login page
@@ -28,7 +28,7 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      const settings = Array.isArray(data) ? data[0] : data;
+      const settings = unwrapApiResponse(data);
       
       // Return only Firebase auth keys needed for login
       res.json({
@@ -58,8 +58,8 @@ export function registerSettingsRoutes(app: Express) {
       const url = `${BASE_URL}/themes`;
       console.log(`Fetching public themes from: ${url}`);
       
-      // Try to get access token from session if available
-      const accessToken = req.session?.accessToken;
+      // Try to get access token from session or headers if available
+      const accessToken = getAdminToken(req);
       
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -94,7 +94,7 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      const themes = Array.isArray(data) ? data[0] : data;
+      const themes = unwrapApiResponse(data);
       
       // Extract landing_page_logo from resources array if present
       let landingPageLogo = themes?.landing_page_logo || "";
@@ -151,48 +151,22 @@ export function registerSettingsRoutes(app: Express) {
   // Get public app settings (branding information)
   app.get("/api/settings", async (req, res) => {
     try {
-      // Try to get access token from Authorization header first, then session
-      const authHeader = req.headers.authorization;
-      const accessToken = authHeader?.startsWith('Bearer ') 
-        ? authHeader.substring(7) 
-        : req.session?.accessToken;
-      
-      // If no auth, return defaults immediately - don't call external API
-      if (!accessToken) {
-        return res.json({
-          success: true,
-          data: {
-            app_name: "App",
-            seo_title: "",
-            support_email: "support@example.com",
-            primary_color: "#F4D03F",
-            secondary_color: "#1A1A1A",
-            stripe_publishable_key: "",
-            commission_rate: 0,
-            firebase_api_key: "",
-            firebase_auth_domain: "",
-            firebase_project_id: "",
-            firebase_storage_bucket: "",
-            firebase_app_id: "",
-            demoMode: false,
-          },
-        });
-      }
-      
+      const accessToken = getAdminToken(req);
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
       };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
       
       const response = await fetch(url, {
         method: "GET",
         headers,
       });
-
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        console.warn(`Failed to fetch settings from API (${response.status}): ${errorText}`);
+        console.warn(`Settings API error (${response.status}): ${errorText.substring(0, 100)}`);
         // Pass through 401/404 so the frontend can handle token expiry
         if (response.status === 401 || response.status === 404) {
           return res.status(response.status).json({
@@ -200,9 +174,10 @@ export function registerSettingsRoutes(app: Express) {
             error: response.status === 401 ? "Unauthorized" : "Not found",
           });
         }
-        // For other errors, return defaults
-        return res.json({
-          success: true,
+        // For 5xx/other errors, return a real error so the frontend keeps existing data
+        return res.status(503).json({
+          success: false,
+          error: `External API unavailable (${response.status})`,
           data: {
             app_name: "App",
             seo_title: "",
@@ -222,7 +197,7 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      const settings = Array.isArray(data) ? data[0] : data;
+      const settings = unwrapApiResponse(data);
       
       // Extract public branding information, Stripe publishable key, and Firebase config
       const publicSettings = {
@@ -247,6 +222,9 @@ export function registerSettingsRoutes(app: Express) {
         // Legal page URLs
         privacy_url: settings?.privacy_url || "",
         terms_url: settings?.terms_url || "",
+        // Referral program
+        referral_credit: settings?.referral_credit ?? 0,
+        referral_credit_limit: settings?.referral_credit_limit ?? 0,
       };
       
       res.json({
@@ -281,11 +259,7 @@ export function registerSettingsRoutes(app: Express) {
   // Get full app settings (proxy to external API)
   app.get("/api/settings/full", async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      const accessToken = authHeader?.startsWith('Bearer ') 
-        ? authHeader.substring(7) 
-        : req.session?.accessToken;
-
+      const accessToken = getAdminToken(req);
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -310,7 +284,7 @@ export function registerSettingsRoutes(app: Express) {
       
       res.json({
         success: true,
-        data: Array.isArray(data) ? data[0] : data,
+        data: unwrapApiResponse(data),
       });
     } catch (error: any) {
       console.error("Error fetching full app settings:", error);
@@ -325,10 +299,7 @@ export function registerSettingsRoutes(app: Express) {
   // Update app settings (proxy to external API)
   app.post("/api/settings", async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      const accessToken = authHeader?.startsWith('Bearer ') 
-        ? authHeader.substring(7) 
-        : req.session?.accessToken;
+      const accessToken = getAdminToken(req);
 
       const url = `${BASE_URL}/settings`;
       const headers: Record<string, string> = {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Save, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, fetchWithAuth } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
 
@@ -99,10 +99,7 @@ export default function AdminAddress() {
     queryKey: ['/api/address/all', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const response = await fetch(`/api/address/all/${userId}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const response = await fetchWithAuth(`/api/address/all/${userId}`, { cache: 'no-store' });
       if (!response.ok) {
         if (response.status === 404) return [];
         throw new Error('Failed to fetch address');

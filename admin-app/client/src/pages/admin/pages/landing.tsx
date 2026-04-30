@@ -14,49 +14,7 @@ import { Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SingleImageUpload } from "@/components/ui/single-image-upload";
 import { Separator } from "@/components/ui/separator";
-
-// New landing page structure matching landing-page-8.tsx
-const DEFAULT_LANDING_CONTENT = {
-  hero: {
-    title: 'The Live Shopping Marketplace',
-    subtitle: 'Shop, sell, and connect around the things you love.',
-    primaryButtonText: 'Get Started',
-    primaryButtonLink: '/signup',
-    secondaryButtonText: 'Browse Shows',
-    secondaryButtonLink: '/marketplace',
-    downloadText: 'Download',
-    phoneImage1: '',
-    phoneImage2: '',
-    qrCodeImage: ''
-  },
-  joinFun: {
-    title: 'Join In the Fun',
-    subtitle: 'Take part in fast-paced auctions, incredible flash sales, live show giveaways, and so much more.',
-    downloadText: 'Download',
-    phoneImage: '',
-    qrCodeImage: ''
-  },
-  gotItAll: {
-    title: "We've Got It All",
-    subtitle: 'Search our marketplace to find the exact product you\'re looking for',
-    downloadText: 'Download',
-    phoneImage: '',
-    qrCodeImage: ''
-  },
-  deals: {
-    title: 'Find Incredible Deals on Name Brands',
-    subtitle: "From the brands you love, to hard-to-find specialty products. There's a deal on whatever you're looking for.",
-    buttonText: 'Start Shopping',
-    buttonLink: '/signup',
-    downloadText: 'Download',
-    trustBadgeText: 'PEACE OF MIND',
-    phoneImage: '',
-    qrCodeImage: ''
-  },
-  footer: {
-    copyrightText: '2025'
-  }
-};
+import { DEFAULT_LANDING_CONTENT } from "@/lib/content-defaults";
 
 export default function AdminLandingPage() {
   const { toast } = useToast();

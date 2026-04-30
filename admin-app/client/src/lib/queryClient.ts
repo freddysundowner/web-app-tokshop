@@ -3,19 +3,11 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    console.error(`API Error: ${res.status} - ${res.statusText}`, {
-      url: res.url,
-      status: res.status,
-      statusText: res.statusText,
-      text: text
-    });
-    
-    // Try to extract the clean error message from JSON response
     let errorData;
     try {
       errorData = JSON.parse(text);
-    } catch (parseError) {
-      console.log('JSON parsing failed:', parseError, 'Original text:', text);
+    } catch {
+      // not JSON
     }
     
     // If we successfully parsed JSON, check for error messages
@@ -55,6 +47,42 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+export function getAuthHeaders(): Record<string, string> {
+  const adminToken = localStorage.getItem('adminAccessToken');
+  const userToken = localStorage.getItem('accessToken');
+  const userData = localStorage.getItem('user');
+
+  const headers: Record<string, string> = {};
+
+  if (adminToken) {
+    headers['x-admin-token'] = adminToken;
+    headers['Authorization'] = `Bearer ${adminToken}`;
+  }
+  if (userToken) {
+    headers['x-access-token'] = userToken;
+    if (!adminToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    }
+  }
+  if (userData) {
+    headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+  }
+
+  return headers;
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const authHeaders = getAuthHeaders();
+  return fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...authHeaders,
+      ...(options.headers as Record<string, string> || {}),
+    },
+  });
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -63,18 +91,9 @@ export async function apiRequest(
   // Use local API endpoints (which proxy to Tokshop API)
   const apiUrl = url;
   
-  // Get access token and user data from localStorage if available
   const adminToken = localStorage.getItem('adminAccessToken');
   const userToken = localStorage.getItem('accessToken');
   const userData = localStorage.getItem('user');
-  
-  // Debug logging for /api/admin/users
-  if (url.includes('/api/admin/users')) {
-    console.log('[apiRequest] Calling /api/admin/users:');
-    console.log('  - adminAccessToken:', adminToken ? 'present' : 'missing');
-    console.log('  - accessToken:', userToken ? 'present' : 'missing');
-    console.log('  - user:', userData ? 'present' : 'missing');
-  }
   
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
   
@@ -98,18 +117,11 @@ export async function apiRequest(
     headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
   }
   
-  if (url.includes('/api/admin/users')) {
-    console.log('  - Headers:', Object.keys(headers));
-  }
-  
   const res = await fetch(apiUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
-  }).catch(error => {
-    console.error('Fetch error for:', apiUrl, error);
-    throw error;
   });
   
 
@@ -159,18 +171,9 @@ export const getQueryFn: <T>(options: {
     // Build final URL with query parameters
     const apiUrl = `${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     
-    // Get access token and user data from localStorage if available
     const adminToken = localStorage.getItem('adminAccessToken');
     const userToken = localStorage.getItem('accessToken');
     const userData = localStorage.getItem('user');
-    
-    // Debug logging for /api/admin/users
-    if (endpoint === '/api/admin/users') {
-      console.log('[QueryClient] Fetching /api/admin/users:');
-      console.log('  - adminAccessToken:', adminToken ? 'present' : 'missing');
-      console.log('  - accessToken:', userToken ? 'present' : 'missing');
-      console.log('  - user:', userData ? 'present' : 'missing');
-    }
     
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -196,10 +199,6 @@ export const getQueryFn: <T>(options: {
       headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
     }
     
-    if (endpoint === '/api/admin/users') {
-      console.log('  - Headers:', Object.keys(headers));
-    }
-    
     const res = await fetch(apiUrl, {
       credentials: "include",
       headers,
@@ -219,7 +218,7 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 0,
       retry: false,
     },
     mutations: {

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient , fetchWithAuth} from '@/lib/queryClient';
 import { Link } from 'wouter';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { AuctionCard } from '@/components/auction-card';
@@ -29,7 +29,7 @@ export default function Deals() {
         featured: 'true',
         type: 'scheduled'
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });
@@ -44,7 +44,7 @@ export default function Deals() {
         limit: '6', // Get 6 products for 3 rows (2 per row on mobile)
         sortBy: 'views'
       });
-      const response = await fetch(`/api/products?${params.toString()}`);
+      const response = await fetchWithAuth(`/api/products?${params.toString()}`);
       return response.json();
     }
   });

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminLayout } from "@/components/admin-layout";
 import { Users, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { fetchWithAuth } from "@/lib/queryClient";
 
 export default function AdminReferralLogs() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,10 +35,7 @@ export default function AdminReferralLogs() {
       if (appliedSearch.trim()) {
         params.append('username', appliedSearch.trim());
       }
-      const response = await fetch(`/api/admin/referral-logs?${params.toString()}`, {
-        credentials: 'include',
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchWithAuth(`/api/admin/referral-logs?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch referral logs');
       return response.json();
     },

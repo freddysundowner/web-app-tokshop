@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DollarSign, TrendingUp, CalendarIcon, CreditCard, Filter, X, ChevronLeft, ChevronRight, ChevronDown, Wallet, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { fetchWithAuth } from "@/lib/queryClient";
 
 export default function AdminApplicationFees() {
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
@@ -21,6 +23,54 @@ export default function AdminApplicationFees() {
     limit: '50',
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [pendingOpen, setPendingOpen] = useState(false);
+  const [pendingType, setPendingType] = useState<string>('shipping_deduction');
+  const [pendingFromDate, setPendingFromDate] = useState<Date | undefined>(undefined);
+  const [pendingToDate, setPendingToDate] = useState<Date | undefined>(undefined);
+  const [transferringType, setTransferringType] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const transferMutation = useMutation({
+    mutationFn: async ({ type, amount }: { type: string; amount: number }) => {
+      const response = await fetch('/api/admin/shipping-service-transfer', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type, amount }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Transfer failed');
+      }
+      return response.json();
+    },
+    onSuccess: (_data, variables) => {
+      toast({
+        title: "Transfer initiated",
+        description: `${variables.type === 'shipping_deduction' ? 'Shipping deduction' : 'Service fee'} transfer of $${variables.amount.toFixed(2)} submitted.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin-shipping-service-pending'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Transfer failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setTransferringType(null);
+    },
+  });
+
+  const handleTransfer = (type: string, amount: number) => {
+    setTransferringType(type);
+    transferMutation.mutate({ type, amount });
+  };
 
   // Build query string for revenue
   const buildRevenueQueryString = () => {
@@ -38,10 +88,50 @@ export default function AdminApplicationFees() {
   const { data: revenueData, isLoading: revenueLoading } = useQuery<any>({
     queryKey: ['/api/admin/revenue', revenueQueryString],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/revenue?${revenueQueryString}`);
+      const response = await fetchWithAuth(`/api/admin/revenue?${revenueQueryString}`);
       if (!response.ok) throw new Error('Failed to fetch revenue');
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  const getAuthHeaders = () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const adminToken = localStorage.getItem('adminAccessToken');
+    const userToken = localStorage.getItem('accessToken');
+    const userData = localStorage.getItem('user');
+    if (adminToken) headers['x-admin-token'] = adminToken;
+    if (userToken) headers['x-access-token'] = userToken;
+    if (userData) headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
+    return headers;
+  };
+
+  const pendingFrom = pendingFromDate ? format(pendingFromDate, 'yyyy-MM-dd') : '';
+  const pendingTo = pendingToDate ? format(pendingToDate, 'yyyy-MM-dd') : '';
+
+  const buildPendingParams = (type: string) => {
+    const params = new URLSearchParams();
+    params.append('type', type);
+    if (pendingFrom) params.append('from', pendingFrom);
+    if (pendingTo) params.append('to', pendingTo);
+    return params.toString();
+  };
+
+  const { data: pendingData, isLoading: pendingLoading } = useQuery<any>({
+    queryKey: ['admin-shipping-service-pending', pendingType, pendingFrom, pendingTo],
+    queryFn: async () => {
+      const response = await fetchWithAuth(`/api/admin/shipping-service-pending?${buildPendingParams(pendingType)}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch pending data');
+      }
+      const result = await response.json();
+      return result.success ? result.data : result;
+    },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const revenue = revenueData?.data || {};
@@ -129,6 +219,115 @@ export default function AdminApplicationFees() {
           <h2 className="text-3xl font-bold text-foreground">Revenue</h2>
           <p className="text-muted-foreground">Platform revenue and financial overview</p>
         </div>
+
+        <Card className="mb-6">
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setPendingOpen(!pendingOpen)}
+            data-testid="button-toggle-pending"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Pending Transfers</CardTitle>
+                <CardDescription>Pending shipping deductions and service fees</CardDescription>
+              </div>
+              <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", pendingOpen && "rotate-180")} />
+            </div>
+          </CardHeader>
+          {pendingOpen && (
+            <CardContent onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Type</Label>
+                    <Select value={pendingType} onValueChange={(val) => { setPendingType(val); }}>
+                      <SelectTrigger className="w-[220px]" data-testid="select-pending-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="shipping_deduction">Shipping Deduction</SelectItem>
+                        <SelectItem value="service_fee">Service Fee</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">From</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-[160px] justify-start text-left font-normal", !pendingFromDate && "text-muted-foreground")} data-testid="button-pending-from-date">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {pendingFromDate ? format(pendingFromDate, 'MMM dd, yyyy') : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={pendingFromDate} onSelect={setPendingFromDate} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">To</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-[160px] justify-start text-left font-normal", !pendingToDate && "text-muted-foreground")} data-testid="button-pending-to-date">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {pendingToDate ? format(pendingToDate, 'MMM dd, yyyy') : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={pendingToDate} onSelect={setPendingToDate} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {(pendingFromDate || pendingToDate) && (
+                    <Button variant="ghost" size="sm" onClick={() => { setPendingFromDate(undefined); setPendingToDate(undefined); }} data-testid="button-clear-pending-dates">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      {pendingType === 'shipping_deduction' ? (
+                        <DollarSign className="h-5 w-5 text-primary" />
+                      ) : (
+                        <CreditCard className="h-5 w-5 text-primary" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        {pendingType === 'shipping_deduction' ? 'Pending Shipping Deduction' : 'Pending Service Fee'}
+                      </p>
+                      <Badge variant="outline" className="text-xs mt-1">{pendingType}</Badge>
+                      <p className="text-2xl font-bold" data-testid="text-pending-value">
+                        {pendingLoading ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          `$${parseFloat(String(pendingData?.total ?? 0)).toFixed(2)}`
+                        )}
+                      </p>
+                      {!pendingLoading && pendingData?.count > 0 && (
+                        <p className="text-xs text-muted-foreground">{pendingData.count} pending</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    data-testid="button-transfer"
+                    className="gap-2"
+                    disabled={transferringType === pendingType || pendingLoading || !pendingData?.total}
+                    onClick={() => handleTransfer(pendingType, parseFloat(String(pendingData?.total ?? 0)))}
+                  >
+                    {transferringType === pendingType ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
+                    Transfer
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
 
         {/* Revenue Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

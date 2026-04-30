@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useApiConfig } from "@/lib/use-api-config";
 import {
@@ -165,7 +165,7 @@ export default function Inventory() {
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/products?${params.toString()}`,
         {
           method: "GET",
@@ -189,7 +189,7 @@ export default function Inventory() {
   const { data: categoriesResponse } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories"],
     queryFn: async () => {
-      const response = await fetch(`/api/categories`);
+      const response = await fetchWithAuth(`/api/categories`);
       if (!response.ok) throw new Error("Failed to fetch categories");
       return response.json();
     },
@@ -220,7 +220,7 @@ export default function Inventory() {
   } = useQuery({
     queryKey: ["shipping-profiles", user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/shipping/profiles/${user?.id}`);
+      const response = await fetchWithAuth(`/api/shipping/profiles/${user?.id}`);
       if (!response.ok) throw new Error("Failed to fetch shipping profiles");
       return response.json();
     },

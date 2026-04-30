@@ -12,6 +12,7 @@ import { CustomBidDialog } from '@/components/custom-bid-dialog';
 import { RaidShowDialog } from '@/components/raid-show-dialog';
 import { UserBadge } from '@/components/user-badge';
 import { CameraSettingsModal, CameraSettings } from '@/components/camera-settings-modal';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
@@ -37,7 +38,7 @@ export function VideoCenter(props: any) {
     auctionTimeLeft, currentBid, bidAmount, setBidAmount, handlePlaceBid,
     isPlacingBid, isUserWinning, pinnedProduct, activeGiveaway,
     giveawayTimeLeft, handleJoinGiveaway, handleFollowAndJoinGiveaway, isJoiningGiveaway, currentUserId,
-    handleEndGiveaway, setShowMobileProducts, setShowMobileChat,
+    handleEndGiveaway, isEndingGiveaway, setShowMobileProducts, setShowMobileChat,
     handleUnfollowHost, isLive, viewerCount, showTipDialog, setShowTipDialog, showThumbnail,
     showMobileProducts, showMobileChat, chatMessagesRef, chatMessages,
     imageError, setImageError, toast, user, show, viewers, isAuthenticated, navigate,
@@ -71,7 +72,7 @@ export function VideoCenter(props: any) {
   const { data: referralSettings } = useQuery({
     queryKey: ['referral-settings-show-view'],
     queryFn: async () => {
-      const res = await fetch('/api/settings', { credentials: 'include' });
+      const res = await fetchWithAuth('/api/settings', { credentials: 'include' });
       if (!res.ok) return null;
       const result = await res.json();
       return result.data || result;
@@ -406,10 +407,15 @@ export function VideoCenter(props: any) {
                     {isShowOwner ? (
                       <button
                         onClick={handleEndGiveaway}
-                        className="w-full px-2 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold text-[10px] rounded-lg transition-colors"
+                        disabled={isEndingGiveaway}
+                        className="w-full px-2 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm disabled:opacity-70 text-white font-semibold text-[10px] rounded-lg transition-colors flex items-center justify-center gap-1"
                         data-testid="button-end-giveaway-mobile"
                       >
-                        End
+                        {isEndingGiveaway ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          'End'
+                        )}
                       </button>
                     ) : (() => {
                       // Check if user already entered (handle both string IDs and objects)
@@ -492,7 +498,7 @@ export function VideoCenter(props: any) {
                               setShowMoreOptionsSheet(false);
                               
                               try {
-                                const endResponse = await fetch(`/api/rooms/${id}`, {
+                                const endResponse = await fetchWithAuth(`/api/rooms/${id}`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   credentials: 'include',
@@ -564,7 +570,7 @@ export function VideoCenter(props: any) {
                               setShowMoreOptionsSheet(false);
                               
                               try {
-                                const deleteResponse = await fetch(`/api/rooms/${id}?destroy=true`, {
+                                const deleteResponse = await fetchWithAuth(`/api/rooms/${id}?destroy=true`, {
                                   method: 'DELETE',
                                   credentials: 'include',
                                 });
@@ -1434,7 +1440,7 @@ export function VideoCenter(props: any) {
                             
                             console.log('🔔 Notification update:', { currentInvitedIds, isAlreadySaved, invitedhostIds });
                             
-                            const response = await fetch(`/api/rooms/${id}`, {
+                            const response = await fetchWithAuth(`/api/rooms/${id}`, {
                               method: 'PUT',
                               headers: {
                                 'Content-Type': 'application/json',
@@ -1796,7 +1802,7 @@ export function VideoCenter(props: any) {
               try {
                 // End the SOURCE show via API (using captured ID, not reactive `id`)
                 console.log('🔴 Ending source show:', sourceShowId);
-                await fetch(`/api/rooms/${sourceShowId}`, {
+                await fetchWithAuth(`/api/rooms/${sourceShowId}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   credentials: 'include',

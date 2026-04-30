@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Package, ArrowRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { TokshopOrder } from "@shared/schema";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function ThankYou() {
   const [, params] = useRoute("/thank-you/:orderId");
@@ -16,7 +17,7 @@ export default function ThankYou() {
   const { data: order, isLoading } = useQuery<TokshopOrder>({
     queryKey: ['/api/orders', orderId],
     queryFn: async () => {
-      const response = await fetch(`/api/orders/${orderId}`);
+      const response = await fetchWithAuth(`/api/orders/${orderId}`);
       if (!response.ok) throw new Error('Failed to fetch order');
       const json = await response.json();
       // API returns { success: true, data: order }

@@ -15,6 +15,7 @@ import { ShowCard } from '@/components/show-card';
 import { BadgeDescription } from '@/components/badge-description';
 import { cn } from '@/lib/utils';
 import { getImageUrl, useApiConfig } from '@/lib/use-api-config';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -284,7 +285,7 @@ export default function SearchResults() {
         apiParams.set('reducedShipping', 'true');
       }
       
-      const response = await fetch(`/api/products/search?${apiParams.toString()}`);
+      const response = await fetchWithAuth(`/api/products/search?${apiParams.toString()}`);
       if (!response.ok) {
         throw new Error('Search failed');
       }

@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { fetchWithAuth } from "@/lib/queryClient";
 import { format } from "date-fns";
 
 export default function AdminShows() {
@@ -59,9 +60,7 @@ export default function AdminShows() {
   }>({
     queryKey: ['/api/admin/rooms/stats/all'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/rooms/stats/all', {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth('/api/admin/rooms/stats/all');
       if (!response.ok) {
         return { success: false, data: {} };
       }
@@ -111,7 +110,7 @@ export default function AdminShows() {
         body.featured_until = featured_until;
       }
       
-      const response = await fetch(`/api/rooms/features/${roomId}`, {
+      const response = await fetchWithAuth(`/api/rooms/features/${roomId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -143,7 +142,7 @@ export default function AdminShows() {
 
   const deleteMutation = useMutation({
     mutationFn: async (roomId: string) => {
-      const response = await fetch(`/api/rooms/${roomId}`, {
+      const response = await fetchWithAuth(`/api/rooms/${roomId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
       });

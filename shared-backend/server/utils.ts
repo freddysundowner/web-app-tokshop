@@ -8,12 +8,40 @@ import type { TokshopOrder, Bundle } from "../shared/schema";
 export const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/, "");
 
 export function getAccessToken(req: Request): string | null {
+  return (req.headers['x-access-token'] as string) ||
+         (req as any).session?.accessToken ||
+         (req.headers['x-admin-token'] as string) ||
+         (req.headers['authorization']?.startsWith('Bearer ') ? 
+          req.headers['authorization'].substring(7) : null) ||
+         null;
+}
+
+export function getAdminToken(req: Request): string | null {
   return (req.headers['x-admin-token'] as string) ||
          (req.headers['x-access-token'] as string) ||
          (req as any).session?.accessToken ||
          (req.headers['authorization']?.startsWith('Bearer ') ? 
           req.headers['authorization'].substring(7) : null) ||
          null;
+}
+
+/**
+ * Unwraps external API responses that may come in two formats:
+ *   - Plain object:  { _id: "...", app_name: "..." }
+ *   - Wrapped:       { success: true, data: { _id: "...", app_name: "..." } }
+ *   - Array:         [{ _id: "...", app_name: "..." }]
+ * Always returns the inner data object.
+ */
+export function unwrapApiResponse(data: any): any {
+  // Handle array — take first element
+  if (Array.isArray(data)) {
+    data = data[0];
+  }
+  // Handle wrapped { success, data } format
+  if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+    return data.data;
+  }
+  return data;
 }
 
 // Bundle utility functions

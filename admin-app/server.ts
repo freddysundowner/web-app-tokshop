@@ -3,7 +3,6 @@
 
 import dotenv from 'dotenv';
 
-// Load environment variables from .env file
 dotenv.config();
 
-import '../shared-backend/server/index';
+await import('../shared-backend/server/index.js');

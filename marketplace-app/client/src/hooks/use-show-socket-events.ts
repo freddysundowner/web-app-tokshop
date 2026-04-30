@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient , fetchWithAuth} from '@/lib/queryClient';
 import { timeSync } from '@/lib/time-sync';
 
 interface UseShowSocketEventsProps {
@@ -42,6 +42,7 @@ interface UseShowSocketEventsProps {
   shownWinnerAlertsRef: React.MutableRefObject<Set<string>>;
   setActiveFlashSale: React.Dispatch<React.SetStateAction<any>>;
   setFlashSaleTimeLeft: React.Dispatch<React.SetStateAction<number>>;
+  setIsEndingGiveaway: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function useShowSocketEvents({
@@ -83,6 +84,7 @@ export function useShowSocketEvents({
   shownWinnerAlertsRef,
   setActiveFlashSale,
   setFlashSaleTimeLeft,
+  setIsEndingGiveaway,
 }: UseShowSocketEventsProps) {
   const { toast } = useToast();
   const lastAuctionRefetchRef = useRef<number>(0);
@@ -220,7 +222,7 @@ export function useShowSocketEvents({
           if (tk) { hdrs['x-access-token'] = tk; hdrs['Authorization'] = `Bearer ${tk}`; }
           const ud = localStorage.getItem('user');
           if (ud) { hdrs['x-user-data'] = btoa(unescape(encodeURIComponent(ud))); }
-          return fetch('/api/shipping/estimate', {
+          return fetchWithAuth('/api/shipping/estimate', {
             method: 'POST',
             headers: hdrs,
             body: JSON.stringify(pinnedPayload),
@@ -711,7 +713,11 @@ export function useShowSocketEvents({
   // Memoized handler: Giveaway ended
   const handleGiveawayEnded = useCallback((giveaway: any) => {
     console.log('Giveaway ended:', giveaway);
-    
+
+    // Always clear the giveaway widget and loading state immediately
+    setActiveGiveaway(null);
+    setIsEndingGiveaway(false);
+
     if (giveaway.winner) {
       const winnerName = giveaway.winner.userName || giveaway.winner.firstName || 'Someone';
       const winnerProfile = giveaway.winner.profilePhoto || giveaway.winner.profileUrl || giveaway.winner.profilePicture;
@@ -727,14 +733,11 @@ export function useShowSocketEvents({
       
       setTimeout(() => {
         setShowGiveawayWinnerDialog(false);
-        setActiveGiveaway(null);
       }, 10000);
-    } else {
-      setActiveGiveaway(null);
     }
     
     debouncedRefetchGiveaways();
-  }, [setActiveGiveaway, setGiveawayWinnerData, setShowGiveawayWinnerDialog, debouncedRefetchGiveaways]);
+  }, [setActiveGiveaway, setIsEndingGiveaway, setGiveawayWinnerData, setShowGiveawayWinnerDialog, debouncedRefetchGiveaways]);
 
   // Memoized handler: Marketplace order (buy-now purchase)
   const handleMarketplaceOrder = useCallback((data: any) => {

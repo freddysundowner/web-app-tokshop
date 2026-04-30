@@ -733,6 +733,213 @@ export const getKnowledgeBaseSections = (appName: string = 'TokshopLive'): Knowl
     ]
   },
   {
+    id: "deals-discovery",
+    title: "Deals & Discovery",
+    icon: TrendingUp,
+    description: "Finding the best deals and trending items",
+    content: [
+      {
+        title: "The Deals Page",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The Deals page is your shortcut to the best value on the platform:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li><strong>Trending Products:</strong> Items that are selling fast or getting lots of attention right now</li>
+              <li><strong>Trending Auctions:</strong> Live and upcoming auctions with the most bidding activity</li>
+              <li><strong>Flash Deals:</strong> Time-limited price drops available only for a short window</li>
+              <li><strong>Featured Shows:</strong> Shows hand-picked by the platform for their quality or unique products</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Trending Auctions",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The Trending Auctions page shows you the most competitive and exciting active auctions:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Sorted by bid activity, viewer count, and time remaining</li>
+              <li>See the current highest bid and how many people are competing</li>
+              <li>Jump straight into bidding from the listing</li>
+              <li>Items nearing their end time are highlighted so you don't miss out</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Trending Products",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Browse products that are popular right now across all shows:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Items with the highest recent sales and views</li>
+              <li>Filter by category to find trending items in your area of interest</li>
+              <li>Buy directly from the listing without needing to join a live show</li>
+              <li>Updated frequently so the list stays current</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Featured Shows",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Featured shows are promoted by the platform team:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Curated picks for high-quality content and great products</li>
+              <li>Great way to discover new sellers you might love</li>
+              <li>Both live and scheduled upcoming shows are featured</li>
+              <li>Set a reminder for upcoming featured shows so you don't miss them</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "disputes",
+    title: "Disputes & Buyer Protection",
+    icon: Shield,
+    description: "Resolving order problems and getting your money back",
+    content: [
+      {
+        title: "When to Open a Dispute",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">You can open a dispute if something goes wrong with your order:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li><strong>Item not received:</strong> Your order shows as delivered but you never got it</li>
+              <li><strong>Item not as described:</strong> What arrived is significantly different from what was shown in the show</li>
+              <li><strong>Damaged on arrival:</strong> The item arrived broken or damaged due to poor packaging</li>
+              <li><strong>Wrong item sent:</strong> You received something different from what you ordered</li>
+              <li><strong>Seller not responding:</strong> You've tried to contact the seller and haven't heard back within a reasonable time</li>
+            </ul>
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mt-2">
+              <p className="text-sm font-medium mb-1">💡 Try the seller first</p>
+              <p className="text-sm text-muted-foreground">Before opening a dispute, always try messaging the seller directly. Most issues are resolved quickly this way without needing the formal dispute process.</p>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "How to Open a Dispute",
+        body: (
+          <div className="space-y-3">
+            <ol className="space-y-2 text-sm text-muted-foreground ml-4">
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">1.</span>
+                <span>Go to <strong>My Orders</strong> and find the affected order</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">2.</span>
+                <span>Click <strong>Open Dispute</strong> on the order detail page</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">3.</span>
+                <span>Select the reason that best describes your problem</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">4.</span>
+                <span>Provide a description and any photos or evidence you have</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">5.</span>
+                <span>Submit — the seller and our support team are notified immediately</span>
+              </li>
+            </ol>
+          </div>
+        )
+      },
+      {
+        title: "What Happens After You File",
+        body: (
+          <div className="space-y-4">
+            <div className="border-l-4 border-blue-500 pl-4">
+              <h5 className="font-semibold mb-1">Seller responds</h5>
+              <p className="text-sm text-muted-foreground">The seller is given a chance to respond to your claim. They may offer a replacement, refund, or provide tracking evidence showing the item was delivered.</p>
+            </div>
+            <div className="border-l-4 border-yellow-500 pl-4">
+              <h5 className="font-semibold mb-1">Admin review</h5>
+              <p className="text-sm text-muted-foreground">If the dispute isn't resolved between you and the seller, our admin team steps in to review both sides and make a decision. The proof-of-purchase video from the auction (if applicable) may be used as evidence.</p>
+            </div>
+            <div className="border-l-4 border-green-500 pl-4">
+              <h5 className="font-semibold mb-1">Resolution</h5>
+              <p className="text-sm text-muted-foreground">Once resolved, the outcome — whether a refund, replacement, or case closed — is applied. You'll receive an email notification with the final decision.</p>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "For Sellers: Responding to Disputes",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">When a buyer opens a dispute on one of your orders:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>You'll receive an email and in-app notification immediately</li>
+              <li>Go to your <strong>Orders</strong> page and find the disputed order — it will be flagged</li>
+              <li>Respond promptly with your side of the situation</li>
+              <li>Provide tracking information, photos, or any other evidence that supports your case</li>
+              <li>The proof-of-purchase video attached to auction orders is available to both parties</li>
+            </ul>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mt-2">
+              <p className="text-sm font-medium mb-1">⚠️ Respond quickly</p>
+              <p className="text-sm text-muted-foreground">Failing to respond to a dispute in a timely manner may result in an automatic ruling in the buyer's favour. Check your notifications regularly.</p>
+            </div>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "referral-program",
+    title: "Referral Program",
+    icon: Zap,
+    description: "Earn credits by inviting friends",
+    content: [
+      {
+        title: "How the Referral Program Works",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Earn credits when you invite friends to join the platform:</p>
+            <ol className="space-y-2 text-sm text-muted-foreground ml-4">
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">1.</span>
+                <span>Find your unique referral link or code in your profile settings</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">2.</span>
+                <span>Share it with friends via message, social media, or email</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">3.</span>
+                <span>When your friend signs up using your link and makes their first purchase, you both earn a credit</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">4.</span>
+                <span>Credits are applied to your account automatically and can be used on future purchases</span>
+              </li>
+            </ol>
+          </div>
+        )
+      },
+      {
+        title: "Referral Credit Limits",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">There are limits in place to keep the program fair:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Each account can earn up to a maximum referral credit limit per referral cycle</li>
+              <li>Credits are only awarded once per referred user (not per purchase they make)</li>
+              <li>Self-referrals are not permitted</li>
+              <li>Referral credits cannot be withdrawn as cash — they apply to purchases only</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">Check your profile for the current credit amount and your referral history.</p>
+          </div>
+        )
+      }
+    ]
+  },
+  {
     id: "becoming-seller",
     title: "Becoming a Seller",
     icon: Users,
@@ -900,6 +1107,59 @@ export const getKnowledgeBaseSections = (appName: string = 'TokshopLive'): Knowl
               <li>View all transactions in your seller dashboard</li>
               <li>Track pending and completed payouts</li>
             </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "categories-products",
+    title: "Categories & Product Rules",
+    icon: Layout,
+    description: "How products are organised and what can be sold",
+    content: [
+      {
+        title: "How Categories Work",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Every product on the platform belongs to a category and optionally a subcategory. Categories make it easier for buyers to find what they're looking for and help the platform surface relevant products during shows.</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Categories are managed by the platform — sellers choose from the available list</li>
+              <li>Each category may have subcategories for more precise organisation (e.g. <em>Fashion → Women's Clothing</em>)</li>
+              <li>Buyers can browse and filter shows and products by category</li>
+              <li>Choosing the right category improves your product's visibility in search and discovery pages</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Choosing the Right Category",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">When adding a product as a seller, pick the category that most accurately describes the item:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Be specific — use a subcategory when one is available and relevant</li>
+              <li>Miscategorised products may be moved or removed by the admin team</li>
+              <li>If none of the available categories fit your product, contact support to suggest a new one</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Prohibited Items",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The following types of products are not permitted on the platform:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Weapons, firearms, or ammunition</li>
+              <li>Illegal substances or drug paraphernalia</li>
+              <li>Counterfeit or replica branded goods</li>
+              <li>Adult content or sexually explicit material</li>
+              <li>Items that infringe on copyright or intellectual property</li>
+              <li>Recalled or unsafe products</li>
+              <li>Hazardous materials</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">Listings that violate these rules will be removed and may result in account suspension. If you're unsure whether a product is permitted, contact support before listing it.</p>
           </div>
         )
       }
@@ -1148,6 +1408,323 @@ export const getKnowledgeBaseSections = (appName: string = 'TokshopLive'): Knowl
     ]
   },
   {
+    id: "seller-payouts",
+    title: "Seller Payouts & How You Get Paid",
+    icon: DollarSign,
+    description: "Understanding the payment flow from sale to withdrawal",
+    content: [
+      {
+        title: "Overview: How Money Flows",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">When a buyer purchases from you, the money doesn't go directly to your bank account. Here's the full journey it takes before you can withdraw:</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="min-w-[28px] h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">1</div>
+                <div>
+                  <p className="font-medium">Buyer pays → Platform account</p>
+                  <p className="text-sm text-muted-foreground">All payments go into the platform's Stripe account first. The money is held there, not in your account yet.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="min-w-[28px] h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">2</div>
+                <div>
+                  <p className="font-medium">Stripe holds the funds</p>
+                  <p className="text-sm text-muted-foreground">Stripe applies a standard holding period (typically a few business days) before funds become available. This is a fraud and chargeback protection measure applied to all transactions.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="min-w-[28px] h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">3</div>
+                <div>
+                  <p className="font-medium">You ship the order</p>
+                  <p className="text-sm text-muted-foreground">You must ship the order and have it scanned by the carrier (USPS via Shippo). The scan confirms the package has physically entered the postal system. Until the order is scanned and marked as shipped, payment cannot be released to you — even if Stripe's holding period has ended.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="min-w-[28px] h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">4</div>
+                <div>
+                  <p className="font-medium">Money transfers to your Stripe account</p>
+                  <p className="text-sm text-muted-foreground">Once both conditions are met — Stripe funds available and order scanned — the money moves to your connected Stripe account's available balance.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="min-w-[28px] h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">5</div>
+                <div>
+                  <p className="font-medium">Your wallet is credited</p>
+                  <p className="text-sm text-muted-foreground">Your in-app wallet reflects the balance available in your connected Stripe account. From here you can request a withdrawal to your bank.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "The Two Payout Scenarios",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">Because Stripe's holding period and your shipping timeline don't always line up perfectly, there are two ways payout can happen:</p>
+
+            <div className="border-l-4 border-green-500 pl-4">
+              <h5 className="font-semibold mb-2 flex items-center gap-2">
+                ✅ Automatic Payout (the normal path)
+              </h5>
+              <p className="text-sm text-muted-foreground mb-2">
+                Stripe sends a webhook notification that the funds are available. The system checks whether your order has already been scanned and shipped. If it has, the transfer happens automatically — no action needed from you or the admin.
+              </p>
+              <p className="text-xs text-muted-foreground italic">This is the most common scenario when you ship promptly.</p>
+            </div>
+
+            <div className="border-l-4 border-yellow-500 pl-4">
+              <h5 className="font-semibold mb-2 flex items-center gap-2">
+                ⏳ Manual Payout (timing mismatch)
+              </h5>
+              <p className="text-sm text-muted-foreground mb-2">
+                Sometimes Stripe's holding period ends before the order has been scanned by the carrier. In this case, the system cannot automatically release the funds. The transaction is placed in a <strong>Pending</strong> queue for the admin.
+              </p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Once you ship and the carrier scans the package (marking the order as shipped), the admin will see the transaction appear in the <strong>Pending tab</strong> of the Payouts page and manually trigger the transfer to your Stripe account.
+              </p>
+              <p className="text-xs text-muted-foreground italic">Your wallet will be credited and you'll be able to withdraw once the admin completes the manual transfer.</p>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mt-2">
+              <p className="text-sm font-medium mb-1">💡 How to avoid delays</p>
+              <p className="text-sm text-muted-foreground">Ship your orders quickly and make sure the carrier scans the package when you drop it off. Using Shippo's label printing through the app ensures the scan is automatically detected and your order status is updated instantly.</p>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Your In-App Wallet",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Your wallet in the app tracks the balance that is available in your connected Stripe account:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>The wallet balance reflects funds that have been successfully transferred to your Stripe connected account</li>
+              <li>It is updated automatically when an automatic transfer completes, or when an admin processes a manual transfer</li>
+              <li>You can request a withdrawal from your wallet to your bank account at any time</li>
+              <li>The wallet does not hold money itself — it is a live record of what's sitting in your Stripe available balance</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Platform Commission & Fees",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Before funds are transferred to your account, the platform deducts its commission:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>A percentage commission is applied to each sale — the exact rate is set by the platform admin and visible in your seller dashboard</li>
+              <li>Stripe's own processing fees are also deducted as part of the transaction</li>
+              <li>What reaches your wallet is the sale amount minus commission and processing fees</li>
+              <li>You can view a full breakdown of fees on any transaction in your payout history</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Connecting Your Stripe Account",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">To receive payouts you must connect a Stripe account:</p>
+            <ol className="space-y-2 text-sm text-muted-foreground ml-4">
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">1.</span>
+                <span>Go to your seller profile and find the <strong>Payouts</strong> or <strong>Stripe Connect</strong> section</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">2.</span>
+                <span>Click <strong>Connect Stripe Account</strong> — you'll be redirected to Stripe's secure onboarding</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">3.</span>
+                <span>Complete Stripe's identity and bank account verification</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">4.</span>
+                <span>Once verified, your account is linked and future payouts will flow to it automatically</span>
+              </li>
+            </ol>
+            <p className="text-sm text-muted-foreground mt-2">You cannot receive payouts without a verified connected Stripe account. Sales will still be recorded, and funds will transfer as soon as your account is connected and verified.</p>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "seller-analytics",
+    title: "Seller Analytics & Dashboard",
+    icon: BarChart3,
+    description: "Understanding your performance and sales data",
+    content: [
+      {
+        title: "Your Seller Dashboard",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Your seller dashboard gives you a real-time overview of your business performance:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li><strong>Total Sales:</strong> Cumulative revenue across all shows and products</li>
+              <li><strong>Orders:</strong> Count of all orders including pending, shipped, and completed</li>
+              <li><strong>Pending Payouts:</strong> Funds that are in transit but not yet in your wallet</li>
+              <li><strong>Wallet Balance:</strong> What's available for withdrawal right now</li>
+              <li><strong>Active Products:</strong> How many products you currently have listed</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Show Analytics",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">After each show, you can review detailed analytics to understand how it performed:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li><strong>Peak Viewers:</strong> The highest number of simultaneous viewers during the show</li>
+              <li><strong>Total Sales:</strong> Revenue generated directly during the show</li>
+              <li><strong>Items Sold:</strong> Number of individual products purchased</li>
+              <li><strong>Giveaways Hosted:</strong> How many giveaways ran and who won</li>
+              <li><strong>Shipments Created:</strong> Orders that are ready to be shipped</li>
+              <li><strong>Tips Received:</strong> Total tips sent by viewers during the show</li>
+              <li><strong>New Followers:</strong> Viewers who followed you during or after the show</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Using Analytics to Improve",
+        body: (
+          <div className="space-y-3">
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Compare viewer count across shows to see which time slots attract more people</li>
+              <li>Track which products sell best during shows vs. through browsing</li>
+              <li>Monitor your follower growth to measure whether your audience is expanding</li>
+              <li>Review shows with high tips — this usually signals strong audience engagement</li>
+              <li>Use the shipment data to spot shows where order volume spikes, so you can prepare packaging in advance</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "seller-shipping-profiles",
+    title: "Shipping Profiles",
+    icon: Truck,
+    description: "Setting up reusable shipping rates for your products",
+    content: [
+      {
+        title: "What are Shipping Profiles?",
+        body: "Shipping profiles are reusable shipping rate templates you create once and then apply to multiple products. Instead of entering shipping costs for every individual product, you define a profile (e.g. \"Small Parcel - Standard\") with your rates and assign it to all products that match those shipping requirements."
+      },
+      {
+        title: "Creating a Shipping Profile",
+        body: (
+          <div className="space-y-3">
+            <ol className="space-y-2 text-sm text-muted-foreground ml-4">
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">1.</span>
+                <span>Go to <strong>Shipping Profiles</strong> in your seller tools</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">2.</span>
+                <span>Click <strong>Create Profile</strong> and give it a descriptive name</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">3.</span>
+                <span>Set your shipping rates — flat rate, weight-based, or free shipping</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">4.</span>
+                <span>Add any handling time or shipping zone restrictions</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">5.</span>
+                <span>Save the profile and assign it to your products</span>
+              </li>
+            </ol>
+          </div>
+        )
+      },
+      {
+        title: "Why Use Shipping Profiles?",
+        body: (
+          <div className="space-y-3">
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Save time — set rates once and apply them to dozens of products</li>
+              <li>Stay consistent — buyers see the same shipping cost for similar items</li>
+              <li>Easy to update — change the rate in one profile and it updates across all assigned products instantly</li>
+              <li>Useful for separating heavy vs. light items, or domestic vs. international shipping</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "notifications",
+    title: "Notifications & Reminders",
+    icon: Clock,
+    description: "Staying up to date with shows, orders, and activity",
+    content: [
+      {
+        title: "Types of Notifications",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The platform sends notifications through multiple channels:</p>
+            <div className="space-y-3">
+              <div>
+                <p className="font-medium text-sm mb-1">Email Notifications</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-2">
+                  <li>Order confirmations and shipping updates</li>
+                  <li>Auction win/loss notifications</li>
+                  <li>Payout transfers and wallet credits</li>
+                  <li>Dispute status updates</li>
+                  <li>Seller approval decisions</li>
+                  <li>New messages from sellers or buyers</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-sm mb-1">Push Notifications (Mobile App)</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-2">
+                  <li>Show reminders — get notified when a seller you follow goes live</li>
+                  <li>Outbid alerts — instant notification when someone beats your bid</li>
+                  <li>Giveaway results</li>
+                  <li>New order placed (for sellers)</li>
+                  <li>Order shipped confirmation (for buyers)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Show Reminders",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Never miss a show from a seller you love:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li><strong>Follow a seller</strong> to automatically receive notifications when they go live</li>
+              <li>On scheduled upcoming shows, click <strong>Remind Me</strong> to get a notification shortly before it starts</li>
+              <li>Reminders are sent via push notification on mobile and as an in-app alert on web</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Managing Your Notification Preferences",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">You can control which notifications you receive:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Go to your <strong>Profile → Settings → Notifications</strong></li>
+              <li>Toggle individual notification types on or off</li>
+              <li>Email notifications for important account events (orders, payouts, disputes) cannot be disabled as they are required for account operation</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
     id: "safety-support",
     title: "Safety & Support",
     icon: Shield,
@@ -1213,6 +1790,41 @@ export const getKnowledgeBaseSections = (appName: string = 'TokshopLive'): Knowl
     ]
   },
   {
+    id: "age-restricted",
+    title: "Age-Restricted Content",
+    icon: Shield,
+    description: "What age restrictions mean and how they work",
+    content: [
+      {
+        title: "What is Age-Restricted Mode?",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The platform may enable age restrictions when certain content or products require buyers to be of a minimum age. When this mode is active:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>You may be prompted to confirm your age before accessing certain shows or products</li>
+              <li>Some content will not be visible until age is verified</li>
+              <li>This applies to the entire platform when set by the admin, or to specific products and shows as designated by sellers</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Age Verification",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">If prompted to verify your age:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>You will be asked to confirm you meet the minimum age requirement</li>
+              <li>This confirmation is stored against your account — you won't be asked again on the same device</li>
+              <li>Providing a false age confirmation is a violation of the platform's terms of service</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">If you believe you've been incorrectly restricted from content, contact support through the Contact page.</p>
+          </div>
+        )
+      }
+    ]
+  },
+  {
     id: "tips-tricks",
     title: "Tips & Best Practices",
     icon: Star,
@@ -1260,6 +1872,284 @@ export const getKnowledgeBaseSections = (appName: string = 'TokshopLive'): Knowl
               <li><strong>Be Respectful:</strong> Treat sellers and other viewers with kindness</li>
               <li><strong>Have Fun:</strong> Live shows are entertainment - enjoy the experience!</li>
               <li><strong>Share Great Shows:</strong> Tell friends about sellers you love</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "offers-system",
+    title: "Making & Managing Offers",
+    icon: DollarSign,
+    description: "Negotiate prices directly with sellers",
+    content: [
+      {
+        title: "What is the Offers System?",
+        body: `The offers system lets buyers propose a lower price on a product instead of paying the full listed amount. Sellers can then accept, decline, or send back a counter-offer. It's a way to negotiate directly — similar to haggling at a market, but done in the app. Not all products accept offers; it depends on the seller enabling it for that listing.`
+      },
+      {
+        title: "How to Make an Offer (Buyers)",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">When you see a product with an "Make Offer" button:</p>
+            <ol className="space-y-2 text-sm text-muted-foreground ml-4">
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">1.</span>
+                <span>Click <strong>Make Offer</strong> on the product page</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">2.</span>
+                <span>Choose a preset discount (5%, 10%, 15%, or 20% off) or enter a custom price</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">3.</span>
+                <span>Review your offer amount and click <strong>Submit Offer</strong></span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">4.</span>
+                <span>The seller is notified and will accept, decline, or counter your offer</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-semibold text-foreground min-w-[20px]">5.</span>
+                <span>Track the status of your offer in <strong>My Offers</strong></span>
+              </li>
+            </ol>
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mt-2">
+              <p className="text-sm font-medium mb-1">💡 Tips for successful offers</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Be reasonable — very low offers are likely to be declined</li>
+                <li>• The seller can see your offer history so be consistent</li>
+                <li>• You can cancel an offer before the seller responds</li>
+              </ul>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Responding to Offers (Sellers)",
+        body: (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">When a buyer makes an offer on one of your products, you have three options:</p>
+            <div className="space-y-3">
+              <div className="border-l-4 border-green-500 pl-4">
+                <h5 className="font-semibold mb-1">Accept</h5>
+                <p className="text-sm text-muted-foreground">Agree to the buyer's proposed price. The buyer is charged at the offer price and the order is created automatically.</p>
+              </div>
+              <div className="border-l-4 border-red-500 pl-4">
+                <h5 className="font-semibold mb-1">Decline</h5>
+                <p className="text-sm text-muted-foreground">Reject the offer. The buyer is notified and can make a new offer or purchase at full price.</p>
+              </div>
+              <div className="border-l-4 border-blue-500 pl-4">
+                <h5 className="font-semibold mb-1">Counter Offer</h5>
+                <p className="text-sm text-muted-foreground">Propose a different price — typically somewhere between the buyer's offer and your list price. The buyer then gets to accept or decline your counter.</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">Find all incoming offers in your <strong>Offers</strong> page under seller tools. You can filter by status (pending, accepted, declined) and search by product or buyer name.</p>
+          </div>
+        )
+      },
+      {
+        title: "Counter Offers & Negotiation",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">When a seller sends a counter offer:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>You'll receive a notification with the seller's proposed price</li>
+              <li>Go to <strong>My Offers</strong> to review the counter</li>
+              <li><strong>Accept</strong> — you'll be charged at the counter price and the order is created</li>
+              <li><strong>Decline</strong> — the offer ends; you can try a new offer or purchase at list price</li>
+            </ul>
+            <p className="text-sm text-muted-foreground mt-2">There is one round of counter-offer — buyers cannot counter the counter. If you decline, the negotiation ends.</p>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "account-profile",
+    title: "Account & Profile Management",
+    icon: Users,
+    description: "Managing your profile, security, and account settings",
+    content: [
+      {
+        title: "Editing Your Profile",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Your profile is visible to other users. Keep it up to date:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Go to <strong>Profile</strong> from the navigation menu</li>
+              <li>Update your display name, profile photo, and bio</li>
+              <li>Your profile photo and name are visible to sellers and other buyers in show chats</li>
+              <li>Sellers see your profile when you make offers or place orders</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Account Settings",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Access full account settings from the <strong>Account</strong> page in the navigation:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li><strong>Personal Information:</strong> Update name, email, and contact details</li>
+              <li><strong>Security:</strong> Change password, manage login methods</li>
+              <li><strong>Notifications:</strong> Control which emails and push notifications you receive</li>
+              <li><strong>Privacy:</strong> Manage what others can see on your profile</li>
+              <li><strong>Payment Methods:</strong> Add, update, or remove saved cards</li>
+              <li><strong>Shipping Addresses:</strong> Manage your saved delivery addresses</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Resetting Your Password",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">If you forget your password or want to change it:</p>
+            <div className="border-l-4 border-blue-500 pl-4 mb-3">
+              <h5 className="font-semibold mb-1">Forgot your password?</h5>
+              <ol className="space-y-1 text-sm text-muted-foreground">
+                <li>1. Click <strong>Forgot Password</strong> on the login page</li>
+                <li>2. Enter the email address on your account</li>
+                <li>3. Check your email for a reset link (check spam if it doesn't arrive)</li>
+                <li>4. Click the link and set a new password</li>
+                <li>5. The reset link expires after 1 hour — request a new one if it expires</li>
+              </ol>
+            </div>
+            <div className="border-l-4 border-green-500 pl-4">
+              <h5 className="font-semibold mb-1">Already logged in?</h5>
+              <p className="text-sm text-muted-foreground">Go to <strong>Account → Security</strong> to change your password without needing the reset flow.</p>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Viewing Other Profiles",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">You can view any user's public profile:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Click on a seller's name in a show or product listing to view their public profile</li>
+              <li>Seller profiles show their active products, past shows, and reviews</li>
+              <li>From a profile you can follow the seller, browse their shop, and message them directly</li>
+              <li>Buyer profiles show basic info only — other buyers cannot see your purchase history</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "following-social",
+    title: "Following & Social Features",
+    icon: Users,
+    description: "Building your community and connecting with others",
+    content: [
+      {
+        title: "Following Sellers",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Following a seller is the best way to stay connected with them:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Click <strong>Follow</strong> on any seller's profile or during their live show</li>
+              <li>You'll get a notification whenever they go live</li>
+              <li>Their shows appear in your <strong>Following</strong> tab on the homepage</li>
+              <li>Sellers can see their follower count — your support helps them grow</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Managing Who You Follow",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The <strong>Following</strong> page shows everyone you currently follow:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Search through your following list to find a specific person</li>
+              <li>See their follower count to gauge their popularity</li>
+              <li>Send them a direct message from the following list</li>
+              <li>Unfollow anyone by visiting their profile and clicking <strong>Unfollow</strong></li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Direct Messaging",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Send private messages to sellers or other users you follow:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Use the message icon on a profile or from your following list</li>
+              <li>Great for asking about custom orders, stock availability, or post-sale questions</li>
+              <li>Sellers typically respond within a few hours</li>
+              <li>Message history is stored so you can refer back to past conversations</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Seller Follower Count & Growth",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">For sellers, your follower count is an important metric:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>New followers gained during each show appear in your show analytics</li>
+              <li>Higher follower counts mean more viewers automatically notified when you go live</li>
+              <li>Engaging in chat and hosting giveaways are proven ways to grow your following</li>
+              <li>Consistent show schedules help — followers know when to tune in</li>
+            </ul>
+          </div>
+        )
+      }
+    ]
+  },
+  {
+    id: "help-center",
+    title: "Help Center & Support Articles",
+    icon: BookOpen,
+    description: "Finding step-by-step guides and support articles",
+    content: [
+      {
+        title: "Knowledge Base vs Help Center",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">The platform offers two different support resources:</p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="border rounded-lg p-4">
+                <h5 className="font-semibold mb-2">Knowledge Base (this page)</h5>
+                <p className="text-sm text-muted-foreground">A comprehensive reference covering all platform features. Good for understanding how things work in depth.</p>
+              </div>
+              <div className="border rounded-lg p-4">
+                <h5 className="font-semibold mb-2">Help Center</h5>
+                <p className="text-sm text-muted-foreground">Short, focused how-to articles on specific tasks. Good for step-by-step guidance on a particular action.</p>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        title: "Using the Help Center",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">Access the Help Center from the footer or the support menu:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Browse articles by category or use the search bar to find your topic</li>
+              <li>Articles cover specific tasks like "How to create a shipping label" or "How to set up Stripe Connect"</li>
+              <li>Each article is focused on one task with clear numbered steps</li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        title: "Still Need Help?",
+        body: (
+          <div className="space-y-3">
+            <p className="text-muted-foreground">If you can't find what you need in the Help Center or Knowledge Base:</p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+              <li>Use the <strong>Contact</strong> page to send a message to the support team</li>
+              <li>Include as much detail as possible — order numbers, screenshots, and a clear description help us resolve issues faster</li>
+              <li>The support team typically responds within 24 hours</li>
             </ul>
           </div>
         )

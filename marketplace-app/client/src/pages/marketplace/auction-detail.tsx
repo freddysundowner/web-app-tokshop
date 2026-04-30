@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -106,7 +106,7 @@ export default function AuctionDetail() {
         if (storedUserData) {
           shippingHeaders['x-user-data'] = btoa(unescape(encodeURIComponent(storedUserData)));
         }
-        const response = await fetch('/api/shipping/estimate', {
+        const response = await fetchWithAuth('/api/shipping/estimate', {
           method: 'POST',
           headers: shippingHeaders,
           credentials: 'include',

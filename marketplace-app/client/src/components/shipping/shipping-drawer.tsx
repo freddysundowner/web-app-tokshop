@@ -32,8 +32,9 @@ import {
 import type { TokshopOrder, ShippingEstimateRequest, ShippingEstimateResponse, ShippingLabelPurchaseRequest, ShippingLabelPurchaseResponse, ShipmentBundle } from "@shared/schema";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithAuth } from '@/lib/queryClient';
 import { BulkLabelDialog } from "./bulk-label-dialog";
+import { useAuth } from "@/lib/auth-context";
 
 interface ShippingDrawerProps {
   order?: TokshopOrder;
@@ -134,11 +135,21 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   
   // Extract dimensions from order data
   const getRealOrderDimensions = () => {
+    // Check top-level order dimensions first
     if (displayOrder.length && displayOrder.width && displayOrder.height) {
       return {
         length: displayOrder.length.toString(),
         width: displayOrder.width.toString(),
         height: displayOrder.height.toString(),
+      };
+    }
+    
+    // For giveaway orders, use dimensions stored directly on the giveaway object
+    if (displayOrder.giveaway?.length && displayOrder.giveaway?.width && displayOrder.giveaway?.height) {
+      return {
+        length: displayOrder.giveaway.length.toString(),
+        width: displayOrder.giveaway.width.toString(),
+        height: displayOrder.giveaway.height.toString(),
       };
     }
     
@@ -152,6 +163,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   
   // Extract weight from order data
   const getRealOrderWeight = () => {
+    // Check top-level order weight first
     if (displayOrder.weight) {
       return displayOrder.weight.toString();
     }
@@ -164,6 +176,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         }
       });
     }
+    // For giveaway orders: check the shipping profile weight
     if ((displayOrder as any).giveaway?.shipping_profile?.weight) {
       totalWeight += Number((displayOrder as any).giveaway.shipping_profile.weight);
     }
@@ -184,8 +197,13 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
   // Check if we have valid data for fetching estimates
   const hasValidDimensions = Boolean(dimensions.length && dimensions.width && dimensions.height && weight);
 
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Detect local pickup orders — no label needed, just mark as shipped
+  const isLocalPickup = (displayOrder as any).rate_id === 'LOCAL_PICKUP' ||
+    bundleOrders.some((o: any) => o.rate_id === 'LOCAL_PICKUP');
 
 
   // Shipping estimates API call - automatically fetch when drawer opens with valid data
@@ -229,7 +247,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         headers['x-user-data'] = btoa(unescape(encodeURIComponent(userData)));
       }
 
-      const response = await fetch(`/api/shipping/profiles/estimate/rates`, {
+      const response = await fetchWithAuth(`/api/shipping/profiles/estimate/rates`, {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -249,8 +267,6 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
 
   const estimates = shippingEstimatesQuery.data || [];
   
-  // Only fetch estimates when dimensions/weight actually change (user edits inputs)
-  // NOT on drawer open - only on explicit changes or Refresh button click
   const initialSignatureRef = useRef<string | null>(null);
   
   useEffect(() => {
@@ -265,11 +281,12 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
       orderId: displayOrder._id,
     });
     
-    // On first open, just store the initial signature without fetching
+    // On first open: always fetch estimates if we have valid dimensions
     if (initialSignatureRef.current === null) {
       initialSignatureRef.current = currentSignature;
       lastFetchedSignatureRef.current = currentSignature;
-      return; // Don't fetch on initial open
+      shippingEstimatesQuery.refetch();
+      return;
     }
     
     // Only fetch if values changed from what we last fetched
@@ -434,6 +451,33 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
+    },
+  });
+
+  const markAsShippedMutation = useMutation({
+    mutationFn: async () => {
+      const bundleId = isBundle
+        ? (bundleOrders[0] as any)?.bundleId
+        : (displayOrder as any).bundleId;
+      const response = await apiRequest('POST', `/api/orders/bundle/${bundleId}/ship`, {
+        userId: user?._id,
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success !== false) {
+        queryClient.invalidateQueries({ queryKey: ['/api/bundles'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/shipping/metrics'] });
+        queryClient.invalidateQueries({ queryKey: ['external-orders'] });
+        toast({ title: "Order marked as shipped!" });
+        setIsOpen(false);
+      } else {
+        toast({ title: "Failed to mark as shipped", description: data.error, variant: "destructive" });
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to mark as shipped", description: error.message, variant: "destructive" });
     },
   });
 
@@ -679,7 +723,33 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
             </Card>
           )}
 
+          {/* Local Pickup — no label needed */}
+          {isLocalPickup && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Package size={16} />
+                  Local Pickup
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  This order was selected for local pickup. No shipping label is required.
+                </p>
+                <Button
+                  onClick={() => markAsShippedMutation.mutate()}
+                  disabled={markAsShippedMutation.isPending}
+                  className="w-full"
+                  data-testid="button-mark-as-shipped"
+                >
+                  {markAsShippedMutation.isPending ? 'Marking as shipped...' : 'Mark as Shipped'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Package Dimensions */}
+          {!isLocalPickup && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -771,8 +841,10 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
 
             </CardContent>
           </Card>
+          )}
 
           {/* Shipping Estimates */}
+          {!isLocalPickup && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -895,6 +967,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Current Status */}
           {(displayOrder.tracking_number || (isBundle && bundleOrders.some(order => order.tracking_number))) && (

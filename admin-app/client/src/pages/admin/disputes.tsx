@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Eye, Search, Filter, X } from "lucide-react";
+import { fetchWithAuth } from "@/lib/queryClient";
 
 interface Dispute {
   _id: string;
@@ -56,9 +57,7 @@ export default function AdminDisputes() {
   const { data: disputesData, isLoading } = useQuery<any>({
     queryKey: ['/api/admin/disputes', page, statusFilter],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/disputes?${queryParams.toString()}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/admin/disputes?${queryParams.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch disputes');
       }

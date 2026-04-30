@@ -581,33 +581,33 @@ export default function AdminSettings() {
                   <Label htmlFor="stripepublickey">Stripe Publishable Key</Label>
                   <Input
                     id="stripepublickey"
-                    value={themeFormData.demoMode ? maskKey(formData.stripepublickey) : formData.stripepublickey}
+                    value={isDemoMode ? maskKey(formData.stripepublickey) : formData.stripepublickey}
                     onChange={(e) => handleInputChange('stripepublickey', e.target.value)}
                     placeholder="pk_test_..."
                     data-testid="input-stripe-public-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="stripeSecretKey">Stripe Secret Key</Label>
                   <Input
                     id="stripeSecretKey"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.stripeSecretKey) : formData.stripeSecretKey}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.stripeSecretKey) : formData.stripeSecretKey}
                     onChange={(e) => handleInputChange('stripeSecretKey', e.target.value)}
                     placeholder="sk_test_..."
                     data-testid="input-stripe-secret-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Keep this key secret and secure
@@ -617,17 +617,17 @@ export default function AdminSettings() {
                   <Label htmlFor="stripe_webhook_key">Stripe Webhook Secret</Label>
                   <Input
                     id="stripe_webhook_key"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.stripe_webhook_key) : formData.stripe_webhook_key}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.stripe_webhook_key) : formData.stripe_webhook_key}
                     onChange={(e) => handleInputChange('stripe_webhook_key', e.target.value)}
                     placeholder="whsec_..."
                     data-testid="input-stripe-webhook-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Used for verifying webhook events from Stripe Connected Account
@@ -637,17 +637,17 @@ export default function AdminSettings() {
                   <Label htmlFor="stripe_platform_webhook_key">Stripe Platform Webhook Key</Label>
                   <Input
                     id="stripe_platform_webhook_key"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.stripe_platform_webhook_key) : formData.stripe_platform_webhook_key}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.stripe_platform_webhook_key) : formData.stripe_platform_webhook_key}
                     onChange={(e) => handleInputChange('stripe_platform_webhook_key', e.target.value)}
                     placeholder="whsec_..."
                     data-testid="input-stripe-platform-webhook-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Used for verifying webhook events from Stripe Platform
@@ -661,8 +661,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('stripe_connect_account', e.target.value)}
                     placeholder="acct_..."
                     data-testid="input-stripe-connect-account"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
                   />
                   <p className="text-xs text-muted-foreground">
                     Stripe Connect account ID to receive shipping fees
@@ -676,8 +676,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('stripe_service_fee_account', e.target.value)}
                     placeholder="acct_..."
                     data-testid="input-stripe-service-fee-account"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
                   />
                   <p className="text-xs text-muted-foreground">
                     Stripe Connect account ID to receive service fees
@@ -1071,8 +1071,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('firebase_auth_domain', e.target.value)}
                     placeholder="your-project.firebaseapp.com"
                     data-testid="input-firebase-auth-domain"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
                   />
                 </div>
 
@@ -1084,8 +1084,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('firebase_project_id', e.target.value)}
                     placeholder="your-project-id"
                     data-testid="input-firebase-project-id"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
                   />
                 </div>
 
@@ -1097,8 +1097,8 @@ export default function AdminSettings() {
                     onChange={(e) => handleInputChange('firebase_storage_bucket', e.target.value)}
                     placeholder="your-project.appspot.com"
                     data-testid="input-firebase-storage-bucket"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
                   />
                 </div>
 
@@ -1106,17 +1106,17 @@ export default function AdminSettings() {
                   <Label htmlFor="firebase_app_id">Firebase App ID</Label>
                   <Input
                     id="firebase_app_id"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.firebase_app_id) : formData.firebase_app_id}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.firebase_app_id) : formData.firebase_app_id}
                     onChange={(e) => handleInputChange('firebase_app_id', e.target.value)}
                     placeholder="1:123456789:web:abc123def456"
                     data-testid="input-firebase-app-id"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Keep this App ID secure
@@ -1127,17 +1127,17 @@ export default function AdminSettings() {
                   <Label htmlFor="FIREBASE_API_KEY">Firebase API Key</Label>
                   <Input
                     id="FIREBASE_API_KEY"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.FIREBASE_API_KEY) : formData.FIREBASE_API_KEY}
                     onChange={(e) => handleInputChange('FIREBASE_API_KEY', e.target.value)}
                     placeholder="AIza..."
                     data-testid="input-firebase-api-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     API key for Firebase authentication and storage
@@ -1166,34 +1166,34 @@ export default function AdminSettings() {
                   <Label htmlFor="livekit_api_key">LiveKit API Key</Label>
                   <Input
                     id="livekit_api_key"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.livekit_api_key) : formData.livekit_api_key}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.livekit_api_key) : formData.livekit_api_key}
                     onChange={(e) => handleInputChange('livekit_api_key', e.target.value)}
                     placeholder="API..."
                     data-testid="input-livekit-api-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="livekit_api_secret">LiveKit API Secret</Label>
                   <Input
                     id="livekit_api_secret"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.livekit_api_secret) : formData.livekit_api_secret}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.livekit_api_secret) : formData.livekit_api_secret}
                     onChange={(e) => handleInputChange('livekit_api_secret', e.target.value)}
                     placeholder="Secret..."
                     data-testid="input-livekit-api-secret"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     LiveKit credentials for video streaming
@@ -1212,17 +1212,17 @@ export default function AdminSettings() {
                   <Label htmlFor="shippo_api_key">Shippo API Key</Label>
                   <Input
                     id="shippo_api_key"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.shippo_api_key) : formData.shippo_api_key}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.shippo_api_key) : formData.shippo_api_key}
                     onChange={(e) => handleInputChange('shippo_api_key', e.target.value)}
                     placeholder="shippo_..."
                     data-testid="input-shippo-api-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Used for shipping label generation
@@ -1233,17 +1233,17 @@ export default function AdminSettings() {
                   <Label htmlFor="google_api_key">Google API Key</Label>
                   <Input
                     id="google_api_key"
-                    type={themeFormData.demoMode ? 'text' : 'password'}
-                    value={themeFormData.demoMode ? maskKey(formData.google_api_key) : formData.google_api_key}
+                    type={isDemoMode ? 'text' : 'password'}
+                    value={isDemoMode ? maskKey(formData.google_api_key) : formData.google_api_key}
                     onChange={(e) => handleInputChange('google_api_key', e.target.value)}
                     placeholder="AIza..."
                     data-testid="input-google-api-key"
-                    readOnly={themeFormData.demoMode}
-                    disabled={themeFormData.demoMode}
-                    onCopy={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onCut={(e) => themeFormData.demoMode && e.preventDefault()}
-                    onPaste={(e) => themeFormData.demoMode && e.preventDefault()}
-                    className={themeFormData.demoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
+                    readOnly={isDemoMode}
+                    disabled={isDemoMode}
+                    onCopy={(e) => isDemoMode && e.preventDefault()}
+                    onCut={(e) => isDemoMode && e.preventDefault()}
+                    onPaste={(e) => isDemoMode && e.preventDefault()}
+                    className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
                     Used for Google services (Maps, Places, etc.)

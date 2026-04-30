@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -119,6 +119,7 @@ export function InventoryProductForm({
       startTime: null,
       endTime: null,
       whocanenter: 'everyone',
+      local_only: true,
       tokshow: "general",
       flash_sale: false,
       flash_sale_discount_type: 'percentage',
@@ -167,7 +168,7 @@ export function InventoryProductForm({
   const { data: categoriesResponse, isLoading: loadingCategories } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["external-categories", user?.id],
     queryFn: async () => {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/categories?userId=${user?.id}&status=active&page=1&limit=100`,
         {
           method: "GET",
@@ -191,7 +192,7 @@ export function InventoryProductForm({
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/shipping/profiles/${user.id}`,
         {
           method: "GET",
@@ -215,7 +216,7 @@ export function InventoryProductForm({
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         `/api/rooms?userid=${user.id}&status=active`,
         {
           method: "GET",
@@ -285,6 +286,7 @@ export function InventoryProductForm({
         sudden: (product as any).sudden ?? false,
         list_individually: (product as any).list_individually ?? false,
         whocanenter: (product as any).whocanenter || 'everyone',
+        local_only: (product as any).local_only ?? true,
         flash_sale: (product as any).flash_sale ?? false,
         flash_sale_discount_type: (product as any).flash_sale_discount_type ?? 'percentage',
         flash_sale_discount_value: (product as any).flash_sale_discount_value ?? 0,
@@ -815,6 +817,27 @@ export function InventoryProductForm({
                             </SelectContent>
                           </Select>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="local_only"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Local Only</FormLabel>
+                            <p className="text-xs text-muted-foreground">
+                              Only participants in the same country as you can enter
+                            </p>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={!!field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-local-only"
+                            />
+                          </FormControl>
                         </FormItem>
                       )}
                     />

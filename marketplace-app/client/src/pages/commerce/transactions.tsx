@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Transactions() {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ export default function Transactions() {
         params.append('status', statusFilter);
       }
       
-      const response = await fetch(`/api/user/transactions?${params.toString()}`, {
+      const response = await fetchWithAuth(`/api/user/transactions?${params.toString()}`, {
         credentials: 'include',
       });
       if (!response.ok) {
@@ -54,7 +55,7 @@ export default function Transactions() {
   const { data: settingsData } = useQuery<any>({
     queryKey: ['public-settings'],
     queryFn: async () => {
-      const response = await fetch('/api/public/settings', {
+      const response = await fetchWithAuth('/api/public/settings', {
         credentials: 'include',
       });
       if (!response.ok) {
@@ -216,7 +217,7 @@ export default function Transactions() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
+                        <TableHead>Reason</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -228,10 +229,38 @@ export default function Transactions() {
                           <TableCell className="font-medium">
                             {formatDate(transaction.createdAt)}
                           </TableCell>
-                          <TableCell>{getTypeBadge(transaction.type)}</TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">{transaction.reason || '-'}</span>
+                          </TableCell>
                           <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                          <TableCell className={`text-right font-medium ${transaction.type?.toLowerCase() === 'payout' ? 'text-red-500' : ''}`}>
-                            {transaction.type?.toLowerCase() === 'payout' ? '-' : ''}${(parseFloat(transaction.amount) || 0).toFixed(2)}
+                          <TableCell className="text-right font-medium">
+                            {(() => {
+                              const txUserId = user?.id || user?._id;
+                              const isPurchase = transaction.type === 'order' || transaction.type === 'sale' || transaction.type === 'purchase';
+                              const fromId = typeof transaction.from === 'object' ? transaction.from?._id : transaction.from;
+                              const isBuyer = txUserId && fromId === txUserId;
+
+                              if (isPurchase && isBuyer && parseFloat(transaction.total) > 0) {
+                                const orderTotal = (parseFloat(transaction.total) || 0) + (parseFloat(transaction.shippingFee) || 0) - (parseFloat(transaction.discount) || 0);
+                                return <span>${orderTotal.toFixed(2)}</span>;
+                              }
+
+                              return (
+                                <div>
+                                  <span>${(parseFloat(transaction.amount) || 0).toFixed(2)}</span>
+                                  {transaction.type === 'payout' && transaction.bank_name && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {transaction.bank_name}
+                                    </div>
+                                  )}
+                                  {isPurchase && !isBuyer && (transaction.available_on || transaction.availableOn) && Number(transaction.available_on || transaction.availableOn) > 0 && (
+                                    <div className="text-xs text-teal-600">
+                                      Available {new Date(Number(transaction.available_on || transaction.availableOn)).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -317,7 +346,6 @@ export default function Transactions() {
 
               <div className="border-t pt-4 space-y-2 text-sm">
                 {(() => {
-                  // For non-purchase transactions (shipping_deduction, refund, etc.), only show amount
                   const isPurchaseTransaction = selectedTransaction.type === 'sale' || 
                                                 selectedTransaction.type === 'purchase' ||
                                                 selectedTransaction.type === 'order';
@@ -325,32 +353,83 @@ export default function Transactions() {
                   if (!isPurchaseTransaction) {
                     const isPayout = selectedTransaction.type?.toLowerCase() === 'payout';
                     return (
-                      <div className="flex justify-between items-center text-lg font-bold">
-                        <span>Amount:</span>
-                        <span className={isPayout ? 'text-red-500' : ''}>{isPayout ? '-' : ''}${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>
-                      </div>
+                      <>
+                        <div className="flex justify-between items-center text-lg font-bold">
+                          <span>Amount:</span>
+                          <span className={isPayout ? 'text-red-500' : ''}>{isPayout ? '-' : ''}${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>
+                        </div>
+                        {isPayout && selectedTransaction.bank_name && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Bank:</span>
+                            <span>{selectedTransaction.bank_name}</span>
+                          </div>
+                        )}
+                        {isPayout && selectedTransaction.balance_after_payout !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Balance After Payout:</span>
+                            <span className="text-teal-600">${parseFloat(String(selectedTransaction.balance_after_payout || 0)).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </>
                     );
                   }
 
-                  // For purchase transactions, show full breakdown
+                  const total = parseFloat(selectedTransaction.total) || 0;
                   const stripeFee = parseFloat(selectedTransaction.stripe_fee) || 0;
-                  const extraCharges = parseFloat(selectedTransaction.extra_charges) || 0;
                   const serviceFee = parseFloat(selectedTransaction.serviceFee) || 0;
                   const shippingFee = parseFloat(selectedTransaction.shippingFee) || 0;
                   const discount = parseFloat(selectedTransaction.discount) || 0;
-                  const combined = stripeFee + extraCharges;
-                  const isOwner = user?.id && selectedTransaction.to?._id && user.id === selectedTransaction.to._id;
+                  const extraCharges = parseFloat(selectedTransaction.extra_charges) || 0;
+                  const amount = parseFloat(selectedTransaction.amount) || 0;
+
+                  const receiptUserId = user?.id || user?._id;
+                  const receiptFromId = typeof selectedTransaction.from === 'object' ? selectedTransaction.from?._id : selectedTransaction.from;
+                  const isBuyer = receiptUserId && receiptFromId === receiptUserId;
+
+                  if (isBuyer) {
+                    const totalPaid = total + shippingFee;
+                    return (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Subtotal:</span>
+                          <span>${total.toFixed(2)}</span>
+                        </div>
+                        {shippingFee > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Shipping:</span>
+                            <span>${shippingFee.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {discount > 0 && (
+                          <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
+                            <span>Discount:</span>
+                            <span>-${discount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
+                          <span>Total Paid:</span>
+                          <span>${(totalPaid - discount).toFixed(2)}</span>
+                        </div>
+                      </>
+                    );
+                  }
 
                   return (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total:</span>
-                        <span>${(parseFloat(selectedTransaction.total) || 0).toFixed(2)}</span>
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span>${total.toFixed(2)}</span>
                       </div>
-                      {combined > 0 && (
+                      {shippingFee > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Service Charge ({settingsStripeFee}% + {settingsExtraCharges}%):</span>
-                          <span className="text-destructive">-${combined.toFixed(2)}</span>
+                          <span className="text-muted-foreground">Shipping Fee:</span>
+                          <span>${shippingFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {stripeFee > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Transaction Fee:</span>
+                          <span className="text-destructive">-${stripeFee.toFixed(2)}</span>
                         </div>
                       )}
                       {serviceFee > 0 && (
@@ -359,10 +438,10 @@ export default function Transactions() {
                           <span className="text-destructive">-${serviceFee.toFixed(2)}</span>
                         </div>
                       )}
-                      {!isOwner && shippingFee > 0 && (
+                      {extraCharges > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Shipping Fee:</span>
-                          <span className="text-destructive">-${shippingFee.toFixed(2)}</span>
+                          <span className="text-muted-foreground">Extra Charges:</span>
+                          <span className="text-destructive">-${extraCharges.toFixed(2)}</span>
                         </div>
                       )}
                       {discount > 0 && (
@@ -372,9 +451,15 @@ export default function Transactions() {
                         </div>
                       )}
                       <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
-                        <span>Amount:</span>
-                        <span>${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>
+                        <span>Earnings:</span>
+                        <span>${amount.toFixed(2)}</span>
                       </div>
+                      {(selectedTransaction.available_on || selectedTransaction.availableOn) && Number(selectedTransaction.available_on || selectedTransaction.availableOn) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Available On:</span>
+                          <span className="text-teal-600">{new Date(Number(selectedTransaction.available_on || selectedTransaction.availableOn)).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        </div>
+                      )}
                     </>
                   );
                 })()}

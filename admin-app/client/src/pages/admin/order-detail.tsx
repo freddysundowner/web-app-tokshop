@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, Store, Gift, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithAuth } from "@/lib/queryClient";
 
 export default function AdminOrderDetail() {
   const [, setLocation] = useLocation();
@@ -27,9 +27,7 @@ export default function AdminOrderDetail() {
   const { data: orderData, isLoading } = useQuery<any>({
     queryKey: [`admin-order-${orderId}`],
     queryFn: async () => {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithAuth(`/api/orders/${orderId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch order');
       }
