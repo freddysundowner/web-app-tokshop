@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { AdminLayout } from "@/components/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +38,6 @@ import {
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
 } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -985,38 +984,29 @@ export default function AdminEmailBulk() {
   };
 
   return (
-    <AdminLayout title="Bulk Emails" description="Search users or upload CSV to send bulk emails">
-      <div className="space-y-6">
+    <AdminLayout title="Bulk Emails" description="Send emails to sellers, buyers, or specific users">
+      <div className="space-y-4 max-w-3xl">
+
+        {/* Email Content */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Email Content
-            </CardTitle>
-            <CardDescription>
-              Choose a template or create a custom email
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4 space-y-2">
-              <Label htmlFor="from-email">From Email (optional - uses default from settings if empty)</Label>
-              <Input
-                id="from-email"
-                type="email"
-                placeholder="Leave empty to use default from settings"
-                value={fromEmail}
-                onChange={(e) => setFromEmail(e.target.value)}
-                data-testid="input-from-email"
-              />
-            </div>
-
+          <CardContent className="pt-5 space-y-4">
             <Tabs value={emailMode} onValueChange={(v) => setEmailMode(v as "template" | "custom")}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="template" data-testid="tab-template">Use Template</TabsTrigger>
-                <TabsTrigger value="custom" data-testid="tab-custom">Create Custom</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between mb-3">
+                <TabsList>
+                  <TabsTrigger value="template" data-testid="tab-template">Template</TabsTrigger>
+                  <TabsTrigger value="custom" data-testid="tab-custom">Custom</TabsTrigger>
+                </TabsList>
+                <Input
+                  type="email"
+                  placeholder="From email (optional)"
+                  value={fromEmail}
+                  onChange={(e) => setFromEmail(e.target.value)}
+                  className="max-w-[240px] h-8 text-sm"
+                  data-testid="input-from-email"
+                />
+              </div>
 
-              <TabsContent value="template" className="space-y-4">
+              <TabsContent value="template" className="space-y-3 mt-0">
                 <div className="flex gap-2 items-center">
                   <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
                     <SelectTrigger data-testid="select-template" className="flex-1">
@@ -1025,175 +1015,100 @@ export default function AdminEmailBulk() {
                     <SelectContent>
                       {templates.map((template) => (
                         <SelectItem key={template._id} value={template._id}>
-                          {template.name} ({template.slug})
+                          {template.name}
                         </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedTemplate && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setDeleteConfirmOpen(true)}
-                    data-testid="button-delete-template"
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                )}
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTemplate && (
+                    <Button variant="outline" size="icon" onClick={() => setDeleteConfirmOpen(true)} data-testid="button-delete-template">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
                 </div>
 
                 {selectedTemplateData && (
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-2">Placeholders (auto-populated from settings and user data):</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTemplateData.placeholders.map((p) => (
-                        <Badge key={p} variant="outline" size="sm">
-                          {`{{${p}}}`}
-                        </Badge>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedTemplateData.placeholders.map((p) => (
+                      <Badge key={p} variant="outline" className="text-xs font-mono">{`{{${p}}}`}</Badge>
+                    ))}
                   </div>
                 )}
 
                 {selectedTemplateData && (selectedTemplateData.name?.toLowerCase().includes('update') || selectedTemplateData.slug?.toLowerCase().includes('update')) && (
-                  <div className="space-y-2">
-                    <Label>What's New (Release Notes)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">What's New — replaces {"{{whats_new}}"}</Label>
                     <div className="border rounded-lg overflow-hidden bg-white">
-                      <ReactQuill
-                        theme="snow"
-                        value={whatsNew}
-                        onChange={setWhatsNew}
-                        modules={quillModules}
-                        formats={quillFormats}
-                        placeholder="Enter what's new in this update... (bullet points, features, bug fixes, etc.)"
-                        style={{ minHeight: '150px' }}
-                      />
+                      <ReactQuill theme="snow" value={whatsNew} onChange={setWhatsNew} modules={quillModules} formats={quillFormats} placeholder="Release notes..." style={{ minHeight: '120px' }} />
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      This will replace {"{{whats_new}}"} in the email template
-                    </p>
                   </div>
                 )}
               </TabsContent>
 
-              <TabsContent value="custom" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="custom-subject">Subject</Label>
-                  <Input
-                    id="custom-subject"
-                    placeholder="Enter email subject..."
-                    value={customSubject}
-                    onChange={(e) => setCustomSubject(e.target.value)}
-                    data-testid="input-custom-subject"
-                  />
+              <TabsContent value="custom" className="space-y-3 mt-0">
+                <Input
+                  placeholder="Subject..."
+                  value={customSubject}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                  data-testid="input-custom-subject"
+                />
+                <div className="border rounded-lg overflow-hidden bg-white">
+                  <ReactQuill theme="snow" value={customHtml} onChange={setCustomHtml} modules={quillModules} formats={quillFormats} placeholder="Compose your email..." style={{ minHeight: '260px' }} />
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Email Body</Label>
-                  <div className="border rounded-lg overflow-hidden bg-white">
-                    <ReactQuill
-                      theme="snow"
-                      value={customHtml}
-                      onChange={setCustomHtml}
-                      modules={quillModules}
-                      formats={quillFormats}
-                      placeholder="Compose your email..."
-                      style={{ minHeight: '300px' }}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Available placeholders: {"{{username}}"}, {"{{firstname}}"}, {"{{lastname}}"}, {"{{email}}"}
-                  </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Use: {"{{username}}"} {"{{firstname}}"} {"{{lastname}}"} {"{{email}}"}</p>
+                  {customSubject && customHtml && (
+                    <Button variant="outline" size="sm" onClick={() => setSaveTemplateOpen(true)} data-testid="button-save-template">
+                      <Save className="h-3.5 w-3.5 mr-1.5" />
+                      Save as Template
+                    </Button>
+                  )}
                 </div>
-
-                {customSubject && customHtml && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setSaveTemplateOpen(true)}
-                    data-testid="button-save-template"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save as Template
-                  </Button>
-                )}
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
 
+        {/* Recipients */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Select Recipients
-            </CardTitle>
-            <CardDescription>
-              Choose recipient type, then search or load from the database
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium shrink-0">Recipient Type:</Label>
-              <div className="flex rounded-lg border overflow-hidden" data-testid="recipient-type-selector">
-                <button
-                  onClick={() => setRecipientType("all")}
-                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${recipientType === "all" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  data-testid="button-type-all"
-                >
-                  All Users
-                </button>
-                <button
-                  onClick={() => setRecipientType("sellers")}
-                  className={`px-4 py-1.5 text-sm font-medium border-l transition-colors ${recipientType === "sellers" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  data-testid="button-type-sellers"
-                >
-                  Sellers
-                </button>
-                <button
-                  onClick={() => setRecipientType("buyers")}
-                  className={`px-4 py-1.5 text-sm font-medium border-l transition-colors ${recipientType === "buyers" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                  data-testid="button-type-buyers"
-                >
-                  Buyers
-                </button>
+          <CardContent className="pt-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Send to</p>
+              <div className="flex rounded-md border overflow-hidden" data-testid="recipient-type-selector">
+                <button onClick={() => setRecipientType("all")} className={`px-3 py-1 text-sm transition-colors ${recipientType === "all" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`} data-testid="button-type-all">All Users</button>
+                <button onClick={() => setRecipientType("sellers")} className={`px-3 py-1 text-sm border-l transition-colors ${recipientType === "sellers" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`} data-testid="button-type-sellers">Sellers</button>
+                <button onClick={() => setRecipientType("buyers")} className={`px-3 py-1 text-sm border-l transition-colors ${recipientType === "buyers" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`} data-testid="button-type-buyers">Buyers</button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-2">
               <Input
                 placeholder="Search by name or email..."
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="max-w-sm"
+                className="flex-1"
                 data-testid="input-user-search"
               />
-              <Button onClick={handleSearch} disabled={userSearch.length < 1} data-testid="button-search-users">
-                <Search className="h-4 w-4 mr-2" />
-                Search
+              <Button variant="outline" onClick={handleSearch} disabled={userSearch.length < 1} data-testid="button-search-users">
+                <Search className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="secondary" 
-                onClick={loadAllUsers} 
-                disabled={isLoadingAllUsers}
-                data-testid="button-load-all-users"
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                {isLoadingAllUsers ? allUsersProgress : recipientType === "sellers" ? "Load All Sellers" : recipientType === "buyers" ? "Load All Buyers" : "Load All Users"}
+              <Button variant="outline" onClick={loadAllUsers} disabled={isLoadingAllUsers} data-testid="button-load-all-users">
+                <UserPlus className="h-4 w-4 mr-1.5" />
+                {isLoadingAllUsers ? allUsersProgress : "Load"}
               </Button>
             </div>
 
-            {usersLoading && <p className="text-sm text-muted-foreground">Searching...</p>}
+            {usersLoading && <p className="text-xs text-muted-foreground">Searching...</p>}
 
             {searchResults.length > 0 && (
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-10"></TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>Username</TableHead>
                       <TableHead>Type</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1201,15 +1116,10 @@ export default function AdminEmailBulk() {
                     {searchResults.slice(0, 10).map((user) => (
                       <TableRow key={user._id}>
                         <TableCell>
-                          <Checkbox
-                            checked={selectedUsers.some(u => u._id === user._id)}
-                            onCheckedChange={() => toggleUserSelection(user)}
-                            data-testid={`checkbox-user-${user._id}`}
-                          />
+                          <Checkbox checked={selectedUsers.some(u => u._id === user._id)} onCheckedChange={() => toggleUserSelection(user)} data-testid={`checkbox-user-${user._id}`} />
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.firstName} {user.lastName}</TableCell>
-                        <TableCell>{user.userName || '-'}</TableCell>
+                        <TableCell className="text-sm">{user.email}</TableCell>
+                        <TableCell className="text-sm">{user.firstName} {user.lastName}</TableCell>
                         <TableCell>
                           <Badge variant={(user as any).seller ? "default" : "secondary"} className="text-xs">
                             {(user as any).seller ? "Seller" : "Buyer"}
@@ -1225,176 +1135,102 @@ export default function AdminEmailBulk() {
             {selectedUsers.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Selected Users ({selectedUsers.length})</p>
-                  <Button variant="ghost" size="sm" onClick={clearSelectedUsers} data-testid="button-clear-selected">
-                    Clear All
-                  </Button>
+                  <p className="text-xs text-muted-foreground">{selectedUsers.length} selected</p>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={clearSelectedUsers} data-testid="button-clear-selected">Clear</Button>
                 </div>
                 {selectedUsers.length <= 10 ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {selectedUsers.map((user) => (
-                      <Badge key={user._id} variant="secondary" size="sm" className="flex items-center gap-1">
+                      <Badge key={user._id} variant="secondary" className="text-xs flex items-center gap-1 pr-1">
                         {user.email}
-                        <button onClick={() => removeSelectedUser(user._id)} className="ml-1" data-testid={`button-remove-user-${user._id}`}>
+                        <button onClick={() => removeSelectedUser(user._id)} data-testid={`button-remove-user-${user._id}`}>
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
                     ))}
                   </div>
                 ) : (
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      {selectedUsers.length} users selected for bulk email
-                    </p>
-                  </div>
+                  <p className="text-xs text-muted-foreground">{selectedUsers.length} users queued for sending</p>
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Upload CSV (Optional)
-            </CardTitle>
-            <CardDescription>
-              Or upload a CSV file with an 'email' column and columns matching template placeholders
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="max-w-sm"
-                data-testid="input-csv-upload"
-              />
+            {/* CSV upload */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} className="flex-1 text-sm" data-testid="input-csv-upload" />
+                {fileName && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={clearCsv} data-testid="button-clear-csv">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
               {fileName && (
-                <Button variant="ghost" size="icon" onClick={clearCsv} data-testid="button-clear-csv">
-                  <X className="h-4 w-4" />
-                </Button>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <FileText className="h-3 w-3" /> {fileName} — {csvData.length} emails
+                </p>
+              )}
+              {missingPlaceholders.length > 0 && csvData.length > 0 && emailMode === "template" && (
+                <Alert variant="destructive" className="py-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">Missing CSV columns: {missingPlaceholders.join(', ')}</AlertDescription>
+                </Alert>
+              )}
+              {csvData.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {csvHeaders.slice(0, 5).map((h) => <TableHead key={h} className="text-xs">{h}</TableHead>)}
+                        {csvHeaders.length > 5 && <TableHead className="text-xs">…</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {csvData.slice(0, 3).map((row, i) => (
+                        <TableRow key={i}>
+                          {csvHeaders.slice(0, 5).map((h) => <TableCell key={h} className="text-xs max-w-[160px] truncate">{row[h]}</TableCell>)}
+                          {csvHeaders.length > 5 && <TableCell className="text-xs">…</TableCell>}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {csvData.length > 3 && <p className="text-center text-xs text-muted-foreground py-1.5 bg-muted">+{csvData.length - 3} more rows</p>}
+                </div>
               )}
             </div>
-
-            {fileName && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                {fileName} - {csvData.length} valid emails
-              </div>
-            )}
-
-            {missingPlaceholders.length > 0 && csvData.length > 0 && emailMode === "template" && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Missing columns</AlertTitle>
-                <AlertDescription>
-                  Your CSV is missing these required columns: {missingPlaceholders.join(', ')}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {csvData.length > 0 && (
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {csvHeaders.slice(0, 5).map((header) => (
-                        <TableHead key={header}>{header}</TableHead>
-                      ))}
-                      {csvHeaders.length > 5 && <TableHead>...</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {csvData.slice(0, 5).map((row, i) => (
-                      <TableRow key={i}>
-                        {csvHeaders.slice(0, 5).map((header) => (
-                          <TableCell key={header} className="max-w-[200px] truncate">
-                            {row[header]}
-                          </TableCell>
-                        ))}
-                        {csvHeaders.length > 5 && <TableCell>...</TableCell>}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {csvData.length > 5 && (
-                  <div className="p-2 text-center text-sm text-muted-foreground bg-muted">
-                    Showing 5 of {csvData.length} rows
-                  </div>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
 
+        {/* Progress */}
         {isSending && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Sending emails...</span>
-                  <span>{sendingProgress}%</span>
-                </div>
-                <Progress value={sendingProgress} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {sendResults.success > 0 || sendResults.failed > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Send Results</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <span>{sendResults.success} sent successfully</span>
-                </div>
-                {sendResults.failed > 0 && (
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-red-500" />
-                    <span>{sendResults.failed} failed</span>
-                  </div>
-                )}
-              </div>
-              {sendResults.errors.length > 0 && (
-                <div className="max-h-40 overflow-y-auto text-sm text-muted-foreground">
-                  {sendResults.errors.map((err, i) => (
-                    <p key={i}>{err}</p>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {isTypeBased && (
-          <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
-            <strong>Type-based send:</strong> The server will automatically fetch and email all {recipientType === "sellers" ? "sellers" : "buyers"} when you click Send — no need to load them first.
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Sending…</span><span>{sendingProgress}%</span>
+            </div>
+            <Progress value={sendingProgress} />
           </div>
         )}
 
-        <div className="flex gap-4">
-          <Button
-            variant="outline"
-            onClick={handlePreview}
-            disabled={!canPreview()}
-            data-testid="button-preview"
-          >
+        {/* Results */}
+        {(sendResults.success > 0 || sendResults.failed > 0) && (
+          <div className="flex flex-wrap gap-4 p-3 rounded-lg border text-sm">
+            <span className="flex items-center gap-1.5 text-green-600"><CheckCircle2 className="h-4 w-4" />{sendResults.success} sent</span>
+            {sendResults.failed > 0 && <span className="flex items-center gap-1.5 text-red-500"><AlertCircle className="h-4 w-4" />{sendResults.failed} failed</span>}
+            {sendResults.errors.length > 0 && (
+              <div className="w-full max-h-32 overflow-y-auto text-xs text-muted-foreground">
+                {sendResults.errors.map((err, i) => <p key={i}>{err}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handlePreview} disabled={!canPreview()} data-testid="button-preview">
             <Eye className="h-4 w-4 mr-2" />
-            Preview Email
+            Preview
           </Button>
-          <Button
-            onClick={sendBulkEmails}
-            disabled={!canSend() || isSending}
-            data-testid="button-send-bulk"
-          >
+          <Button onClick={sendBulkEmails} disabled={!canSend() || isSending} data-testid="button-send-bulk">
             <Send className="h-4 w-4 mr-2" />
             Send to {recipientLabel}
           </Button>
