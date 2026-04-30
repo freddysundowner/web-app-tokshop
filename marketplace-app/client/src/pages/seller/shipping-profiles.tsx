@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -27,7 +28,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -54,7 +54,6 @@ import {
   MoreHorizontal,
   Package,
   Weight,
-  Ruler,
 } from "lucide-react";
 import type { TokshopShippingProfile, TokshopShippingProfilesResponse } from "@shared/schema";
 
@@ -70,36 +69,39 @@ interface ShippingProfileFormData {
   description: string;
   weight: number;
   scale: string;
+  max_items: number;
+  limit_items_per_package: boolean;
 }
+
+const emptyForm: ShippingProfileFormData = {
+  name: "",
+  description: "",
+  weight: 0,
+  scale: "oz",
+  max_items: 1,
+  limit_items_per_package: false,
+};
 
 export default function ShippingProfiles() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<TokshopShippingProfile | null>(null);
-  const [formData, setFormData] = useState<ShippingProfileFormData>({
-    name: "",
-    description: "",
-    weight: 0,
-    scale: "oz",
-  });
+  const [formData, setFormData] = useState<ShippingProfileFormData>(emptyForm);
 
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const userId = (user as any)?._id || user?.id;
-  
-  // Fetch fresh user data to check current seller status
+
   const { data: freshUserData } = useQuery<any>({
     queryKey: [`/api/profile/${userId}`],
     enabled: !!userId,
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 0,
   });
-  
-  // Use fresh user data if available, otherwise fall back to cached user
+
   const currentUser = freshUserData || user;
 
-  // Fetch shipping profiles
   const {
     data: shippingProfiles = [],
     isLoading,
@@ -108,21 +110,16 @@ export default function ShippingProfiles() {
     queryKey: ["shipping-profiles", user?.id],
     queryFn: async () => {
       const response = await fetchWithAuth(`/api/shipping/profiles/${user?.id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch shipping profiles");
-      }
+      if (!response.ok) throw new Error("Failed to fetch shipping profiles");
       return response.json();
     },
     enabled: !!user?.id,
   });
 
-  // Create shipping profile mutation
   const createMutation = useMutation({
     mutationFn: async (data: ShippingProfileFormData) => {
       const response = await apiRequest("POST", `/api/shipping/profiles/${user?.id}`, data);
-      if (!response.ok) {
-        throw new Error("Failed to create shipping profile");
-      }
+      if (!response.ok) throw new Error("Failed to create shipping profile");
       return response.json();
     },
     onSuccess: () => {
@@ -130,21 +127,13 @@ export default function ShippingProfiles() {
       queryClient.invalidateQueries({ queryKey: ["external-shipping-profiles"] });
       setIsCreateDialogOpen(false);
       resetForm();
-      toast({
-        title: "Success",
-        description: "Shipping profile created successfully",
-      });
+      toast({ title: "Success", description: "Shipping profile created successfully" });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create shipping profile",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create shipping profile", variant: "destructive" });
     },
   });
 
-  // Update shipping profile mutation
   const updateMutation = useMutation({
     mutationFn: async (data: ShippingProfileFormData & { id: string }) => {
       const { id, ...updateData } = data;
@@ -152,9 +141,7 @@ export default function ShippingProfiles() {
         ...updateData,
         userId: user?.id,
       });
-      if (!response.ok) {
-        throw new Error("Failed to update shipping profile");
-      }
+      if (!response.ok) throw new Error("Failed to update shipping profile");
       return response.json();
     },
     onSuccess: () => {
@@ -163,58 +150,34 @@ export default function ShippingProfiles() {
       setIsEditDialogOpen(false);
       setEditingProfile(null);
       resetForm();
-      toast({
-        title: "Success",
-        description: "Shipping profile updated successfully",
-      });
+      toast({ title: "Success", description: "Shipping profile updated successfully" });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update shipping profile",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update shipping profile", variant: "destructive" });
     },
   });
 
-  // Delete shipping profile mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest("DELETE", `/api/shipping/profiles/${id}`, {});
-      if (!response.ok) {
-        throw new Error("Failed to delete shipping profile");
-      }
+      if (!response.ok) throw new Error("Failed to delete shipping profile");
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["external-shipping-profiles"] });
-      toast({
-        title: "Success",
-        description: "Shipping profile deleted successfully",
-      });
+      toast({ title: "Success", description: "Shipping profile deleted successfully" });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete shipping profile",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete shipping profile", variant: "destructive" });
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      weight: 0,
-      scale: "oz",
-    });
-  };
+  const resetForm = () => setFormData(emptyForm);
 
   const handleCreate = () => {
-    setIsCreateDialogOpen(true);
     resetForm();
+    setIsCreateDialogOpen(true);
   };
 
   const handleEdit = (profile: TokshopShippingProfile) => {
@@ -224,6 +187,8 @@ export default function ShippingProfiles() {
       description: profile.description || "",
       weight: profile.weight,
       scale: profile.scale,
+      max_items: profile.max_items ?? 1,
+      limit_items_per_package: profile.limit_items_per_package ?? false,
     });
     setIsEditDialogOpen(true);
   };
@@ -237,17 +202,20 @@ export default function ShippingProfiles() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
+  const handleDelete = (id: string) => deleteMutation.mutate(id);
+
+  const closeDialog = () => {
+    setIsCreateDialogOpen(false);
+    setIsEditDialogOpen(false);
+    setEditingProfile(null);
+    resetForm();
   };
 
   if (!currentUser?.seller) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
-        <p className="text-muted-foreground">
-          Only sellers can access shipping profiles management.
-        </p>
+        <p className="text-muted-foreground">Only sellers can access shipping profiles management.</p>
       </div>
     );
   }
@@ -257,9 +225,7 @@ export default function ShippingProfiles() {
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Shipping Profiles</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your shipping profiles and settings
-          </p>
+          <p className="text-sm text-muted-foreground">Manage your shipping profiles and settings</p>
         </div>
         <Button onClick={handleCreate} data-testid="button-create-profile" className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
@@ -287,22 +253,14 @@ export default function ShippingProfiles() {
       ) : error ? (
         <Card className="p-8 text-center">
           <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            Error loading profiles
-          </h3>
-          <p className="text-muted-foreground">
-            Failed to load shipping profiles. Please try again.
-          </p>
+          <h3 className="text-lg font-semibold text-foreground mb-2">Error loading profiles</h3>
+          <p className="text-muted-foreground">Failed to load shipping profiles. Please try again.</p>
         </Card>
       ) : shippingProfiles.length === 0 ? (
         <Card className="p-8 text-center">
           <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            No shipping profiles
-          </h3>
-          <p className="text-muted-foreground mb-4">
-            Get started by creating your first shipping profile.
-          </p>
+          <h3 className="text-lg font-semibold text-foreground mb-2">No shipping profiles</h3>
+          <p className="text-muted-foreground mb-4">Get started by creating your first shipping profile.</p>
           <Button onClick={handleCreate} data-testid="button-create-first-profile">
             <Plus className="h-4 w-4 mr-2" />
             Create Your First Profile
@@ -315,39 +273,25 @@ export default function ShippingProfiles() {
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-lg text-foreground">
-                      {profile.name}
-                    </CardTitle>
+                    <CardTitle className="text-lg text-foreground">{profile.name}</CardTitle>
                     {profile.description && (
-                      <CardDescription className="mt-1">
-                        {profile.description}
-                      </CardDescription>
+                      <CardDescription className="mt-1">{profile.description}</CardDescription>
                     )}
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`dropdown-profile-${profile._id}`}
-                      >
+                      <Button variant="ghost" size="sm" data-testid={`dropdown-profile-${profile._id}`}>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handleEdit(profile)}
-                        data-testid={`button-edit-${profile._id}`}
-                      >
+                      <DropdownMenuItem onClick={() => handleEdit(profile)} data-testid={`button-edit-${profile._id}`}>
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem
-                            onSelect={(e) => e.preventDefault()}
-                            data-testid={`button-delete-${profile._id}`}
-                          >
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()} data-testid={`button-delete-${profile._id}`}>
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
@@ -356,8 +300,7 @@ export default function ShippingProfiles() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Shipping Profile</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete "{profile.name}"? This action
-                              cannot be undone.
+                              Are you sure you want to delete "{profile.name}"? This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -376,11 +319,17 @@ export default function ShippingProfiles() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Weight className="h-4 w-4" />
                     <span>{profile.weight} {profile.scale}</span>
                   </div>
+                  {profile.limit_items_per_package && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Package className="h-4 w-4" />
+                      <span>Max {profile.max_items ?? 1} item{(profile.max_items ?? 1) !== 1 ? 's' : ''} per package</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -388,23 +337,13 @@ export default function ShippingProfiles() {
         </div>
       )}
 
-      {/* Create/Edit Dialog */}
       <Dialog
         open={isCreateDialogOpen || isEditDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsCreateDialogOpen(false);
-            setIsEditDialogOpen(false);
-            setEditingProfile(null);
-            resetForm();
-          }
-        }}
+        onOpenChange={(open) => { if (!open) closeDialog(); }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {editingProfile ? "Edit Shipping Profile" : "Create Shipping Profile"}
-            </DialogTitle>
+            <DialogTitle>{editingProfile ? "Edit Shipping Profile" : "Create Shipping Profile"}</DialogTitle>
             <DialogDescription>
               {editingProfile
                 ? "Update the shipping profile details below."
@@ -453,7 +392,6 @@ export default function ShippingProfiles() {
                 <Select
                   value={formData.scale}
                   onValueChange={(value) => setFormData({ ...formData, scale: value })}
-                  required
                 >
                   <SelectTrigger data-testid="select-profile-scale">
                     <SelectValue placeholder="Select unit" />
@@ -468,19 +406,40 @@ export default function ShippingProfiles() {
                 </Select>
               </div>
             </div>
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Package Limits</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="limit-toggle" className="text-sm font-medium">Limit items per package</Label>
+                  <p className="text-xs text-muted-foreground">Restrict how many items fit in one package</p>
+                </div>
+                <Switch
+                  id="limit-toggle"
+                  checked={formData.limit_items_per_package}
+                  onCheckedChange={(checked) => setFormData({ ...formData, limit_items_per_package: checked })}
+                  data-testid="switch-limit-items"
+                />
+              </div>
+              <div>
+                <Label htmlFor="max_items">Max items per package</Label>
+                <Input
+                  id="max_items"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={formData.max_items}
+                  onChange={(e) => setFormData({ ...formData, max_items: Number(e.target.value) })}
+                  placeholder="1"
+                  disabled={!formData.limit_items_per_package}
+                  data-testid="input-max-items"
+                />
+                {!formData.limit_items_per_package && (
+                  <p className="text-xs text-muted-foreground mt-1">Enable "Limit items per package" to set a max</p>
+                )}
+              </div>
+            </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsCreateDialogOpen(false);
-                  setIsEditDialogOpen(false);
-                  setEditingProfile(null);
-                  resetForm();
-                }}
-              >
-                Cancel
-              </Button>
+              <Button type="button" variant="outline" onClick={closeDialog}>Cancel</Button>
               <Button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
@@ -488,9 +447,7 @@ export default function ShippingProfiles() {
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? "Saving..."
-                  : editingProfile
-                  ? "Update Profile"
-                  : "Create Profile"}
+                  : editingProfile ? "Update Profile" : "Create Profile"}
               </Button>
             </DialogFooter>
           </form>

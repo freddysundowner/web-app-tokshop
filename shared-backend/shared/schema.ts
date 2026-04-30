@@ -311,6 +311,8 @@ export const tokshopShippingProfileSchema = z.object({
   weight: z.number(),
   scale: z.string(),
   description: z.string().optional(),
+  max_items: z.number().optional(),
+  limit_items_per_package: z.boolean().optional(),
 });
 
 export const tokshopShippingProfilesResponseSchema = z.array(tokshopShippingProfileSchema);
