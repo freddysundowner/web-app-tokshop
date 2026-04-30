@@ -11,6 +11,10 @@ build = ["npm", "run", "build"]
 run = ["node", "./dist/index.cjs"]
 
 [[ports]]
+localPort = 3000
+externalPort = 3002
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
@@ -29,6 +33,10 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Admin app"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -40,6 +48,18 @@ outputType = "webview"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Admin app"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev:admin"
+waitForPort = 3000
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 expertMode = true
