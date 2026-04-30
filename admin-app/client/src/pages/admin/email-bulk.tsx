@@ -985,7 +985,7 @@ export default function AdminEmailBulk() {
 
   return (
     <AdminLayout title="Bulk Emails" description="Send emails to sellers, buyers, or specific users">
-      <div className="space-y-4 max-w-3xl">
+      <div className="space-y-4">
 
         {/* Email Content */}
         <Card>
