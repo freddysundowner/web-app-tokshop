@@ -17,6 +17,8 @@ import session from "express-session";
 import { createServer } from "http";
 import { createServer as createViteServer, createLogger } from "vite";
 import { nanoid } from "nanoid";
+import tailwindcss from "tailwindcss";
+import autoprefixer from "autoprefixer";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.join(__dirname, "..");
@@ -131,6 +133,14 @@ const adminRoot = path.join(workspaceRoot, "admin-app", "client");
 const marketplaceVite = await createViteServer({
   root: marketplaceRoot,
   configFile: path.join(workspaceRoot, "marketplace-app", "vite.config.ts"),
+  css: {
+    postcss: {
+      plugins: [
+        (tailwindcss as any)({ config: path.join(workspaceRoot, "marketplace-app", "tailwind.config.ts") }),
+        autoprefixer(),
+      ],
+    },
+  },
   customLogger: { ...viteLogger, error: (msg, opts) => { viteLogger.error(msg, opts); } },
   server: { middlewareMode: true, hmr: { server: httpServer, path: "/_marketplace_hmr" }, allowedHosts: true as const },
   appType: "custom",
@@ -140,6 +150,14 @@ const adminVite = await createViteServer({
   root: adminRoot,
   configFile: path.join(workspaceRoot, "admin-app", "vite.config.ts"),
   base: "/admin/",
+  css: {
+    postcss: {
+      plugins: [
+        (tailwindcss as any)({ config: path.join(workspaceRoot, "admin-app", "tailwind.config.ts") }),
+        autoprefixer(),
+      ],
+    },
+  },
   customLogger: { ...viteLogger, error: (msg, opts) => { viteLogger.error(msg, opts); } },
   server: { middlewareMode: true, hmr: { server: httpServer, path: "/_admin_hmr" }, allowedHosts: true as const },
   appType: "custom",
