@@ -740,7 +740,14 @@ export default function AdminEmailBulk() {
 
   const getEmailContent = () => {
     if (emailMode === "template" && selectedTemplateData) {
-      const html = selectedTemplateData.htmlContent || selectedTemplateData.body || '';
+      // Try all common field names the external API might use
+      const html = (selectedTemplateData as any).htmlContent
+        || (selectedTemplateData as any).body
+        || (selectedTemplateData as any).html
+        || (selectedTemplateData as any).content
+        || (selectedTemplateData as any).template_body
+        || (selectedTemplateData as any).emailBody
+        || '';
       const subject = selectedTemplateData.subject || selectedTemplateData.name || 'Notification';
       return { subject, html };
     } else if (emailMode === "custom") {
@@ -803,6 +810,13 @@ export default function AdminEmailBulk() {
         payload.recipients = recipientsWithWhatsNew;
       }
       
+      console.log('[BulkEmail] Sending payload:', {
+        subject: payload.subject,
+        htmlLength: payload.html?.length,
+        recipientType: payload.recipientType,
+        recipientCount: payload.recipients?.length,
+        templateFields: selectedTemplateData ? Object.keys(selectedTemplateData) : null,
+      });
       const response = await apiRequest('POST', '/api/admin/email/send-bulk', payload);
 
       const result = await response.json();
@@ -843,12 +857,16 @@ export default function AdminEmailBulk() {
     ? (recipientType === "sellers" ? "All Sellers" : "All Buyers")
     : `${totalRecipients} Recipients`;
 
+  const selectedTemplateHtml = emailMode === "template" && selectedTemplateData
+    ? ((selectedTemplateData as any).htmlContent || (selectedTemplateData as any).body || (selectedTemplateData as any).html || (selectedTemplateData as any).content || (selectedTemplateData as any).template_body || (selectedTemplateData as any).emailBody || '')
+    : '';
+
   const canSend = () => {
     // Allow sending if type-based (server will fetch users) or if there are specific recipients
     const hasRecipients = totalRecipients > 0 || isTypeBased;
     if (!hasRecipients) return false;
     if (emailMode === "template") {
-      return !!selectedTemplate && (missingPlaceholders.length === 0 || csvData.length === 0);
+      return !!selectedTemplate && !!selectedTemplateHtml && (missingPlaceholders.length === 0 || csvData.length === 0);
     } else {
       return customSubject.trim() !== '' && customHtml.trim() !== '';
     }
@@ -1026,6 +1044,12 @@ export default function AdminEmailBulk() {
                     </Button>
                   )}
                 </div>
+
+                {selectedTemplateData && !selectedTemplateHtml && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                    This template has no HTML content — it cannot be sent. Try a different template or use the Custom tab.
+                  </p>
+                )}
 
                 {selectedTemplateData && (
                   <div className="flex flex-wrap gap-1.5">
