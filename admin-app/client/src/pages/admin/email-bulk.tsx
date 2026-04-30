@@ -460,6 +460,7 @@ export default function AdminEmailBulk() {
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isLoadingAllUsers, setIsLoadingAllUsers] = useState(false);
   const [allUsersProgress, setAllUsersProgress] = useState("");
+  const [recipientType, setRecipientType] = useState<"all" | "sellers" | "buyers">("all");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
   const [whatsNew, setWhatsNew] = useState("");
@@ -534,7 +535,8 @@ export default function AdminEmailBulk() {
 
   const loadAllUsers = async () => {
     setIsLoadingAllUsers(true);
-    setAllUsersProgress("Loading users...");
+    const typeLabel = recipientType === "sellers" ? "sellers" : recipientType === "buyers" ? "buyers" : "users";
+    setAllUsersProgress(`Loading ${typeLabel}...`);
     
     try {
       const allUsers: User[] = [];
@@ -545,7 +547,8 @@ export default function AdminEmailBulk() {
       while (hasMore) {
         setAllUsersProgress(`Loading page ${page}...`);
         
-        const response = await fetchWithAuth(`/api/admin/users?page=${page}&limit=${limit}`);
+        const sellerParam = recipientType === "sellers" ? "&seller=true" : recipientType === "buyers" ? "&seller=false" : "";
+        const response = await fetchWithAuth(`/api/admin/users?page=${page}&limit=${limit}${sellerParam}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch users');
@@ -560,7 +563,14 @@ export default function AdminEmailBulk() {
         if (!Array.isArray(users) || users.length === 0) {
           hasMore = false;
         } else {
-          allUsers.push(...users);
+          // Client-side filter as fallback in case server doesn't support seller param
+          const filtered = recipientType === "sellers"
+            ? users.filter((u: any) => u.seller === true)
+            : recipientType === "buyers"
+            ? users.filter((u: any) => !u.seller)
+            : users;
+
+          allUsers.push(...filtered);
           
           // Check if we've loaded all users based on totalDoc
           if (allUsers.length >= totalDoc || users.length < limit) {
@@ -570,7 +580,7 @@ export default function AdminEmailBulk() {
           }
         }
         
-        setAllUsersProgress(`Loaded ${allUsers.length} users...`);
+        setAllUsersProgress(`Loaded ${allUsers.length} ${typeLabel}...`);
       }
 
       // Add all users that aren't already selected
@@ -581,8 +591,8 @@ export default function AdminEmailBulk() {
       setSelectedUsers([...selectedUsers, ...newUsers]);
       
       toast({
-        title: "Users loaded",
-        description: `Added ${newUsers.length} users (${allUsers.length} total found)`,
+        title: "Recipients loaded",
+        description: `Added ${newUsers.length} ${typeLabel} (${allUsers.length} total found)`,
       });
     } catch (error: any) {
       toast({
@@ -1099,10 +1109,37 @@ export default function AdminEmailBulk() {
               Select Recipients
             </CardTitle>
             <CardDescription>
-              Search for users, or load all users from the database
+              Choose recipient type, then search or load from the database
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium shrink-0">Recipient Type:</Label>
+              <div className="flex rounded-lg border overflow-hidden" data-testid="recipient-type-selector">
+                <button
+                  onClick={() => setRecipientType("all")}
+                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${recipientType === "all" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  data-testid="button-type-all"
+                >
+                  All Users
+                </button>
+                <button
+                  onClick={() => setRecipientType("sellers")}
+                  className={`px-4 py-1.5 text-sm font-medium border-l transition-colors ${recipientType === "sellers" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  data-testid="button-type-sellers"
+                >
+                  Sellers
+                </button>
+                <button
+                  onClick={() => setRecipientType("buyers")}
+                  className={`px-4 py-1.5 text-sm font-medium border-l transition-colors ${recipientType === "buyers" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                  data-testid="button-type-buyers"
+                >
+                  Buyers
+                </button>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center gap-2">
               <Input
                 placeholder="Search by name or email..."
@@ -1123,7 +1160,7 @@ export default function AdminEmailBulk() {
                 data-testid="button-load-all-users"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
-                {isLoadingAllUsers ? allUsersProgress : "Load All Users"}
+                {isLoadingAllUsers ? allUsersProgress : recipientType === "sellers" ? "Load All Sellers" : recipientType === "buyers" ? "Load All Buyers" : "Load All Users"}
               </Button>
             </div>
 
@@ -1138,6 +1175,7 @@ export default function AdminEmailBulk() {
                       <TableHead>Email</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Username</TableHead>
+                      <TableHead>Type</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1153,6 +1191,11 @@ export default function AdminEmailBulk() {
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.firstName} {user.lastName}</TableCell>
                         <TableCell>{user.userName || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={(user as any).seller ? "default" : "secondary"} className="text-xs">
+                            {(user as any).seller ? "Seller" : "Buyer"}
+                          </Badge>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
