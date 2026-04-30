@@ -6040,15 +6040,8 @@ Thank you for using ${appName}!
   // Send bulk emails directly from server
   app.post("/api/admin/email/send-bulk", requireAdmin, async (req, res) => {
     try {
-      const { recipients, subject, html, fromEmail, useWrapper } = req.body;
+      let { recipients, subject, html, fromEmail, useWrapper, recipientType } = req.body;
       const accessToken = getAdminToken(req);
-
-      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: "Missing or invalid recipients array",
-        });
-      }
 
       if (!subject || !html) {
         return res.status(400).json({
@@ -6061,6 +6054,74 @@ Thank you for using ${appName}!
         return res.status(401).json({
           success: false,
           error: "No access token found",
+        });
+      }
+
+      // If recipientType is provided and no specific recipients, fetch all users of that type server-side
+      if ((!recipients || recipients.length === 0) && recipientType && recipientType !== 'custom') {
+        console.log(`[Bulk Email] Fetching all ${recipientType} from external API...`);
+        const allUsers: any[] = [];
+        let page = 1;
+        const limit = 200;
+        let hasMore = true;
+
+        while (hasMore) {
+          const usersUrl = `${BASE_URL}/users?page=${page}&limit=${limit}`;
+          const usersResponse = await fetch(usersUrl, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!usersResponse.ok) {
+            return res.status(500).json({ success: false, error: "Failed to fetch users for bulk send" });
+          }
+
+          const usersData = await usersResponse.json();
+          const responseData = usersData.data || usersData;
+          const users: any[] = responseData.users || responseData.data || responseData || [];
+          const totalDoc: number = responseData.totalDoc || 0;
+
+          if (!Array.isArray(users) || users.length === 0) {
+            hasMore = false;
+          } else {
+            // Filter by type client-side
+            const filtered = recipientType === "sellers"
+              ? users.filter((u: any) => u.seller === true)
+              : recipientType === "buyers"
+              ? users.filter((u: any) => !u.seller)
+              : users;
+
+            allUsers.push(...filtered);
+
+            if (allUsers.length >= totalDoc || users.length < limit) {
+              hasMore = false;
+            } else {
+              page++;
+            }
+          }
+        }
+
+        recipients = allUsers
+          .filter((u: any) => u.email)
+          .map((u: any) => ({
+            email: u.email,
+            firstname: u.firstName || '',
+            lastname: u.lastName || '',
+            username: u.userName || '',
+            name: u.userName || u.firstName || 'there',
+            recipient_name: u.userName || u.firstName || 'there',
+          }));
+
+        console.log(`[Bulk Email] Fetched ${recipients.length} ${recipientType} to email`);
+      }
+
+      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "No recipients found to send emails to",
         });
       }
 

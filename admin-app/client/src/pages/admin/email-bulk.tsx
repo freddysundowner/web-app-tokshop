@@ -773,9 +773,11 @@ export default function AdminEmailBulk() {
   const sendBulkEmails = async () => {
     const emailContent = getEmailContent();
     if (!emailContent) return;
-    
+
     const allRecipients = getAllRecipients();
-    if (allRecipients.length === 0) return;
+
+    // Type-based send: no specific users selected — backend fetches them
+    if (allRecipients.length === 0 && !isTypeBased) return;
 
     setIsSending(true);
     setSendingProgress(0);
@@ -786,14 +788,23 @@ export default function AdminEmailBulk() {
         ...r,
         whats_new: whatsNew || '',
       }));
-      
-      const response = await apiRequest('POST', '/api/admin/email/send-bulk', {
-        recipients: recipientsWithWhatsNew,
+
+      const payload: any = {
         subject: emailContent.subject,
         html: emailContent.html,
         fromEmail: fromEmail || undefined,
         useWrapper: emailMode === "custom",
-      });
+      };
+
+      if (isTypeBased) {
+        // Let the server fetch users by type
+        payload.recipientType = recipientType;
+        payload.recipients = [];
+      } else {
+        payload.recipients = recipientsWithWhatsNew;
+      }
+      
+      const response = await apiRequest('POST', '/api/admin/email/send-bulk', payload);
 
       const result = await response.json();
       
@@ -826,9 +837,17 @@ export default function AdminEmailBulk() {
   ) || [];
 
   const totalRecipients = getAllRecipients().length;
-  
+
+  // True when using type-based sending (no specific users selected, relying on server-side fetch)
+  const isTypeBased = totalRecipients === 0 && recipientType !== "all";
+  const recipientLabel = isTypeBased
+    ? (recipientType === "sellers" ? "All Sellers" : "All Buyers")
+    : `${totalRecipients} Recipients`;
+
   const canSend = () => {
-    if (totalRecipients === 0) return false;
+    // Allow sending if type-based (server will fetch users) or if there are specific recipients
+    const hasRecipients = totalRecipients > 0 || isTypeBased;
+    if (!hasRecipients) return false;
     if (emailMode === "template") {
       return !!selectedTemplate && (missingPlaceholders.length === 0 || csvData.length === 0);
     } else {
@@ -1355,6 +1374,12 @@ export default function AdminEmailBulk() {
           </Card>
         ) : null}
 
+        {isTypeBased && (
+          <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+            <strong>Type-based send:</strong> The server will automatically fetch and email all {recipientType === "sellers" ? "sellers" : "buyers"} when you click Send — no need to load them first.
+          </div>
+        )}
+
         <div className="flex gap-4">
           <Button
             variant="outline"
@@ -1371,7 +1396,7 @@ export default function AdminEmailBulk() {
             data-testid="button-send-bulk"
           >
             <Send className="h-4 w-4 mr-2" />
-            Send to {totalRecipients} Recipients
+            Send to {recipientLabel}
           </Button>
         </div>
       </div>
