@@ -14,7 +14,6 @@ const rootZodPath = path.resolve(__dirname, "../node_modules/zod");
 const zodPath = existsSync(localZodPath) ? localZodPath : rootZodPath;
 
 export default defineConfig({
-  base: '/admin/',
   plugins: [
     react(),
     runtimeErrorOverlay(),
