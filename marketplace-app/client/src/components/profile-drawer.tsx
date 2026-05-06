@@ -26,6 +26,7 @@ import {
 import { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { cn } from '@/lib/utils';
+import { fetchWithAuth } from '@/lib/queryClient';
 
 interface ProfileDrawerProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [shouldShow, setShouldShow] = useState(true);
+  const [showWalletView, setShowWalletView] = useState(false);
   
   const userId = (user as any)?._id || user?.id;
   
@@ -60,17 +62,36 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
   const { data: freshUserData } = useQuery<any>({
     queryKey: [`/api/profile/${userId}`],
     enabled: !!userId && open,
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 0,
   });
   
   // Use fresh user data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
   const [activeTab, setActiveTab] = useState(currentUser?.seller ? 'selling' : 'buying');
 
+  // Fetch wallet transactions when wallet view is open
+  const { data: walletTxData, isLoading: walletTxLoading } = useQuery<any>({
+    queryKey: ['wallet-transactions', userId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (userId) params.set('customer', userId);
+      params.set('type', 'wallet_payment');
+      params.set('limit', '50');
+      const res = await fetchWithAuth(`/api/orders?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch wallet transactions');
+      return res.json();
+    },
+    enabled: !!userId && showWalletView,
+    staleTime: 30000,
+  });
+
+  const walletTransactions: any[] = walletTxData?.orders || walletTxData?.data || walletTxData || [];
+
   // Reset shouldShow when drawer opens
   useEffect(() => {
     if (open) {
       setShouldShow(true);
+      setShowWalletView(false);
     }
   }, [open]);
 
@@ -203,6 +224,73 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
         className="w-full sm:max-w-md p-0 overflow-y-auto flex flex-col"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
+        {/* Wallet Transactions Panel */}
+        {showWalletView && (
+          <div className="flex flex-col flex-1 min-h-0">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b">
+              <button
+                onClick={() => setShowWalletView(false)}
+                className="p-1 rounded-md hover:bg-muted transition-colors"
+                data-testid="button-wallet-back"
+              >
+                <ChevronRight className="h-5 w-5 rotate-180" />
+              </button>
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-base">Wallet Credit</span>
+              </div>
+              <span className="ml-auto text-sm font-semibold text-primary">
+                ${Number(currentUser?.wallet || 0).toFixed(2)}
+              </span>
+            </div>
+
+            {/* Transactions List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {walletTxLoading ? (
+                <div className="flex flex-col gap-3">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : Array.isArray(walletTransactions) && walletTransactions.length > 0 ? (
+                walletTransactions.map((tx: any, idx: number) => {
+                  const txId = tx._id || tx.id || idx;
+                  const amount = tx.total ?? tx.amount ?? tx.wallet_used ?? 0;
+                  const date = tx.createdAt || tx.created_at || tx.date;
+                  const description = tx.description || tx.productName || tx.product_name || tx.invoice || 'Wallet Payment';
+                  return (
+                    <div key={txId} className="flex items-center justify-between p-3 rounded-lg border bg-card" data-testid={`wallet-tx-${txId}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{description}</p>
+                        {date && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        )}
+                        {tx.status && (
+                          <p className="text-xs text-muted-foreground capitalize mt-0.5">{tx.status}</p>
+                        )}
+                      </div>
+                      <span className="ml-3 text-sm font-semibold text-primary shrink-0">
+                        -${Number(amount).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                  <Wallet className="h-10 w-10 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No wallet transactions yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Main Drawer Content (hidden when wallet view is open) */}
+        {!showWalletView && (<>
+
         {/* User Profile Section */}
         <div className="p-4">
           <button
@@ -230,12 +318,19 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
 
           {/* Wallet Balance */}
           {Number(currentUser?.wallet || 0) > 0 && (
-            <div className="flex items-center gap-2 mt-2 mx-2 px-2 py-2 rounded-lg bg-primary/10">
-              <Wallet className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-sm text-primary font-medium">
-                Wallet Credit: ${Number(currentUser.wallet).toFixed(2)}
-              </span>
-            </div>
+            <button
+              onClick={() => setShowWalletView(true)}
+              className="flex items-center justify-between w-full mt-2 mx-0 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+              data-testid="button-wallet-balance"
+            >
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-primary font-medium">
+                  Wallet Credit: ${Number(currentUser.wallet).toFixed(2)}
+                </span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-primary" />
+            </button>
           )}
         </div>
 
@@ -387,6 +482,7 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
             </div>
           </TabsContent>
         </Tabs>
+        </>)}
       </SheetContent>
     </Sheet>
   );
