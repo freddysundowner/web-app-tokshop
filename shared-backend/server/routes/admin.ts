@@ -3972,6 +3972,56 @@ If you have any questions, feel free to reach out to our support team.
   });
 
   // Suspend a user for a period of time
+  app.patch("/api/admin/users/:userId/wallet", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = getAdminToken(req);
+      const { userId } = req.params;
+      const { wallet } = req.body;
+
+      console.log(`[Wallet Update] Request to update wallet for user: ${userId}, amount: ${wallet}`);
+
+      if (!accessToken) {
+        return res.status(401).json({ success: false, error: "No access token found" });
+      }
+
+      if (wallet === undefined || typeof wallet !== 'number') {
+        return res.status(400).json({ success: false, error: "Wallet amount is required and must be a number" });
+      }
+
+      const url = `${BASE_URL}/users/${userId}`;
+      console.log(`[Wallet Update] Calling ICONA API: ${url}`);
+      console.log(`[Wallet Update] Payload:`, { wallet });
+
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ wallet }),
+      });
+
+      console.log(`[Wallet Update] API response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[Wallet Update] API error:`, errorData);
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || "Failed to update wallet",
+        });
+      }
+
+      const data = await response.json();
+      console.log('[Wallet Update] Success:', data);
+
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error(`Error updating wallet:`, error);
+      res.status(500).json({ success: false, error: "Failed to update wallet", details: error.message });
+    }
+  });
+
   app.patch("/api/admin/users/:userId/suspend", requireAdmin, checkDemoMode, async (req, res) => {
     try {
       const accessToken = getAdminToken(req);

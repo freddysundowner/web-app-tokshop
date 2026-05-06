@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical, Clock, CalendarIcon, Loader2, Filter, Trash2, LogIn, Truck } from "lucide-react";
+import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical, Clock, CalendarIcon, Loader2, Filter, Trash2, LogIn, Truck, PencilLine } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,9 @@ export default function AdminUsers() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<any>(null);
+  const [walletDialogOpen, setWalletDialogOpen] = useState(false);
+  const [selectedUserForWallet, setSelectedUserForWallet] = useState<any>(null);
+  const [walletAmount, setWalletAmount] = useState<string>("");
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -200,6 +203,39 @@ export default function AdminUsers() {
   const handleDeleteUser = () => {
     if (!selectedUserForDelete) return;
     deleteUserMutation.mutate(selectedUserForDelete._id || selectedUserForDelete.id);
+  };
+
+  // Update wallet mutation
+  const walletMutation = useMutation({
+    mutationFn: async ({ userId, wallet }: { userId: string; wallet: number }) => {
+      return apiRequest("PATCH", `/api/admin/users/${userId}/wallet`, { wallet });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setWalletDialogOpen(false);
+      setSelectedUserForWallet(null);
+      setWalletAmount("");
+      toast({ title: "Success", description: "Wallet balance updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update wallet", variant: "destructive" });
+    },
+  });
+
+  const handleOpenWalletDialog = (userToEdit: any) => {
+    setSelectedUserForWallet(userToEdit);
+    setWalletAmount(String(userToEdit.wallet || 0));
+    setWalletDialogOpen(true);
+  };
+
+  const handleUpdateWallet = () => {
+    if (!selectedUserForWallet) return;
+    const amount = parseFloat(walletAmount);
+    if (isNaN(amount) || amount < 0) {
+      toast({ title: "Invalid amount", description: "Please enter a valid positive number", variant: "destructive" });
+      return;
+    }
+    walletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, wallet: amount });
   };
 
   // Reset to page 1 when search query changes
@@ -489,6 +525,14 @@ export default function AdminUsers() {
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
+                                  onClick={() => handleOpenWalletDialog(user)}
+                                  data-testid={`menu-wallet-user-${user._id || user.id}`}
+                                >
+                                  <PencilLine className="h-4 w-4 mr-2" />
+                                  Update Wallet
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
                                   onClick={() => handleOpenDeleteDialog(user)}
                                   disabled={deleteUserMutation.isPending}
                                   data-testid={`menu-delete-user-${user._id || user.id}`}
@@ -595,6 +639,56 @@ export default function AdminUsers() {
                 <>
                   <Clock className="h-4 w-4 mr-2" />
                   Suspend User
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Wallet Dialog */}
+      <Dialog open={walletDialogOpen} onOpenChange={setWalletDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Wallet Balance</DialogTitle>
+            <DialogDescription>
+              Set a new wallet balance for {selectedUserForWallet?.firstName} {selectedUserForWallet?.lastName}.
+              Current balance: ${(selectedUserForWallet?.wallet || 0).toFixed(2)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="wallet-amount">New Balance ($)</Label>
+              <Input
+                id="wallet-amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={walletAmount}
+                onChange={(e) => setWalletAmount(e.target.value)}
+                placeholder="0.00"
+                data-testid="input-wallet-amount"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWalletDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateWallet}
+              disabled={walletMutation.isPending}
+              data-testid="button-confirm-wallet-update"
+            >
+              {walletMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Update Wallet
                 </>
               )}
             </Button>
