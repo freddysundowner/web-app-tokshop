@@ -208,7 +208,7 @@ export default function AdminUsers() {
   // Update wallet mutation
   const walletMutation = useMutation({
     mutationFn: async ({ userId, wallet }: { userId: string; wallet: number }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/wallet`, { wallet });
+      return apiRequest("PATCH", `/api/admin/users/${userId}`, { wallet });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
