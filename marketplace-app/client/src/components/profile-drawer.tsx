@@ -20,7 +20,8 @@ import {
   Home,
   Grid,
   LogOut,
-  Tag
+  Tag,
+  Wallet
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
@@ -226,6 +227,16 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
               </div>
             </div>
           </button>
+
+          {/* Wallet Balance */}
+          {Number(currentUser?.wallet || 0) > 0 && (
+            <div className="flex items-center gap-2 mt-2 mx-2 px-2 py-2 rounded-lg bg-primary/10">
+              <Wallet className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm text-primary font-medium">
+                Wallet Credit: ${Number(currentUser.wallet).toFixed(2)}
+              </span>
+            </div>
+          )}
         </div>
 
         <Separator />
