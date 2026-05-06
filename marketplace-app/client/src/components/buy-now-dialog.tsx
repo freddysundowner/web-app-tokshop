@@ -587,26 +587,6 @@ export function BuyNowDialog({
 
           <Separator className="bg-zinc-800" />
 
-          {/* Wallet Balance */}
-          {walletBalance > 0 && !offerPrice && (
-            <div>
-              <div className="w-full flex items-center justify-between py-2 px-2">
-                <div className="flex items-center gap-3">
-                  <Wallet className="h-5 w-5 text-primary" />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold">Wallet Credit</p>
-                    <p className="text-xs text-zinc-400">Balance: ${walletBalance.toFixed(2)}</p>
-                  </div>
-                </div>
-                {walletCredit > 0 && (
-                  <span className="text-sm text-primary font-medium">-${walletCredit.toFixed(2)}</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <Separator className="bg-zinc-800" />
-
           {/* Offer Disclaimer */}
           {offerPrice && (
             <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">

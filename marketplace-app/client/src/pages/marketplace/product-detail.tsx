@@ -826,26 +826,6 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          {/* Wallet Credit */}
-          {walletBalance > 0 && offerPrice === null && (
-            <div className="border-b">
-              <div className="w-full flex items-center justify-between py-3 px-0">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">Wallet Credit</p>
-                    <p className="text-xs text-muted-foreground">Balance: US${walletBalance.toFixed(2)}</p>
-                  </div>
-                </div>
-                {walletCredit > 0 && (
-                  <span className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }}>
-                    -US${walletCredit.toFixed(2)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Price Breakdown */}
           <div className="space-y-3 pt-4">
             <div className="flex justify-between text-sm">
