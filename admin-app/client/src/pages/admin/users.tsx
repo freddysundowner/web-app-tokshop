@@ -335,14 +335,14 @@ export default function AdminUsers() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="min-w-[200px]">User</TableHead>
-                        <TableHead className="hidden md:table-cell">Email</TableHead>
-                        <TableHead className="hidden lg:table-cell">Username</TableHead>
-                        <TableHead className="hidden xl:table-cell">Country</TableHead>
-                        <TableHead className="hidden lg:table-cell">Joined</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Username</TableHead>
+                        <TableHead>Country</TableHead>
+                        <TableHead>Joined</TableHead>
                         <TableHead>Type</TableHead>
-                        <TableHead className="hidden sm:table-cell">Status</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Wallet</TableHead>
-                        <TableHead className="text-right hidden sm:table-cell">Pending</TableHead>
+                        <TableHead className="text-right">Pending</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -364,12 +364,12 @@ export default function AdminUsers() {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="hidden md:table-cell" data-testid={`text-email-${user._id || user.id}`}>
+                          <TableCell data-testid={`text-email-${user._id || user.id}`}>
                             <div className="max-w-[200px] truncate">{user.email}</div>
                           </TableCell>
-                          <TableCell className="hidden lg:table-cell" data-testid={`text-username-${user._id || user.id}`}>{user.userName || 'N/A'}</TableCell>
-                          <TableCell className="hidden xl:table-cell">{user.country || 'N/A'}</TableCell>
-                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                          <TableCell data-testid={`text-username-${user._id || user.id}`}>{user.userName || 'N/A'}</TableCell>
+                          <TableCell>{user.country || 'N/A'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
                             {(user.createdAt || user.created_at) ? new Date(user.createdAt || user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                           </TableCell>
                           <TableCell>
@@ -377,7 +377,7 @@ export default function AdminUsers() {
                               {user.seller ? "Seller" : "Customer"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell">
+                          <TableCell>
                             <div className="flex flex-col items-start gap-1">
                               <Badge 
                                 variant={user.suspended ? "outline" : user.system_blocked ? "destructive" : "secondary"}
@@ -414,7 +414,7 @@ export default function AdminUsers() {
                               <span>${(user.wallet || 0).toFixed(2)}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right hidden sm:table-cell" data-testid={`text-wallet-pending-${user._id || user.id}`}>
+                          <TableCell className="text-right" data-testid={`text-wallet-pending-${user._id || user.id}`}>
                             <span className="text-muted-foreground">${(user.walletPending || 0).toFixed(2)}</span>
                           </TableCell>
                           <TableCell className="text-right">
