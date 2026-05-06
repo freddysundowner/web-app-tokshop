@@ -25,6 +25,8 @@ interface User {
   above_age?: boolean; // User has confirmed they are over 18
   referredBy?: string | null; // ID of user who referred this user
   awarded_referal_credit?: boolean; // Whether referral credit has been used
+  wallet?: number; // Wallet credit balance
+  walletPending?: number; // Pending wallet balance (seller earnings)
 }
 
 interface AuthContextType {
@@ -883,6 +885,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         hasPayment: !!updatedUser.defaultpaymentmethod,
         referredBy: updatedUser.referredBy,
         awarded_referal_credit: updatedUser.awarded_referal_credit,
+        wallet: updatedUser.wallet,
+        profileDataWallet: profileData?.wallet,
       });
 
       // Return the fresh data for immediate use
