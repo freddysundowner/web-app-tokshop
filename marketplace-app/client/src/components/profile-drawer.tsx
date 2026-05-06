@@ -74,10 +74,9 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
     queryKey: ['wallet-transactions', userId],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (userId) params.set('customer', userId);
       params.set('type', 'wallet_payment');
       params.set('limit', '50');
-      const res = await fetchWithAuth(`/api/orders?${params.toString()}`);
+      const res = await fetchWithAuth(`/api/user/transactions?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch wallet transactions');
       return res.json();
     },
@@ -85,7 +84,10 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
     staleTime: 30000,
   });
 
-  const walletTransactions: any[] = walletTxData?.orders || walletTxData?.data || walletTxData || [];
+  const rawTxData = walletTxData?.data ?? walletTxData;
+  const walletTransactions: any[] = Array.isArray(rawTxData)
+    ? rawTxData
+    : rawTxData?.transactions || rawTxData?.data || rawTxData?.orders || [];
 
   // Reset shouldShow when drawer opens
   useEffect(() => {

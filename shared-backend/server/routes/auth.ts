@@ -1940,6 +1940,7 @@ export function registerAuthRoutes(app: Express) {
       if (req.query.page) queryParams.append("page", req.query.page as string);
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
       if (req.query.status) queryParams.append("status", req.query.status as string);
+      if (req.query.type) queryParams.append("type", req.query.type as string);
 
       const url = `${BASE_URL}/transactions?${queryParams.toString()}`;
       console.log(`Fetching user transactions from: ${url}`);
