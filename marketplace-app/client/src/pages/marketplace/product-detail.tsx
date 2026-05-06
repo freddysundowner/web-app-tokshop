@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Star, MessageCircle, Shield, Flag, ChevronLeft, ChevronRight, ShoppingBag, ChevronDown, CreditCard, MapPin, Loader2 } from "lucide-react";
+import { ArrowLeft, Star, MessageCircle, Shield, Flag, ChevronLeft, ChevronRight, ShoppingBag, ChevronDown, CreditCard, MapPin, Loader2, Wallet } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,7 @@ export default function ProductDetail() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMakeOfferDialog, setShowMakeOfferDialog] = useState(false);
   const [offerPrice, setOfferPrice] = useState<number | null>(null);
+  const [useWallet, setUseWallet] = useState(true);
 
   // Support both /product/:productId and /product?id=xxx URL patterns
   const queryParams = new URLSearchParams(window.location.search);
@@ -206,10 +208,15 @@ export default function ProductDetail() {
   const referrerIdNorm = (referredByUserId || '').toString().trim().toLowerCase();
   const sellerIdNorm = (sellerId || '').toString().trim().toLowerCase();
   const isFromReferrer = hasReferralCredit && referrerIdNorm === sellerIdNorm;
+  const walletBalance = Number(currentUser?.wallet || 0);
   const inlineSubtotal = (offerPrice !== null ? offerPrice : (product?.price || 0)) * quantity;
   const inlineShippingCost = shippingEstimate ? (typeof shippingEstimate.amount === 'string' ? parseFloat(shippingEstimate.amount) : (shippingEstimate.amount || 0)) : 0;
   const referralDiscountApplies = isFromReferrer && inlineSubtotal >= referralMinimum;
   const referralDiscount = referralDiscountApplies ? Math.min(referralCredit, inlineSubtotal + inlineShippingCost) : 0;
+  const preWalletTotal = inlineSubtotal + inlineShippingCost - referralDiscount;
+  const walletCredit = (useWallet && walletBalance > 0 && offerPrice === null)
+    ? Math.min(walletBalance, Math.max(0, preWalletTotal))
+    : 0;
 
   // Checkout mutation - place order OR create offer depending on offerPrice state
   const checkoutMutation = useMutation({
@@ -221,7 +228,11 @@ export default function ProductDetail() {
       // Use offer price if making an offer, otherwise use product price
       const priceToUse = offerPrice !== null ? offerPrice : (product.price || 0);
       const subtotal = priceToUse * quantity;
-      const total = Math.max(0, subtotal + shippingCost - referralDiscount);
+      const preTotal = subtotal + shippingCost - referralDiscount;
+      const walletCreditUsed = (useWallet && walletBalance > 0 && offerPrice === null)
+        ? Math.min(walletBalance, Math.max(0, preTotal))
+        : 0;
+      const total = Math.max(0, preTotal - walletCreditUsed);
       
       // If making an offer, call the offers API
       if (offerPrice !== null) {
@@ -273,6 +284,10 @@ export default function ProductDetail() {
       if (referralDiscount > 0) {
         payload.referralDiscount = parseFloat(referralDiscount.toFixed(2));
         payload.referredBy = referredByUserId;
+      }
+
+      if (walletCreditUsed > 0) {
+        payload.wallet_used = parseFloat(walletCreditUsed.toFixed(2));
       }
       
       // Only include tokshow if it has a value
@@ -813,11 +828,38 @@ export default function ProductDetail() {
             </button>
           </div>
 
+          {/* Wallet Credit */}
+          {walletBalance > 0 && offerPrice === null && (
+            <div className="border-b">
+              <div className="w-full flex items-center justify-between py-3 px-0">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Wallet Credit</p>
+                    <p className="text-xs text-muted-foreground">Balance: US${walletBalance.toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {useWallet && walletCredit > 0 && (
+                    <span className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }}>
+                      -US${walletCredit.toFixed(2)}
+                    </span>
+                  )}
+                  <Switch
+                    checked={useWallet}
+                    onCheckedChange={setUseWallet}
+                    data-testid="switch-use-wallet"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Price Breakdown */}
           <div className="space-y-3 pt-4">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span className="font-medium">US${((offerPrice !== null ? offerPrice : (product.price || 0)) * quantity).toFixed(2)}</span>
+              <span className="font-medium">US${inlineSubtotal.toFixed(2)}</span>
             </div>
             {/* Only show shipping if user has a valid address */}
             {hasValidAddress && (
@@ -842,15 +884,17 @@ export default function ProductDetail() {
                 <span className="font-medium">-US${referralDiscount.toFixed(2)}</span>
               </div>
             )}
+            {walletCredit > 0 && (
+              <div className="flex justify-between text-sm" style={{ color: 'hsl(var(--primary))' }}>
+                <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Wallet Credit</span>
+                <span className="font-medium">-US${walletCredit.toFixed(2)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
               <span data-testid="text-total-price">
-                US${Math.max(0,
-                  (offerPrice !== null ? offerPrice : (product.price || 0)) * quantity + 
-                  (shippingCost ? (typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost) : 0) -
-                  referralDiscount
-                ).toFixed(2)}
+                US${Math.max(0, preWalletTotal - walletCredit).toFixed(2)}
               </span>
             </div>
           </div>
