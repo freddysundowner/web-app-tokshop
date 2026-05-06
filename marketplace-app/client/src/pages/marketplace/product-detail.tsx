@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Star, MessageCircle, Shield, Flag, ChevronLeft, ChevronRight, ShoppingBag, ChevronDown, CreditCard, MapPin, Loader2, Wallet } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
@@ -40,7 +39,6 @@ export default function ProductDetail() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMakeOfferDialog, setShowMakeOfferDialog] = useState(false);
   const [offerPrice, setOfferPrice] = useState<number | null>(null);
-  const [useWallet, setUseWallet] = useState(true);
 
   // Support both /product/:productId and /product?id=xxx URL patterns
   const queryParams = new URLSearchParams(window.location.search);
@@ -214,7 +212,7 @@ export default function ProductDetail() {
   const referralDiscountApplies = isFromReferrer && inlineSubtotal >= referralMinimum;
   const referralDiscount = referralDiscountApplies ? Math.min(referralCredit, inlineSubtotal + inlineShippingCost) : 0;
   const preWalletTotal = inlineSubtotal + inlineShippingCost - referralDiscount;
-  const walletCredit = (useWallet && walletBalance > 0 && offerPrice === null)
+  const walletCredit = (walletBalance > 0 && offerPrice === null)
     ? Math.min(walletBalance, Math.max(0, preWalletTotal))
     : 0;
 
@@ -229,7 +227,7 @@ export default function ProductDetail() {
       const priceToUse = offerPrice !== null ? offerPrice : (product.price || 0);
       const subtotal = priceToUse * quantity;
       const preTotal = subtotal + shippingCost - referralDiscount;
-      const walletCreditUsed = (useWallet && walletBalance > 0 && offerPrice === null)
+      const walletCreditUsed = (walletBalance > 0 && offerPrice === null)
         ? Math.min(walletBalance, Math.max(0, preTotal))
         : 0;
       const total = Math.max(0, preTotal - walletCreditUsed);
@@ -839,18 +837,11 @@ export default function ProductDetail() {
                     <p className="text-xs text-muted-foreground">Balance: US${walletBalance.toFixed(2)}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {useWallet && walletCredit > 0 && (
-                    <span className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }}>
-                      -US${walletCredit.toFixed(2)}
-                    </span>
-                  )}
-                  <Switch
-                    checked={useWallet}
-                    onCheckedChange={setUseWallet}
-                    data-testid="switch-use-wallet"
-                  />
-                </div>
+                {walletCredit > 0 && (
+                  <span className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }}>
+                    -US${walletCredit.toFixed(2)}
+                  </span>
+                )}
               </div>
             </div>
           )}

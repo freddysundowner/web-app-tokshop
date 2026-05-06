@@ -17,7 +17,6 @@ import {
   Gift,
   Wallet
 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
@@ -50,7 +49,6 @@ export function BuyNowDialog({
   const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [isQuantityExpanded, setIsQuantityExpanded] = useState(false);
-  const [useWallet, setUseWallet] = useState(true);
 
   const availableStock = product?.quantity || 1;
   const showQuantityControls = availableStock > 1;
@@ -204,7 +202,6 @@ export function BuyNowDialog({
     if (open) {
       setQuantity(1);
       setIsQuantityExpanded(false);
-      setUseWallet(true);
     }
   }, [open]);
 
@@ -267,7 +264,7 @@ export function BuyNowDialog({
   }
 
   const preWalletTotal = subtotal + shippingCost + taxAmount - referralDiscount;
-  const walletCredit = (useWallet && walletBalance > 0 && !offerPrice)
+  const walletCredit = (walletBalance > 0 && !offerPrice)
     ? Math.min(walletBalance, Math.max(0, preWalletTotal))
     : 0;
   const total = Math.max(0, preWalletTotal - walletCredit);
@@ -601,16 +598,9 @@ export function BuyNowDialog({
                     <p className="text-xs text-zinc-400">Balance: ${walletBalance.toFixed(2)}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {useWallet && walletCredit > 0 && (
-                    <span className="text-sm text-primary font-medium">-${walletCredit.toFixed(2)}</span>
-                  )}
-                  <Switch
-                    checked={useWallet}
-                    onCheckedChange={setUseWallet}
-                    data-testid="switch-use-wallet"
-                  />
-                </div>
+                {walletCredit > 0 && (
+                  <span className="text-sm text-primary font-medium">-${walletCredit.toFixed(2)}</span>
+                )}
               </div>
             </div>
           )}
