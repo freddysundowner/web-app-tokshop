@@ -19,23 +19,43 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
-    middlewareMode: true,
+  // Marketplace: process.cwd() is marketplace-app/
+  const marketplaceDir = process.cwd();
+  const marketplaceRoot = path.resolve(marketplaceDir, "client");
+
+  // Admin: sibling directory
+  const adminDir = path.resolve(marketplaceDir, "../admin-app");
+  const adminRoot = path.resolve(adminDir, "client");
+
+  const sharedServerOptions = {
+    middlewareMode: true as const,
     hmr: { server },
     allowedHosts: true as const,
   };
 
-  // Use process.cwd() for the Vite root so it works from each app directory
-  const clientRoot = path.resolve(process.cwd(), "client");
-  console.log('[Vite] Using client root:', clientRoot);
+  // --- Admin Vite server (base: /admin/) ---
+  const adminVite = await createViteServer({
+    root: adminRoot,
+    base: "/admin/",
+    configFile: path.resolve(adminDir, "vite.config.ts"),
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+      },
+    },
+    server: {
+      ...sharedServerOptions,
+      hmr: { server, path: "/admin/__vite_hmr" },
+    },
+    appType: "custom",
+  });
 
-  // Load the app's vite.config.ts dynamically
-  const appRoot = process.cwd();
-  const viteConfigPath = path.resolve(appRoot, "vite.config.ts");
-  
-  const vite = await createViteServer({
-    root: clientRoot,
-    configFile: viteConfigPath, // Use the app's vite.config.ts
+  // --- Marketplace Vite server (base: /) ---
+  const marketplaceVite = await createViteServer({
+    root: marketplaceRoot,
+    base: "/",
+    configFile: path.resolve(marketplaceDir, "vite.config.ts"),
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
@@ -43,40 +63,46 @@ export async function setupVite(app: Express, server: Server) {
         process.exit(1);
       },
     },
-    server: serverOptions,
+    server: sharedServerOptions,
     appType: "custom",
   });
 
-  app.use(vite.middlewares);
+  // Admin middleware handles /admin/* asset/HMR requests
+  app.use(adminVite.middlewares);
+
+  // Marketplace middleware handles all other asset requests
+  app.use(marketplaceVite.middlewares);
+
+  // Unified HTML catch-all
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
     try {
-      // Use process.cwd() to find the client folder relative to the app directory
-      // When running admin-app, cwd is admin-app/, when running marketplace-app, cwd is marketplace-app/
-      const clientTemplate = path.resolve(
-        process.cwd(),
-        "client",
-        "index.html",
-      );
-
-      // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      if (url.startsWith("/admin")) {
+        // Serve admin app
+        const templatePath = path.resolve(adminRoot, "index.html");
+        let template = await fs.promises.readFile(templatePath, "utf-8");
+        const page = await adminVite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      } else {
+        // Serve marketplace app
+        const templatePath = path.resolve(marketplaceRoot, "index.html");
+        let template = await fs.promises.readFile(templatePath, "utf-8");
+        template = template.replace(
+          `src="/src/main.tsx"`,
+          `src="/src/main.tsx?v=${nanoid()}"`,
+        );
+        const page = await marketplaceVite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      }
     } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
+      marketplaceVite.ssrFixStacktrace(e as Error);
       next(e);
     }
   });
 }
 
 export function serveStatic(app: Express) {
-  // Use process.cwd() to find the dist/public folder relative to the app directory
   const distPath = path.resolve(process.cwd(), "dist", "public");
 
   if (!fs.existsSync(distPath)) {
@@ -87,7 +113,6 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
