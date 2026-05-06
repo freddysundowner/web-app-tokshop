@@ -951,6 +951,37 @@ export default function AdminShipments() {
                                         </tbody>
                                       </table>
                                     </div>
+                                    {/* Payment summary */}
+                                    <div className="mt-3 pt-3 border-t flex flex-col items-end gap-0.5 text-sm">
+                                      {(order.subtotal || order.subtotal === 0) && (
+                                        <div className="flex gap-8">
+                                          <span className="text-muted-foreground">Subtotal</span>
+                                          <span>${Number(order.subtotal).toFixed(2)}</span>
+                                        </div>
+                                      )}
+                                      {(order.shipping_fee || order.shippingFee) ? (
+                                        <div className="flex gap-8">
+                                          <span className="text-muted-foreground">Shipping</span>
+                                          <span>${Number(order.shipping_fee || order.shippingFee).toFixed(2)}</span>
+                                        </div>
+                                      ) : null}
+                                      {Number(order.tax) > 0 && (
+                                        <div className="flex gap-8">
+                                          <span className="text-muted-foreground">Tax</span>
+                                          <span>${Number(order.tax).toFixed(2)}</span>
+                                        </div>
+                                      )}
+                                      {Number(order.wallet_used) > 0 && (
+                                        <div className="flex gap-8">
+                                          <span className="text-primary font-medium">Wallet Credit</span>
+                                          <span className="text-primary font-medium">-${Number(order.wallet_used).toFixed(2)}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex gap-8 font-semibold border-t pt-1 mt-1">
+                                        <span>Total</span>
+                                        <span>${Number(order.total || (Number(order.subtotal || 0) + Number(order.shipping_fee || order.shippingFee || 0) + Number(order.tax || 0) - Number(order.discount || 0))).toFixed(2)}</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </td>
                               </tr>
