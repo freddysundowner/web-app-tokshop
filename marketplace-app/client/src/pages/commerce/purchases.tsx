@@ -914,6 +914,12 @@ export default function Purchases() {
                           <span>-{formatCurrency(breakdown.discount)}</span>
                         </div>
                       )}
+                      {(selectedOrder as any).wallet_used > 0 && (
+                        <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
+                          <span>Wallet Credit:</span>
+                          <span>-{formatCurrency(Number((selectedOrder as any).wallet_used))}</span>
+                        </div>
+                      )}
                       <div className="border-t pt-2 flex justify-between font-semibold text-lg">
                         <span>Total:</span>
                         <span>{formatCurrency(breakdown.total)}</span>

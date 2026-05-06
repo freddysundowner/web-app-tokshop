@@ -355,6 +355,12 @@ export default function AdminOrderDetail() {
                       <span>-${discount.toFixed(2)}</span>
                     </div>
                   )}
+                  {order.wallet_used > 0 && (
+                    <div className="flex justify-between text-sm" style={{ color: 'hsl(var(--primary))' }}>
+                      <span>Wallet Credit</span>
+                      <span>-${Number(order.wallet_used).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-lg pt-2 border-t">
                     <span>Total</span>
                     <span data-testid="text-order-total">${total.toFixed(2)}</span>

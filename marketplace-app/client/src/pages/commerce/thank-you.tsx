@@ -86,6 +86,17 @@ export default function ThankYou() {
                     })()}
                   </span>
                 </div>
+                {(order as any).wallet_used > 0 && (
+                  <>
+                    <Separator />
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Wallet Credit Used</span>
+                      <span className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }} data-testid="text-wallet-used">
+                        -US${Number((order as any).wallet_used).toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="space-y-3">

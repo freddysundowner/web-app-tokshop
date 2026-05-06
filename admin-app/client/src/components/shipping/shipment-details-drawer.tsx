@@ -215,10 +215,16 @@ export function AdminShipmentDetailsDrawer({ open, onOpenChange, order }: Shipme
               <span className="text-muted-foreground">Carrier</span>
               <Badge variant="secondary">{carrier}</Badge>
             </div>
-            <div className="flex justify-between py-2">
+            <div className="flex justify-between py-2 border-b">
               <span className="text-muted-foreground">Buyer Paid</span>
               <span className="font-medium">${shippingCost.toFixed(2)}</span>
             </div>
+            {(orderData as any)?.wallet_used > 0 && (
+              <div className="flex justify-between py-2">
+                <span className="text-muted-foreground">Wallet Credit Used</span>
+                <span className="font-medium" style={{ color: 'hsl(var(--primary))' }}>-${Number((orderData as any).wallet_used).toFixed(2)}</span>
+              </div>
+            )}
           </div>
 
           <div className="border rounded-lg p-4 space-y-4">
