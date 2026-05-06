@@ -560,6 +560,7 @@ export function registerShippingRoutes(app: Express) {
 
   // Purchase shipping label
   app.post("/api/shipping/profiles/buy/label", async (req, res) => {
+    console.log('>>> BUY LABEL ROUTE HIT - raw body:', JSON.stringify(req.body));
     try {
       // Validate request body using Zod schema
       const validatedData = shippingLabelPurchaseRequestSchema.parse(req.body);
