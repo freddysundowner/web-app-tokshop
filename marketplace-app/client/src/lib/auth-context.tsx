@@ -870,6 +870,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         defaultpaymentmethod: defaultPaymentMethod || null,
         referredBy: profileData?.referredBy || currentUserData.referredBy || '',
         awarded_referal_credit: profileData?.awarded_referal_credit ?? currentUserData.awarded_referal_credit ?? false,
+        wallet: profileData?.wallet ?? currentUserData.wallet ?? 0,
+        walletPending: profileData?.walletPending ?? currentUserData.walletPending ?? 0,
       };
 
       setUser(updatedUser);
