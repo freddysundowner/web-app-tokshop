@@ -14,8 +14,10 @@ import {
   Loader2,
   AlertTriangle,
   Zap,
-  Gift
+  Gift,
+  Wallet
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
@@ -48,6 +50,7 @@ export function BuyNowDialog({
   const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [isQuantityExpanded, setIsQuantityExpanded] = useState(false);
+  const [useWallet, setUseWallet] = useState(true);
 
   const availableStock = product?.quantity || 1;
   const showQuantityControls = availableStock > 1;
@@ -201,6 +204,7 @@ export function BuyNowDialog({
     if (open) {
       setQuantity(1);
       setIsQuantityExpanded(false);
+      setUseWallet(true);
     }
   }, [open]);
 
@@ -224,6 +228,9 @@ export function BuyNowDialog({
   const shippingErrorMessage = (shippingEstimate as any)?.message || '';
   const shippingCost = hasShippingError ? 0 : parseFloat((shippingEstimate as any)?.amount || '0');
   const taxAmount = parseFloat((taxEstimate as any)?.tax || '0');
+
+  // Wallet balance
+  const walletBalance = Number((user as any)?.wallet || 0);
 
   // Referral credit logic
   const referralCredit = referralSettings?.referral_credit ?? 15;
@@ -259,7 +266,11 @@ export function BuyNowDialog({
     });
   }
 
-  const total = Math.max(0, subtotal + shippingCost + taxAmount - referralDiscount);
+  const preWalletTotal = subtotal + shippingCost + taxAmount - referralDiscount;
+  const walletCredit = (useWallet && walletBalance > 0 && !offerPrice)
+    ? Math.min(walletBalance, Math.max(0, preWalletTotal))
+    : 0;
+  const total = Math.max(0, preWalletTotal - walletCredit);
 
   const buyNowMutation = useMutation({
     mutationFn: async () => {
@@ -339,6 +350,7 @@ export function BuyNowDialog({
         size: '',
         tokshow: product.tokshow || '',
         ordertype: ordertype,
+        wallet_used: parseFloat(walletCredit.toFixed(2)),
       };
       
       // Add flash_sale flag if this is a flash sale purchase
@@ -578,6 +590,33 @@ export function BuyNowDialog({
 
           <Separator className="bg-zinc-800" />
 
+          {/* Wallet Balance */}
+          {walletBalance > 0 && !offerPrice && (
+            <div>
+              <div className="w-full flex items-center justify-between py-2 px-2">
+                <div className="flex items-center gap-3">
+                  <Wallet className="h-5 w-5 text-primary" />
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">Wallet Credit</p>
+                    <p className="text-xs text-zinc-400">Balance: ${walletBalance.toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {useWallet && walletCredit > 0 && (
+                    <span className="text-sm text-primary font-medium">-${walletCredit.toFixed(2)}</span>
+                  )}
+                  <Switch
+                    checked={useWallet}
+                    onCheckedChange={setUseWallet}
+                    data-testid="switch-use-wallet"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Separator className="bg-zinc-800" />
+
           {/* Offer Disclaimer */}
           {offerPrice && (
             <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">
@@ -630,6 +669,14 @@ export function BuyNowDialog({
                   <Gift className="h-3 w-3" /> Referral Credit
                 </span>
                 <span className="font-medium text-primary">-${referralDiscount.toFixed(2)}</span>
+              </div>
+            )}
+            {walletCredit > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-primary flex items-center gap-1">
+                  <Wallet className="h-3 w-3" /> Wallet Credit
+                </span>
+                <span className="font-medium text-primary">-${walletCredit.toFixed(2)}</span>
               </div>
             )}
             <Separator className="bg-zinc-700 my-2" />
