@@ -81,7 +81,8 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
       return res.json();
     },
     enabled: !!userId && showWalletView,
-    staleTime: 30000,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const rawTxData = walletTxData?.data ?? walletTxData;
