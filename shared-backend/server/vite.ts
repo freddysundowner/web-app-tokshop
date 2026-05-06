@@ -67,8 +67,14 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  // Admin middleware handles /admin/* asset/HMR requests
-  app.use(adminVite.middlewares);
+  // Admin middleware handles /admin/* asset/HMR requests only
+  // Must be filtered to /admin paths so it doesn't intercept marketplace's /src/* requests
+  app.use((req, res, next) => {
+    if (req.originalUrl.startsWith('/admin')) {
+      return adminVite.middlewares(req, res, next);
+    }
+    next();
+  });
 
   // Marketplace middleware handles all other asset requests
   app.use(marketplaceVite.middlewares);
