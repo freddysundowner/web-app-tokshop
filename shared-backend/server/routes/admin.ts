@@ -2815,7 +2815,7 @@ If you have any questions, feel free to reach out to our support team.
         });
       }
 
-      const { amount, user } = req.body;
+      const { amount, user, forced } = req.body;
 
       if (!amount || !user) {
         return res.status(400).json({
@@ -2833,7 +2833,7 @@ If you have any questions, feel free to reach out to our support team.
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ amount, user }),
+        body: JSON.stringify({ amount, user, ...(forced !== undefined && { forced }) }),
       });
 
       const data = await response.json();
