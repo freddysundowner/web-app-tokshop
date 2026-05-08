@@ -38,6 +38,7 @@ export default function AdminPayouts() {
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [transferLoading, setTransferLoading] = useState(false);
   const [transferAmount, setTransferAmount] = useState<string>("");
+  const [overrideAmount, setOverrideAmount] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<{
     amount: number;
     userId: string;
@@ -418,6 +419,7 @@ export default function AdminPayouts() {
                                 onClick={() => {
                                   setSelectedTransfer({ amount, userId, userName });
                                   setTransferAmount(Number(amount).toFixed(2));
+                                  setOverrideAmount(false);
                                   setTransferDialogOpen(true);
                                 }}
                               >
@@ -474,25 +476,47 @@ export default function AdminPayouts() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="py-2 space-y-2">
-            <label className="text-sm font-medium">Amount (USD)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={transferAmount}
-                onChange={(e) => setTransferAmount(e.target.value)}
-                className="pl-7"
-                data-testid="input-transfer-amount"
+          <div className="py-2 space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="override-amount"
+                checked={overrideAmount}
+                onChange={(e) => {
+                  setOverrideAmount(e.target.checked);
+                  if (!e.target.checked && selectedTransfer) {
+                    setTransferAmount(Number(selectedTransfer.amount).toFixed(2));
+                  }
+                }}
+                className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+                data-testid="checkbox-override"
               />
+              <label htmlFor="override-amount" className="text-sm font-medium cursor-pointer select-none">
+                Override
+              </label>
             </div>
-            {selectedTransfer && Number(transferAmount) !== Number(selectedTransfer.amount).valueOf() && (
-              <p className="text-xs text-muted-foreground">
-                Original pending amount: ${Number(selectedTransfer.amount).toFixed(2)}
-              </p>
-            )}
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-muted-foreground">Amount (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="pl-7"
+                  disabled={!overrideAmount}
+                  data-testid="input-transfer-amount"
+                />
+              </div>
+              {overrideAmount && selectedTransfer && Number(transferAmount) !== Number(selectedTransfer.amount).valueOf() && (
+                <p className="text-xs text-muted-foreground">
+                  Original pending amount: ${Number(selectedTransfer.amount).toFixed(2)}
+                </p>
+              )}
+            </div>
           </div>
 
           <AlertDialogFooter>
@@ -513,7 +537,8 @@ export default function AdminPayouts() {
                     credentials: 'include',
                     body: JSON.stringify({ 
                       amount: finalAmount, 
-                      user: selectedTransfer.userId 
+                      user: selectedTransfer.userId,
+                      ...(overrideAmount && { forced: true })
                     })
                   });
                   const result = await response.json();
