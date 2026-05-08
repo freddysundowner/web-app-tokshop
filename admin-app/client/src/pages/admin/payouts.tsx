@@ -37,6 +37,7 @@ export default function AdminPayouts() {
   
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [transferLoading, setTransferLoading] = useState(false);
+  const [transferAmount, setTransferAmount] = useState<string>("");
   const [selectedTransfer, setSelectedTransfer] = useState<{
     amount: number;
     userId: string;
@@ -416,6 +417,7 @@ export default function AdminPayouts() {
                                 size="sm"
                                 onClick={() => {
                                   setSelectedTransfer({ amount, userId, userName });
+                                  setTransferAmount(Number(amount).toFixed(2));
                                   setTransferDialogOpen(true);
                                 }}
                               >
@@ -466,21 +468,43 @@ export default function AdminPayouts() {
       <AlertDialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Transfer</AlertDialogTitle>
+            <AlertDialogTitle>Transfer to {selectedTransfer?.userName || 'Unknown'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to transfer <strong>${selectedTransfer ? Number(selectedTransfer.amount).toFixed(2) : '0.00'}</strong> to <strong>{selectedTransfer?.userName || 'Unknown'}</strong>?
-              <br /><br />
-              This action cannot be undone.
+              Edit the amount below before confirming. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="py-2 space-y-2">
+            <label className="text-sm font-medium">Amount (USD)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(e.target.value)}
+                className="pl-7"
+                data-testid="input-transfer-amount"
+              />
+            </div>
+            {selectedTransfer && Number(transferAmount) !== Number(selectedTransfer.amount).valueOf() && (
+              <p className="text-xs text-muted-foreground">
+                Original pending amount: ${Number(selectedTransfer.amount).toFixed(2)}
+              </p>
+            )}
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={transferLoading}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={transferLoading}
+              disabled={transferLoading || !transferAmount || parseFloat(transferAmount) <= 0}
               onClick={async (e) => {
                 e.preventDefault();
                 if (!selectedTransfer) return;
-                
+                const finalAmount = parseFloat(transferAmount);
+                if (!finalAmount || finalAmount <= 0) return;
+
                 setTransferLoading(true);
                 try {
                   const response = await fetch('/api/stripe/transfer', {
@@ -488,7 +512,7 @@ export default function AdminPayouts() {
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ 
-                      amount: selectedTransfer.amount, 
+                      amount: finalAmount, 
                       user: selectedTransfer.userId 
                     })
                   });
@@ -497,7 +521,7 @@ export default function AdminPayouts() {
                     setTransferDialogOpen(false);
                     toast({
                       title: "Transfer Successful",
-                      description: `$${Number(selectedTransfer.amount).toFixed(2)} has been transferred to ${selectedTransfer.userName}`,
+                      description: `$${finalAmount.toFixed(2)} has been transferred to ${selectedTransfer.userName}`,
                     });
                     queryClient.invalidateQueries({ queryKey: ['pending-payouts'] });
                   } else {
@@ -524,7 +548,7 @@ export default function AdminPayouts() {
                   Processing...
                 </>
               ) : (
-                'Confirm Transfer'
+                `Confirm $${parseFloat(transferAmount || '0').toFixed(2)}`
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
