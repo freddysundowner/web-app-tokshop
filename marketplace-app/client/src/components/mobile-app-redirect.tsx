@@ -14,12 +14,11 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  const [attemptedAppOpen, setAttemptedAppOpen] = useState(false);
   const [appStoreUrl, setAppStoreUrl] = useState("");
   const [playStoreUrl, setPlayStoreUrl] = useState("");
-  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("https://iconaapp.com");
   const [appName, setAppName] = useState("App");
-  const [appScheme, setAppScheme] = useState("app://");
+  const [appScheme, setAppScheme] = useState("icona");
 
   useEffect(() => {
     fetchWithAuth("/api/themes")
@@ -28,13 +27,11 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
         const themes = data.data || data;
         setAppStoreUrl(themes.ios_link || "");
         setPlayStoreUrl(themes.android_link || "");
-        setWebsiteUrl(themes.website_url || window.location.origin);
-        setAppName(themes.app_name || "App");
-        setAppScheme(themes.app_scheme || "app://");
+        setWebsiteUrl(themes.website_url || "https://iconaapp.com");
+        setAppName(themes.app_name || "Icona");
+        setAppScheme(themes.app_scheme || "icona");
       })
-      .catch(() => {
-        setWebsiteUrl(window.location.origin);
-      });
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -46,35 +43,22 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
     setIsIOS(ios);
     setIsAndroid(android);
 
-    if (mobile && !attemptedAppOpen) {
-      setAttemptedAppOpen(true);
-
-      const referrer = document.referrer;
-      const domainHost = websiteUrl ? new URL(websiteUrl).hostname : '';
-      const isFromAppDomain = domainHost ? referrer.includes(domainHost) : false;
-      const isOnAppDomain = domainHost ? (window.location.hostname === domainHost ||
-                               window.location.hostname === `www.${domainHost}`) : false;
-
-      if (isOnAppDomain && !isFromAppDomain && websiteUrl) {
-        const universalLink = `${websiteUrl}/${type}/${id}`;
-        window.location.replace(universalLink);
-
-        setTimeout(() => {
-          if (document.hasFocus()) {
-            setShowAppPrompt(true);
-          }
-        }, 1500);
-      } else {
-        setShowAppPrompt(true);
-      }
-    }
-
     if (!mobile) {
       setIsChecking(false);
+      return;
     }
-  }, [type, id, attemptedAppOpen]);
 
-  const tryOpenApp = (deepLink: string, storeUrl: string) => {
+    setShowAppPrompt(true);
+    setIsChecking(false);
+  }, [type, id]);
+
+  const tryOpenApp = () => {
+    const base = websiteUrl.replace(/\/$/, "");
+    const universalLink = `${base}/${type}/${id}`;
+    const scheme = appScheme.replace("://", "").replace(":", "");
+    const customScheme = `${scheme}://${type}/${id}`;
+    const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
+
     let appOpened = false;
 
     const onVisibilityChange = () => {
@@ -85,22 +69,18 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
 
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    window.location.href = deepLink;
+    if (isAndroid) {
+      window.location.href = universalLink;
+    } else {
+      window.location.href = customScheme;
+    }
 
     setTimeout(() => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       if (!appOpened && storeUrl) {
         window.location.href = storeUrl;
       }
-    }, 2000);
-  };
-
-  const handleOpenInApp = () => {
-    const scheme = appScheme.endsWith("://") ? appScheme : `${appScheme}://`;
-    const path = `${type}/${id}`;
-    const deepLink = `${scheme}${path}`;
-    const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
-    tryOpenApp(deepLink, storeUrl);
+    }, 2500);
   };
 
   const handleOpenAppStore = () => {
@@ -116,7 +96,7 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
     setIsChecking(false);
   };
 
-  if (isChecking && !showAppPrompt) {
+  if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -141,7 +121,7 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
 
           <div className="space-y-3">
             <Button
-              onClick={handleOpenInApp}
+              onClick={tryOpenApp}
               className="w-full h-12 text-base font-semibold"
             >
               Continue on {appName}
