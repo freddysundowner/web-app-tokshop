@@ -48,17 +48,17 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
 
     if (mobile && !attemptedAppOpen) {
       setAttemptedAppOpen(true);
-      
+
       const referrer = document.referrer;
       const domainHost = websiteUrl ? new URL(websiteUrl).hostname : '';
       const isFromAppDomain = domainHost ? referrer.includes(domainHost) : false;
-      const isOnAppDomain = domainHost ? (window.location.hostname === domainHost || 
+      const isOnAppDomain = domainHost ? (window.location.hostname === domainHost ||
                                window.location.hostname === `www.${domainHost}`) : false;
-      
+
       if (isOnAppDomain && !isFromAppDomain && websiteUrl) {
         const universalLink = `${websiteUrl}/${type}/${id}`;
         window.location.replace(universalLink);
-        
+
         setTimeout(() => {
           if (document.hasFocus()) {
             setShowAppPrompt(true);
@@ -68,25 +68,39 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
         setShowAppPrompt(true);
       }
     }
-    
+
     if (!mobile) {
       setIsChecking(false);
     }
   }, [type, id, attemptedAppOpen]);
 
-  const handleOpenInApp = () => {
-    const deepLink = `${appScheme}${type}/${id}`;
-    const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
-    
-    const now = Date.now();
-    
+  const tryOpenApp = (deepLink: string, storeUrl: string) => {
+    let appOpened = false;
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        appOpened = true;
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     window.location.href = deepLink;
-    
+
     setTimeout(() => {
-      if (document.hasFocus() && Date.now() - now < 2000 && storeUrl) {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (!appOpened && storeUrl) {
         window.location.href = storeUrl;
       }
-    }, 1500);
+    }, 2000);
+  };
+
+  const handleOpenInApp = () => {
+    const scheme = appScheme.endsWith("://") ? appScheme : `${appScheme}://`;
+    const path = `${type}/${id}`;
+    const deepLink = `${scheme}${path}`;
+    const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
+    tryOpenApp(deepLink, storeUrl);
   };
 
   const handleOpenAppStore = () => {
@@ -117,7 +131,7 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
           <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
             <Smartphone className="h-10 w-10 text-primary" />
           </div>
-          
+
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-foreground">Open in {appName} App</h1>
             <p className="text-muted-foreground">
@@ -126,14 +140,14 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
           </div>
 
           <div className="space-y-3">
-            <Button 
+            <Button
               onClick={handleOpenInApp}
               className="w-full h-12 text-base font-semibold"
             >
               Continue on {appName}
             </Button>
-            
-            <Button 
+
+            <Button
               onClick={handleContinueOnWeb}
               variant="outline"
               className="w-full h-12 text-base"
@@ -144,7 +158,7 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
 
           <p className="text-xs text-muted-foreground">
             Don't have the app?{" "}
-            <button 
+            <button
               onClick={handleOpenAppStore}
               className="text-primary underline hover:no-underline"
             >
