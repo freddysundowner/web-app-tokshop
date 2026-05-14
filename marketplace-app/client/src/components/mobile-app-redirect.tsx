@@ -52,11 +52,17 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
     setIsChecking(false);
   }, [type, id]);
 
+  const getPackageName = () => {
+    try {
+      const match = playStoreUrl.match(/[?&]id=([^&]+)/);
+      return match ? match[1] : "com.iconaapp.live";
+    } catch {
+      return "com.iconaapp.live";
+    }
+  };
+
   const tryOpenApp = () => {
-    const base = websiteUrl.replace(/\/$/, "");
-    const universalLink = `${base}/${type}/${id}`;
-    const scheme = appScheme.replace("://", "").replace(":", "");
-    const customScheme = `${scheme}://${type}/${id}`;
+    const scheme = (appScheme || "icona").replace("://", "").replace(":", "");
     const storeUrl = isIOS ? appStoreUrl : playStoreUrl;
 
     let appOpened = false;
@@ -70,14 +76,17 @@ export function MobileAppRedirect({ type, id, children }: MobileAppRedirectProps
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     if (isAndroid) {
-      window.location.href = universalLink;
+      const packageName = getPackageName();
+      const fallbackUrl = encodeURIComponent(storeUrl || `https://play.google.com/store/apps/details?id=${packageName}`);
+      const intentUrl = `intent://${type}/${id}#Intent;scheme=${scheme};package=${packageName};S.browser_fallback_url=${fallbackUrl};end`;
+      window.location.href = intentUrl;
     } else {
-      window.location.href = customScheme;
+      window.location.href = `${scheme}://${type}/${id}`;
     }
 
     setTimeout(() => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      if (!appOpened && storeUrl) {
+      if (!appOpened && storeUrl && !isAndroid) {
         window.location.href = storeUrl;
       }
     }, 2500);
