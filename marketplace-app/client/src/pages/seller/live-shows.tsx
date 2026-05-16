@@ -5,7 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Video, Plus, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Copy, Video, Plus, ChevronLeft, ChevronRight, Search,
+  Calendar, Clock, Lock, Unlock, X, Pencil, ExternalLink, Radio
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { format } from "date-fns";
@@ -25,6 +36,7 @@ interface Show {
     name: string;
   };
   thumbnail?: string;
+  preview_videos?: string;
   roomType: string;
   activeTime: number;
 }
@@ -36,34 +48,55 @@ interface ShowsResponse {
   pages: number;
 }
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
+const ShowStatusBadge = ({ show }: { show: Show }) => {
+  if (show.started && !show.ended) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-600 text-white shadow">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+        </span>
+        Live
+      </span>
+    );
+  }
+  if (show.ended) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-black/50 text-white">
+        Ended
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-600/90 text-white">
+      <Clock className="h-2.5 w-2.5" />
+      Scheduled
+    </span>
+  );
+};
+
 export default function LiveShows() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
-  
-  // Filter states
-  const [searchInput, setSearchInput] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // Determine status based on active tab
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const debouncedSearch = useDebounce(searchInput, 500);
+
   const statusFilter = activeTab === "upcoming" ? "active" : "inactive";
 
-  // Debounced search effect
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setSearchTerm(searchInput);
-      setCurrentPage(1); // Reset to first page when searching
-    }, 500);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchInput]);
-
-  // Fetch categories
   const { data: categoriesData } = useQuery<TokshopCategoriesResponse>({
     queryKey: ["/api/categories"],
     queryFn: async () => {
@@ -73,437 +106,385 @@ export default function LiveShows() {
     },
   });
 
-  // Flatten categories to include subcategories
   const flattenCategories = (categories: any[]): any[] => {
     const result: any[] = [];
     categories.forEach((category) => {
       result.push(category);
-      if (category.subCategories && category.subCategories.length > 0) {
+      if (category.subCategories?.length) {
         category.subCategories.forEach((subCat: any) => {
-          result.push({
-            ...subCat,
-            name: `${category.name} > ${subCat.name}`,
-          });
+          result.push({ ...subCat, name: `${category.name} > ${subCat.name}` });
         });
       }
     });
     return result;
   };
 
-  const categories = categoriesData?.categories 
-    ? flattenCategories(categoriesData.categories) 
-    : [];
+  const categories = categoriesData?.categories ? flattenCategories(categoriesData.categories) : [];
 
   const { data: showsData, isLoading } = useQuery<ShowsResponse>({
-    queryKey: ["/api/rooms", user?.id, currentPage, statusFilter, searchTerm, selectedCategory],
+    queryKey: ["/api/rooms", user?.id, currentPage, statusFilter, debouncedSearch, selectedCategory],
     queryFn: async () => {
       if (!user?.id) return { rooms: [], totalDoc: 0, limits: 15, pages: 0 };
-      
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "15",
         userid: user.id,
         currentUserId: user.id,
         category: selectedCategory === "all" ? "" : selectedCategory,
-        title: searchTerm,
-        status: statusFilter
+        title: debouncedSearch,
+        status: statusFilter,
       });
-      
-      const response = await fetchWithAuth(`/api/rooms?${params.toString()}`, {
-        credentials: "include",
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch shows");
-      }
-      
-      return await response.json();
+      const response = await fetchWithAuth(`/api/rooms?${params.toString()}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch shows");
+      return response.json();
     },
     enabled: !!user?.id,
   });
 
   const shows = showsData?.rooms || [];
   const totalPages = Math.ceil((showsData?.totalDoc || 0) / (showsData?.limits || 15));
+  const hasFilters = searchInput || selectedCategory !== "all";
 
-  // Mutation to toggle room type
   const toggleRoomTypeMutation = useMutation({
     mutationFn: async ({ showId, newRoomType }: { showId: string; newRoomType: string }) => {
       return await apiRequest("PUT", `/api/rooms/${showId}`, { roomType: newRoomType });
     },
     onMutate: async ({ showId, newRoomType }) => {
-      // Cancel any outgoing refetches to avoid overwriting our optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/rooms"] });
-      
-      // Snapshot the previous value
-      const previousShows = queryClient.getQueryData(["/api/rooms", user?.id, currentPage, statusFilter]);
-      
-      // Optimistically update the cache
+      const prev = queryClient.getQueryData(["/api/rooms", user?.id, currentPage, statusFilter]);
       queryClient.setQueryData(["/api/rooms", user?.id, currentPage, statusFilter], (old: ShowsResponse | undefined) => {
         if (!old) return old;
-        
-        return {
-          ...old,
-          rooms: old.rooms.map(show => 
-            show._id === showId 
-              ? { ...show, roomType: newRoomType }
-              : show
-          )
-        };
+        return { ...old, rooms: old.rooms.map(s => s._id === showId ? { ...s, roomType: newRoomType } : s) };
       });
-      
-      // Return context with the previous value
-      return { previousShows };
+      return { prev };
     },
     onSuccess: () => {
-      // Refetch to ensure we have the latest data from server
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
-      toast({ 
-        title: "Room type updated", 
-        description: "Show privacy settings have been updated successfully." 
-      });
+      toast({ title: "Room type updated", description: "Show privacy settings updated." });
     },
-    onError: (error: Error, variables, context) => {
-      // Rollback to the previous value on error
-      if (context?.previousShows) {
-        queryClient.setQueryData(["/api/rooms", user?.id, currentPage, statusFilter], context.previousShows);
-      }
-      toast({ 
-        title: "Failed to update room type", 
-        description: error.message,
-        variant: "destructive" 
-      });
+    onError: (error: Error, _vars, context: any) => {
+      if (context?.prev) queryClient.setQueryData(["/api/rooms", user?.id, currentPage, statusFilter], context.prev);
+      toast({ title: "Failed to update room type", description: error.message, variant: "destructive" });
     },
   });
 
-  // Mutation to cancel show
   const cancelShowMutation = useMutation({
     mutationFn: async (showId: string) => {
       return await apiRequest("PUT", `/api/rooms/${showId}`, { ended: true });
     },
     onMutate: async (showId) => {
-      // Cancel any outgoing refetches to avoid overwriting our optimistic update
       await queryClient.cancelQueries({ queryKey: ["/api/rooms"] });
-      
-      // Snapshot the previous value
-      const previousShows = queryClient.getQueryData(["/api/rooms", user?.id, currentPage, statusFilter]);
-      
-      // Optimistically update the cache
+      const prev = queryClient.getQueryData(["/api/rooms", user?.id, currentPage, statusFilter]);
       queryClient.setQueryData(["/api/rooms", user?.id, currentPage, statusFilter], (old: ShowsResponse | undefined) => {
         if (!old) return old;
-        
-        return {
-          ...old,
-          rooms: old.rooms.map(show => 
-            show._id === showId 
-              ? { ...show, ended: true }
-              : show
-          )
-        };
+        return { ...old, rooms: old.rooms.map(s => s._id === showId ? { ...s, ended: true } : s) };
       });
-      
-      // Return context with the previous value
-      return { previousShows };
+      return { prev };
     },
     onSuccess: () => {
-      // Refetch to ensure we have the latest data from server
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
-      toast({ 
-        title: "Show cancelled", 
-        description: "The show has been cancelled successfully." 
-      });
+      toast({ title: "Show cancelled" });
     },
-    onError: (error: Error, variables, context) => {
-      // Rollback to the previous value on error
-      if (context?.previousShows) {
-        queryClient.setQueryData(["/api/rooms", user?.id, currentPage, statusFilter], context.previousShows);
-      }
-      toast({ 
-        title: "Failed to cancel show", 
-        description: error.message,
-        variant: "destructive" 
-      });
+    onError: (error: Error, _vars, context: any) => {
+      if (context?.prev) queryClient.setQueryData(["/api/rooms", user?.id, currentPage, statusFilter], context.prev);
+      toast({ title: "Failed to cancel show", description: error.message, variant: "destructive" });
     },
   });
 
-  const toggleRoomType = (show: Show) => {
-    const newRoomType = show.roomType === "private" ? "public" : "private";
-    toggleRoomTypeMutation.mutate({ showId: show._id, newRoomType });
-  };
-
-  const cancelShow = (showId: string) => {
-    cancelShowMutation.mutate(showId);
-  };
-
   const copyShowLink = (showId: string) => {
-    const link = `${window.location.origin}/show/${showId}`;
-    navigator.clipboard.writeText(link);
-    toast({ title: "Show link copied to clipboard" });
+    navigator.clipboard.writeText(`${window.location.origin}/show/${showId}`);
+    toast({ title: "Link copied to clipboard" });
   };
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  // Reset to page 1 when switching tabs
-  const handleTabChange = (newTab: string) => {
-    setActiveTab(newTab);
-    setCurrentPage(1);
-  };
-
-  // Reset filters
-  const handleCategoryChange = (value: string) => {
-    setSelectedCategory(value);
-    setCurrentPage(1);
-  };
-
-  const handleClearFilters = () => {
-    setSearchInput("");
-    setSearchTerm("");
-    setSelectedCategory("all");
-    setCurrentPage(1);
-  };
+  const handleTabChange = (val: string) => { setActiveTab(val); setCurrentPage(1); };
+  const handleCategoryChange = (val: string) => { setSelectedCategory(val); setCurrentPage(1); };
+  const clearFilters = () => { setSearchInput(""); setSelectedCategory("all"); setCurrentPage(1); };
 
   const renderShowCard = (show: Show) => {
-    const now = Date.now();
-    const isPastShow = show.date <= now;
-    const showHasStartedOrEnded = show.started || show.ended;
-    const shouldHideCancelButton = isPastShow && showHasStartedOrEnded;
+    const isPast = show.date <= Date.now();
+    const hideCancel = isPast && (show.started || show.ended);
 
     return (
-      <div 
+      <div
         key={show._id}
-        className="border border-border rounded-lg p-4 mb-3 bg-card"
+        className="group relative rounded-xl border bg-card overflow-hidden hover:shadow-md transition-shadow duration-200"
         data-testid={`show-card-${show._id}`}
       >
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <div className="flex items-start gap-2">
-              <h3 className="text-base font-medium text-foreground" data-testid={`show-title-${show._id}`}>
-                {show.title} — {format(new Date(show.date), "M/d/yyyy · h:mm a")}
-              </h3>
-              <button
-                onClick={() => copyShowLink(show._id)}
-                className="p-1 hover-elevate active-elevate-2 rounded"
-                data-testid={`button-copy-link-${show._id}`}
-                title="Copy show link"
-              >
-                <Copy className="h-4 w-4 text-muted-foreground" />
-              </button>
+        {/* Thumbnail */}
+        <div className="relative aspect-video bg-muted overflow-hidden">
+          {show.preview_videos ? (
+            <video src={show.preview_videos} className="w-full h-full object-cover" muted playsInline />
+          ) : show.thumbnail ? (
+            <img src={show.thumbnail} alt={show.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/60">
+              <Video className="h-10 w-10 text-muted-foreground/40" />
             </div>
-            {show.category && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {show.category.name}
-              </p>
-            )}
-          </div>
-        </div>
+          )}
 
-        <div className="flex flex-wrap gap-2">
-          <Button 
-            variant="default" 
-            size="sm"
+          {/* Status badge */}
+          <div className="absolute top-2 left-2">
+            <ShowStatusBadge show={show} />
+          </div>
+
+          {/* Private badge */}
+          {show.roomType === "private" && (
+            <div className="absolute top-2 right-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-black/60 text-white">
+                <Lock className="h-2.5 w-2.5" />
+                Private
+              </span>
+            </div>
+          )}
+
+          {/* Quick-open overlay */}
+          <button
             onClick={() => setLocation(`/show/${show._id}`)}
+            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30"
             data-testid={`button-open-show-${show._id}`}
           >
-            Open show
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setLocation(`/schedule-show?edit=${show._id}`)}
-            data-testid={`button-edit-show-${show._id}`}
-          >
-            Edit show
-          </Button>
-          {!shouldHideCancelButton && (
-            <Button 
-              variant="destructive" 
-              size="sm"
-              onClick={() => cancelShow(show._id)}
-              disabled={cancelShowMutation.isPending}
-              data-testid={`button-cancel-show-${show._id}`}
+            <span className="bg-white text-black text-xs font-semibold px-3 py-1.5 rounded-full shadow flex items-center gap-1.5">
+              <ExternalLink className="h-3 w-3" />
+              Open Show
+            </span>
+          </button>
+        </div>
+
+        {/* Card body */}
+        <div className="p-4 space-y-3">
+          {/* Title row */}
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <h3
+                className="font-semibold text-sm leading-snug line-clamp-1 text-foreground"
+                data-testid={`show-title-${show._id}`}
+              >
+                {show.title}
+              </h3>
+              {show.category && (
+                <Badge variant="secondary" className="mt-1 text-xs font-normal">
+                  {show.category.name}
+                </Badge>
+              )}
+            </div>
+            <button
+              onClick={() => copyShowLink(show._id)}
+              className="flex-shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors"
+              title="Copy show link"
+              data-testid={`button-copy-link-${show._id}`}
             >
-              Cancel Show
+              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Date */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>{format(new Date(show.date), "MMM d, yyyy · h:mm a")}</span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              size="sm"
+              className="flex-1 h-8 text-xs"
+              onClick={() => setLocation(`/show/${show._id}`)}
+            >
+              Open Show
             </Button>
-          )}
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => toggleRoomType(show)}
-            disabled={toggleRoomTypeMutation.isPending}
-            data-testid={`button-private-mode-${show._id}`}
-          >
-            {show.roomType === "private" ? "Disable" : "Enable"} Private Mode
-          </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs gap-1">
+                  More
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => setLocation(`/schedule-show?edit=${show._id}`)}
+                  data-testid={`button-edit-show-${show._id}`}
+                >
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                  Edit Show
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => toggleRoomTypeMutation.mutate({ showId: show._id, newRoomType: show.roomType === "private" ? "public" : "private" })}
+                  disabled={toggleRoomTypeMutation.isPending}
+                  data-testid={`button-private-mode-${show._id}`}
+                >
+                  {show.roomType === "private" ? (
+                    <><Unlock className="mr-2 h-3.5 w-3.5" />Make Public</>
+                  ) : (
+                    <><Lock className="mr-2 h-3.5 w-3.5" />Make Private</>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => copyShowLink(show._id)}
+                >
+                  <Copy className="mr-2 h-3.5 w-3.5" />
+                  Copy Link
+                </DropdownMenuItem>
+                {!hideCancel && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => cancelShowMutation.mutate(show._id)}
+                      disabled={cancelShowMutation.isPending}
+                      className="text-destructive focus:text-destructive"
+                      data-testid={`button-cancel-show-${show._id}`}
+                    >
+                      <X className="mr-2 h-3.5 w-3.5" />
+                      Cancel Show
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     );
   };
 
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
+  const renderSkeleton = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="rounded-xl border bg-card overflow-hidden animate-pulse">
+          <div className="aspect-video bg-muted" />
+          <div className="p-4 space-y-2">
+            <div className="h-4 bg-muted rounded w-3/4" />
+            <div className="h-3 bg-muted rounded w-1/2" />
+            <div className="h-3 bg-muted rounded w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
-    return (
-      <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-        <div className="text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages} ({showsData?.totalDoc || 0} total shows)
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1}
-            data-testid="button-previous-page"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNextPage}
-            disabled={currentPage >= totalPages}
-            data-testid="button-next-page"
-          >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
+  const renderEmpty = (tab: string) => (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="rounded-full bg-muted p-6 mb-4">
+        {tab === "upcoming" ? (
+          <Radio className="h-10 w-10 text-muted-foreground" />
+        ) : (
+          <Video className="h-10 w-10 text-muted-foreground" />
+        )}
       </div>
+      <h3 className="text-base font-semibold mb-1">
+        {hasFilters ? "No shows match your filters" : tab === "upcoming" ? "No upcoming shows" : "No past shows"}
+      </h3>
+      <p className="text-sm text-muted-foreground max-w-xs mb-4">
+        {hasFilters
+          ? "Try clearing your search or changing the category filter."
+          : tab === "upcoming"
+          ? "Schedule your first show to start selling live."
+          : "Your completed shows will appear here."}
+      </p>
+      {hasFilters ? (
+        <Button variant="outline" size="sm" onClick={clearFilters}>Clear Filters</Button>
+      ) : tab === "upcoming" ? (
+        <Button size="sm" onClick={() => setLocation("/schedule-show")} data-testid="button-create-first-show">
+          <Plus className="h-4 w-4 mr-2" />
+          Schedule a Show
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  const renderGrid = (tab: string) => {
+    if (isLoading) return renderSkeleton();
+    if (!shows.length) return renderEmpty(tab);
+    return (
+      <>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {shows.map(renderShowCard)}
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 mt-2 border-t">
+            <p className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages} · {showsData?.totalDoc || 0} shows
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} data-testid="button-previous-page">
+                <ChevronLeft className="h-4 w-4 mr-1" />Previous
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages} data-testid="button-next-page">
+                Next<ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
     );
   };
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="border-b border-border bg-background px-6 py-4">
+      <div className="border-b border-border bg-background px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-shows-title">
-            Shows
-          </h1>
-          <div className="flex items-center gap-2">
-            <Button 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              size="sm"
-              onClick={() => setLocation("/schedule-show")}
-              data-testid="button-schedule-show"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Schedule a Show
-            </Button>
+          <div>
+            <h1 className="text-xl font-bold text-foreground" data-testid="text-shows-title">My Shows</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage and monitor your live shopping shows</p>
           </div>
+          <Button
+            size="sm"
+            onClick={() => setLocation("/schedule-show")}
+            data-testid="button-schedule-show"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Schedule a Show
+          </Button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto px-6 py-6">
+      <div className="flex-1 overflow-auto px-6 py-6 space-y-4">
         {/* Filters */}
-        <div className="mb-4 flex flex-col sm:flex-row gap-3">
-          {/* Search */}
-          <div className="flex-1 relative">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              type="text"
               placeholder="Search by title..."
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-9"
+              onChange={(e) => { setSearchInput(e.target.value); setCurrentPage(1); }}
+              className="pl-9 h-9"
               data-testid="input-search-shows"
             />
           </div>
-
-          {/* Category Filter */}
           <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="w-full sm:w-48" data-testid="select-category">
+            <SelectTrigger className="w-full sm:w-48 h-9" data-testid="select-category">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category._id} value={category._id}>
-                  {category.name}
-                </SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-
-          {/* Clear Filters Button */}
-          {(searchInput || selectedCategory !== "all") && (
-            <Button
-              variant="outline"
-              size="default"
-              onClick={handleClearFilters}
-              data-testid="button-clear-filters"
-            >
-              Clear Filters
+          {hasFilters && (
+            <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={clearFilters} data-testid="button-clear-filters">
+              <X className="h-3.5 w-3.5" />Clear
             </Button>
           )}
         </div>
 
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-4" data-testid="tabs-shows">
-            <TabsTrigger value="upcoming" data-testid="tab-upcoming">
+          <TabsList className="mb-5 h-9" data-testid="tabs-shows">
+            <TabsTrigger value="upcoming" className="text-sm" data-testid="tab-upcoming">
               Upcoming
             </TabsTrigger>
-            <TabsTrigger value="past" data-testid="tab-past">
+            <TabsTrigger value="past" className="text-sm" data-testid="tab-past">
               Past
             </TabsTrigger>
           </TabsList>
-
           <TabsContent value="upcoming" data-testid="content-upcoming">
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-32 bg-muted rounded-lg animate-pulse"></div>
-                ))}
-              </div>
-            ) : shows.length > 0 ? (
-              <div>
-                {shows.map(renderShowCard)}
-                {renderPagination()}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Video className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground mb-4">No upcoming shows</p>
-                <Button 
-                  onClick={() => setLocation("/schedule-show")}
-                  data-testid="button-create-first-show"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Schedule Your First Show
-                </Button>
-              </div>
-            )}
+            {renderGrid("upcoming")}
           </TabsContent>
-
           <TabsContent value="past" data-testid="content-past">
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-32 bg-muted rounded-lg animate-pulse"></div>
-                ))}
-              </div>
-            ) : shows.length > 0 ? (
-              <div>
-                {shows.map(renderShowCard)}
-                {renderPagination()}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Video className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No past shows</p>
-              </div>
-            )}
+            {renderGrid("past")}
           </TabsContent>
         </Tabs>
       </div>
