@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Copy, Video, Plus, ChevronLeft, ChevronRight, Search,
-  Calendar, Clock, Lock, Unlock, X, Pencil, ExternalLink, Radio
+  Calendar, Clock, Lock, Unlock, X, Pencil, ExternalLink, Radio, ArrowUpDown
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -93,6 +93,8 @@ export default function LiveShows() {
 
   const [searchInput, setSearchInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedRoomType, setSelectedRoomType] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest");
   const debouncedSearch = useDebounce(searchInput, 500);
 
   const statusFilter = activeTab === "upcoming" ? "active" : "inactive";
@@ -141,9 +143,15 @@ export default function LiveShows() {
     enabled: !!user?.id,
   });
 
-  const shows = showsData?.rooms || [];
+  const rawShows = showsData?.rooms || [];
+
+  const filteredShows = rawShows
+    .filter((s) => selectedRoomType === "all" || s.roomType === selectedRoomType)
+    .sort((a, b) => sortOrder === "newest" ? b.date - a.date : a.date - b.date);
+
+  const shows = filteredShows;
   const totalPages = Math.ceil((showsData?.totalDoc || 0) / (showsData?.limits || 15));
-  const hasFilters = searchInput || selectedCategory !== "all";
+  const hasFilters = !!(searchInput || selectedCategory !== "all" || selectedRoomType !== "all" || sortOrder !== "newest");
 
   const toggleRoomTypeMutation = useMutation({
     mutationFn: async ({ showId, newRoomType }: { showId: string; newRoomType: string }) => {
@@ -198,7 +206,13 @@ export default function LiveShows() {
 
   const handleTabChange = (val: string) => { setActiveTab(val); setCurrentPage(1); };
   const handleCategoryChange = (val: string) => { setSelectedCategory(val); setCurrentPage(1); };
-  const clearFilters = () => { setSearchInput(""); setSelectedCategory("all"); setCurrentPage(1); };
+  const clearFilters = () => {
+    setSearchInput("");
+    setSelectedCategory("all");
+    setSelectedRoomType("all");
+    setSortOrder("newest");
+    setCurrentPage(1);
+  };
 
   const renderShowCard = (show: Show) => {
     const isPast = show.date <= Date.now();
@@ -441,32 +455,93 @@ export default function LiveShows() {
       {/* Content */}
       <div className="flex-1 overflow-auto px-6 py-6 space-y-4">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by title..."
-              value={searchInput}
-              onChange={(e) => { setSearchInput(e.target.value); setCurrentPage(1); }}
-              className="pl-9 h-9"
-              data-testid="input-search-shows"
-            />
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-3">
+            {/* Title search */}
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by title..."
+                value={searchInput}
+                onChange={(e) => { setSearchInput(e.target.value); setCurrentPage(1); }}
+                className="pl-9 h-9"
+                data-testid="input-search-shows"
+              />
+            </div>
+
+            {/* Category */}
+            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+              <SelectTrigger className="w-[170px] h-9" data-testid="select-category">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Room type */}
+            <Select value={selectedRoomType} onValueChange={(v) => { setSelectedRoomType(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[150px] h-9" data-testid="select-room-type">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="public">Public</SelectItem>
+                <SelectItem value="private">Private</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Sort order */}
+            <Select value={sortOrder} onValueChange={setSortOrder}>
+              <SelectTrigger className="w-[150px] h-9" data-testid="select-sort">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasFilters && (
+              <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={clearFilters} data-testid="button-clear-filters">
+                <X className="h-3.5 w-3.5" />
+                Clear all
+              </Button>
+            )}
           </div>
-          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="w-full sm:w-48 h-9" data-testid="select-category">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+          {/* Active filter chips */}
           {hasFilters && (
-            <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={clearFilters} data-testid="button-clear-filters">
-              <X className="h-3.5 w-3.5" />Clear
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {searchInput && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  Title: "{searchInput}"
+                  <button onClick={() => setSearchInput("")}><X className="h-3 w-3" /></button>
+                </span>
+              )}
+              {selectedCategory !== "all" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  {categories.find((c) => c._id === selectedCategory)?.name || "Category"}
+                  <button onClick={() => setSelectedCategory("all")}><X className="h-3 w-3" /></button>
+                </span>
+              )}
+              {selectedRoomType !== "all" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium capitalize">
+                  {selectedRoomType}
+                  <button onClick={() => setSelectedRoomType("all")}><X className="h-3 w-3" /></button>
+                </span>
+              )}
+              {sortOrder !== "newest" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  Oldest first
+                  <button onClick={() => setSortOrder("newest")}><X className="h-3 w-3" /></button>
+                </span>
+              )}
+            </div>
           )}
         </div>
 
