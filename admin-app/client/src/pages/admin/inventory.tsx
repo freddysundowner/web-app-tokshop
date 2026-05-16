@@ -80,13 +80,17 @@ export default function AdminInventory() {
       })
     : products;
   
-  const pagination = productsData?.data ? {
-    currentPage: page,
-    totalPages: productsData.data.pages,
-    totalItems: productsData.data.totalDoc,
-    hasNextPage: page < productsData.data.pages,
-    hasPrevPage: page > 1
-  } : undefined;
+  const pagination = productsData?.data ? (() => {
+    const totalItems = productsData.data.totalDoc ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+    return {
+      currentPage: page,
+      totalPages,
+      totalItems,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+  })() : undefined;
 
   // Reset to page 1 when filters change
   useEffect(() => {
