@@ -181,9 +181,7 @@ function ProductCard({ product }: { product: Product }) {
 function UserCard({ user }: { user: UserResult }) {
   const { externalApiUrl } = useApiConfig();
   const userAvatar = user.profilePhoto ? getImageUrl(user.profilePhoto, externalApiUrl) : '';
-  const displayName = user.firstName && user.lastName 
-    ? `${user.firstName} ${user.lastName}` 
-    : user.userName || 'User';
+  const displayName = user.userName || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : 'User');
   
   return (
     <Link href={`/profile/${user._id}`}>
