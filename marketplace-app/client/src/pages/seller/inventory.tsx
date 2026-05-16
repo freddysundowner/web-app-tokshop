@@ -1485,7 +1485,7 @@ export default function Inventory() {
       {/* Unified Bulk Edit Modal */}
       {showBulkEdit && (
         <Dialog open={showBulkEdit} onOpenChange={setShowBulkEdit}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Edit className="h-5 w-5" />
@@ -1496,6 +1496,7 @@ export default function Inventory() {
               </p>
             </DialogHeader>
             
+            <div className="overflow-y-auto flex-1 pr-1">
             <div className="space-y-6">
               {/* Category Section */}
               <div className="space-y-3">
@@ -1646,6 +1647,7 @@ export default function Inventory() {
                   />
                 </div>
               </div>
+            </div>
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t">
