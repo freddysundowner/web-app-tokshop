@@ -1512,21 +1512,19 @@ export default function Inventory() {
                   </label>
                 </div>
                 <div className={`ml-6 space-y-2 transition-opacity ${!bulkEditForm.updateCategory ? 'opacity-40 pointer-events-none' : ''}`}>
-                  <Select
+                  <select
                     value={bulkEditForm.categoryId}
-                    onValueChange={(value) => handleBulkEditFormChange('categoryId', value)}
+                    onChange={(e) => handleBulkEditFormChange('categoryId', e.target.value)}
+                    data-testid="select-bulk-category"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   >
-                    <SelectTrigger data-testid="select-bulk-category">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      {uniqueCategories.map((category) => (
-                        <SelectItem key={category._id} value={category._id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select category</option>
+                    {uniqueCategories.map((category) => (
+                      <option key={category._id} value={category._id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -1544,21 +1542,19 @@ export default function Inventory() {
                   </label>
                 </div>
                 <div className={`ml-6 space-y-2 transition-opacity ${!bulkEditForm.updateShipping ? 'opacity-40 pointer-events-none' : ''}`}>
-                  <Select
+                  <select
                     value={bulkEditForm.shippingProfileId}
-                    onValueChange={(value) => handleBulkEditFormChange('shippingProfileId', value)}
+                    onChange={(e) => handleBulkEditFormChange('shippingProfileId', e.target.value)}
+                    data-testid="select-bulk-shipping"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   >
-                    <SelectTrigger data-testid="select-bulk-shipping">
-                      <SelectValue placeholder="Select shipping profile" />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      {shippingProfiles?.map((profile: any) => (
-                        <SelectItem key={profile._id} value={profile._id}>
-                          {profile.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select shipping profile</option>
+                    {shippingProfiles?.map((profile: any) => (
+                      <option key={profile._id} value={profile._id}>
+                        {profile.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -1576,20 +1572,18 @@ export default function Inventory() {
                   </label>
                 </div>
                 <div className={`ml-6 space-y-2 transition-opacity ${!bulkEditForm.updateStatus ? 'opacity-40 pointer-events-none' : ''}`}>
-                  <Select
+                  <select
                     value={bulkEditForm.status}
-                    onValueChange={(value) => handleBulkEditFormChange('status', value)}
+                    onChange={(e) => handleBulkEditFormChange('status', e.target.value)}
+                    data-testid="select-bulk-status"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   >
-                    <SelectTrigger data-testid="select-bulk-status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <option value="">Select status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="draft">Draft</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                  </select>
                 </div>
               </div>
 
