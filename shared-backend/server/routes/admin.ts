@@ -1659,6 +1659,9 @@ If you have any questions, feel free to reach out to our support team.
       if (req.query.page) queryParams.append("page", req.query.page as string);
       if (req.query.limit) queryParams.append("limit", req.query.limit as string);
       if (req.query.title) queryParams.append("title", req.query.title as string);
+      if (req.query.ownerUsername) queryParams.append("ownerUsername", req.query.ownerUsername as string);
+      if (req.query.category) queryParams.append("category", req.query.category as string);
+      if (req.query.roomType) queryParams.append("roomType", req.query.roomType as string);
       
       // Map filter type to external API parameters
       const filterType = req.query.type as string;
