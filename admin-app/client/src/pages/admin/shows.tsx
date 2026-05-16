@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -15,8 +15,8 @@ import { AdminLayout } from "@/components/admin-layout";
 import {
   Video, Search, ChevronLeft, ChevronRight, Eye, Calendar,
   Star, CalendarIcon, Trash2, MoreHorizontal, DollarSign,
-  ShoppingCart, Package, Clock, TrendingUp, Radio,
-  Users, Gift, Filter, X
+  ShoppingCart, Clock, TrendingUp, Radio,
+  Users, Filter, X
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -404,271 +404,256 @@ export default function AdminShows() {
           )}
         </div>
 
-        {/* Results header */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {isLoading ? "Loading..." : `${totalItems.toLocaleString()} show${totalItems !== 1 ? 's' : ''} found`}
-          </p>
-        </div>
-
-        {/* Shows Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="rounded-xl border bg-card overflow-hidden animate-pulse">
-                <div className="aspect-video bg-muted" />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
-                  <div className="h-3 bg-muted rounded w-1/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : shows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="rounded-full bg-muted p-6 mb-4">
-              <Video className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1">No shows found</h3>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              {hasActiveFilters || searchType
-                ? "Try adjusting or clearing your filters to see more results."
-                : "No live shows have been created yet."}
+        {/* Table */}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {/* Table header row with count */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+            <p className="text-sm text-muted-foreground">
+              {isLoading ? "Loading..." : `${totalItems.toLocaleString()} show${totalItems !== 1 ? 's' : ''} found`}
             </p>
-            {(hasActiveFilters || searchType) && (
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => { clearFilters(); setSearchType(""); }}>
-                Clear all filters
-              </Button>
-            )}
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {shows.map((show: any) => {
-                const showId = show._id || show.id;
-                const ownerFirstName = String(show.owner?.firstName || '');
-                const ownerLastName = String(show.owner?.lastName || '');
-                const ownerUserName = String(show.owner?.userName || '');
-                const ownerPhoto = String(show.owner?.profilePhoto || '');
-                const hasOwner = Boolean(show.owner);
-                const showDate = formatShowDate(show);
-                const viewerCount = Array.isArray(show.viewers) ? show.viewers.length : (show.viewersCount || 0);
-                const revenue = show.salesTotal || show.totalRevenue || 0;
 
-                return (
-                  <div
-                    key={showId}
-                    className="group rounded-xl border bg-card overflow-hidden hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
-                    onClick={() => setLocation(`/admin/shows/${showId}`)}
-                  >
-                    {/* Thumbnail */}
-                    <div className="relative aspect-video bg-zinc-100 overflow-hidden flex-shrink-0">
-                      {show.preview_videos ? (
-                        <video
-                          src={show.preview_videos}
-                          className="w-full h-full object-cover"
-                          muted
-                          playsInline
-                        />
-                      ) : show.thumbnail ? (
-                        <img
-                          src={show.thumbnail}
-                          alt={show.title || 'Show'}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Video className="h-10 w-10 text-zinc-300" />
-                        </div>
-                      )}
-
-                      {/* Status badge overlay */}
-                      <div className="absolute top-2 left-2">
-                        <StatusBadge show={show} />
-                      </div>
-
-                      {/* Featured badge */}
-                      {show.featured && (
-                        <div className="absolute top-2 right-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
-                            <Star className="h-3 w-3 fill-amber-500" />
-                            Featured
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Actions menu */}
-                      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="secondary"
-                              size="icon"
-                              className="h-7 w-7 shadow-sm"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setLocation(`/admin/shows/${showId}`); }}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => { e.stopPropagation(); setSelectedShow(show); setFeaturedUntilDate(undefined); setFeatureDialogOpen(true); }}
-                              className={show.featured ? "text-amber-600" : ""}
-                            >
-                              <Star className={`mr-2 h-4 w-4 ${show.featured ? "fill-amber-500" : ""}`} />
-                              {show.featured ? "Update Featured" : "Feature Show"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => { e.stopPropagation(); setShowToDelete(show); setDeleteDialogOpen(true); }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Show
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-
-                    {/* Card body */}
-                    <div className="p-4 flex flex-col gap-3 flex-1">
-                      {/* Title + category */}
-                      <div>
-                        <h3 className="font-semibold text-sm leading-snug line-clamp-1">
-                          {String(show.title || show.name || 'Untitled Show')}
-                        </h3>
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {show.category?.name && (
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                              {String(show.category.name)}
-                            </Badge>
-                          )}
-                          {show.roomType && show.roomType !== 'public' && (
-                            <Badge variant="outline" className="text-xs px-1.5 py-0">
-                              {String(show.roomType)}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Host */}
-                      {hasOwner && (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6 flex-shrink-0">
-                            <AvatarImage src={ownerPhoto} />
-                            <AvatarFallback className="text-xs">
-                              {(ownerFirstName || 'U')[0]}{(ownerLastName || '')[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {ownerUserName || `${ownerFirstName} ${ownerLastName}`.trim() || 'Unknown host'}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Metrics row */}
-                      <div className="grid grid-cols-3 gap-2 pt-1 border-t">
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Eye className="h-3 w-3" />
-                            <span className="text-xs font-medium text-foreground">{viewerCount}</span>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">Viewers</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <ShoppingCart className="h-3 w-3" />
-                            <span className="text-xs font-medium text-foreground">{show.salesCount || 0}</span>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">Sales</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3 text-emerald-500" />
-                            <span className="text-xs font-medium text-emerald-600">
-                              {revenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">Revenue</span>
-                        </div>
-                      </div>
-
-                      {/* Date */}
-                      {showDate && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">{showDate}</span>
-                        </div>
-                      )}
-                    </div>
+          {isLoading ? (
+            <div className="divide-y">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+                  <div className="w-14 h-10 rounded bg-muted flex-shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 bg-muted rounded w-2/5" />
+                    <div className="h-3 bg-muted rounded w-1/4" />
                   </div>
-                );
-              })}
+                  <div className="hidden md:block h-3 bg-muted rounded w-24" />
+                  <div className="hidden lg:block h-3 bg-muted rounded w-16" />
+                  <div className="h-5 bg-muted rounded w-16" />
+                  <div className="h-7 w-7 bg-muted rounded" />
+                </div>
+              ))}
             </div>
-
-            {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-              <p className="text-sm text-muted-foreground order-2 sm:order-1">
-                Page {page} of {totalPages} · {totalItems} total
+          ) : shows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="rounded-full bg-muted p-5 mb-4">
+                <Video className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-base font-semibold mb-1">No shows found</h3>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                {hasActiveFilters || searchType
+                  ? "Try adjusting or clearing your filters."
+                  : "No live shows have been created yet."}
               </p>
-              <div className="flex items-center gap-2 order-1 sm:order-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => p - 1)}
-                  disabled={page <= 1}
-                  className="gap-1"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
+              {(hasActiveFilters || searchType) && (
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => { clearFilters(); setSearchType(""); }}>
+                  Clear all filters
                 </Button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[300px]">Show</TableHead>
+                    <TableHead className="hidden md:table-cell">Host</TableHead>
+                    <TableHead className="hidden lg:table-cell text-center">Viewers</TableHead>
+                    <TableHead className="hidden lg:table-cell text-center">Sales</TableHead>
+                    <TableHead className="hidden xl:table-cell text-right">Revenue</TableHead>
+                    <TableHead className="hidden sm:table-cell">Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {shows.map((show: any) => {
+                    const showId = show._id || show.id;
+                    const ownerFirstName = String(show.owner?.firstName || '');
+                    const ownerLastName = String(show.owner?.lastName || '');
+                    const ownerUserName = String(show.owner?.userName || '');
+                    const ownerPhoto = String(show.owner?.profilePhoto || '');
+                    const hasOwner = Boolean(show.owner);
+                    const showDate = formatShowDate(show);
+                    const viewerCount = Array.isArray(show.viewers) ? show.viewers.length : (show.viewersCount || 0);
+                    const revenue = show.salesTotal || show.totalRevenue || 0;
 
-                {/* Page numbers */}
+                    return (
+                      <TableRow
+                        key={showId}
+                        className="cursor-pointer hover:bg-muted/40 transition-colors"
+                        onClick={() => setLocation(`/admin/shows/${showId}`)}
+                      >
+                        {/* Show details */}
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {/* Thumbnail */}
+                            <div className="relative w-14 h-10 rounded overflow-hidden bg-muted flex-shrink-0">
+                              {show.preview_videos ? (
+                                <video src={show.preview_videos} className="w-full h-full object-cover" muted playsInline />
+                              ) : show.thumbnail ? (
+                                <img src={show.thumbnail} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Video className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm truncate max-w-[180px]">
+                                {String(show.title || show.name || 'Untitled Show')}
+                                {show.featured && (
+                                  <Star className="inline h-3 w-3 fill-amber-400 text-amber-400 ml-1 -mt-0.5" />
+                                )}
+                              </div>
+                              <div className="flex gap-1 mt-0.5">
+                                {show.category?.name && (
+                                  <span className="text-xs text-muted-foreground">{String(show.category.name)}</span>
+                                )}
+                                {show.roomType && show.roomType !== 'public' && (
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{String(show.roomType)}</Badge>
+                                )}
+                              </div>
+                              {/* Mobile host fallback */}
+                              <div className="md:hidden text-xs text-muted-foreground mt-0.5 truncate">
+                                {hasOwner ? (ownerUserName || `${ownerFirstName} ${ownerLastName}`.trim() || 'Unknown') : 'No host'}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* Host */}
+                        <TableCell className="hidden md:table-cell">
+                          {hasOwner ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-7 w-7 flex-shrink-0">
+                                <AvatarImage src={ownerPhoto} />
+                                <AvatarFallback className="text-xs">
+                                  {(ownerFirstName || 'U')[0]}{(ownerLastName || '')[0]}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium truncate max-w-[130px]">
+                                  {ownerUserName || `${ownerFirstName} ${ownerLastName}`.trim() || 'Unknown'}
+                                </div>
+                                {show.owner?.email && (
+                                  <div className="text-xs text-muted-foreground truncate max-w-[130px]">
+                                    {String(show.owner.email)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Viewers */}
+                        <TableCell className="hidden lg:table-cell text-center">
+                          <div className="flex items-center justify-center gap-1 text-sm">
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            {viewerCount}
+                          </div>
+                        </TableCell>
+
+                        {/* Sales */}
+                        <TableCell className="hidden lg:table-cell text-center">
+                          <div className="flex items-center justify-center gap-1 text-sm">
+                            <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                            {show.salesCount || 0}
+                          </div>
+                        </TableCell>
+
+                        {/* Revenue */}
+                        <TableCell className="hidden xl:table-cell text-right">
+                          <span className="text-sm font-medium text-emerald-600">
+                            ${revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </TableCell>
+
+                        {/* Date */}
+                        <TableCell className="hidden sm:table-cell">
+                          {showDate ? (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+                              <Calendar className="h-3 w-3 flex-shrink-0" />
+                              {showDate}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>
+                          <StatusBadge show={show} />
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={() => setLocation(`/admin/shows/${showId}`)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => { setSelectedShow(show); setFeaturedUntilDate(undefined); setFeatureDialogOpen(true); }}
+                                className={show.featured ? "text-amber-600" : ""}
+                              >
+                                <Star className={`mr-2 h-4 w-4 ${show.featured ? "fill-amber-500" : ""}`} />
+                                {show.featured ? "Update Featured" : "Feature Show"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => { setShowToDelete(show); setDeleteDialogOpen(true); }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Show
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!isLoading && shows.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages} · {totalItems.toLocaleString()} total
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1} className="gap-1">
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                </Button>
                 <div className="hidden sm:flex items-center gap-1">
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                     let pageNum: number;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
+                    if (totalPages <= 5) pageNum = i + 1;
+                    else if (page <= 3) pageNum = i + 1;
+                    else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+                    else pageNum = page - 2 + i;
                     return (
-                      <Button
-                        key={pageNum}
-                        variant={pageNum === page ? "default" : "outline"}
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => setPage(pageNum)}
-                      >
+                      <Button key={pageNum} variant={pageNum === page ? "default" : "outline"} size="sm" className="h-8 w-8 p-0" onClick={() => setPage(pageNum)}>
                         {pageNum}
                       </Button>
                     );
                   })}
                 </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page >= totalPages}
-                  className="gap-1"
-                >
-                  Next
+                <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="gap-1">
+                  <span className="hidden sm:inline">Next</span>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Feature Show Dialog */}
