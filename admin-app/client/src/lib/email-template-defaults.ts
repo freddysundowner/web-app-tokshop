@@ -546,6 +546,17 @@ export const defaultTemplates: EmailTemplate[] = [
                           </table>
                         </td>
                       </tr>
+                      <!-- Total Earned -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Total Earned</td>
+                              <td style="color: #10b981; font-size: 22px; font-weight: 700; text-align: right;">{{total_earned}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
                       <!-- Tips Received -->
                       <tr>
                         <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
@@ -553,6 +564,39 @@ export const defaultTemplates: EmailTemplate[] = [
                             <tr>
                               <td style="color: #71717a; font-size: 14px;">Tips Received</td>
                               <td style="color: #8b5cf6; font-size: 22px; font-weight: 700; text-align: right;">{{tips_received}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Shipping Fees -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Shipping Fees</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{shipping_fees}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Service Fees -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Service Fees</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{service_fees}}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <!-- Stripe Fees -->
+                      <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #e4e4e7;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="color: #71717a; font-size: 14px;">Payment Processing Fees</td>
+                              <td style="color: #18181b; font-size: 18px; font-weight: 600; text-align: right;">{{stripe_fees}}</td>
                             </tr>
                           </table>
                         </td>
@@ -613,10 +657,14 @@ export const defaultTemplates: EmailTemplate[] = [
       { name: "items_sold", description: "Number of items sold" },
       { name: "giveaways", description: "Number of giveaways" },
       { name: "shipments", description: "Number of shipments" },
-      { name: "total_sales", description: "Total sales amount (e.g., $245.00)" },
+      { name: "total_sales", description: "Gross sales amount (e.g., $245.00)" },
+      { name: "total_earned", description: "Seller earnings after fees (e.g., $198.50)" },
       { name: "tips_received", description: "Tips received amount (e.g., $25.00)" },
+      { name: "shipping_fees", description: "Total shipping fees collected (e.g., $12.00)" },
+      { name: "service_fees", description: "Platform service fees (e.g., $14.70)" },
+      { name: "stripe_fees", description: "Payment processing fees (e.g., $7.13)" },
       { name: "viewers", description: "Number of viewers" },
-      { name: "new_followers", description: "Number of new followers" },
+      { name: "new_followers", description: "Number of new followers gained" },
       { name: "show_analytics_url", description: "Link to shipping/analytics page" },
       { name: "app_name", description: "Application name" },
       { name: "support_email", description: "Support email address" },
