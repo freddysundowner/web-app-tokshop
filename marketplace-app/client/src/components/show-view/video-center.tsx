@@ -244,8 +244,13 @@ export function VideoCenter(props: any) {
   
   // Apply volume to all remote LiveKit audio elements
   const applyVolume = (vol: number) => {
+    // 1. Use LiveKit's participant.setVolume() API (most reliable)
     if (livekit?.room) {
       livekit.room.remoteParticipants.forEach((participant: any) => {
+        if (typeof participant.setVolume === 'function') {
+          participant.setVolume(vol);
+        }
+        // Also directly set on attached audio elements as fallback
         participant.audioTrackPublications.forEach((publication: any) => {
           if (publication.audioTrack) {
             publication.audioTrack.attachedElements.forEach((el: HTMLAudioElement) => {
@@ -256,6 +261,11 @@ export function VideoCenter(props: any) {
         });
       });
     }
+    // 2. DOM fallback — catches any <audio> elements RoomAudioRenderer injected
+    document.querySelectorAll('audio').forEach((el) => {
+      (el as HTMLAudioElement).volume = vol;
+      (el as HTMLAudioElement).muted = vol === 0;
+    });
   };
 
   // Close volume slider when clicking outside
