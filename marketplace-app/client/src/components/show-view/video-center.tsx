@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Send, Volume2, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package, Zap, Settings } from 'lucide-react';
+import { Search, Send, Volume2, Volume1, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package, Zap, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sendRoomMessage } from '@/lib/firebase-chat';
 import { format, isToday, isTomorrow } from 'date-fns';
@@ -26,6 +26,9 @@ export function VideoCenter(props: any) {
   const [currentBanner, setCurrentBanner] = useState<'explicit' | 'shipping' | null>(null);
   const [showRaidDialog, setShowRaidDialog] = useState(false);
   const [showCameraSettings, setShowCameraSettings] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const volumeRef = useRef<HTMLDivElement>(null);
   
   // Track if banners have been shown (only show once per session)
   const bannersShownRef = useRef(false);
@@ -239,6 +242,34 @@ export function VideoCenter(props: any) {
     }
   }, [show]);
   
+  // Apply volume to all remote LiveKit audio elements
+  const applyVolume = (vol: number) => {
+    if (livekit?.room) {
+      livekit.room.remoteParticipants.forEach((participant: any) => {
+        participant.audioTrackPublications.forEach((publication: any) => {
+          if (publication.audioTrack) {
+            publication.audioTrack.attachedElements.forEach((el: HTMLAudioElement) => {
+              el.volume = vol;
+              el.muted = vol === 0;
+            });
+          }
+        });
+      });
+    }
+  };
+
+  // Close volume slider when clicking outside
+  useEffect(() => {
+    if (!showVolumeSlider) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (volumeRef.current && !volumeRef.current.contains(e.target as Node)) {
+        setShowVolumeSlider(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showVolumeSlider]);
+
   // Ensure the function exists before calling
   const handleWalletClick = () => {
     if (setShowPaymentShippingAlert) {
@@ -1578,24 +1609,55 @@ export function VideoCenter(props: any) {
                   return !(activeAuction.startedTime && Date.now() > calculatedEndTime);
                 })() && auctionTimeLeft > 0 && !isShowOwner) ? "bottom-24" : "bottom-4"
               )}>
-                <button 
-                  className="flex flex-col items-center gap-1 text-white drop-shadow-lg"
-                  onClick={() => {
-                    if (livekit.isConnected && livekit.toggleAudioMute) {
-                      livekit.toggleAudioMute();
-                    } else {
-                      setMuted(!muted);
-                    }
-                  }}
-                  data-testid="button-sound"
-                >
-                  {livekit.isConnected ? (
-                    livekit.isMuted ? <VolumeX className="h-7 w-7" /> : <Volume2 className="h-7 w-7" />
-                  ) : (
-                    muted ? <VolumeX className="h-7 w-7" /> : <Volume2 className="h-7 w-7" />
+                {/* Volume Control */}
+                <div ref={volumeRef} className="relative flex flex-col items-center">
+                  {/* Vertical slider popup */}
+                  {showVolumeSlider && (
+                    <div className="absolute bottom-full mb-3 flex flex-col items-center gap-2 bg-black/80 backdrop-blur-sm rounded-2xl px-3 py-4 shadow-xl border border-white/10">
+                      <span className="text-white text-xs font-semibold">{Math.round(volume * 100)}%</span>
+                      <div className="relative flex flex-col items-center" style={{ height: 120 }}>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={Math.round(volume * 100)}
+                          onChange={(e) => {
+                            const vol = Number(e.target.value) / 100;
+                            setVolume(vol);
+                            applyVolume(vol);
+                          }}
+                          className="appearance-none cursor-pointer rounded-full"
+                          style={{
+                            writingMode: 'vertical-lr' as any,
+                            direction: 'rtl',
+                            width: 6,
+                            height: 120,
+                            background: `linear-gradient(to top, #fff ${Math.round(volume * 100)}%, rgba(255,255,255,0.2) ${Math.round(volume * 100)}%)`,
+                            outline: 'none',
+                            border: 'none',
+                          }}
+                          data-testid="input-volume-slider"
+                        />
+                      </div>
+                    </div>
                   )}
-                  <span className="text-xs font-semibold">Sound</span>
-                </button>
+
+                  <button
+                    className="flex flex-col items-center gap-1 text-white drop-shadow-lg"
+                    onClick={() => setShowVolumeSlider(v => !v)}
+                    data-testid="button-sound"
+                  >
+                    {volume === 0 ? (
+                      <VolumeX className="h-7 w-7" />
+                    ) : volume < 0.5 ? (
+                      <Volume1 className="h-7 w-7" />
+                    ) : (
+                      <Volume2 className="h-7 w-7" />
+                    )}
+                    <span className="text-xs font-semibold">Sound</span>
+                  </button>
+                </div>
 
                 <button 
                   className="flex flex-col items-center gap-1 text-white drop-shadow-lg"
