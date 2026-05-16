@@ -210,25 +210,13 @@ export function InventoryProductForm({
     enabled: !!user?.id,
   });
 
-  // Fetch shows
-  const { data: showsResponse, isLoading: loadingShows } = useQuery<{ rooms: Array<{ _id: string; title: string }> }>({
+  // Fetch shows — only upcoming/active shows
+  const { data: showsResponse, isLoading: loadingShows } = useQuery<{ rooms: Array<{ _id: string; title: string; started?: boolean; ended?: boolean; date?: number }> }>({
     queryKey: ["external-shows", user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error("User ID required");
-
-      const response = await fetchWithAuth(
-        `/api/rooms?userid=${user.id}&status=active`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch shows: ${response.status}`);
-      }
+      const response = await fetchWithAuth(`/api/rooms?userid=${user.id}&status=active&limit=100`);
+      if (!response.ok) throw new Error("Failed to fetch shows");
       return response.json();
     },
     enabled: !!user?.id,
@@ -1061,10 +1049,11 @@ export function InventoryProductForm({
                                   {field.value === "general" && <Check className="h-4 w-4 flex-shrink-0" />}
                                 </button>
                                 {loadingShows ? (
-                                  <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
+                                  <div className="py-8 text-center text-sm text-muted-foreground">Loading shows...</div>
                                 ) : filteredShows.length > 0 ? (
                                   filteredShows.map((show: any) => {
-                                    const isLive = (show as any).status === 'active' || (show as any).status === 'live';
+                                    const isLive = show.started === true && show.ended === false;
+                                    const isEnded = show.ended === true;
                                     const isSelected = field.value === show._id;
                                     
                                     return (
@@ -1083,21 +1072,39 @@ export function InventoryProductForm({
                                         }`}
                                         data-testid={`option-show-${show._id}`}
                                       >
-                                        <span className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
-                                          <span className="whitespace-normal break-words font-medium">{show.title}</span>
-                                          {isLive && (
-                                            <Badge variant="destructive" className="text-xs px-1.5 py-0 flex-shrink-0">
-                                              Live
-                                            </Badge>
+                                        <span className="flex-1 min-w-0">
+                                          <span className="flex flex-wrap items-center gap-2">
+                                            <span className="whitespace-normal break-words font-medium">{show.title}</span>
+                                            {isLive && (
+                                              <span className="inline-flex items-center gap-1 px-1.5 py-0 rounded-full text-[10px] font-semibold bg-red-500 text-white flex-shrink-0">
+                                                <span className="h-1 w-1 rounded-full bg-white animate-ping" />
+                                                Live
+                                              </span>
+                                            )}
+                                            {isEnded && !isLive && (
+                                              <span className={`inline-flex items-center px-1.5 py-0 rounded-full text-[10px] font-semibold flex-shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-zinc-200 text-zinc-600'}`}>
+                                                Ended
+                                              </span>
+                                            )}
+                                            {!isLive && !isEnded && (
+                                              <span className={`inline-flex items-center px-1.5 py-0 rounded-full text-[10px] font-semibold flex-shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'}`}>
+                                                Scheduled
+                                              </span>
+                                            )}
+                                          </span>
+                                          {show.date && (
+                                            <span className={`text-[11px] mt-0.5 block ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                              {new Date(show.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </span>
                                           )}
                                         </span>
-                                        {isSelected && <Check className="h-4 w-4 flex-shrink-0" />}
+                                        {isSelected && <Check className="h-4 w-4 flex-shrink-0 mt-0.5" />}
                                       </button>
                                     );
                                   })
                                 ) : (
                                   <div className="py-8 text-center text-sm text-muted-foreground">
-                                    {searchQuery ? "No shows found" : "No shows available"}
+                                    {searchQuery ? "No shows match your search" : "No shows found"}
                                   </div>
                                 )}
                                 </div>
