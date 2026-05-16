@@ -1499,140 +1499,150 @@ export default function Inventory() {
             <div className="overflow-y-auto flex-1 pr-1">
             <div className="space-y-6">
               {/* Category Section */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  Category
-                  {bulkEditForm.categoryId && (
-                    <span className="text-xs text-primary font-normal">(will update)</span>
-                  )}
-                </label>
-                <Select
-                  value={bulkEditForm.categoryId}
-                  onValueChange={(value) => setBulkEditForm(prev => ({ ...prev, categoryId: value, updateCategory: true }))}
-                >
-                  <SelectTrigger data-testid="select-bulk-category">
-                    <SelectValue placeholder="Leave unchanged" />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    {uniqueCategories.map((category) => (
-                      <SelectItem key={category._id} value={category._id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {bulkEditForm.categoryId && (
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
-                    onClick={() => setBulkEditForm(prev => ({ ...prev, categoryId: '', updateCategory: false }))}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="update-category"
+                    checked={bulkEditForm.updateCategory}
+                    onCheckedChange={(checked) => handleBulkEditCheckboxChange('updateCategory', checked as boolean)}
+                    data-testid="checkbox-update-category"
+                  />
+                  <label htmlFor="update-category" className="text-sm font-medium cursor-pointer">
+                    Update Category
+                  </label>
+                </div>
+                <div className={`ml-6 space-y-2 transition-opacity ${!bulkEditForm.updateCategory ? 'opacity-40 pointer-events-none' : ''}`}>
+                  <Select
+                    value={bulkEditForm.categoryId}
+                    onValueChange={(value) => handleBulkEditFormChange('categoryId', value)}
                   >
-                    Clear
-                  </button>
-                )}
+                    <SelectTrigger data-testid="select-bulk-category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      {uniqueCategories.map((category) => (
+                        <SelectItem key={category._id} value={category._id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Shipping Profile Section */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  Shipping Profile
-                  {bulkEditForm.shippingProfileId && (
-                    <span className="text-xs text-primary font-normal">(will update)</span>
-                  )}
-                </label>
-                <Select
-                  value={bulkEditForm.shippingProfileId}
-                  onValueChange={(value) => setBulkEditForm(prev => ({ ...prev, shippingProfileId: value, updateShipping: true }))}
-                >
-                  <SelectTrigger data-testid="select-bulk-shipping">
-                    <SelectValue placeholder="Leave unchanged" />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    {shippingProfiles?.map((profile: any) => (
-                      <SelectItem key={profile._id} value={profile._id}>
-                        {profile.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {bulkEditForm.shippingProfileId && (
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
-                    onClick={() => setBulkEditForm(prev => ({ ...prev, shippingProfileId: '', updateShipping: false }))}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="update-shipping"
+                    checked={bulkEditForm.updateShipping}
+                    onCheckedChange={(checked) => handleBulkEditCheckboxChange('updateShipping', checked as boolean)}
+                    data-testid="checkbox-update-shipping"
+                  />
+                  <label htmlFor="update-shipping" className="text-sm font-medium cursor-pointer">
+                    Update Shipping Profile
+                  </label>
+                </div>
+                <div className={`ml-6 space-y-2 transition-opacity ${!bulkEditForm.updateShipping ? 'opacity-40 pointer-events-none' : ''}`}>
+                  <Select
+                    value={bulkEditForm.shippingProfileId}
+                    onValueChange={(value) => handleBulkEditFormChange('shippingProfileId', value)}
                   >
-                    Clear
-                  </button>
-                )}
+                    <SelectTrigger data-testid="select-bulk-shipping">
+                      <SelectValue placeholder="Select shipping profile" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      {shippingProfiles?.map((profile: any) => (
+                        <SelectItem key={profile._id} value={profile._id}>
+                          {profile.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Status Section */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  Status
-                  {bulkEditForm.status && (
-                    <span className="text-xs text-primary font-normal">(will update)</span>
-                  )}
-                </label>
-                <Select
-                  value={bulkEditForm.status}
-                  onValueChange={(value) => setBulkEditForm(prev => ({ ...prev, status: value, updateStatus: true }))}
-                >
-                  <SelectTrigger data-testid="select-bulk-status">
-                    <SelectValue placeholder="Leave unchanged" />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                  </SelectContent>
-                </Select>
-                {bulkEditForm.status && (
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
-                    onClick={() => setBulkEditForm(prev => ({ ...prev, status: '', updateStatus: false }))}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="update-status"
+                    checked={bulkEditForm.updateStatus}
+                    onCheckedChange={(checked) => handleBulkEditCheckboxChange('updateStatus', checked as boolean)}
+                    data-testid="checkbox-update-status"
+                  />
+                  <label htmlFor="update-status" className="text-sm font-medium cursor-pointer">
+                    Update Status
+                  </label>
+                </div>
+                <div className={`ml-6 space-y-2 transition-opacity ${!bulkEditForm.updateStatus ? 'opacity-40 pointer-events-none' : ''}`}>
+                  <Select
+                    value={bulkEditForm.status}
+                    onValueChange={(value) => handleBulkEditFormChange('status', value)}
                   >
-                    Clear
-                  </button>
-                )}
+                    <SelectTrigger data-testid="select-bulk-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Price Section */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  Price
-                  {bulkEditForm.priceAmount !== '' && (
-                    <span className="text-xs text-primary font-normal">(will update)</span>
-                  )}
-                </label>
-                <input 
-                  type="number" 
-                  placeholder="Leave unchanged" 
-                  value={bulkEditForm.priceAmount}
-                  onChange={(e) => setBulkEditForm(prev => ({ ...prev, priceAmount: e.target.value, updatePrice: e.target.value !== '' }))}
-                  className="flex h-10 w-40 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  data-testid="input-price-amount"
-                />
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="update-price"
+                    checked={bulkEditForm.updatePrice}
+                    onCheckedChange={(checked) => handleBulkEditCheckboxChange('updatePrice', checked as boolean)}
+                    data-testid="checkbox-update-price"
+                  />
+                  <label htmlFor="update-price" className="text-sm font-medium cursor-pointer">
+                    Update Price
+                  </label>
+                </div>
+                <div className="ml-6">
+                  <input 
+                    type="number" 
+                    placeholder="Price" 
+                    value={bulkEditForm.priceAmount}
+                    onChange={(e) => handleBulkEditFormChange('priceAmount', e.target.value)}
+                    className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!bulkEditForm.updatePrice}
+                    data-testid="input-price-amount"
+                  />
+                </div>
               </div>
 
               {/* Inventory Section */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  Inventory Quantity
-                  {bulkEditForm.inventoryAmount !== '' && (
-                    <span className="text-xs text-primary font-normal">(will update)</span>
-                  )}
-                </label>
-                <input 
-                  type="number" 
-                  placeholder="Leave unchanged" 
-                  value={bulkEditForm.inventoryAmount}
-                  onChange={(e) => setBulkEditForm(prev => ({ ...prev, inventoryAmount: e.target.value, updateInventory: e.target.value !== '' }))}
-                  className="flex h-10 w-40 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  data-testid="input-inventory-amount"
-                />
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="update-inventory"
+                    checked={bulkEditForm.updateInventory}
+                    onCheckedChange={(checked) => handleBulkEditCheckboxChange('updateInventory', checked as boolean)}
+                    data-testid="checkbox-update-inventory"
+                  />
+                  <label htmlFor="update-inventory" className="text-sm font-medium cursor-pointer">
+                    Update Inventory
+                  </label>
+                </div>
+                <div className="ml-6">
+                  <input 
+                    type="number" 
+                    placeholder="Quantity" 
+                    value={bulkEditForm.inventoryAmount}
+                    onChange={(e) => handleBulkEditFormChange('inventoryAmount', e.target.value)}
+                    className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!bulkEditForm.updateInventory}
+                    data-testid="input-inventory-amount"
+                  />
+                </div>
               </div>
             </div>
             </div>
