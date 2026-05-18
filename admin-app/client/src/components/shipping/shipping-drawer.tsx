@@ -61,6 +61,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
   const [selectedEstimate, setSelectedEstimate] = useState<ShippingEstimate | null>(null);
   const [labelFileType, setLabelFileType] = useState("PDF");
   const [sellerPaying, setSellerPaying] = useState(true);
+  const [regenerate, setRegenerate] = useState(true);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -167,7 +168,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
   };
 
   const purchaseLabelMutation = useMutation({
-    mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string; sellerPaying?: boolean }) => {
+    mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string; sellerPaying?: boolean; regenerate?: boolean }) => {
       const requestData = {
         rate_id: estimate.objectId,
         order: orderData._id,
@@ -177,7 +178,8 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
         carrier: estimate.carrier,
         deliveryTime: estimate.deliveryTime,
         label_file_type: estimate.labelFileType,
-        charge_seller: estimate.sellerPaying ?? false,
+        charge_seller: estimate.sellerPaying ?? true,
+        regenerate: estimate.regenerate ?? true,
         weight: parseFloat(weight),
         weight_unit: orderData?.giveaway?.shipping_profile?.scale || orderData?.scale || "oz",
         length: parseFloat(dimensions.length),
@@ -246,12 +248,13 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
     
     setSelectedEstimate(estimate);
     setSellerPaying(true);
+    setRegenerate(true);
     setLabelDialogOpen(true);
   };
 
   const confirmLabelPurchase = () => {
     if (!selectedEstimate) return;
-    purchaseLabelMutation.mutate({ ...selectedEstimate, labelFileType, sellerPaying });
+    purchaseLabelMutation.mutate({ ...selectedEstimate, labelFileType, sellerPaying, regenerate });
     setLabelDialogOpen(false);
   };
 
@@ -473,6 +476,17 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
               />
               <Label htmlFor="seller-paying" className="cursor-pointer">
                 Seller is paying for this shipment
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="regenerate"
+                checked={regenerate}
+                onCheckedChange={(checked) => setRegenerate(checked === true)}
+                data-testid="checkbox-regenerate"
+              />
+              <Label htmlFor="regenerate" className="cursor-pointer">
+                Regenerate label
               </Label>
             </div>
           </div>
