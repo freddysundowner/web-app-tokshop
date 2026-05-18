@@ -29,6 +29,7 @@ export default function AdminInventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [listingTypeFilter, setListingTypeFilter] = useState("all");
   const [priceFilter, setPriceFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
@@ -40,6 +41,7 @@ export default function AdminInventory() {
   let queryString = `/api/admin/products?page=${page}&limit=${limit}`;
   if (searchQuery) queryString += `&title=${encodeURIComponent(searchQuery)}`;
   if (categoryFilter && categoryFilter !== "all") queryString += `&category=${encodeURIComponent(categoryFilter)}`;
+  if (listingTypeFilter && listingTypeFilter !== "all") queryString += `&saletype=${encodeURIComponent(listingTypeFilter)}`;
   if (priceFilter && priceFilter !== "all") queryString += `&price=${encodeURIComponent(priceFilter)}`;
 
   const { data: productsData, isLoading, isError, error, refetch } = useQuery<{ 
@@ -95,17 +97,18 @@ export default function AdminInventory() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, categoryFilter, statusFilter, priceFilter]);
+  }, [searchQuery, categoryFilter, statusFilter, listingTypeFilter, priceFilter]);
 
   // Clear all filters
   const clearFilters = () => {
     setSearchQuery("");
     setCategoryFilter("all");
     setStatusFilter("all");
+    setListingTypeFilter("all");
     setPriceFilter("all");
   };
 
-  const hasActiveFilters = searchQuery || (categoryFilter && categoryFilter !== "all") || (statusFilter && statusFilter !== "all") || (priceFilter && priceFilter !== "all");
+  const hasActiveFilters = searchQuery || (categoryFilter && categoryFilter !== "all") || (statusFilter && statusFilter !== "all") || (listingTypeFilter && listingTypeFilter !== "all") || (priceFilter && priceFilter !== "all");
 
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
@@ -269,6 +272,17 @@ export default function AdminInventory() {
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
                       <SelectItem value="draft">Draft</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={listingTypeFilter} onValueChange={setListingTypeFilter}>
+                    <SelectTrigger data-testid="select-listing-type-filter">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="auction">Auction</SelectItem>
+                      <SelectItem value="buy_now">Buy Now</SelectItem>
                     </SelectContent>
                   </Select>
 
