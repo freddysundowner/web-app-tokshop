@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Package, 
   Printer, 
@@ -59,6 +60,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
   const [selectedEstimate, setSelectedEstimate] = useState<ShippingEstimate | null>(null);
   const [labelFileType, setLabelFileType] = useState("PDF");
+  const [sellerPaying, setSellerPaying] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -165,7 +167,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
   };
 
   const purchaseLabelMutation = useMutation({
-    mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string }) => {
+    mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string; sellerPaying?: boolean }) => {
       const requestData = {
         rate_id: estimate.objectId,
         order: orderData._id,
@@ -175,6 +177,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
         carrier: estimate.carrier,
         deliveryTime: estimate.deliveryTime,
         label_file_type: estimate.labelFileType,
+        seller_paying: estimate.sellerPaying ?? false,
         weight: parseFloat(weight),
         weight_unit: orderData?.giveaway?.shipping_profile?.scale || orderData?.scale || "oz",
         length: parseFloat(dimensions.length),
@@ -242,12 +245,13 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
     }
     
     setSelectedEstimate(estimate);
+    setSellerPaying(false);
     setLabelDialogOpen(true);
   };
 
   const confirmLabelPurchase = () => {
     if (!selectedEstimate) return;
-    purchaseLabelMutation.mutate({ ...selectedEstimate, labelFileType });
+    purchaseLabelMutation.mutate({ ...selectedEstimate, labelFileType, sellerPaying });
     setLabelDialogOpen(false);
   };
 
@@ -445,7 +449,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
               Choose the file format for your shipping label
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 space-y-5">
             <RadioGroup value={labelFileType} onValueChange={setLabelFileType}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="PDF" id="pdf" />
@@ -460,6 +464,17 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
                 <Label htmlFor="zpl">ZPL (Thermal Printer)</Label>
               </div>
             </RadioGroup>
+            <div className="flex items-center space-x-2 pt-2 border-t">
+              <Checkbox
+                id="seller-paying"
+                checked={sellerPaying}
+                onCheckedChange={(checked) => setSellerPaying(checked === true)}
+                data-testid="checkbox-seller-paying"
+              />
+              <Label htmlFor="seller-paying" className="cursor-pointer">
+                Seller is paying for this shipment
+              </Label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLabelDialogOpen(false)}>
