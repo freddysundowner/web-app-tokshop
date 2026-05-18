@@ -56,6 +56,7 @@ export default function AdminInventory() {
     queryKey: [queryString],
     retry: false,
     staleTime: 0,
+    gcTime: 0,
     refetchOnMount: 'always',
   });
 
