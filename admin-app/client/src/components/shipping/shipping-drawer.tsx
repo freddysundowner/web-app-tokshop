@@ -95,6 +95,9 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
       });
       setWeight(orderData.weight?.toString() || "16");
     }
+    if (!open && prevOpenRef.current) {
+      queryClient.invalidateQueries({ queryKey: ['/api/shipping/profiles/estimate/rates'] });
+    }
     prevOpenRef.current = open;
   }, [open]);
 
@@ -158,7 +161,6 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
     },
     enabled: hasValidDimensions && open && !orderLoading && !!orderData && !!getCustomerId(),
     retry: 1,
-    staleTime: 60000,
   });
 
   const estimates = shippingEstimatesQuery.data || [];
