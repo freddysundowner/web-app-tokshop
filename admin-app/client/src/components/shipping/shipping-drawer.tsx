@@ -60,7 +60,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
   const [selectedEstimate, setSelectedEstimate] = useState<ShippingEstimate | null>(null);
   const [labelFileType, setLabelFileType] = useState("PDF");
-  const [sellerPaying, setSellerPaying] = useState(false);
+  const [sellerPaying, setSellerPaying] = useState(true);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -245,7 +245,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
     }
     
     setSelectedEstimate(estimate);
-    setSellerPaying(false);
+    setSellerPaying(true);
     setLabelDialogOpen(true);
   };
 
