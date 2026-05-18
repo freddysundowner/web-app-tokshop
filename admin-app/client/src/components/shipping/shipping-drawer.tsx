@@ -177,7 +177,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
         carrier: estimate.carrier,
         deliveryTime: estimate.deliveryTime,
         label_file_type: estimate.labelFileType,
-        seller_paying: estimate.sellerPaying ?? false,
+        charge_seller: estimate.sellerPaying ?? false,
         weight: parseFloat(weight),
         weight_unit: orderData?.giveaway?.shipping_profile?.scale || orderData?.scale || "oz",
         length: parseFloat(dimensions.length),
