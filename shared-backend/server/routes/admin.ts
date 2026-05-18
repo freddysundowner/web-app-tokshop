@@ -772,6 +772,8 @@ export function registerAdminRoutes(app: Express) {
       if (req.query.title) queryParams.append("title", req.query.title as string);
       if (req.query.price) queryParams.append("price", req.query.price as string);
       if (req.query.userid) queryParams.append("userid", req.query.userid as string);
+      if (req.query.saletype) queryParams.append("saletype", req.query.saletype as string);
+      if (req.query.status) queryParams.append("status", req.query.status as string);
 
       const url = `${BASE_URL}/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
