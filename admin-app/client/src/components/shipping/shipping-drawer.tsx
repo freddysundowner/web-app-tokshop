@@ -156,7 +156,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
       
       return await response.json() as ShippingEstimate[];
     },
-    enabled: hasValidDimensions && open && !!orderData && !!getCustomerId(),
+    enabled: hasValidDimensions && open && !orderLoading && !!orderData && !!getCustomerId(),
     retry: 1,
     staleTime: 60000,
   });
