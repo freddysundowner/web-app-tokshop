@@ -618,8 +618,10 @@ export function registerShippingRoutes(app: Express) {
         })
       }];
 
+      const charge_seller = (req.body as any).charge_seller ?? true;
+
       console.log('Calling external shipping API:', `${BASE_URL}/shipping/profiles/buy/label`);
-      console.log('Request body being sent to external API:', { rates });
+      console.log('Request body being sent to external API:', { rates, charge_seller });
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -632,7 +634,7 @@ export function registerShippingRoutes(app: Express) {
       const response = await fetch(`${BASE_URL}/shipping/profiles/buy/label`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ rates })
+        body: JSON.stringify({ rates, charge_seller })
       });
 
       console.log(`External API response: ${response.status} ${response.statusText}`);
