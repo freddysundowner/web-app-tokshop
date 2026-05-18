@@ -39,6 +39,7 @@ interface ShippingDrawerProps {
   order: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  regenerate?: boolean;
 }
 
 interface ShippingEstimate {
@@ -50,7 +51,7 @@ interface ShippingEstimate {
   estimatedDays?: number;
 }
 
-export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawerProps) {
+export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: regenerateProp = false }: ShippingDrawerProps) {
   const [dimensions, setDimensions] = useState({
     length: "10",
     width: "8",
@@ -61,7 +62,6 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
   const [selectedEstimate, setSelectedEstimate] = useState<ShippingEstimate | null>(null);
   const [labelFileType, setLabelFileType] = useState("PDF");
   const [sellerPaying, setSellerPaying] = useState(true);
-  const [regenerate, setRegenerate] = useState(true);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -179,7 +179,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
         deliveryTime: estimate.deliveryTime,
         label_file_type: estimate.labelFileType,
         charge_seller: estimate.sellerPaying ?? true,
-        regenerate: estimate.regenerate ?? true,
+        regenerate: estimate.regenerate ?? false,
         weight: parseFloat(weight),
         weight_unit: orderData?.giveaway?.shipping_profile?.scale || orderData?.scale || "oz",
         length: parseFloat(dimensions.length),
@@ -248,13 +248,12 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
     
     setSelectedEstimate(estimate);
     setSellerPaying(true);
-    setRegenerate(true);
     setLabelDialogOpen(true);
   };
 
   const confirmLabelPurchase = () => {
     if (!selectedEstimate) return;
-    purchaseLabelMutation.mutate({ ...selectedEstimate, labelFileType, sellerPaying, regenerate });
+    purchaseLabelMutation.mutate({ ...selectedEstimate, labelFileType, sellerPaying, regenerate: regenerateProp });
     setLabelDialogOpen(false);
   };
 
@@ -476,17 +475,6 @@ export function AdminShippingDrawer({ order, open, onOpenChange }: ShippingDrawe
               />
               <Label htmlFor="seller-paying" className="cursor-pointer">
                 Seller is paying for this shipment
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="regenerate"
-                checked={regenerate}
-                onCheckedChange={(checked) => setRegenerate(checked === true)}
-                data-testid="checkbox-regenerate"
-              />
-              <Label htmlFor="regenerate" className="cursor-pointer">
-                Regenerate label
               </Label>
             </div>
           </div>

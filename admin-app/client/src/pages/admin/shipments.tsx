@@ -32,7 +32,7 @@ import {
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, RefreshCw } from "lucide-react";
 import { AdminShippingDrawer } from "@/components/shipping/shipping-drawer";
 import { AdminShipmentDetailsDrawer } from "@/components/shipping/shipment-details-drawer";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +85,7 @@ export default function AdminShipments() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [shippingDrawerOpen, setShippingDrawerOpen] = useState(false);
   const [shippingDrawerOrder, setShippingDrawerOrder] = useState<any>(null);
+  const [shippingDrawerRegenerate, setShippingDrawerRegenerate] = useState(false);
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [detailsDrawerOrder, setDetailsDrawerOrder] = useState<any>(null);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -809,6 +810,19 @@ export default function AdminShipments() {
                                           View Label
                                         </DropdownMenuItem>
                                       )}
+                                      {order.status === "ready_to_ship" && (
+                                        <DropdownMenuItem
+                                          onClick={() => {
+                                            setShippingDrawerOrder(order);
+                                            setShippingDrawerRegenerate(true);
+                                            setShippingDrawerOpen(true);
+                                          }}
+                                          data-testid={`menu-regenerate-label-${order._id}`}
+                                        >
+                                          <RefreshCw size={14} className="mr-2" />
+                                          Regenerate Label
+                                        </DropdownMenuItem>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 </div>
@@ -1016,7 +1030,11 @@ export default function AdminShipments() {
             <AdminShippingDrawer
               order={shippingDrawerOrder}
               open={shippingDrawerOpen}
-              onOpenChange={setShippingDrawerOpen}
+              onOpenChange={(open) => {
+                setShippingDrawerOpen(open);
+                if (!open) setShippingDrawerRegenerate(false);
+              }}
+              regenerate={shippingDrawerRegenerate}
             />
           )}
 
