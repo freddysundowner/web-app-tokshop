@@ -469,17 +469,19 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
                 <Label htmlFor="zpl">ZPL (Thermal Printer)</Label>
               </div>
             </RadioGroup>
-            <div className="flex items-center space-x-2 pt-2 border-t">
-              <Checkbox
-                id="seller-paying"
-                checked={sellerPaying}
-                onCheckedChange={(checked) => setSellerPaying(checked === true)}
-                data-testid="checkbox-seller-paying"
-              />
-              <Label htmlFor="seller-paying" className="cursor-pointer">
-                Seller is paying for this shipment
-              </Label>
-            </div>
+            {regenerateProp && (
+              <div className="flex items-center space-x-2 pt-2 border-t">
+                <Checkbox
+                  id="seller-paying"
+                  checked={sellerPaying}
+                  onCheckedChange={(checked) => setSellerPaying(checked === true)}
+                  data-testid="checkbox-seller-paying"
+                />
+                <Label htmlFor="seller-paying" className="cursor-pointer">
+                  Seller is paying for this shipment
+                </Label>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLabelDialogOpen(false)}>
