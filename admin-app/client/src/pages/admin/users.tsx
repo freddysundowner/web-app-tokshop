@@ -37,6 +37,7 @@ export default function AdminUsers() {
   const [walletDialogOpen, setWalletDialogOpen] = useState(false);
   const [selectedUserForWallet, setSelectedUserForWallet] = useState<any>(null);
   const [walletAmount, setWalletAmount] = useState<string>("");
+  const [walletNarration, setWalletNarration] = useState<string>("");
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -207,14 +208,15 @@ export default function AdminUsers() {
 
   // Update wallet mutation
   const walletMutation = useMutation({
-    mutationFn: async ({ userId, wallet }: { userId: string; wallet: number }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}`, { wallet });
+    mutationFn: async ({ userId, wallet, narration }: { userId: string; wallet: number; narration: string }) => {
+      return apiRequest("PATCH", `/api/admin/users/${userId}`, { wallet, narration });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       setWalletDialogOpen(false);
       setSelectedUserForWallet(null);
       setWalletAmount("");
+      setWalletNarration("");
       toast({ title: "Success", description: "Wallet balance updated successfully" });
     },
     onError: (error: any) => {
@@ -225,6 +227,7 @@ export default function AdminUsers() {
   const handleOpenWalletDialog = (userToEdit: any) => {
     setSelectedUserForWallet(userToEdit);
     setWalletAmount(String(userToEdit.wallet || 0));
+    setWalletNarration("");
     setWalletDialogOpen(true);
   };
 
@@ -235,7 +238,7 @@ export default function AdminUsers() {
       toast({ title: "Invalid amount", description: "Please enter a valid positive number", variant: "destructive" });
       return;
     }
-    walletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, wallet: amount });
+    walletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, wallet: amount, narration: walletNarration });
   };
 
   // Reset to page 1 when search query changes
@@ -668,6 +671,17 @@ export default function AdminUsers() {
                 onChange={(e) => setWalletAmount(e.target.value)}
                 placeholder="0.00"
                 data-testid="input-wallet-amount"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wallet-narration">Narration</Label>
+              <textarea
+                id="wallet-narration"
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                value={walletNarration}
+                onChange={(e) => setWalletNarration(e.target.value)}
+                placeholder="Reason for wallet adjustment..."
+                data-testid="input-wallet-narration"
               />
             </div>
           </div>
