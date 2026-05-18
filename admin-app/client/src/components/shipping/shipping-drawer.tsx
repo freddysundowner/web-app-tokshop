@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Sheet,
@@ -53,15 +53,16 @@ interface ShippingEstimate {
 
 export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: regenerateProp = false }: ShippingDrawerProps) {
   const [dimensions, setDimensions] = useState({
-    length: "10",
-    width: "8",
-    height: "3",
+    length: order?.length?.toString() || "10",
+    width: order?.width?.toString() || "8",
+    height: order?.height?.toString() || "3",
   });
-  const [weight, setWeight] = useState("16");
+  const [weight, setWeight] = useState(order?.weight?.toString() || "16");
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
   const [selectedEstimate, setSelectedEstimate] = useState<ShippingEstimate | null>(null);
   const [labelFileType, setLabelFileType] = useState("PDF");
   const [sellerPaying, setSellerPaying] = useState(true);
+  const prevOpenRef = useRef(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -86,7 +87,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
   const orderData = fullOrderData || order;
 
   useEffect(() => {
-    if (orderData && open) {
+    if (open && !prevOpenRef.current && orderData) {
       setDimensions({
         length: orderData.length?.toString() || "10",
         width: orderData.width?.toString() || "8",
@@ -94,7 +95,8 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
       });
       setWeight(orderData.weight?.toString() || "16");
     }
-  }, [orderData, open]);
+    prevOpenRef.current = open;
+  }, [open]);
 
   const hasValidDimensions = Boolean(
     dimensions.length && dimensions.width && dimensions.height && weight
@@ -156,6 +158,7 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
     },
     enabled: hasValidDimensions && open && !!orderData && !!getCustomerId(),
     retry: 1,
+    staleTime: 60000,
   });
 
   const estimates = shippingEstimatesQuery.data || [];
