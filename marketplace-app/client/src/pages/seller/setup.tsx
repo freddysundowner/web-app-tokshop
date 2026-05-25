@@ -524,7 +524,7 @@ export default function SellerSetup() {
                         id="city"
                         value={cityFreeText}
                         onChange={(e) => setCityFreeText(e.target.value)}
-                        placeholder="Enter city"
+                        placeholder="Enter your city"
                         data-testid="input-city-freetext"
                       />
                     ) : (
@@ -533,15 +533,10 @@ export default function SellerSetup() {
                         countryid={country?.id}
                         stateid={state?.id}
                         onChange={(e: any) => setCity(e)}
-                        placeHolder="Select City"
+                        placeHolder="Enter your city"
                         containerClassName="w-full"
                         inputClassName="w-full"
                       />
-                    )}
-                    {hasCityOptions === false && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        No city list available for this region — please type your city name.
-                      </p>
                     )}
                   </div>
                 </div>
