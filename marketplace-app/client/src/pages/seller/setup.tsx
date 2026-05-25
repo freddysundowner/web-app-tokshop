@@ -385,7 +385,7 @@ export default function SellerSetup() {
       country: bankCountryCode,
       currency: bankSchema.currency,
       account_number: bankSchema.kind === 'iban' ? cleanIban : cleanAccount,
-      city: userAddress?.city || city?.name || city,
+      city: userAddress?.city || city?.name || (cityFreeText.trim() || null),
       state: userAddress?.state || state?.name || state,
       day: dob.getDate().toString(),
       month: (dob.getMonth() + 1).toString(),
