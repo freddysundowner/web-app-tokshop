@@ -358,7 +358,11 @@ export function AddAddressDialog({
       open={errorDialog.open}
       onOpenChange={(o) => setErrorDialog((s) => ({ ...s, open: o }))}
     >
-      <AlertDialogContent className="z-[100]" data-testid="dialog-address-error">
+      <AlertDialogContent
+        className="z-[200]"
+        overlayClassName="z-[190]"
+        data-testid="dialog-address-error"
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{errorDialog.title}</AlertDialogTitle>
           <AlertDialogDescription>{errorDialog.message}</AlertDialogDescription>
