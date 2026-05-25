@@ -170,22 +170,36 @@ export function AddAddressDialog({
       let errorMessage = isEditing
         ? "Failed to update address. Please try again."
         : "Failed to add address. Please try again.";
+      let errorTitle = "Error";
 
+      let rawMessage = "";
       if (error?.text) {
         try {
           const errorData = JSON.parse(error.text);
-          errorMessage = errorData.error || errorData.message || errorMessage;
+          rawMessage = errorData.error || errorData.message || "";
         } catch (e) {
-          if (typeof error.text === 'string') {
-            errorMessage = error.text;
-          }
+          if (typeof error.text === 'string') rawMessage = error.text;
         }
       } else if (error?.message) {
-        errorMessage = error.message;
+        rawMessage = error.message;
+      }
+
+      const lower = rawMessage.toLowerCase();
+      if (lower.includes("missing_secondary") || lower.includes("missing secondary") || lower.includes("apartment, suite")) {
+        errorTitle = "Apartment or unit number needed";
+        errorMessage = "This building has multiple flats or units. Please add your flat, apartment or suite number in the Street Address 2 field.";
+      } else if (lower.includes("address_not_found") || lower.includes("not found in the database") || lower.includes("invalid address")) {
+        errorTitle = "Address not found";
+        errorMessage = "We couldn't find this address. Please check the street, city and postcode and try again.";
+      } else if (lower.includes("postal_code") || lower.includes("zip") || lower.includes("postcode")) {
+        errorTitle = "Check your postcode";
+        errorMessage = "The postcode doesn't match the city or state. Please double-check it.";
+      } else if (rawMessage) {
+        errorMessage = rawMessage;
       }
 
       toast({
-        title: "Error",
+        title: errorTitle,
         description: errorMessage,
         variant: "destructive",
       });
