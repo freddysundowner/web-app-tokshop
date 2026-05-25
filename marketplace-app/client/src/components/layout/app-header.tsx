@@ -30,7 +30,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobileMenuClose, hideLogo = false, hideNavigation = false, hideSearch = false, isDashboard = false }: AppHeaderProps) {
-  const { settings, theme } = useSettings();
+  const { settings, theme, appName } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
   const { externalApiUrl } = useApiConfig();
   const [, setLocation] = useLocation();
@@ -197,17 +197,17 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                   {(theme.landing_page_logo || theme.app_logo) ? (
                     <img 
                       src={getImageUrl(theme.landing_page_logo || theme.app_logo, externalApiUrl)}
-                      alt={settings.app_name || 'Logo'}
+                      alt={appName || 'Logo'}
                       className="h-16 sm:h-20 lg:h-24 w-auto object-contain"
                     />
                   ) : (
                     <>
                       <div className="h-6 w-6 sm:h-7 sm:w-7 bg-primary rounded-full flex items-center justify-center">
                         <span className="text-primary-foreground font-bold text-xs sm:text-sm">
-                          {settings.app_name.charAt(0).toUpperCase()}
+                          {(appName || '').charAt(0).toUpperCase()}
                         </span>
                       </div>
-                      <span className={`text-base sm:text-lg font-bold hidden sm:inline ${isShowPage ? 'text-white' : 'text-foreground'}`}>{settings.app_name}</span>
+                      <span className={`text-base sm:text-lg font-bold hidden sm:inline ${isShowPage ? 'text-white' : 'text-foreground'}`}>{appName}</span>
                     </>
                   )}
                 </div>
@@ -281,7 +281,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => searchQuery.length > 0 && setShowAutocomplete(true)}
-                placeholder={`Search ${settings.app_name}`}
+                placeholder={`Search ${appName}`}
                 className={`pl-10 text-sm h-9 rounded-md ${isShowPage ? 'bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500' : 'bg-muted/50 border-border'}`}
                 data-testid="input-search"
               />
@@ -556,7 +556,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => searchQuery.length > 0 && setShowAutocomplete(true)}
-                  placeholder={`Search ${settings.app_name}`}
+                  placeholder={`Search ${appName}`}
                   className={`pl-10 text-sm h-9 rounded-md ${isShowPage ? 'bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500' : 'bg-muted/50 border-border'}`}
                   data-testid="input-search-mobile"
                 />
