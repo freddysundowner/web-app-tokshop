@@ -17,6 +17,7 @@ import {
   CitySelect,
   CountrySelect,
   StateSelect,
+  GetCity,
 } from "react-country-state-city";
 import "react-country-state-city/dist/react-country-state-city.css";
 
@@ -48,7 +49,9 @@ export function AddAddressDialog({
   const [countryData, setCountryData] = useState<any>(null);
   const [stateData, setStateData] = useState<any>(null);
   const [cityData, setCityData] = useState<any>(null);
-  
+  const [cityFreeText, setCityFreeText] = useState("");
+  const [hasCities, setHasCities] = useState(true);
+
   const [zipCode, setZipCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
@@ -72,13 +75,34 @@ export function AddAddressDialog({
       setCountryData(null);
       setStateData(null);
       setCityData(null);
+      setCityFreeText("");
+      setHasCities(true);
       setZipCode("");
       setPhoneNumber("");
     }
   }, [address, open]);
 
+  useEffect(() => {
+    if (!countryid || !stateid) {
+      setHasCities(true);
+      return;
+    }
+    let cancelled = false;
+    GetCity(countryid, stateid)
+      .then((cities: any[]) => {
+        if (!cancelled) setHasCities(Array.isArray(cities) && cities.length > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setHasCities(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [countryid, stateid]);
+
   const handleAddAddress = async () => {
-    if (!streetAddress || !countryData || !stateData || !cityData || !zipCode || !phoneNumber) {
+    const resolvedCity = cityData?.name || cityFreeText.trim();
+    if (!streetAddress || !countryData || !stateData || !resolvedCity || !zipCode || !phoneNumber) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -95,7 +119,7 @@ export function AddAddressDialog({
         addrress1: streetAddress,
         addrress2: streetAddress2,
         country: countryData.name,
-        city: cityData.name,
+        city: resolvedCity,
         countryCode: countryData.iso2,
         zipcode: zipCode,
         state: stateData.name,
@@ -129,6 +153,8 @@ export function AddAddressDialog({
       setCountryData(null);
       setStateData(null);
       setCityData(null);
+      setCityFreeText("");
+      setHasCities(true);
       setZipCode("");
       setPhoneNumber("");
       setName("");
@@ -232,17 +258,32 @@ export function AddAddressDialog({
             </div>
             <div className="space-y-2">
               <Label>City</Label>
-              <CitySelect
-                countryid={countryid}
-                stateid={stateid}
-                onChange={(e: any) => {
-                  setCityid(e.id);
-                  setCityData(e);
-                }}
-                placeHolder="Select City"
-                containerClassName="w-full"
-                inputClassName="w-full"
-              />
+              {hasCities ? (
+                <CitySelect
+                  countryid={countryid}
+                  stateid={stateid}
+                  onChange={(e: any) => {
+                    setCityid(e.id);
+                    setCityData(e);
+                    setCityFreeText("");
+                  }}
+                  placeHolder="Enter your city"
+                  containerClassName="w-full"
+                  inputClassName="w-full"
+                />
+              ) : (
+                <Input
+                  id="city-free-text"
+                  placeholder="Enter your city"
+                  value={cityFreeText}
+                  onChange={(e) => {
+                    setCityFreeText(e.target.value);
+                    setCityData(null);
+                    setCityid(0);
+                  }}
+                  data-testid="input-city"
+                />
+              )}
             </div>
           </div>
           <div className="space-y-2">
