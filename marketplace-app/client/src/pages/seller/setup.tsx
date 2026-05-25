@@ -20,7 +20,7 @@ import {
   Clock
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CountrySelect, StateSelect, CitySelect } from "react-country-state-city";
+import { CountrySelect, StateSelect, CitySelect, GetCity } from "react-country-state-city";
 import "react-country-state-city/dist/react-country-state-city.css";
 
 interface Step {
@@ -48,6 +48,8 @@ export default function SellerSetup() {
   const [country, setCountry] = useState<any>(null);
   const [state, setState] = useState<any>(null);
   const [city, setCity] = useState<any>(null);
+  const [cityFreeText, setCityFreeText] = useState("");
+  const [hasCityOptions, setHasCityOptions] = useState<boolean | null>(null);
   const [zipCode, setZipCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
 
@@ -78,6 +80,28 @@ export default function SellerSetup() {
       setCountry({ id: 233, name: "United States", iso2: "US" });
     }
   }, []);
+
+  // Detect whether the library has city data for the chosen country/state.
+  // Some regions (e.g. UK Northern Ireland districts) have no cities in the
+  // dataset, so we fall back to a free-text input.
+  useEffect(() => {
+    let cancelled = false;
+    if (!country?.id || !state?.id) {
+      setHasCityOptions(null);
+      return;
+    }
+    (async () => {
+      try {
+        const cities = await GetCity(country.id, state.id);
+        if (!cancelled) {
+          setHasCityOptions(Array.isArray(cities) && cities.length > 0);
+        }
+      } catch {
+        if (!cancelled) setHasCityOptions(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [country?.id, state?.id]);
 
   // Skip address step if user already has one
   useEffect(() => {
@@ -138,7 +162,8 @@ export default function SellerSetup() {
     e.preventDefault();
     
     // Validation
-    if (!streetAddress || !country || !state || !city || !zipCode || !phoneNumber) {
+    const cityName = (hasCityOptions === false) ? cityFreeText.trim() : city?.name;
+    if (!streetAddress || !country || !state || !cityName || !zipCode || !phoneNumber) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
@@ -152,7 +177,7 @@ export default function SellerSetup() {
       addrress1: streetAddress,
       addrress2: streetAddress2,
       country: country.name,
-      city: city.name,
+      city: cityName,
       countryCode: country.iso2,
       zipcode: zipCode,
       state: state.name,
@@ -466,6 +491,8 @@ export default function SellerSetup() {
                       setCountry(e);
                       setState(null);
                       setCity(null);
+                      setCityFreeText("");
+                      setHasCityOptions(null);
                     }}
                     placeHolder="Select Country"
                     containerClassName="w-full"
@@ -481,6 +508,8 @@ export default function SellerSetup() {
                       onChange={(e: any) => {
                         setState(e);
                         setCity(null);
+                        setCityFreeText("");
+                        setHasCityOptions(null);
                       }}
                       placeHolder="Select State"
                       containerClassName="w-full"
@@ -490,14 +519,30 @@ export default function SellerSetup() {
 
                   <div>
                     <Label htmlFor="city">City *</Label>
-                    <CitySelect
-                      countryid={country?.id}
-                      stateid={state?.id}
-                      onChange={(e: any) => setCity(e)}
-                      placeHolder="Select City"
-                      containerClassName="w-full"
-                      inputClassName="w-full"
-                    />
+                    {hasCityOptions === false ? (
+                      <Input
+                        id="city"
+                        value={cityFreeText}
+                        onChange={(e) => setCityFreeText(e.target.value)}
+                        placeholder="Enter city"
+                        data-testid="input-city-freetext"
+                      />
+                    ) : (
+                      <CitySelect
+                        key={`${country?.id}-${state?.id}`}
+                        countryid={country?.id}
+                        stateid={state?.id}
+                        onChange={(e: any) => setCity(e)}
+                        placeHolder="Select City"
+                        containerClassName="w-full"
+                        inputClassName="w-full"
+                      />
+                    )}
+                    {hasCityOptions === false && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        No city list available for this region — please type your city name.
+                      </p>
+                    )}
                   </div>
                 </div>
 
