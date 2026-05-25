@@ -7,6 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +60,11 @@ export function AddAddressDialog({
   const [cityData, setCityData] = useState<any>(null);
   const [cityFreeText, setCityFreeText] = useState("");
   const [hasCities, setHasCities] = useState(true);
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; title: string; message: string }>({
+    open: false,
+    title: "",
+    message: "",
+  });
 
   const [zipCode, setZipCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -198,17 +212,14 @@ export function AddAddressDialog({
         errorMessage = rawMessage;
       }
 
-      toast({
-        title: errorTitle,
-        description: errorMessage,
-        variant: "destructive",
-      });
+      setErrorDialog({ open: true, title: errorTitle, message: errorMessage });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-add-address">
         <DialogHeader>
@@ -342,6 +353,28 @@ export function AddAddressDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog
+      open={errorDialog.open}
+      onOpenChange={(o) => setErrorDialog((s) => ({ ...s, open: o }))}
+    >
+      <AlertDialogContent className="z-[100]" data-testid="dialog-address-error">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{errorDialog.title}</AlertDialogTitle>
+          <AlertDialogDescription>{errorDialog.message}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction
+            onClick={() => setErrorDialog((s) => ({ ...s, open: false }))}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            data-testid="button-error-ok"
+          >
+            OK
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
