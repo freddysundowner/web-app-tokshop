@@ -321,7 +321,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, theme.primary_color, theme.secondary_color, theme.button_color, theme.button_text_color]);
 
-  const appName = theme.seo_title || theme.app_name || settings.app_name || 'TokshopLive';
+  const appName = theme.app_name || settings.app_name || theme.seo_title || 'TokshopLive';
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
