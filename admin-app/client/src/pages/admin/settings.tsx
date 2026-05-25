@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Settings, DollarSign, Key, Package, Link as LinkIcon, Smartphone, ShieldX, Mail, Info, Languages, Plus, Trash2, Download, Upload, Palette, Loader2 } from "lucide-react";
+import { Settings, DollarSign, Key, Package, Link as LinkIcon, Smartphone, ShieldX, Mail, Info, Languages, Plus, Trash2, Download, Upload, Palette, Loader2, Copy, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
@@ -574,16 +574,54 @@ export default function AdminSettings() {
             <Card>
               <CardHeader>
                 <CardTitle>Stripe Integration</CardTitle>
-                <CardDescription>Stripe payment gateway configuration</CardDescription>
+                <CardDescription>
+                  Configure Stripe so the marketplace can accept payments, pay out sellers via Stripe Connect,
+                  and process refunds. The Publishable / Secret keys come from your Stripe Dashboard (Developers → API keys).
+                  The two webhook secrets come from Stripe Dashboard (Developers → Webhooks) and let your server verify
+                  that incoming webhook events are genuinely from Stripe. The two Connect Account IDs route platform
+                  fees (shipping and service) to your own Stripe Connect accounts.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Webhook Endpoint URL (read-only) — what the admin should paste into Stripe Dashboard */}
+                <div className="space-y-2">
+                  <Label htmlFor="stripe_webhook_url">Webhook Endpoint URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="stripe_webhook_url"
+                      value={externalApiUrl ? `${externalApiUrl}/webhook/stripe` : 'Loading...'}
+                      readOnly
+                      data-testid="input-stripe-webhook-url"
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        const url = `${externalApiUrl}/webhook/stripe`;
+                        navigator.clipboard.writeText(url);
+                        toast({ title: 'Copied', description: 'Webhook URL copied to clipboard' });
+                      }}
+                      disabled={!externalApiUrl}
+                      data-testid="button-copy-stripe-webhook-url"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Paste this URL into both Stripe webhook endpoints (your Platform account and your Connected Accounts).
+                    Stripe will POST events here so the app can record successful charges, payouts, disputes, etc.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="stripepublickey">Stripe Publishable Key</Label>
                   <Input
                     id="stripepublickey"
                     value={isDemoMode ? maskKey(formData.stripepublickey) : formData.stripepublickey}
                     onChange={(e) => handleInputChange('stripepublickey', e.target.value)}
-                    placeholder="pk_test_..."
+                    placeholder="pk_test_... or pk_live_..."
                     data-testid="input-stripe-public-key"
                     readOnly={isDemoMode}
                     disabled={isDemoMode}
@@ -592,6 +630,10 @@ export default function AdminSettings() {
                     onPaste={(e) => isDemoMode && e.preventDefault()}
                     className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Safe to expose in the browser. Used by the frontend (Stripe.js / Elements) to tokenize cards
+                    and confirm payments. Get it from Stripe Dashboard → Developers → API keys.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="stripeSecretKey">Stripe Secret Key</Label>
@@ -600,7 +642,7 @@ export default function AdminSettings() {
                     type={isDemoMode ? 'text' : 'password'}
                     value={isDemoMode ? maskKey(formData.stripeSecretKey) : formData.stripeSecretKey}
                     onChange={(e) => handleInputChange('stripeSecretKey', e.target.value)}
-                    placeholder="sk_test_..."
+                    placeholder="sk_test_... or sk_live_..."
                     data-testid="input-stripe-secret-key"
                     readOnly={isDemoMode}
                     disabled={isDemoMode}
@@ -610,11 +652,12 @@ export default function AdminSettings() {
                     className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Keep this key secret and secure
+                    Server-only key. The backend uses it to create Payment Intents, refunds, Connect accounts,
+                    and to call the Stripe API on your behalf. Never share or expose this in the browser.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="stripe_webhook_key">Stripe Webhook Secret</Label>
+                  <Label htmlFor="stripe_webhook_key">Stripe Webhook Secret (Connected Accounts)</Label>
                   <Input
                     id="stripe_webhook_key"
                     type={isDemoMode ? 'text' : 'password'}
@@ -630,11 +673,14 @@ export default function AdminSettings() {
                     className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Used for verifying webhook events from Stripe Connected Account
+                    Signing secret for the <strong>Connect</strong> webhook endpoint — used to verify events
+                    fired on behalf of your connected sellers (charges, transfers, payouts on their accounts).
+                    In Stripe Dashboard → Developers → Webhooks, create an endpoint with "Listen to events on Connected accounts"
+                    enabled, point it at the URL above, then paste its signing secret here.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="stripe_platform_webhook_key">Stripe Platform Webhook Key</Label>
+                  <Label htmlFor="stripe_platform_webhook_key">Stripe Platform Webhook Secret</Label>
                   <Input
                     id="stripe_platform_webhook_key"
                     type={isDemoMode ? 'text' : 'password'}
@@ -650,7 +696,10 @@ export default function AdminSettings() {
                     className={isDemoMode ? 'select-none cursor-not-allowed opacity-60' : ''}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Used for verifying webhook events from Stripe Platform
+                    Signing secret for the <strong>Platform</strong> webhook endpoint — used to verify events
+                    that happen on your own Stripe account (account-level charges, application fees, refunds).
+                    Create a second webhook endpoint in Stripe (without "Connected accounts" enabled), point it
+                    at the same URL above, then paste its signing secret here.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -665,7 +714,8 @@ export default function AdminSettings() {
                     disabled={isDemoMode}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Stripe Connect account ID to receive shipping fees
+                    Stripe Connect account ID (format <code>acct_...</code>) that will receive the
+                    <strong> shipping-fee</strong> portion of each order via a transfer.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -680,7 +730,8 @@ export default function AdminSettings() {
                     disabled={isDemoMode}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Stripe Connect account ID to receive service fees
+                    Stripe Connect account ID (format <code>acct_...</code>) that will receive the
+                    <strong> platform service-fee</strong> portion of each order via a transfer.
                   </p>
                 </div>
               </CardContent>
