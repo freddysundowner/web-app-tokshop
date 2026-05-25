@@ -7,15 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -219,7 +210,6 @@ export function AddAddressDialog({
   };
 
   return (
-    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-add-address">
         <DialogHeader>
@@ -228,6 +218,29 @@ export function AddAddressDialog({
             {isEditing ? "Update your shipping address." : "Add a new shipping or billing address."}
           </DialogDescription>
         </DialogHeader>
+        {errorDialog.open && (
+          <div
+            role="alert"
+            className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm"
+            data-testid="banner-address-error"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-destructive">{errorDialog.title}</p>
+                <p className="mt-1 text-destructive/90">{errorDialog.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setErrorDialog((s) => ({ ...s, open: false }))}
+                className="text-destructive/70 hover:text-destructive"
+                aria-label="Dismiss"
+                data-testid="button-dismiss-error"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="street-address">Street Address</Label>
@@ -353,32 +366,6 @@ export function AddAddressDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-
-    <AlertDialog
-      open={errorDialog.open}
-      onOpenChange={(o) => setErrorDialog((s) => ({ ...s, open: o }))}
-    >
-      <AlertDialogContent
-        className="z-[200]"
-        overlayClassName="z-[190]"
-        data-testid="dialog-address-error"
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>{errorDialog.title}</AlertDialogTitle>
-          <AlertDialogDescription>{errorDialog.message}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction
-            onClick={() => setErrorDialog((s) => ({ ...s, open: false }))}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            data-testid="button-error-ok"
-          >
-            OK
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-    </>
   );
 }
 
