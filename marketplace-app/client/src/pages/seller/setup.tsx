@@ -35,6 +35,88 @@ const STEPS: Step[] = [
   { id: 'complete', title: 'Complete', description: 'Finish setup' },
 ];
 
+// Country-specific bank-account field schemas for Stripe Connect payouts.
+type BankFieldKind = 'iban' | 'account_routing' | 'account_sort' | 'account_bsb' | 'account_transit_institution';
+interface BankSchema {
+  kind: BankFieldKind;
+  currency: string;
+  accountLabel: string;
+  accountPlaceholder: string;
+  accountMaxLength?: number;
+  routingLabel?: string;       // Generic "routing-style" code field (US routing / UK sort / AU BSB / CA transit)
+  routingPlaceholder?: string;
+  routingMaxLength?: number;
+  ibanLabel?: string;
+  ibanPlaceholder?: string;
+  showSsn?: boolean;
+  ssnLabel?: string;
+}
+
+const SEPA_COUNTRIES = new Set([
+  'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT',
+  'LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','NO','CH','LI','IS',
+]);
+
+function getBankSchema(countryCode?: string): BankSchema {
+  const cc = (countryCode || 'US').toUpperCase();
+  if (cc === 'GB') {
+    return {
+      kind: 'account_sort',
+      currency: 'gbp',
+      accountLabel: 'Account Number',
+      accountPlaceholder: '00012345',
+      accountMaxLength: 8,
+      routingLabel: 'Sort Code',
+      routingPlaceholder: '108800',
+      routingMaxLength: 6,
+    };
+  }
+  if (cc === 'AU') {
+    return {
+      kind: 'account_bsb',
+      currency: 'aud',
+      accountLabel: 'Account Number',
+      accountPlaceholder: '000123456',
+      routingLabel: 'BSB',
+      routingPlaceholder: '062-000',
+      routingMaxLength: 7,
+    };
+  }
+  if (cc === 'CA') {
+    return {
+      kind: 'account_transit_institution',
+      currency: 'cad',
+      accountLabel: 'Account Number',
+      accountPlaceholder: '000123456789',
+      routingLabel: 'Transit Number',
+      routingPlaceholder: '11000',
+      routingMaxLength: 5,
+    };
+  }
+  if (SEPA_COUNTRIES.has(cc)) {
+    return {
+      kind: 'iban',
+      currency: 'eur',
+      accountLabel: 'IBAN',
+      accountPlaceholder: 'DE89370400440532013000',
+      ibanLabel: 'IBAN',
+      ibanPlaceholder: 'DE89370400440532013000',
+    };
+  }
+  // Default: United States
+  return {
+    kind: 'account_routing',
+    currency: 'usd',
+    accountLabel: 'Account Number',
+    accountPlaceholder: '000123456789',
+    routingLabel: 'Routing Number',
+    routingPlaceholder: '110000000',
+    routingMaxLength: 9,
+    showSsn: true,
+    ssnLabel: 'SSN Last 4 Digits',
+  };
+}
+
 export default function SellerSetup() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -55,8 +137,10 @@ export default function SellerSetup() {
 
   // Bank account form state
   const [accountNumber, setAccountNumber] = useState("");
-  const [routingNumber, setRoutingNumber] = useState("");
-  const [ssnLast4, setSsnLast4] = useState("");
+  const [routingNumber, setRoutingNumber] = useState(""); // US routing / UK sort code / AU BSB / CA transit
+  const [institutionNumber, setInstitutionNumber] = useState(""); // CA only
+  const [iban, setIban] = useState(""); // EU / SEPA countries
+  const [ssnLast4, setSsnLast4] = useState(""); // US only
   const [bankPhoneNumber, setBankPhoneNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
 
@@ -112,6 +196,16 @@ export default function SellerSetup() {
 
   // Use fresh user data instead of cached auth context
   const currentUser = freshUserData || user;
+
+  // Resolve the seller's country (from saved address or selected on the address step)
+  // and look up the matching bank-account schema.
+  const bankCountryCode = (
+    existingAddress?.address?.countryCode ||
+    (user as any)?.address?.countryCode ||
+    country?.iso2 ||
+    'US'
+  ).toUpperCase();
+  const bankSchema = useMemo(() => getBankSchema(bankCountryCode), [bankCountryCode]);
   
   // Check if user has already applied and is waiting for approval
   const appliedSeller = currentUser?.applied_seller;
@@ -239,8 +333,23 @@ export default function SellerSetup() {
   const handleBankSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
-    if (!accountNumber || !routingNumber || !ssnLast4 || !bankPhoneNumber || !dateOfBirth) {
+    // Country-aware validation
+    const cleanAccount = accountNumber.replace(/\s/g, '');
+    const cleanRouting = routingNumber.replace(/[\s-]/g, '');
+    const cleanIban = iban.replace(/\s/g, '').toUpperCase();
+    const cleanInstitution = institutionNumber.replace(/\s/g, '');
+
+    let bankValid = false;
+    if (bankSchema.kind === 'iban') {
+      bankValid = cleanIban.length >= 15;
+    } else if (bankSchema.kind === 'account_transit_institution') {
+      bankValid = !!cleanAccount && !!cleanRouting && !!cleanInstitution;
+    } else if (bankSchema.kind === 'account_routing' || bankSchema.kind === 'account_sort' || bankSchema.kind === 'account_bsb') {
+      bankValid = !!cleanAccount && !!cleanRouting;
+      if (bankSchema.showSsn && !ssnLast4) bankValid = false;
+    }
+
+    if (!bankValid || !bankPhoneNumber || !dateOfBirth) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
@@ -273,27 +382,32 @@ export default function SellerSetup() {
     
     // Build payload matching Flutter structure
     const payload = {
-      country: "US",
-      currency: "usd",
-      account_number: accountNumber,
+      country: bankCountryCode,
+      currency: bankSchema.currency,
+      account_number: bankSchema.kind === 'iban' ? cleanIban : cleanAccount,
       city: userAddress?.city || city?.name || city,
       state: userAddress?.state || state?.name || state,
       day: dob.getDate().toString(),
       month: (dob.getMonth() + 1).toString(),
       year: dob.getFullYear().toString(),
-      ssn_last_4: ssnLast4,
       line1: userAddress?.addrress1 || userAddress?.address1 || streetAddress,
       line2: userAddress?.addrress2 || userAddress?.address2 || streetAddress2 || "",
       postal_code: userAddress?.zipcode || zipCode,
-      countryCode: userAddress?.countryCode || country?.iso2,
+      countryCode: userAddress?.countryCode || country?.iso2 || bankCountryCode,
       phone: bankPhoneNumber,
-      routing_number: routingNumber,
       email: user?.email || '',
       name: user?.firstName || '',
       first_name: user?.firstName || '',
       last_name: user?.lastName || '',
       create_address: !userAddress,
       account_holder_name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+      ...(bankSchema.kind === 'account_routing' ? { routing_number: cleanRouting } : {}),
+      ...(bankSchema.kind === 'account_sort' ? { sort_code: cleanRouting, routing_number: cleanRouting } : {}),
+      ...(bankSchema.kind === 'account_bsb' ? { bsb_number: cleanRouting, routing_number: cleanRouting } : {}),
+      ...(bankSchema.kind === 'account_transit_institution'
+        ? { transit_number: cleanRouting, institution_number: cleanInstitution, routing_number: `${cleanRouting}-${cleanInstitution}` }
+        : {}),
+      ...(bankSchema.showSsn ? { ssn_last_4: ssnLast4 } : {}),
     };
 
     createBankAccountMutation.mutate(payload);
@@ -600,46 +714,86 @@ export default function SellerSetup() {
               </CardTitle>
               <CardDescription>
                 Enter your bank account details to receive seller payouts
+                {bankCountryCode && (
+                  <span className="block text-xs text-muted-foreground mt-1">
+                    Showing fields for {bankCountryCode} ({bankSchema.currency.toUpperCase()} payouts)
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleBankSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="account-number">Account Number *</Label>
-                  <Input
-                    id="account-number"
-                    placeholder="000123456789"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    required
-                    data-testid="input-account-number"
-                  />
-                </div>
+                {bankSchema.kind === 'iban' ? (
+                  <div>
+                    <Label htmlFor="iban">{bankSchema.ibanLabel} *</Label>
+                    <Input
+                      id="iban"
+                      placeholder={bankSchema.ibanPlaceholder}
+                      value={iban}
+                      onChange={(e) => setIban(e.target.value.toUpperCase())}
+                      required
+                      data-testid="input-iban"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label htmlFor="account-number">{bankSchema.accountLabel} *</Label>
+                      <Input
+                        id="account-number"
+                        placeholder={bankSchema.accountPlaceholder}
+                        maxLength={bankSchema.accountMaxLength}
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        required
+                        data-testid="input-account-number"
+                      />
+                    </div>
 
-                <div>
-                  <Label htmlFor="routing-number">Routing Number *</Label>
-                  <Input
-                    id="routing-number"
-                    placeholder="110000000"
-                    value={routingNumber}
-                    onChange={(e) => setRoutingNumber(e.target.value)}
-                    required
-                    data-testid="input-routing-number"
-                  />
-                </div>
+                    <div>
+                      <Label htmlFor="routing-number">{bankSchema.routingLabel} *</Label>
+                      <Input
+                        id="routing-number"
+                        placeholder={bankSchema.routingPlaceholder}
+                        maxLength={bankSchema.routingMaxLength}
+                        value={routingNumber}
+                        onChange={(e) => setRoutingNumber(e.target.value)}
+                        required
+                        data-testid="input-routing-number"
+                      />
+                    </div>
 
-                <div>
-                  <Label htmlFor="ssn-last4">SSN Last 4 Digits *</Label>
-                  <Input
-                    id="ssn-last4"
-                    placeholder="0000"
-                    maxLength={4}
-                    value={ssnLast4}
-                    onChange={(e) => setSsnLast4(e.target.value.replace(/\D/g, ''))}
-                    required
-                    data-testid="input-ssn-last4"
-                  />
-                </div>
+                    {bankSchema.kind === 'account_transit_institution' && (
+                      <div>
+                        <Label htmlFor="institution-number">Institution Number *</Label>
+                        <Input
+                          id="institution-number"
+                          placeholder="000"
+                          maxLength={3}
+                          value={institutionNumber}
+                          onChange={(e) => setInstitutionNumber(e.target.value.replace(/\D/g, ''))}
+                          required
+                          data-testid="input-institution-number"
+                        />
+                      </div>
+                    )}
+
+                    {bankSchema.showSsn && (
+                      <div>
+                        <Label htmlFor="ssn-last4">{bankSchema.ssnLabel} *</Label>
+                        <Input
+                          id="ssn-last4"
+                          placeholder="0000"
+                          maxLength={4}
+                          value={ssnLast4}
+                          onChange={(e) => setSsnLast4(e.target.value.replace(/\D/g, ''))}
+                          required
+                          data-testid="input-ssn-last4"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
 
                 <div>
                   <Label htmlFor="bank-phone">Phone Number *</Label>
