@@ -583,38 +583,6 @@ export default function AdminSettings() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Webhook Endpoint URL (read-only) — what the admin should paste into Stripe Dashboard */}
-                <div className="space-y-2">
-                  <Label htmlFor="stripe_webhook_url">Webhook Endpoint URL</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="stripe_webhook_url"
-                      value={externalApiUrl ? `${externalApiUrl}/webhook/stripe` : 'Loading...'}
-                      readOnly
-                      data-testid="input-stripe-webhook-url"
-                      className="font-mono text-xs"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        const url = `${externalApiUrl}/webhook/stripe`;
-                        navigator.clipboard.writeText(url);
-                        toast({ title: 'Copied', description: 'Webhook URL copied to clipboard' });
-                      }}
-                      disabled={!externalApiUrl}
-                      data-testid="button-copy-stripe-webhook-url"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Paste this URL into both Stripe webhook endpoints (your Platform account and your Connected Accounts).
-                    Stripe will POST events here so the app can record successful charges, payouts, disputes, etc.
-                  </p>
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="stripepublickey">Stripe Publishable Key</Label>
                   <Input
@@ -656,6 +624,37 @@ export default function AdminSettings() {
                     and to call the Stripe API on your behalf. Never share or expose this in the browser.
                   </p>
                 </div>
+                <div className="space-y-2 rounded-md border border-border p-3 bg-muted/30">
+                  <Label htmlFor="stripe_webhook_url_connect" className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Connected Accounts Webhook URL
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="stripe_webhook_url_connect"
+                      value={externalApiUrl ? `${externalApiUrl}/webhook/stripe` : 'Loading...'}
+                      readOnly
+                      data-testid="input-stripe-webhook-url-connect"
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${externalApiUrl}/webhook/stripe`);
+                        toast({ title: 'Copied', description: 'Connected Accounts webhook URL copied' });
+                      }}
+                      disabled={!externalApiUrl}
+                      data-testid="button-copy-stripe-webhook-url-connect"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use this URL when creating the Stripe webhook with "Listen to events on Connected accounts" enabled.
+                    Then paste its signing secret in the field below.
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="stripe_webhook_key">Stripe Webhook Secret (Connected Accounts)</Label>
                   <Input
@@ -677,6 +676,37 @@ export default function AdminSettings() {
                     fired on behalf of your connected sellers (charges, transfers, payouts on their accounts).
                     In Stripe Dashboard → Developers → Webhooks, create an endpoint with "Listen to events on Connected accounts"
                     enabled, point it at the URL above, then paste its signing secret here.
+                  </p>
+                </div>
+                <div className="space-y-2 rounded-md border border-border p-3 bg-muted/30">
+                  <Label htmlFor="stripe_webhook_url_platform" className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Platform Webhook URL
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="stripe_webhook_url_platform"
+                      value={externalApiUrl ? `${externalApiUrl}/webhook/stripe/platform` : 'Loading...'}
+                      readOnly
+                      data-testid="input-stripe-webhook-url-platform"
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${externalApiUrl}/webhook/stripe/platform`);
+                        toast({ title: 'Copied', description: 'Platform webhook URL copied' });
+                      }}
+                      disabled={!externalApiUrl}
+                      data-testid="button-copy-stripe-webhook-url-platform"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use this URL when creating the Stripe webhook for your own platform account (without
+                    "Connected accounts" enabled). Then paste its signing secret in the field below.
                   </p>
                 </div>
                 <div className="space-y-2">
