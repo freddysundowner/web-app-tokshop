@@ -446,12 +446,22 @@ export function registerShippingRoutes(app: Express) {
     } catch (error) {
       console.error('Shipping estimate error:', error);
       
-      // Check if error message contains identical address info
+      // Try to extract the inner error message from `HTTP <status>: <body>`
       const errorMsg = error instanceof Error ? error.message : String(error);
-      const lowerMsg = errorMsg.toLowerCase();
-      
-      if (lowerMsg.includes('identical') || 
-          lowerMsg.includes('same address') || 
+      let innerMessage = errorMsg;
+      const httpMatch = errorMsg.match(/^HTTP\s+\d+:\s*(.+)$/i);
+      if (httpMatch) {
+        try {
+          const parsed = JSON.parse(httpMatch[1]);
+          innerMessage = parsed.error || parsed.message || parsed.msg || httpMatch[1];
+        } catch {
+          innerMessage = httpMatch[1];
+        }
+      }
+      const lowerMsg = innerMessage.toLowerCase();
+
+      if (lowerMsg.includes('identical') ||
+          lowerMsg.includes('same address') ||
           lowerMsg.includes('same location') ||
           lowerMsg.includes('shipping to yourself')) {
         return res.json({
@@ -460,8 +470,24 @@ export function registerShippingRoutes(app: Express) {
           error: true
         });
       }
-      
-      res.status(500).json({ error: "Failed to get shipping estimate" });
+
+      // Seller hasn't set their shipping origin — surface a clear message so
+      // the buyer knows retrying won't help and to contact the seller.
+      if (lowerMsg.includes('seller has no address') ||
+          (lowerMsg.includes('seller') && lowerMsg.includes('address'))) {
+        return res.json({
+          success: false,
+          message: "The seller hasn't set up a shipping address yet, so shipping can't be calculated. Please contact the seller.",
+          error: true
+        });
+      }
+
+      // Any other upstream error — pass it through with a friendly fallback
+      return res.json({
+        success: false,
+        message: innerMessage || "Unable to calculate shipping right now.",
+        error: true
+      });
     }
   });
 
