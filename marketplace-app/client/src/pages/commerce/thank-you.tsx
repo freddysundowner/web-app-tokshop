@@ -46,34 +46,34 @@ export default function ThankYou() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="max-w-2xl w-full">
-        <CardHeader className="text-center pb-6">
-          <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-4">
-              <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+    <div className="min-h-[100dvh] bg-background flex items-center justify-center p-3 sm:p-4">
+      <Card className="max-w-2xl w-full border-0 shadow-none sm:border sm:shadow-sm">
+        <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-6">
+          <div className="flex justify-center mb-3 sm:mb-4">
+            <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3 sm:p-4">
+              <CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600 dark:text-green-400" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold">Thank You for Your Order!</CardTitle>
-          <p className="text-muted-foreground mt-2">
+          <CardTitle className="text-2xl sm:text-3xl font-bold">Thank You for Your Order!</CardTitle>
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">
             Your order has been successfully placed
           </p>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
           {order && (
             <>
-              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                <div className="flex justify-between items-center">
+              <div className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-3">
+                <div className="flex justify-between items-center gap-3">
                   <span className="text-sm text-muted-foreground">Order Number</span>
-                  <span className="font-mono font-semibold" data-testid="text-order-id">
+                  <span className="font-mono font-semibold text-sm sm:text-base break-all text-right" data-testid="text-order-id">
                     #{order.invoice || order._id?.slice(-8).toUpperCase() || 'N/A'}
                   </span>
                 </div>
                 <Separator />
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-3">
                   <span className="text-sm text-muted-foreground">Total Amount</span>
-                  <span className="font-semibold text-lg" data-testid="text-order-total">
+                  <span className="font-semibold text-base sm:text-lg" data-testid="text-order-total">
                     US${(() => {
                       // Calculate total from items since order.total doesn't exist in API response
                       const itemsTotal = order.items?.reduce((sum: number, item: any) => {
@@ -89,7 +89,7 @@ export default function ThankYou() {
                 {(order as any).wallet_used > 0 && (
                   <>
                     <Separator />
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3">
                       <span className="text-sm text-muted-foreground">Wallet Credit Used</span>
                       <span className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }} data-testid="text-wallet-used">
                         -US${Number((order as any).wallet_used).toFixed(2)}
@@ -113,17 +113,17 @@ export default function ThankYou() {
             </>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-4 pb-2 sm:pb-0">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 h-11"
               onClick={() => setLocation('/')}
               data-testid="button-continue-shopping"
             >
               Continue Shopping
             </Button>
             <Button
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+              className="flex-1 h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               onClick={handleViewOrder}
               data-testid="button-view-order"
             >
