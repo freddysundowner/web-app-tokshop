@@ -5,6 +5,48 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { X, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/queryClient";
+import { getFirebaseAuth, getFirebaseStorage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+// Hybrid upload strategy:
+// - If a Firebase Auth user is signed in (Google/Apple sign-in), upload directly
+//   from the browser to Firebase Storage. Works without any server credential.
+// - Otherwise (email/password users have a backend session but no Firebase Auth
+//   session), POST the file to the backend route, which uses the Firebase Admin
+//   SDK (requires the service-account JSON to be configured in admin settings).
+async function uploadOneImage(file: string extends never ? never : File): Promise<string> {
+  let firebaseUser: any = null;
+  try {
+    firebaseUser = getFirebaseAuth().currentUser;
+  } catch {
+    firebaseUser = null;
+  }
+
+  if (firebaseUser) {
+    const storage = getFirebaseStorage();
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `product-images/${crypto.randomUUID()}.${ext}`;
+    const imageRef = ref(storage, path);
+    const result = await uploadBytes(imageRef, file);
+    return await getDownloadURL(result.ref);
+  }
+
+  const formData = new FormData();
+  formData.append('image', file);
+  const response = await fetchWithAuth('/api/upload/product-image', {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Upload failed (${response.status}): ${errText}`);
+  }
+  const json = await response.json();
+  if (!json?.success || !json?.data?.url) {
+    throw new Error(json?.message || 'Upload failed');
+  }
+  return json.data.url as string;
+}
 
 interface ImageUploaderProps {
   value: string[];
@@ -68,32 +110,14 @@ export function ImageUploader({
       return;
     }
 
-    // Upload immediately via backend (uses Firebase Admin SDK so it works
-    // for email/password users who aren't signed into Firebase client auth)
+    // Upload immediately. Each file picks the right strategy (direct Firebase
+    // when signed into Firebase Auth, otherwise via backend Admin SDK).
     setUploading(true);
 
     try {
       const uploadPromises = filesToProcess.map(async (file) => {
         try {
-          const formData = new FormData();
-          formData.append('image', file);
-
-          const response = await fetchWithAuth('/api/upload/product-image', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!response.ok) {
-            const errText = await response.text().catch(() => '');
-            throw new Error(`Upload failed (${response.status}): ${errText}`);
-          }
-
-          const result = await response.json();
-          if (!result?.success || !result?.data?.url) {
-            throw new Error(result?.message || 'Upload failed');
-          }
-
-          return result.data.url as string;
+          return await uploadOneImage(file);
         } catch (error) {
           console.error(`Error uploading ${file.name}:`, error);
           return null;
