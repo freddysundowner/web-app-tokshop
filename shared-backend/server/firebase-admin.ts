@@ -66,27 +66,25 @@ async function initializeFirebaseAdmin(): Promise<App> {
       }
     };
 
-    // The external /settings endpoint requires auth (401 unauthenticated) AND
-    // does not expose the privileged firebase_service_account_json field anyway.
-    // The fetch is best-effort to pick up public Firebase web-config fields
-    // (project_id, storage_bucket); failures fall through to defaults +
-    // locally-persisted credentials.
+    // Use the PUBLIC /settings/keys endpoint to pick up the Firebase web-config
+    // fields (project_id, storage_bucket). The /settings endpoint is auth-gated
+    // (401 unauthenticated) and not usable from this lazy init context.
     let settings: any = {};
     try {
-      const response = await fetchWithTimeout(`${BASE_URL}/settings`, 5000);
+      const response = await fetchWithTimeout(`${BASE_URL}/settings/keys`, 5000);
       if (response.ok) {
         const rawBody = await response.json();
         settings = unwrapApiResponse(rawBody) || rawBody || {};
       }
     } catch (e) {
-      // Quiet — expected when external API is unreachable or requires auth.
+      // Quiet — expected when external API is unreachable.
     }
 
-    // Build Firebase config from settings
-    const firebaseConfig: any = {
-      projectId: settings.firebase_project_id || 'tokshop-33509',
-      storageBucket: settings.firebase_storage_bucket || 'tokshop-33509.appspot.com',
-    };
+    // Build Firebase config from settings (no hardcoded project fallback;
+    // we'll derive missing values from the service-account JSON below).
+    const firebaseConfig: any = {};
+    if (settings.firebase_project_id) firebaseConfig.projectId = settings.firebase_project_id;
+    if (settings.firebase_storage_bucket) firebaseConfig.storageBucket = settings.firebase_storage_bucket;
 
     // Attach service-account credentials if provided (required for Storage writes,
     // custom-token minting, and any other privileged Admin operation).
@@ -118,14 +116,30 @@ async function initializeFirebaseAdmin(): Promise<App> {
       try {
         const parsed = JSON.parse(serviceAccountJson);
         firebaseConfig.credential = cert(parsed);
-        if (parsed.project_id) firebaseConfig.projectId = parsed.project_id;
+        // The service account's project_id is authoritative — it dictates which
+        // Google Cloud project the credential can actually write to. Override
+        // whatever came from settings to avoid cross-project mismatches.
+        if (parsed.project_id) {
+          firebaseConfig.projectId = parsed.project_id;
+          // If no explicit storageBucket was configured (or it's for a different
+          // project), default to `{project_id}.firebasestorage.app` — the modern
+          // Firebase Storage bucket naming for new projects.
+          const expectedPrefix = `${parsed.project_id}.`;
+          if (!firebaseConfig.storageBucket || !firebaseConfig.storageBucket.startsWith(expectedPrefix)) {
+            firebaseConfig.storageBucket = `${parsed.project_id}.firebasestorage.app`;
+          }
+        }
         console.log(`🔥 Loaded service-account credentials (source: ${credentialSource})`);
       } catch (e) {
         console.error('❌ Service-account JSON is not valid JSON:', e);
       }
     } else {
-      console.warn('⚠️ No service-account credentials found (env or settings) — privileged Admin operations (Storage writes, etc.) will fail');
+      console.warn('⚠️ No service-account credentials found (env or disk or settings) — privileged Admin operations (Storage writes, etc.) will fail');
     }
+
+    // Last-resort defaults so initializeApp doesn't crash if nothing is configured.
+    if (!firebaseConfig.projectId) firebaseConfig.projectId = 'tokshop-33509';
+    if (!firebaseConfig.storageBucket) firebaseConfig.storageBucket = `${firebaseConfig.projectId}.firebasestorage.app`;
 
     console.log('🔥 Initializing Admin with config:', {
       projectId: firebaseConfig.projectId,
