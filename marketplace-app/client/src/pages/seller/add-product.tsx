@@ -42,23 +42,33 @@ export default function AddProduct() {
   });
 
   return (
-    <div className="space-y-6" data-testid="page-add-product">
+    <div className="space-y-3 sm:space-y-6" data-testid="page-add-product">
       {/* Header */}
-      <div className="space-y-4">
+      <div className="flex items-center gap-2 sm:gap-3 sm:flex-col sm:items-start sm:space-y-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/inventory")}
+          data-testid="button-back-to-inventory"
+          className="h-9 w-9 sm:hidden -ml-2"
+          aria-label="Back to inventory"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <Button
           variant="outline"
           onClick={() => navigate("/inventory")}
-          data-testid="button-back-to-inventory"
-          className="w-full sm:w-auto"
+          data-testid="button-back-to-inventory-desktop"
+          className="hidden sm:inline-flex"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          <span className="sm:inline">Back to Inventory</span>
+          Back to Inventory
         </Button>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground" data-testid="text-page-title">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-base sm:text-2xl font-bold text-foreground truncate" data-testid="text-page-title">
             Add New Product
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-page-description">
+          <p className="hidden sm:block text-sm sm:text-base text-muted-foreground" data-testid="text-page-description">
             Create a new product for your inventory
           </p>
         </div>

@@ -388,18 +388,18 @@ export function InventoryProductForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-6">
           {/* Main Column */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-3 sm:space-y-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle>Basic Information</CardTitle>
                 <CardDescription>
                   Essential product details and description
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -440,13 +440,13 @@ export function InventoryProductForm({
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle>Pricing & Inventory</CardTitle>
                 <CardDescription>
                   Set your product price and stock levels
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   {listingType === 'buy_now' && (
                     <FormField
@@ -524,7 +524,7 @@ export function InventoryProductForm({
                     control={form.control}
                     name="acceptsOffers"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 sm:p-4">
                         <div className="space-y-0.5">
                           <FormLabel className="text-base">Accept Offers</FormLabel>
                           <FormDescription>
@@ -550,7 +550,7 @@ export function InventoryProductForm({
                       control={form.control}
                       name="flash_sale"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-yellow-500/30 p-4">
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-yellow-500/30 p-3 sm:p-4">
                           <div className="flex items-center gap-2">
                             <Zap className="h-4 w-4 text-yellow-400" />
                             <div className="space-y-0.5">
@@ -737,7 +737,7 @@ export function InventoryProductForm({
                           control={form.control}
                           name="flash_sale_available_full_price"
                           render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 sm:p-4">
                               <div className="space-y-0.5">
                                 <FormLabel className="text-base">Available For Full Price</FormLabel>
                                 <FormDescription>
@@ -759,7 +759,7 @@ export function InventoryProductForm({
                           control={form.control}
                           name="flash_live_reserved"
                           render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 sm:p-4">
                               <div className="space-y-0.5">
                                 <FormLabel className="text-base">Reserve for Live</FormLabel>
                                 <FormDescription>
@@ -836,13 +836,13 @@ export function InventoryProductForm({
 
             {/* Product Images Section */}
             <Card>
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle>Product Images</CardTitle>
                 <CardDescription>
                   Upload images of your product (up to 5 images)
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                 <FormField
                   control={form.control}
                   name="images"
@@ -867,15 +867,15 @@ export function InventoryProductForm({
           </div>
 
           {/* Side Column */}
-          <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-6 self-start">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-6 lg:sticky lg:top-6 self-start">
             <Card>
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle>Category & Listing</CardTitle>
                 <CardDescription>
                   Categorize your product and set listing type
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
                 {/* Listing Type - FIRST because it controls other field visibility */}
                 <FormField
                   control={form.control}
@@ -1166,7 +1166,7 @@ export function InventoryProductForm({
                     control={form.control}
                     name="list_individually"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 sm:p-4">
                         <div className="space-y-0.5">
                           <FormLabel className="text-base">List Individually</FormLabel>
                           <FormDescription>
@@ -1265,13 +1265,13 @@ export function InventoryProductForm({
             </Card>
             
             <Card>
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle>Shipping</CardTitle>
                 <CardDescription>
                   Configure shipping preferences for this product
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                 <FormField
                   control={form.control}
                   name="shippingProfile"
@@ -1307,7 +1307,7 @@ export function InventoryProductForm({
         </div>
 
         {/* Form Actions */}
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4 pt-6 border-t">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-4 pt-4 sm:pt-6 border-t">
           <Button
             type="button"
             variant="outline"
