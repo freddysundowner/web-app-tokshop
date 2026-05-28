@@ -431,7 +431,10 @@ export function BuyNowDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-lg max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <DialogContent
+        className="bg-zinc-900 border-zinc-800 text-white w-[calc(100vw-1rem)] max-w-lg max-h-[92dvh] overflow-y-auto p-4 sm:p-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] !duration-150 [--tw-enter-translate-x:0px] [--tw-enter-translate-y:0px] [--tw-enter-scale:1] [--tw-exit-translate-x:0px] [--tw-exit-translate-y:0px] [--tw-exit-scale:1]"
+        data-testid="dialog-buy-now"
+      >
         <DialogHeader>
           <DialogTitle className={`text-xl ${isFlashSale ? 'text-yellow-500 flex items-center gap-2' : 'text-white'}`}>
             {isFlashSale && <Zap className="h-5 w-5 animate-pulse" />}
