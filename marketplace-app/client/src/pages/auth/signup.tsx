@@ -14,9 +14,30 @@ import { initializeFirebase } from "@/lib/firebase";
 import { Link, useLocation } from "wouter";
 import type { SignupData } from "@shared/schema";
 import { signupSchema } from "@shared/schema";
-import { CountrySelect } from "react-country-state-city";
-import "react-country-state-city/dist/react-country-state-city.css";
+import { SearchableSelect, useCountryOptions } from "@/components/address-fields";
 import { fetchWithAuth } from '@/lib/queryClient';
+
+function SignupCountryField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (meta: any) => void;
+}) {
+  const options = useCountryOptions();
+  return (
+    <div data-testid="select-country">
+      <SearchableSelect
+        options={options}
+        value={value}
+        onChange={(opt) => onChange(opt?.meta || null)}
+        placeholder="Select your country"
+        searchPlaceholder="Search country..."
+        emptyText="No country found"
+      />
+    </div>
+  );
+}
 
 export default function Signup() {
   const [providers, setProviders] = useState<{ apple: boolean; google: boolean } | null>(null);
@@ -412,18 +433,13 @@ export default function Signup() {
 
                 <FormItem>
                   <FormControl>
-                    <div data-testid="select-country">
-                      <CountrySelect
-                        defaultValue={selectedCountry}
-                        onChange={(e: any) => {
-                          setSelectedCountry(e);
-                          form.setValue("country", e?.name || "");
-                        }}
-                        placeHolder="Select your country"
-                        containerClassName="w-full"
-                        inputClassName="w-full h-10 px-3 py-2 text-sm bg-input border border-border rounded-md text-foreground placeholder:text-muted-foreground"
-                      />
-                    </div>
+                    <SignupCountryField
+                      value={selectedCountry?.isoCode || ""}
+                      onChange={(meta) => {
+                        setSelectedCountry(meta);
+                        form.setValue("country", meta?.name || "");
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

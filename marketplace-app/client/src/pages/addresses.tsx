@@ -3,14 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { apiRequest } from "@/lib/queryClient";
 import {
-  CitySelect,
-  CountrySelect,
-  StateSelect,
-  GetCountries,
-  GetState,
-  GetCity,
-} from "react-country-state-city";
-import "react-country-state-city/dist/react-country-state-city.css";
+  SearchableSelect,
+  useCountryOptions,
+  useStateOptions,
+  useCityOptions,
+  findCountry,
+  findState,
+} from "@/components/address-fields";
 import {
   Card,
   CardContent,
@@ -84,25 +83,15 @@ interface AddressFormData {
 export default function Addresses() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-  const [locationIdsReady, setLocationIdsReady] = useState(false);
-  
-  // Use IDs for react-country-state-city components
-  const [countryid, setCountryid] = useState(0);
-  const [stateid, setStateid] = useState(0);
-  const [cityid, setCityid] = useState(0);
-  
+
   // Store full data objects for submission
   const [countryData, setCountryData] = useState<any>(null);
   const [stateData, setStateData] = useState<any>(null);
   const [cityData, setCityData] = useState<any>(null);
 
-  // Update dropdowns when location IDs become ready
-  useEffect(() => {
-    if (locationIdsReady) {
-      console.log('🟢 IDs ready:', { countryid, stateid, cityid });
-      setLocationIdsReady(false); // Reset for next edit
-    }
-  }, [locationIdsReady, countryid, stateid, cityid]);
+  const countryOptions = useCountryOptions();
+  const stateOptions = useStateOptions(countryData?.isoCode);
+  const cityOptions = useCityOptions(countryData?.isoCode, stateData?.isoCode);
   
   const [formData, setFormData] = useState<AddressFormData>({
     name: "",
@@ -267,9 +256,6 @@ export default function Addresses() {
       email: "",
       userId: "",
     });
-    setCountryid(0);
-    setStateid(0);
-    setCityid(0);
     setCountryData(null);
     setStateData(null);
     setCityData(null);
@@ -300,58 +286,26 @@ export default function Addresses() {
     });
     
     setEditingAddress(address);
-    
-    // Open dialog immediately for better UX
     setIsDialogOpen(true);
-    
-    // Look up country/state/city IDs in the background
-    try {
-      console.log('API data:', { 
-        country: address.country, 
-        countryCode: address.countryCode,
-        state: address.state,
-        stateCode: (address as any).stateCode,
-        city: address.city 
-      });
-      
-      const countries = await GetCountries();
-      const foundCountry = countries.find(
-        (c: any) => c.iso2 === address.countryCode || c.name === address.country
-      );
-      
-      if (foundCountry) {
-        console.log('✅ Matched country:', { id: foundCountry.id, name: foundCountry.name, iso2: foundCountry.iso2 });
-        setCountryid(foundCountry.id);
-        setCountryData(foundCountry);
-        
-        const states = await GetState(foundCountry.id);
-        const foundState = states.find(
-          (s: any) => s.state_code === (address as any).stateCode || s.name === address.state
-        );
-        
-        if (foundState) {
-          console.log('✅ Matched state:', { id: foundState.id, name: foundState.name, state_code: foundState.state_code });
-          setStateid(foundState.id);
-          setStateData(foundState);
-          
-          const cities = await GetCity(foundCountry.id, foundState.id);
-          const foundCity = cities.find((c: any) => c.name === address.city);
-          
-          if (foundCity) {
-            console.log('✅ Matched city:', { id: foundCity.id, name: foundCity.name });
-            setCityid(foundCity.id);
-            setCityData(foundCity);
-          } else {
-            console.log('❌ City not found:', address.city);
-          }
-        } else {
-          console.log('❌ State not found:', address.state, (address as any).stateCode);
+
+    // Re-hydrate country/state/city from saved address (synchronous lookup)
+    const foundCountry = findCountry(address.countryCode || address.country);
+    if (foundCountry) {
+      setCountryData({ name: foundCountry.name, isoCode: foundCountry.isoCode });
+      const foundState = findState(foundCountry.isoCode, (address as any).stateCode || address.state);
+      if (foundState) {
+        setStateData({ name: foundState.name, isoCode: foundState.isoCode });
+        if (address.city) {
+          setCityData({ name: address.city });
         }
       } else {
-        console.log('❌ Country not found:', address.country, address.countryCode);
+        setStateData(null);
+        setCityData(null);
       }
-    } catch (error) {
-      console.error('Error looking up location data:', error);
+    } else {
+      setCountryData(null);
+      setStateData(null);
+      setCityData(null);
     }
   };
 
@@ -382,9 +336,9 @@ export default function Addresses() {
       name: userName,
       email: userEmail,
       country: countryData?.name || formData.country,
-      countryCode: countryData?.iso2 || formData.countryCode,
+      countryCode: countryData?.isoCode || formData.countryCode,
       state: stateData?.name || formData.state,
-      stateCode: stateData?.state_code || (editingAddress as any)?.stateCode || "",
+      stateCode: stateData?.isoCode || (editingAddress as any)?.stateCode || "",
       city: cityData?.name || formData.city,
       cityCode: (editingAddress as any)?.cityCode || "",
     };
@@ -608,72 +562,64 @@ export default function Addresses() {
               />
             </div>
 
-            {/* Only render dropdowns after IDs are loaded for edit, or immediately for create */}
-            {(!editingAddress || (editingAddress && countryid > 0)) && (
-              <>
-                <div className="space-y-2">
-                  <Label>Country</Label>
-                  <CountrySelect
-                    key={`country-${countryid}-${editingAddress?._id || 'new'}`}
-                    defaultValue={countryid}
-                    onChange={(e: any) => {
-                      setCountryid(e.id);
-                      setCountryData(e);
-                      setStateid(0);
-                      setCityid(0);
-                      setStateData(null);
-                      setCityData(null);
-                    }}
-                    placeHolder="Select Country"
-                    containerClassName="w-full"
-                    inputClassName="w-full"
-                  />
-                </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <SearchableSelect
+                options={countryOptions}
+                value={countryData?.isoCode || ""}
+                onChange={(opt) => {
+                  setCountryData(opt?.meta || null);
+                  setStateData(null);
+                  setCityData(null);
+                }}
+                placeholder="Select Country"
+                searchPlaceholder="Search country..."
+                emptyText="No country found"
+                testId="select-country"
+              />
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>State/Province</Label>
-                    <StateSelect
-                      key={`state-${stateid}-${editingAddress?._id || 'new'}`}
-                      countryid={countryid}
-                      defaultValue={stateid}
-                      onChange={(e: any) => {
-                        setStateid(e.id);
-                        setStateData(e);
-                        setCityid(0);
-                        setCityData(null);
-                      }}
-                      placeHolder="Select State"
-                      containerClassName="w-full"
-                      inputClassName="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>City</Label>
-                    <CitySelect
-                      key={`city-${cityid}-${editingAddress?._id || 'new'}`}
-                      countryid={countryid}
-                      stateid={stateid}
-                      defaultValue={cityid}
-                      onChange={(e: any) => {
-                        setCityid(e.id);
-                        setCityData(e);
-                      }}
-                      placeHolder="Select City"
-                      containerClassName="w-full"
-                      inputClassName="w-full"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-            
-            {/* Show loading state while fetching IDs for edit */}
-            {editingAddress && countryid === 0 && (
-              <div className="py-8 text-center text-muted-foreground">
-                Loading location data...
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>State/Province</Label>
+                <SearchableSelect
+                  options={stateOptions}
+                  value={stateData?.isoCode || ""}
+                  onChange={(opt) => {
+                    setStateData(opt?.meta || null);
+                    setCityData(null);
+                  }}
+                  placeholder={countryData ? "Select State" : "Select country first"}
+                  searchPlaceholder="Search state..."
+                  emptyText="No state found"
+                  disabled={!countryData || stateOptions.length === 0}
+                  testId="select-state"
+                />
               </div>
-            )}
+              <div className="space-y-2">
+                <Label>City</Label>
+                {cityOptions.length > 0 ? (
+                  <SearchableSelect
+                    options={cityOptions}
+                    value={cityData?.name || ""}
+                    onChange={(opt) => setCityData(opt?.meta || null)}
+                    placeholder={stateData ? "Select City" : "Select state first"}
+                    searchPlaceholder="Search city..."
+                    emptyText="No city found"
+                    disabled={!stateData}
+                    testId="select-city"
+                  />
+                ) : (
+                  <Input
+                    value={cityData?.name || ""}
+                    onChange={(e) => setCityData(e.target.value ? { name: e.target.value } : null)}
+                    placeholder={stateData ? "Enter city" : "Select state first"}
+                    disabled={!stateData}
+                    data-testid="input-city-freetext"
+                  />
+                )}
+              </div>
+            </div>
 
             <div>
               <Label htmlFor="zipcode">ZIP / Postal Code</Label>

@@ -168,23 +168,3 @@
   }
 }
 
-/* Mobile-friendly touch targets for react-country-state-city dropdowns
-   used inside the Add/Edit Address dialog. The library's default inputs
-   are too small for comfortable mobile use. */
-@media (max-width: 640px) {
-  .address-rcsc input,
-  .address-rcsc .stdropdown-input,
-  .address-rcsc .stdropdown-container input {
-    min-height: 48px !important;
-    font-size: 16px !important; /* prevents iOS auto-zoom on focus */
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
-  }
-  .address-rcsc .stdropdown-menu li,
-  .address-rcsc .stsearch-box ~ ul li {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    font-size: 15px;
-  }
-}

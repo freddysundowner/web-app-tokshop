@@ -20,8 +20,12 @@ import {
   Clock
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CountrySelect, StateSelect, CitySelect, GetCity } from "react-country-state-city";
-import "react-country-state-city/dist/react-country-state-city.css";
+import {
+  SearchableSelect,
+  useCountryOptions,
+  useStateOptions,
+  useCityOptions,
+} from "@/components/address-fields";
 
 interface Step {
   id: 'address' | 'bank' | 'complete';
@@ -161,31 +165,23 @@ export default function SellerSetup() {
   // Set US as default on mount
   useEffect(() => {
     if (!country) {
-      setCountry({ id: 233, name: "United States", iso2: "US" });
+      setCountry({ name: "United States", isoCode: "US", iso2: "US" });
     }
   }, []);
 
-  // Detect whether the library has city data for the chosen country/state.
+  const countryOptions = useCountryOptions();
+  const stateOptions = useStateOptions(country?.isoCode);
+  const cityOptions = useCityOptions(country?.isoCode, state?.isoCode);
+
   // Some regions (e.g. UK Northern Ireland districts) have no cities in the
   // dataset, so we fall back to a free-text input.
   useEffect(() => {
-    let cancelled = false;
-    if (!country?.id || !state?.id) {
+    if (!country?.isoCode || !state?.isoCode) {
       setHasCityOptions(null);
       return;
     }
-    (async () => {
-      try {
-        const cities = await GetCity(country.id, state.id);
-        if (!cancelled) {
-          setHasCityOptions(Array.isArray(cities) && cities.length > 0);
-        }
-      } catch {
-        if (!cancelled) setHasCityOptions(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [country?.id, state?.id]);
+    setHasCityOptions(cityOptions.length > 0);
+  }, [country?.isoCode, state?.isoCode, cityOptions.length]);
 
   // Skip address step if user already has one
   useEffect(() => {
@@ -272,10 +268,10 @@ export default function SellerSetup() {
       addrress2: streetAddress2,
       country: country.name,
       city: cityName,
-      countryCode: country.iso2,
+      countryCode: country.isoCode || country.iso2,
       zipcode: zipCode,
       state: state.name,
-      stateCode: state.state_code || state.iso2,
+      stateCode: state.isoCode || state.state_code || state.iso2,
       userId: userId,
       phone: phoneNumber.trim().replace(/\s/g, ''),
       email: user?.email || '',
@@ -600,34 +596,40 @@ export default function SellerSetup() {
 
                 <div>
                   <Label htmlFor="country">Country *</Label>
-                  <CountrySelect
-                    onChange={(e: any) => {
-                      setCountry(e);
+                  <SearchableSelect
+                    options={countryOptions}
+                    value={country?.isoCode || ""}
+                    onChange={(opt) => {
+                      setCountry(opt?.meta || null);
                       setState(null);
                       setCity(null);
                       setCityFreeText("");
                       setHasCityOptions(null);
                     }}
-                    placeHolder="Select Country"
-                    containerClassName="w-full"
-                    inputClassName="w-full"
+                    placeholder="Select Country"
+                    searchPlaceholder="Search country..."
+                    emptyText="No country found"
+                    testId="select-country"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="state">State/Province *</Label>
-                    <StateSelect
-                      countryid={country?.id}
-                      onChange={(e: any) => {
-                        setState(e);
+                    <SearchableSelect
+                      options={stateOptions}
+                      value={state?.isoCode || ""}
+                      onChange={(opt) => {
+                        setState(opt?.meta || null);
                         setCity(null);
                         setCityFreeText("");
                         setHasCityOptions(null);
                       }}
-                      placeHolder="Select State"
-                      containerClassName="w-full"
-                      inputClassName="w-full"
+                      placeholder={country ? "Select State" : "Select country first"}
+                      searchPlaceholder="Search state..."
+                      emptyText="No state found"
+                      disabled={!country || stateOptions.length === 0}
+                      testId="select-state"
                     />
                   </div>
 
@@ -642,14 +644,15 @@ export default function SellerSetup() {
                         data-testid="input-city-freetext"
                       />
                     ) : (
-                      <CitySelect
-                        key={`${country?.id}-${state?.id}`}
-                        countryid={country?.id}
-                        stateid={state?.id}
-                        onChange={(e: any) => setCity(e)}
-                        placeHolder="Enter your city"
-                        containerClassName="w-full"
-                        inputClassName="w-full"
+                      <SearchableSelect
+                        options={cityOptions}
+                        value={city?.name || ""}
+                        onChange={(opt) => setCity(opt?.meta || null)}
+                        placeholder={state ? "Enter your city" : "Select state first"}
+                        searchPlaceholder="Search city..."
+                        emptyText="No city found"
+                        disabled={!state}
+                        testId="select-city"
                       />
                     )}
                   </div>

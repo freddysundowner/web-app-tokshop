@@ -14,12 +14,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
 import { apiRequest } from '@/lib/queryClient';
 import {
-  CitySelect,
-  CountrySelect,
-  StateSelect,
-  GetCity,
-} from "react-country-state-city";
-import "react-country-state-city/dist/react-country-state-city.css";
+  SearchableSelect,
+  useCountryOptions,
+  useStateOptions,
+  useCityOptions,
+  findCountry,
+  findState,
+} from '@/components/address-fields';
 
 interface AddAddressDialogProps {
   open: boolean;
@@ -42,15 +43,17 @@ export function AddAddressDialog({
 
   const [streetAddress, setStreetAddress] = useState("");
   const [streetAddress2, setStreetAddress2] = useState("");
-  const [countryid, setCountryid] = useState(0);
-  const [stateid, setStateid] = useState(0);
-  const [cityid, setCityid] = useState(0);
-  
+
   const [countryData, setCountryData] = useState<any>(null);
   const [stateData, setStateData] = useState<any>(null);
   const [cityData, setCityData] = useState<any>(null);
   const [cityFreeText, setCityFreeText] = useState("");
-  const [hasCities, setHasCities] = useState(true);
+
+  const countryOptions = useCountryOptions();
+  const stateOptions = useStateOptions(countryData?.isoCode);
+  const cityOptions = useCityOptions(countryData?.isoCode, stateData?.isoCode);
+
+  const hasCities = cityOptions.length > 0;
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; title: string; message: string }>({
     open: false,
     title: "",
@@ -70,40 +73,33 @@ export function AddAddressDialog({
       setStreetAddress2(address.addrress2 || address.address2 || "");
       setZipCode(address.zipcode || address.zip || "");
       setPhoneNumber(address.phone || "");
+      // Re-hydrate country/state/city from the saved address when editing
+      const savedCountry = findCountry(address.countryCode || address.country);
+      if (savedCountry) {
+        setCountryData({ name: savedCountry.name, isoCode: savedCountry.isoCode });
+        const savedState = findState(savedCountry.isoCode, address.stateCode || address.state);
+        if (savedState) {
+          setStateData({ name: savedState.name, isoCode: savedState.isoCode });
+        } else if (address.state) {
+          setStateData({ name: address.state, isoCode: "" });
+        }
+        if (address.city) {
+          setCityData({ name: address.city });
+          setCityFreeText(address.city);
+        }
+      }
     } else {
       setName("");
       setStreetAddress("");
       setStreetAddress2("");
-      setCountryid(0);
-      setStateid(0);
-      setCityid(0);
       setCountryData(null);
       setStateData(null);
       setCityData(null);
       setCityFreeText("");
-      setHasCities(true);
       setZipCode("");
       setPhoneNumber("");
     }
   }, [address, open]);
-
-  useEffect(() => {
-    if (!countryid || !stateid) {
-      setHasCities(true);
-      return;
-    }
-    let cancelled = false;
-    GetCity(countryid, stateid)
-      .then((cities: any[]) => {
-        if (!cancelled) setHasCities(Array.isArray(cities) && cities.length > 0);
-      })
-      .catch(() => {
-        if (!cancelled) setHasCities(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [countryid, stateid]);
 
   const handleAddAddress = async () => {
     const resolvedCity = cityData?.name || cityFreeText.trim();
@@ -125,10 +121,10 @@ export function AddAddressDialog({
         addrress2: streetAddress2,
         country: countryData.name,
         city: resolvedCity,
-        countryCode: countryData.iso2,
+        countryCode: countryData.isoCode,
         zipcode: zipCode,
         state: stateData.name,
-        stateCode: stateData.state_code,
+        stateCode: stateData.isoCode,
         userId: userData?.id,
         phone: phoneNumber.trim().replace(/\s/g, ''),
         email: userData?.email || '',
@@ -152,14 +148,10 @@ export function AddAddressDialog({
 
       setStreetAddress("");
       setStreetAddress2("");
-      setCountryid(0);
-      setStateid(0);
-      setCityid(0);
       setCountryData(null);
       setStateData(null);
       setCityData(null);
       setCityFreeText("");
-      setHasCities(true);
       setZipCode("");
       setPhoneNumber("");
       setName("");
@@ -272,50 +264,54 @@ export function AddAddressDialog({
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Country</Label>
-              <CountrySelect
-                onChange={(e: any) => {
-                  setCountryid(e.id);
-                  setCountryData(e);
-                  setStateid(0);
-                  setCityid(0);
+              <SearchableSelect
+                options={countryOptions}
+                value={countryData?.isoCode || ""}
+                onChange={(opt) => {
+                  setCountryData(opt?.meta || null);
                   setStateData(null);
                   setCityData(null);
+                  setCityFreeText("");
                 }}
-                placeHolder="Select Country"
-                containerClassName="w-full address-rcsc"
-                inputClassName="w-full"
+                placeholder="Select country"
+                searchPlaceholder="Search country..."
+                emptyText="No country found"
+                testId="select-country"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">State/Province</Label>
-                <StateSelect
-                  countryid={countryid}
-                  onChange={(e: any) => {
-                    setStateid(e.id);
-                    setStateData(e);
-                    setCityid(0);
+                <SearchableSelect
+                  options={stateOptions}
+                  value={stateData?.isoCode || ""}
+                  onChange={(opt) => {
+                    setStateData(opt?.meta || null);
                     setCityData(null);
+                    setCityFreeText("");
                   }}
-                  placeHolder="Select State"
-                  containerClassName="w-full address-rcsc"
-                  inputClassName="w-full"
+                  placeholder={countryData ? "Select state" : "Select country first"}
+                  searchPlaceholder="Search state..."
+                  emptyText="No state found"
+                  disabled={!countryData || stateOptions.length === 0}
+                  testId="select-state"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">City</Label>
                 {hasCities ? (
-                  <CitySelect
-                    countryid={countryid}
-                    stateid={stateid}
-                    onChange={(e: any) => {
-                      setCityid(e.id);
-                      setCityData(e);
+                  <SearchableSelect
+                    options={cityOptions}
+                    value={cityData?.name || ""}
+                    onChange={(opt) => {
+                      setCityData(opt?.meta || null);
                       setCityFreeText("");
                     }}
-                    placeHolder="Enter your city"
-                    containerClassName="w-full address-rcsc"
-                    inputClassName="w-full"
+                    placeholder={stateData ? "Select city" : "Select state first"}
+                    searchPlaceholder="Search city..."
+                    emptyText="No city found"
+                    disabled={!stateData}
+                    testId="select-city"
                   />
                 ) : (
                   <Input
@@ -325,7 +321,6 @@ export function AddAddressDialog({
                     onChange={(e) => {
                       setCityFreeText(e.target.value);
                       setCityData(null);
-                      setCityid(0);
                     }}
                     data-testid="input-city"
                     autoComplete="address-level2"
