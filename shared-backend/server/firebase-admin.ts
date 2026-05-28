@@ -2,7 +2,27 @@ import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getStorage, Storage } from 'firebase-admin/storage';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import fs from 'fs';
+import path from 'path';
 import { BASE_URL, unwrapApiResponse } from './utils';
+
+// Local path where the uploaded service-account JSON is persisted. Lives
+// outside any client-served directory and is gitignored. Survives server
+// restarts so the credential remains available without re-uploading.
+export const SERVICE_ACCOUNT_FILE = path.resolve(
+  process.cwd(),
+  '.firebase-service-account.json'
+);
+
+function readServiceAccountFromDisk(): string | null {
+  try {
+    if (fs.existsSync(SERVICE_ACCOUNT_FILE)) {
+      const text = fs.readFileSync(SERVICE_ACCOUNT_FILE, 'utf8');
+      if (text && text.trim().startsWith('{')) return text;
+    }
+  } catch {}
+  return null;
+}
 
 // Firebase Admin app instance (initialized on-demand)
 let adminApp: App | null = null;
@@ -46,16 +66,21 @@ async function initializeFirebaseAdmin(): Promise<App> {
       }
     };
 
-    const response = await fetchWithTimeout(`${BASE_URL}/settings`, 5000);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch auth config from settings API');
+    // The external /settings endpoint requires auth (401 unauthenticated) AND
+    // does not expose the privileged firebase_service_account_json field anyway.
+    // The fetch is best-effort to pick up public Firebase web-config fields
+    // (project_id, storage_bucket); failures fall through to defaults +
+    // locally-persisted credentials.
+    let settings: any = {};
+    try {
+      const response = await fetchWithTimeout(`${BASE_URL}/settings`, 5000);
+      if (response.ok) {
+        const rawBody = await response.json();
+        settings = unwrapApiResponse(rawBody) || rawBody || {};
+      }
+    } catch (e) {
+      // Quiet — expected when external API is unreachable or requires auth.
     }
-
-    const rawBody = await response.json();
-    // External API may return either a wrapped { success, data } envelope or
-    // the raw settings object — handle both.
-    const settings = unwrapApiResponse(rawBody) || rawBody || {};
 
     // Build Firebase config from settings
     const firebaseConfig: any = {
@@ -65,9 +90,18 @@ async function initializeFirebaseAdmin(): Promise<App> {
 
     // Attach service-account credentials if provided (required for Storage writes,
     // custom-token minting, and any other privileged Admin operation).
-    // Resolution order: env var → settings field (uploaded via admin UI).
+    // Resolution order: env var → local disk file → settings field.
     let serviceAccountJson: string | undefined = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     let credentialSource = 'env';
+    if (!serviceAccountJson) {
+      const fromDisk = readServiceAccountFromDisk();
+      if (fromDisk) {
+        serviceAccountJson = fromDisk;
+        credentialSource = 'disk';
+        // Cache in env for subsequent inits in this process.
+        process.env.FIREBASE_SERVICE_ACCOUNT_JSON = fromDisk;
+      }
+    }
     if (!serviceAccountJson) {
       const fromSettings =
         settings.firebase_service_account_json ||

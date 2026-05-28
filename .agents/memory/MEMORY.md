@@ -1,1 +1,2 @@
-- [External settings proxy secret leaks](settings-proxy-secret-strip.md) — any credential stored in external API settings must be stripped at every proxy endpoint that returns settings (GET full + POST update echo), not just the public one.
+- [Settings proxy secret-strip](settings-proxy-secret-strip.md) — server-only fields stored on the external settings API must be stripped at every proxy egress (GET and POST echo).
+- [Firebase Admin credential resolution](firebase-admin-credential.md) — Admin SDK credential must come from a source the server can read on every boot without auth; external settings is auth-gated and unsuitable as the source of truth.
