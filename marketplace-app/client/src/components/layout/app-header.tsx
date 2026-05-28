@@ -434,8 +434,8 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                   </DropdownMenu>
                 )}
 
-                {/* Seller Setup - Show for non-sellers */}
-                {!currentUser?.seller && (
+                {/* Seller Setup - Show for non-sellers only when Stripe is configured */}
+                {!currentUser?.seller && !!settings?.stripe_publishable_key && (
                   <Button 
                     variant="outline" 
                     size="sm" 
