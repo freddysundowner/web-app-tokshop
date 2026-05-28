@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Country, State, City } from 'country-state-city';
+import Country from 'country-state-city/lib/country';
+import State from 'country-state-city/lib/state';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
@@ -164,19 +165,7 @@ function getStateOptions(countryIso: string): AddressOption[] {
   return list;
 }
 
-const cityCache = new Map<string, AddressOption[]>();
-function getCityOptions(countryIso: string, stateIso: string): AddressOption[] {
-  const key = `${countryIso}:${stateIso}`;
-  const cached = cityCache.get(key);
-  if (cached) return cached;
-  const list = City.getCitiesOfState(countryIso, stateIso).map((c) => ({
-    value: c.name,
-    label: c.name,
-    meta: { name: c.name },
-  }));
-  cityCache.set(key, list);
-  return list;
-}
+const EMPTY_CITIES: AddressOption[] = [];
 
 export function useCountryOptions(): AddressOption[] {
   return useMemo(() => getCountryOptions(), []);
@@ -190,13 +179,14 @@ export function useStateOptions(countryIso: string | undefined | null): AddressO
 }
 
 export function useCityOptions(
-  countryIso: string | undefined | null,
-  stateIso: string | undefined | null,
+  _countryIso: string | undefined | null,
+  _stateIso: string | undefined | null,
 ): AddressOption[] {
-  return useMemo(() => {
-    if (!countryIso || !stateIso) return [];
-    return getCityOptions(countryIso, stateIso);
-  }, [countryIso, stateIso]);
+  // City data omitted to keep the mobile bundle small — iOS Safari
+  // hit "Maximum call stack size exceeded" when parsing the 7.7MB
+  // city.json shipped by country-state-city. Consumers fall back
+  // to a free-text city input when this list is empty.
+  return EMPTY_CITIES;
 }
 
 export function findCountry(codeOrName: string | undefined) {
