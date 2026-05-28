@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
 import { BASE_URL, getAccessToken } from "../utils";
+import { applyCountryFilter } from "../country-filter";
 import { tokshopOrderSchema, Bundle } from "../../shared/schema";
 
 export function registerBundleRoutes(app: Express) {
@@ -21,7 +22,9 @@ export function registerBundleRoutes(app: Express) {
       } else {
         return res.status(400).json({ error: "userId or customer parameter is required" });
       }
-      
+
+      await applyCountryFilter(req, queryParams);
+
       const queryString = queryParams.toString();
       const url = `${BASE_URL}/orders${queryString ? '?' + queryString : ''}`;
       

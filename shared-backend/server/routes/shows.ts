@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { BASE_URL, getAccessToken } from "../utils";
+import { appendCountryFilterToParts } from "../country-filter";
 import { deleteImagesFromStorage } from "../firebase-admin";
 
 export function registerShowRoutes(app: Express) {
@@ -427,6 +428,8 @@ export function registerShowRoutes(app: Express) {
       if (req.query.featured !== undefined) params.push(`featured=${req.query.featured}`);
       if (req.query.ownerUsername !== undefined) params.push(`ownerUsername=${req.query.ownerUsername}`);
       if (req.query.sort !== undefined) params.push(`sort=${req.query.sort}`);
+
+      await appendCountryFilterToParts(req, params);
 
       const queryString = params.join('&');
       const url = `${BASE_URL}/rooms?${queryString}`;

@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { BASE_URL, getAccessToken } from "../utils";
+import { applyCountryFilter } from "../country-filter";
 import multer from "multer";
 import FormData from "form-data";
 import axios from "axios";
@@ -80,7 +81,9 @@ export function registerGiveawayRoutes(app: Express) {
       if (req.query.tokshow) queryParams.set('tokshow', req.query.tokshow as string);
       if (req.query.type) queryParams.set('type', req.query.type as string);
       if (req.query.status) queryParams.set('status', req.query.status as string);
-      
+
+      await applyCountryFilter(req, queryParams);
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };

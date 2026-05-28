@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { BASE_URL, getAdminToken, unwrapApiResponse } from "../utils";
+import { invalidateCountryFilterCache } from "../country-filter";
 
 // Fields that hold server-only credentials and must NEVER be returned to the browser.
 const SERVER_ONLY_FIELDS = ["firebase_service_account_json", "firebase_service_account"];
@@ -347,6 +348,9 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
+
+      // Invalidate cached admin toggles that this endpoint may have changed.
+      invalidateCountryFilterCache();
 
       // Strip server-only credentials from the echoed response as well —
       // the external API may return the saved object verbatim.

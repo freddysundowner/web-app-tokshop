@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import { BASE_URL, getAccessToken } from "../utils";
 import { z } from "zod";
 import { deleteImagesFromStorage } from "../firebase-admin";
+import { applyCountryFilter, appendCountryFilterToParts } from "../country-filter";
 
 // Product creation schema for validation
 const createProductSchema = z.object({
@@ -65,7 +66,9 @@ export function registerProductRoutes(app: Express) {
           params.set(key, value);
         }
       }
-      
+
+      await applyCountryFilter(req, params);
+
       const url = `${BASE_URL}/products/search?${params.toString()}`;
       console.log("Final search API URL being called:", url);
 
@@ -209,6 +212,8 @@ export function registerProductRoutes(app: Express) {
       if (req.query.title !== undefined) {
         queryParts.push(`title=${encodeURIComponent(req.query.title as string)}`);
       }
+
+      await appendCountryFilterToParts(req, queryParts);
 
       const queryString = queryParts.join('&');
       const url = `${BASE_URL}/products/${queryString ? "?" + queryString : ""}`;

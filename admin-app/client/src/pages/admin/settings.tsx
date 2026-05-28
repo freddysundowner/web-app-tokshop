@@ -61,6 +61,7 @@ export default function AdminSettings() {
     support_email: '',
     forceUpdate: false,
     seller_auto_approve: true,
+    country_filter_enabled: false,
     appVersion: '',
     androidVersion: '',
     iosVersion: '',
@@ -120,6 +121,7 @@ export default function AdminSettings() {
       support_email: settings?.support_email || '',
       forceUpdate: settings?.forceUpdate || false,
       seller_auto_approve: settings?.seller_auto_approve !== undefined ? settings.seller_auto_approve : true,
+      country_filter_enabled: settings?.country_filter_enabled !== undefined ? settings.country_filter_enabled : false,
       apple_login: settings?.apple_login !== undefined ? settings.apple_login : true,
       google_login: settings?.google_login !== undefined ? settings.google_login : true,
       appVersion: settings?.appVersion || '',
@@ -568,6 +570,30 @@ export default function AdminSettings() {
                     )}
                   </AlertDescription>
                 </Alert>
+
+                <div className="border-t pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold">Country-Based Filtering</h3>
+                    <p className="text-sm text-muted-foreground">
+                      When enabled, every product, live show, giveaway and bundle list is filtered to only show items from the signed-in user's country. This is a hard filter applied on the server — users cannot override it.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 flex-1">
+                      <Label htmlFor="country-filter-enabled">Filter listings by user country</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Off by default. When on, users only see items from the country they registered with.
+                      </p>
+                    </div>
+                    <Switch
+                      id="country-filter-enabled"
+                      checked={formData.country_filter_enabled}
+                      onCheckedChange={(checked) => handleInputChange('country_filter_enabled', checked)}
+                      data-testid="switch-country-filter-enabled"
+                    />
+                  </div>
+                </div>
 
                 <div className="border-t pt-6 space-y-4">
                   <div>
