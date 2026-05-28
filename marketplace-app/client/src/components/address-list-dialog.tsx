@@ -130,12 +130,15 @@ export function AddressListDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px]" data-testid="dialog-addresses">
-          <DialogHeader>
+        <DialogContent
+          className="p-0 gap-0 flex flex-col w-screen h-[100dvh] max-w-none max-h-none rounded-none border-0 translate-x-0 translate-y-0 left-0 top-0 shadow-none max-sm:!duration-150 max-sm:[--tw-enter-translate-x:0px] max-sm:[--tw-enter-translate-y:0px] max-sm:[--tw-enter-scale:1] max-sm:[--tw-exit-translate-x:0px] max-sm:[--tw-exit-translate-y:0px] max-sm:[--tw-exit-scale:1] sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:w-full sm:max-w-[500px] sm:h-auto sm:max-h-[90vh] sm:rounded-lg sm:border sm:shadow-lg sm:p-6 sm:gap-4"
+          data-testid="dialog-addresses"
+        >
+          <DialogHeader className="px-4 sm:px-0 pt-4 sm:pt-0 pb-3 sm:pb-0 border-b sm:border-b-0 sticky top-0 bg-background z-10">
             <DialogTitle>Shipping Addresses</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-0 space-y-4 py-4">
             {/* Loading State */}
             {isLoading && (
               <div className="text-center py-8">
@@ -238,7 +241,7 @@ export function AddressListDialog({
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 px-4 sm:px-0 py-3 sm:py-0 border-t sm:border-t-0 sticky bottom-0 bg-background z-10">
             <Button
               variant="default"
               className="flex-1 bg-secondary text-secondary-foreground rounded-full"
