@@ -18,6 +18,8 @@ interface AppSettings {
   secondary_color: string;
   stripe_publishable_key: string;
   commission_rate: number;
+  apple_login?: boolean;
+  google_login?: boolean;
   firebase_config?: FirebaseConfig;
   agerestricted?: boolean;
   privacy_url?: string;

@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Mail, Apple, Chrome, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import { initializeFirebase } from "@/lib/firebase";
 import { Link } from "wouter";
 import type { LoginData } from "@shared/schema";
@@ -23,6 +24,10 @@ export default function Login() {
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const { toast } = useToast();
   const { emailLogin, loginWithGoogle, loginWithApple, isLoading: authLoading } = useAuth();
+  const { settings, fetchSettings, settingsFetched } = useSettings();
+  useEffect(() => { if (!settingsFetched) fetchSettings(); }, [settingsFetched, fetchSettings]);
+  const appleEnabled = settingsFetched ? settings?.apple_login !== false : false;
+  const googleEnabled = settingsFetched ? settings?.google_login !== false : false;
   
   const getRedirectUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -220,30 +225,35 @@ export default function Login() {
           
           <CardContent className="space-y-4">
             {/* Social Login Buttons */}
-            <div className="space-y-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full !bg-white hover:!bg-gray-50 !text-gray-900 !border-gray-300 dark:!bg-white dark:hover:!bg-gray-100 dark:!text-gray-900"
-                onClick={() => handleSocialLogin('Google')}
-                data-testid="button-google-login"
-              >
-                <Chrome className="h-4 w-4 mr-2 !text-gray-900" />
-                Continue with Google
-              </Button>
-              
-              
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full bg-black hover:bg-gray-900 text-white border-gray-800"
-                onClick={() => handleSocialLogin('Apple')}
-                data-testid="button-apple-login"
-              >
-                <Apple className="h-4 w-4 mr-2" />
-                Continue with Apple
-              </Button>
-            </div>
+            {(googleEnabled || appleEnabled) && (
+              <div className="space-y-3">
+                {googleEnabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full !bg-white hover:!bg-gray-50 !text-gray-900 !border-gray-300 dark:!bg-white dark:hover:!bg-gray-100 dark:!text-gray-900"
+                    onClick={() => handleSocialLogin('Google')}
+                    data-testid="button-google-login"
+                  >
+                    <Chrome className="h-4 w-4 mr-2 !text-gray-900" />
+                    Continue with Google
+                  </Button>
+                )}
+
+                {appleEnabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full bg-black hover:bg-gray-900 text-white border-gray-800"
+                    onClick={() => handleSocialLogin('Apple')}
+                    data-testid="button-apple-login"
+                  >
+                    <Apple className="h-4 w-4 mr-2" />
+                    Continue with Apple
+                  </Button>
+                )}
+              </div>
+            )}
 
             <div className="relative">
               <Separator className="my-4" />

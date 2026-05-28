@@ -20,7 +20,8 @@ import "react-country-state-city/dist/react-country-state-city.css";
 import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Signup() {
-  const { settings } = useSettings();
+  const { settings, fetchSettings, settingsFetched } = useSettings();
+  useEffect(() => { if (!settingsFetched) fetchSettings(); }, [settingsFetched, fetchSettings]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupError, setSignupError] = useState<string>("");
@@ -31,6 +32,8 @@ export default function Signup() {
   const [referrerPhoto, setReferrerPhoto] = useState<string>("");
   const { toast } = useToast();
   const { emailSignup, loginWithGoogle, loginWithApple } = useAuth();
+  const appleEnabled = settings?.apple_login !== false;
+  const googleEnabled = settings?.google_login !== false;
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -251,29 +254,35 @@ export default function Signup() {
           
           <CardContent className="space-y-4">
             {/* Social Signup Buttons */}
-            <div className="space-y-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full !bg-white hover:!bg-gray-50 !text-gray-900 !border-gray-300 dark:!bg-white dark:hover:!bg-gray-100 dark:!text-gray-900"
-                onClick={() => handleSocialSignup('Google')}
-                data-testid="button-google-signup"
-              >
-                <Chrome className="h-4 w-4 mr-2 !text-gray-900" />
-                Continue with Google
-              </Button>
-              
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full bg-black hover:bg-gray-900 text-white border-gray-800"
-                onClick={() => handleSocialSignup('Apple')}
-                data-testid="button-apple-signup"
-              >
-                <Apple className="h-4 w-4 mr-2" />
-                Continue with Apple
-              </Button>
-            </div>
+            {(googleEnabled || appleEnabled) && (
+              <div className="space-y-3">
+                {googleEnabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full !bg-white hover:!bg-gray-50 !text-gray-900 !border-gray-300 dark:!bg-white dark:hover:!bg-gray-100 dark:!text-gray-900"
+                    onClick={() => handleSocialSignup('Google')}
+                    data-testid="button-google-signup"
+                  >
+                    <Chrome className="h-4 w-4 mr-2 !text-gray-900" />
+                    Continue with Google
+                  </Button>
+                )}
+
+                {appleEnabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full bg-black hover:bg-gray-900 text-white border-gray-800"
+                    onClick={() => handleSocialSignup('Apple')}
+                    data-testid="button-apple-signup"
+                  >
+                    <Apple className="h-4 w-4 mr-2" />
+                    Continue with Apple
+                  </Button>
+                )}
+              </div>
+            )}
 
             <div className="relative">
               <Separator className="my-4" />
