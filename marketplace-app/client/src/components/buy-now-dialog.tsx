@@ -371,7 +371,8 @@ export function BuyNowDialog({
       console.log('📦 BUY NOW DIALOG - Full payload before sending:', JSON.stringify(payload, null, 2));
       
       // POST to /api/orders/:id endpoint (matching Flutter)
-      return await apiRequest('POST', `/api/orders/${productId}`, payload);
+      const orderRes = await apiRequest('POST', `/api/orders/${productId}`, payload);
+      return await orderRes.json();
     },
     onSuccess: (response: any) => {
       // Handle offer success differently from order success
