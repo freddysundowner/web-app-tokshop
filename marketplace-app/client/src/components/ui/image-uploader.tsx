@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { X, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
-import { fetchWithAuth } from "@/lib/queryClient";
+import { getFirebaseStorage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useSettings } from "@/lib/settings-context";
 
 interface ImageUploaderProps {
   value: string[];
@@ -27,6 +29,7 @@ export function ImageUploader({
   disabled = false,
   allowFileStorage = false,
 }: ImageUploaderProps) {
+  const { isFirebaseReady } = useSettings();
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [tempFiles, setTempFiles] = useState<File[]>([]);
@@ -68,32 +71,34 @@ export function ImageUploader({
       return;
     }
 
-    // Upload immediately via backend (uses Firebase Admin SDK so it works
-    // for email/password users who aren't signed into Firebase client auth)
+    // Upload immediately (for edit mode or when product ID is available)
     setUploading(true);
 
     try {
+      // Check if Firebase is ready before uploading
+      if (!isFirebaseReady) {
+        console.error('Firebase is not initialized yet. Please wait for app to load.');
+        throw new Error('Firebase is not ready. Please wait a moment and try again.');
+      }
+
+      const storage = getFirebaseStorage();
+
       const uploadPromises = filesToProcess.map(async (file) => {
         try {
-          const formData = new FormData();
-          formData.append('image', file);
-
-          const response = await fetchWithAuth('/api/upload/product-image', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!response.ok) {
-            const errText = await response.text().catch(() => '');
-            throw new Error(`Upload failed (${response.status}): ${errText}`);
-          }
-
-          const result = await response.json();
-          if (!result?.success || !result?.data?.url) {
-            throw new Error(result?.message || 'Upload failed');
-          }
-
-          return result.data.url as string;
+          // Generate unique filename
+          const fileExtension = file.name.split('.').pop() || 'jpg';
+          const uniqueFilename = `${crypto.randomUUID()}.${fileExtension}`;
+          
+          // Create Firebase storage reference
+          const imageRef = ref(storage, `product-images/${uniqueFilename}`);
+          
+          // Upload file to Firebase Storage
+          const uploadResult = await uploadBytes(imageRef, file);
+          
+          // Get download URL
+          const downloadURL = await getDownloadURL(uploadResult.ref);
+          
+          return downloadURL;
         } catch (error) {
           console.error(`Error uploading ${file.name}:`, error);
           return null;
@@ -106,12 +111,9 @@ export function ImageUploader({
       if (successfulUploads.length > 0) {
         onChange([...value, ...successfulUploads]);
       }
-      if (successfulUploads.length < filesToProcess.length) {
-        alert('Some images failed to upload. Please try again.');
-      }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload images. Please try again.');
+      alert('Failed to upload images. Please make sure the app has finished loading and try again.');
     } finally {
       setUploading(false);
     }

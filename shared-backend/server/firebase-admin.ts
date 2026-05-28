@@ -55,32 +55,14 @@ async function initializeFirebaseAdmin(): Promise<App> {
     const settings = await response.json();
     
     // Build Firebase config from settings
-    const firebaseConfig: any = {
+    const firebaseConfig = {
       projectId: settings.firebase_project_id || 'tokshop-33509',
       storageBucket: settings.firebase_storage_bucket || 'tokshop-33509.appspot.com',
     };
 
-    // Attach service-account credentials if provided (required for Storage writes,
-    // custom-token minting, and any other privileged Admin operation).
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (serviceAccountJson) {
-      try {
-        const parsed = JSON.parse(serviceAccountJson);
-        firebaseConfig.credential = cert(parsed);
-        // Prefer project_id from the service account if present
-        if (parsed.project_id) firebaseConfig.projectId = parsed.project_id;
-        console.log('🔥 Loaded service-account credentials');
-      } catch (e) {
-        console.error('❌ FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON:', e);
-      }
-    } else {
-      console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT_JSON not set — privileged Admin operations (Storage writes, etc.) will fail');
-    }
-
-    console.log('🔥 Initializing Admin with config:', {
+    console.log('🔥 Initializing Admin with config:', { 
       projectId: firebaseConfig.projectId,
-      storageBucket: firebaseConfig.storageBucket,
-      hasCredential: !!firebaseConfig.credential,
+      storageBucket: firebaseConfig.storageBucket 
     });
 
     adminApp = initializeApp(firebaseConfig);
