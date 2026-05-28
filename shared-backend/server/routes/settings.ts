@@ -23,20 +23,26 @@ export function registerSettingsRoutes(app: Express) {
             firebase_api_key: "",
             firebase_auth_domain: "",
             firebase_project_id: "",
+            apple_login: true,
+            google_login: true,
+            stripe_publishable_key: "",
           },
         });
       }
 
       const data = await response.json();
       const settings = unwrapApiResponse(data);
-      
-      // Return only Firebase auth keys needed for login
+
+      // Return Firebase auth keys + public flags needed for login/signup pages
       res.json({
         success: true,
         data: {
           firebase_api_key: settings?.firebase_api_key || settings?.FIREBASE_API_KEY || "",
           firebase_auth_domain: settings?.firebase_auth_domain || "",
           firebase_project_id: settings?.firebase_project_id || "",
+          apple_login: settings?.apple_login !== undefined ? !!settings.apple_login : true,
+          google_login: settings?.google_login !== undefined ? !!settings.google_login : true,
+          stripe_publishable_key: settings?.stripe_publishable_key || settings?.stripepublickey || "",
         },
       });
     } catch (error: any) {
@@ -47,6 +53,9 @@ export function registerSettingsRoutes(app: Express) {
           firebase_api_key: "",
           firebase_auth_domain: "",
           firebase_project_id: "",
+          apple_login: true,
+          google_login: true,
+          stripe_publishable_key: "",
         },
       });
     }

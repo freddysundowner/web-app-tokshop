@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Mail, Apple, Chrome, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { useSettings } from "@/lib/settings-context";
 import { initializeFirebase } from "@/lib/firebase";
 import { Link } from "wouter";
 import type { LoginData } from "@shared/schema";
@@ -24,10 +23,9 @@ export default function Login() {
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const { toast } = useToast();
   const { emailLogin, loginWithGoogle, loginWithApple, isLoading: authLoading } = useAuth();
-  const { settings, fetchSettings, settingsFetched } = useSettings();
-  useEffect(() => { if (!settingsFetched) fetchSettings(); }, [settingsFetched, fetchSettings]);
-  const appleEnabled = settingsFetched ? settings?.apple_login !== false : false;
-  const googleEnabled = settingsFetched ? settings?.google_login !== false : false;
+  const [providers, setProviders] = useState<{ apple: boolean; google: boolean } | null>(null);
+  const appleEnabled = providers?.apple === true;
+  const googleEnabled = providers?.google === true;
   
   const getRedirectUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -54,7 +52,8 @@ export default function Login() {
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
-            const { firebase_api_key, firebase_auth_domain, firebase_project_id } = data.data;
+            const { firebase_api_key, firebase_auth_domain, firebase_project_id, apple_login, google_login } = data.data;
+            setProviders({ apple: apple_login !== false, google: google_login !== false });
             if (firebase_api_key && firebase_project_id) {
               initializeFirebase({
                 apiKey: firebase_api_key,

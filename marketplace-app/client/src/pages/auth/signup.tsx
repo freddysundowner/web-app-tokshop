@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Mail, Apple, Chrome, User, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { useSettings } from "@/lib/settings-context";
 import { initializeFirebase } from "@/lib/firebase";
 import { Link, useLocation } from "wouter";
 import type { SignupData } from "@shared/schema";
@@ -20,8 +19,7 @@ import "react-country-state-city/dist/react-country-state-city.css";
 import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Signup() {
-  const { settings, fetchSettings, settingsFetched } = useSettings();
-  useEffect(() => { if (!settingsFetched) fetchSettings(); }, [settingsFetched, fetchSettings]);
+  const [providers, setProviders] = useState<{ apple: boolean; google: boolean } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupError, setSignupError] = useState<string>("");
@@ -32,8 +30,8 @@ export default function Signup() {
   const [referrerPhoto, setReferrerPhoto] = useState<string>("");
   const { toast } = useToast();
   const { emailSignup, loginWithGoogle, loginWithApple } = useAuth();
-  const appleEnabled = settings?.apple_login !== false;
-  const googleEnabled = settings?.google_login !== false;
+  const appleEnabled = providers?.apple === true;
+  const googleEnabled = providers?.google === true;
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -67,7 +65,8 @@ export default function Signup() {
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
-            const { firebase_api_key, firebase_auth_domain, firebase_project_id } = data.data;
+            const { firebase_api_key, firebase_auth_domain, firebase_project_id, apple_login, google_login } = data.data;
+            setProviders({ apple: apple_login !== false, google: google_login !== false });
             if (firebase_api_key && firebase_project_id) {
               initializeFirebase({
                 apiKey: firebase_api_key,
