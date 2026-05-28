@@ -558,7 +558,8 @@ export default function ProductDetail() {
               disabled={isOwner || (shouldFetchShipping && isLoadingShipping)}
               onClick={() => {
                 if (!isOwner) {
-                  setShowCheckout(true);
+                  setOfferPrice(null);
+                  setShowBuyNowDialog(true);
                 }
               }}
             >
@@ -943,8 +944,13 @@ export default function ProductDetail() {
         <Suspense fallback={<div />}>
           <BuyNowDialog
             open={showBuyNowDialog}
-            onOpenChange={setShowBuyNowDialog}
+            onOpenChange={(open) => {
+              setShowBuyNowDialog(open);
+              if (!open) setOfferPrice(null);
+            }}
             product={product}
+            offerPrice={offerPrice}
+            shippingEstimate={shippingEstimate}
             onOpenPaymentMethods={() => {
               setShowBuyNowDialog(false);
               if (defaultPayment) {
@@ -1051,7 +1057,7 @@ export default function ProductDetail() {
             shippingEstimate={shippingEstimate}
             onContinueWithOffer={(price: number) => {
               setOfferPrice(price);
-              setShowCheckout(true);
+              setShowBuyNowDialog(true);
             }}
           />
         </Suspense>
