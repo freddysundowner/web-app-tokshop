@@ -78,7 +78,7 @@ export function SearchableSelect({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 w-[--radix-popover-trigger-width] max-w-[95vw] z-[100]"
+        className="p-0 w-[--radix-popover-trigger-width] max-w-[95vw] z-[10000]"
         align="start"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
