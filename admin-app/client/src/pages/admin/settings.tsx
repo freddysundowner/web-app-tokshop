@@ -119,6 +119,8 @@ export default function AdminSettings() {
       support_email: settings?.support_email || '',
       forceUpdate: settings?.forceUpdate || false,
       seller_auto_approve: settings?.seller_auto_approve !== undefined ? settings.seller_auto_approve : true,
+      apple_login: settings?.apple_login !== undefined ? settings.apple_login : true,
+      google_login: settings?.google_login !== undefined ? settings.google_login : true,
       appVersion: settings?.appVersion || '',
       androidVersion: settings?.androidVersion || '',
       iosVersion: settings?.iosVersion || '',
@@ -565,6 +567,45 @@ export default function AdminSettings() {
                     )}
                   </AlertDescription>
                 </Alert>
+
+                <div className="border-t pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold">Social Login Providers</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Choose which social sign-in options appear on the marketplace login and signup pages.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 flex-1">
+                      <Label htmlFor="google-login">Google Login</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Show the "Continue with Google" button on login and signup.
+                      </p>
+                    </div>
+                    <Switch
+                      id="google-login"
+                      checked={formData.google_login}
+                      onCheckedChange={(checked) => handleInputChange('google_login', checked)}
+                      data-testid="switch-google-login"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 flex-1">
+                      <Label htmlFor="apple-login">Apple Login</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Show the "Continue with Apple" button on login and signup.
+                      </p>
+                    </div>
+                    <Switch
+                      id="apple-login"
+                      checked={formData.apple_login}
+                      onCheckedChange={(checked) => handleInputChange('apple_login', checked)}
+                      data-testid="switch-apple-login"
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
