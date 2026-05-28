@@ -13,6 +13,7 @@ import { ReferralBanner } from "@/components/referral-banner";
 
 // Import age verification (not lazy loaded since it needs to run immediately)
 import { AgeVerificationDialog } from "@/components/age-verification-dialog";
+import { preloadAddressData } from "@/components/address-fields";
 
 // Lazy load all pages to prevent circular dependencies
 const Sidebar = lazy(() => import("@/components/layout/sidebar").then(m => ({ default: m.Sidebar })));
@@ -488,6 +489,9 @@ function Router() {
 }
 
 export default function App() {
+  useEffect(() => {
+    preloadAddressData();
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <SettingsProvider>
