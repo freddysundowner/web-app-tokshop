@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
+import { useLocation } from "wouter";
 
 interface BuyNowDialogProps {
   open: boolean;
@@ -47,6 +48,7 @@ export function BuyNowDialog({
 }: BuyNowDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [quantity, setQuantity] = useState(1);
   const [isQuantityExpanded, setIsQuantityExpanded] = useState(false);
 
@@ -386,14 +388,32 @@ export function BuyNowDialog({
         return;
       }
       
-      toast({
-        title: "Purchase Successful!",
-        description: "Your order has been placed",
-      });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+
+      // Pull the new order id from the API response so we can route to the
+      // confirmation page. Response shape: { success, data: <order> }.
+      const created = response?.data ?? response;
+      const newOrderId =
+        created?._id ||
+        created?.id ||
+        created?.order?._id ||
+        created?.order?.id ||
+        created?.data?._id;
+
       onOpenChange(false);
+
+      if (newOrderId) {
+        setLocation(`/thank-you/${newOrderId}`);
+      } else {
+        // Fallback: no id returned — at least confirm + send them to their purchases.
+        toast({
+          title: "Purchase Successful!",
+          description: "Your order has been placed",
+        });
+        setLocation('/purchases');
+      }
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.error || error?.message || "Failed to complete purchase";
