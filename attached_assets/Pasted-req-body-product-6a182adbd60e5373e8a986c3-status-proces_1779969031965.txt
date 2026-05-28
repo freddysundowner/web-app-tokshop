@@ -1,0 +1,73 @@
+req.body  {
+  product: '6a182adbd60e5373e8a986c3',
+  status: 'processing',
+  shippingFee: 2.71,
+  servicelevel: 'ParcelShop Drop-Off',
+  rate_id: 'f661b3efbead44918b6a2e41b2167db2',
+  bundleId: '6a182b6fd60e5373e8a9886b',
+  totalWeightOz: 5,
+  seller_shipping_fee_pay: 0,
+  carrierAccount: '695d49e300144c7f813c79637cd4d3a0',
+  subtotal: 10,
+  tax: 0,
+  seller: '6a141507635c4f1a90e70520',
+  buyer: '6a1414a7635c4f1a90e704db',
+  quantity: 1,
+  total: 12.71,
+  color: '',
+  size: '',
+  tokshow: ''
+}
+orderTotal  10
+A user connected:  YCYjwiXAE_2rhbGaAAAF
+/var/www/backend/node_modules/mongoose/lib/document.js:3371
+    this.$__.validationError = new ValidationError(this);
+                               ^
+
+ValidationError: item validation failed: tokshow: Cast to ObjectId failed for value "" (type string) at path "tokshow" because of "BSONError"
+    at Document.invalidate (/var/www/backend/node_modules/mongoose/lib/document.js:3371:32)
+    at model.$set (/var/www/backend/node_modules/mongoose/lib/document.js:1488:12)
+    at model.$set (/var/www/backend/node_modules/mongoose/lib/document.js:1140:16)
+    at model.Document (/var/www/backend/node_modules/mongoose/lib/document.js:178:12)
+    at model.Model (/var/www/backend/node_modules/mongoose/lib/model.js:127:12)
+    at new model (/var/www/backend/node_modules/mongoose/lib/model.js:4864:15)
+    at /var/www/backend/node_modules/mongoose/lib/model.js:2790:20
+    at Array.map (<anonymous>)
+    at Function.create (/var/www/backend/node_modules/mongoose/lib/model.js:2778:34)
+    at Object.createOrder (/var/www/backend/src/shared/functions.js:535:35) {
+  errors: {
+    tokshow: CastError: Cast to ObjectId failed for value "" (type string) at path "tokshow" because of "BSONError"
+        at SchemaObjectId.cast (/var/www/backend/node_modules/mongoose/lib/schema/objectId.js:253:11)
+        at SchemaType.applySetters (/var/www/backend/node_modules/mongoose/lib/schemaType.js:1288:12)
+        at model.$set (/var/www/backend/node_modules/mongoose/lib/document.js:1446:22)
+        at model.$set (/var/www/backend/node_modules/mongoose/lib/document.js:1140:16)
+        at model.Document (/var/www/backend/node_modules/mongoose/lib/document.js:178:12)
+        at model.Model (/var/www/backend/node_modules/mongoose/lib/model.js:127:12)
+        at new model (/var/www/backend/node_modules/mongoose/lib/model.js:4864:15)
+        at /var/www/backend/node_modules/mongoose/lib/model.js:2790:20
+        at Array.map (<anonymous>)
+        at Function.create (/var/www/backend/node_modules/mongoose/lib/model.js:2778:34) {
+      stringValue: '""',
+      messageFormat: undefined,
+      kind: 'ObjectId',
+      value: '',
+      path: 'tokshow',
+      reason: BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+          at new ObjectId (/var/www/backend/node_modules/bson/lib/bson.cjs:2538:23)
+          at castObjectId (/var/www/backend/node_modules/mongoose/lib/cast/objectid.js:25:12)
+          at SchemaObjectId.cast (/var/www/backend/node_modules/mongoose/lib/schema/objectId.js:251:12)
+          at SchemaType.applySetters (/var/www/backend/node_modules/mongoose/lib/schemaType.js:1288:12)
+          at model.$set (/var/www/backend/node_modules/mongoose/lib/document.js:1446:22)
+          at model.$set (/var/www/backend/node_modules/mongoose/lib/document.js:1140:16)
+          at model.Document (/var/www/backend/node_modules/mongoose/lib/document.js:178:12)
+          at model.Model (/var/www/backend/node_modules/mongoose/lib/model.js:127:12)
+          at new model (/var/www/backend/node_modules/mongoose/lib/model.js:4864:15)
+          at /var/www/backend/node_modules/mongoose/lib/model.js:2790:20,
+      valueType: 'string'
+    }
+  },
+  _message: 'item validation failed'
+}
+
+Node.js v20.20.2
+[nodemon] app crashed - waiting for file changes before starting...

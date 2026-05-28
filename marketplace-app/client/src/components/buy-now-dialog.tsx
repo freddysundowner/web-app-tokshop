@@ -345,11 +345,16 @@ export function BuyNowDialog({
         total: parseFloat(total.toFixed(2)),
         color: '',
         size: '',
-        tokshow: product.tokshow || '',
         ordertype: ordertype,
         wallet_used: parseFloat(walletCredit.toFixed(2)),
       };
       
+      // Only include tokshow when it has a real ObjectId — sending '' crashes the
+      // upstream Mongoose cast (item.tokshow expects ObjectId | null).
+      if (product.tokshow) {
+        payload.tokshow = product.tokshow;
+      }
+
       // Add flash_sale flag if this is a flash sale purchase
       if (isFlashSale) {
         payload.flash_sale = true;
