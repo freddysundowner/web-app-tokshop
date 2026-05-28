@@ -109,7 +109,7 @@ export default function ReferralPage() {
 
 
   return (
-    <div className="w-full lg:w-[90%] mx-auto py-6 space-y-6">
+    <div className="w-full lg:w-[90%] max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-foreground">
           Get new followers with your referral link!
@@ -172,7 +172,8 @@ export default function ReferralPage() {
           <Users className="h-5 w-5" />
           Referral History
         </h2>
-        <div className="border rounded-lg overflow-hidden">
+        {/* Desktop: table */}
+        <div className="hidden sm:block border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b">
@@ -212,6 +213,38 @@ export default function ReferralPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile: stacked cards */}
+        <div className="sm:hidden border rounded-lg overflow-hidden divide-y">
+          {referralLogs.length > 0 ? (
+            referralLogs.map((log: any, index: number) => (
+              <div key={log._id || index} className="p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate" data-testid={`text-referral-user-${index}`}>
+                    {log.referredUserId?.userName || log.referredUserId?.email || 'Unknown'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : '-'}
+                  </p>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  {log.referredUserId?.awarded_referal_credit ? (
+                    <span className="text-green-600 font-medium text-sm inline-flex items-center gap-1">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      ${referralCredit}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Pending</span>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+              No referrals yet. Share your link to get started!
+            </div>
+          )}
         </div>
       </div>
     </div>
