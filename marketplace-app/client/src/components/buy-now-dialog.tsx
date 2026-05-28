@@ -396,10 +396,13 @@ export function BuyNowDialog({
       // confirmation page. Response shape: { success, data: <order> }.
       const created = response?.data ?? response;
       const newOrderId =
-        created?._id ||
-        created?.id ||
+        created?.newOrder?._id ||
+        created?.newOrder?.id ||
         created?.order?._id ||
         created?.order?.id ||
+        created?._id ||
+        created?.id ||
+        created?.data?.newOrder?._id ||
         created?.data?._id;
 
       onOpenChange(false);
