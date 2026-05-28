@@ -46,9 +46,9 @@ export default function ThankYou() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background flex items-center justify-center p-3 sm:p-4">
+    <div className="min-h-[100dvh] bg-background flex items-center justify-center py-3 sm:p-4">
       <Card className="max-w-2xl w-full border-0 shadow-none sm:border sm:shadow-sm">
-        <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6 pt-6 sm:pt-6">
+        <CardHeader className="text-center pb-4 sm:pb-6 px-3 sm:px-6 pt-6 sm:pt-6">
           <div className="flex justify-center mb-3 sm:mb-4">
             <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3 sm:p-4">
               <CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600 dark:text-green-400" />
@@ -60,7 +60,7 @@ export default function ThankYou() {
           </p>
         </CardHeader>
 
-        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
           {order && (
             <>
               <div className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-3">
