@@ -1,0 +1,1 @@
+- [External settings proxy secret leaks](settings-proxy-secret-strip.md) — any credential stored in external API settings must be stripped at every proxy endpoint that returns settings (GET full + POST update echo), not just the public one.

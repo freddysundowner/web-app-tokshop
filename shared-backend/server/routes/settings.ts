@@ -1,6 +1,18 @@
 import type { Express } from "express";
 import { BASE_URL, getAdminToken, unwrapApiResponse } from "../utils";
 
+// Fields that hold server-only credentials and must NEVER be returned to the browser.
+const SERVER_ONLY_FIELDS = ["firebase_service_account_json", "firebase_service_account"];
+
+function stripServerOnlyFields<T extends Record<string, any> | null | undefined>(obj: T): T {
+  if (!obj || typeof obj !== "object") return obj;
+  const clone: any = Array.isArray(obj) ? [...obj] : { ...obj };
+  for (const key of SERVER_ONLY_FIELDS) {
+    if (key in clone) delete clone[key];
+  }
+  return clone;
+}
+
 export function registerSettingsRoutes(app: Express) {
   // Get Firebase auth keys only (no auth required) - for login page
   app.get("/api/settings/keys", async (req, res) => {
@@ -290,10 +302,10 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      
+
       res.json({
         success: true,
-        data: unwrapApiResponse(data),
+        data: stripServerOnlyFields(unwrapApiResponse(data)),
       });
     } catch (error: any) {
       console.error("Error fetching full app settings:", error);
@@ -335,10 +347,18 @@ export function registerSettingsRoutes(app: Express) {
       }
 
       const data = await response.json();
-      
+
+      // Strip server-only credentials from the echoed response as well —
+      // the external API may return the saved object verbatim.
+      const safeData = data && typeof data === "object"
+        ? (data.data
+            ? { ...data, data: stripServerOnlyFields(data.data) }
+            : stripServerOnlyFields(data))
+        : data;
+
       res.json({
         success: true,
-        data: data,
+        data: safeData,
       });
     } catch (error: any) {
       console.error("Error updating app settings:", error);

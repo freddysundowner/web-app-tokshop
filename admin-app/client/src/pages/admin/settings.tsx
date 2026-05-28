@@ -14,6 +14,7 @@ import { Settings, DollarSign, Key, Package, Link as LinkIcon, Smartphone, Shiel
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
+import { FirebaseServiceAccountCard } from "@/components/firebase-service-account-card";
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -1267,6 +1268,8 @@ export default function AdminSettings() {
                 </div>
               </CardContent>
             </Card>
+
+            <FirebaseServiceAccountCard isDemoMode={isDemoMode} canManageSettings={canManageSettings} />
 
             <Card>
               <CardHeader>

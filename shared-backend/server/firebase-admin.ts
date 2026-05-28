@@ -2,7 +2,7 @@ import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getStorage, Storage } from 'firebase-admin/storage';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { BASE_URL } from './utils';
+import { BASE_URL, unwrapApiResponse } from './utils';
 
 // Firebase Admin app instance (initialized on-demand)
 let adminApp: App | null = null;
@@ -52,8 +52,11 @@ async function initializeFirebaseAdmin(): Promise<App> {
       throw new Error('Failed to fetch auth config from settings API');
     }
 
-    const settings = await response.json();
-    
+    const rawBody = await response.json();
+    // External API may return either a wrapped { success, data } envelope or
+    // the raw settings object — handle both.
+    const settings = unwrapApiResponse(rawBody) || rawBody || {};
+
     // Build Firebase config from settings
     const firebaseConfig: any = {
       projectId: settings.firebase_project_id || 'tokshop-33509',
@@ -62,19 +65,32 @@ async function initializeFirebaseAdmin(): Promise<App> {
 
     // Attach service-account credentials if provided (required for Storage writes,
     // custom-token minting, and any other privileged Admin operation).
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    // Resolution order: env var → settings field (uploaded via admin UI).
+    let serviceAccountJson: string | undefined = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    let credentialSource = 'env';
+    if (!serviceAccountJson) {
+      const fromSettings =
+        settings.firebase_service_account_json ||
+        (settings.firebase_service_account && typeof settings.firebase_service_account === 'object'
+          ? JSON.stringify(settings.firebase_service_account)
+          : settings.firebase_service_account);
+      if (typeof fromSettings === 'string' && fromSettings.trim().startsWith('{')) {
+        serviceAccountJson = fromSettings;
+        credentialSource = 'settings';
+      }
+    }
+
     if (serviceAccountJson) {
       try {
         const parsed = JSON.parse(serviceAccountJson);
         firebaseConfig.credential = cert(parsed);
-        // Prefer project_id from the service account if present
         if (parsed.project_id) firebaseConfig.projectId = parsed.project_id;
-        console.log('🔥 Loaded service-account credentials');
+        console.log(`🔥 Loaded service-account credentials (source: ${credentialSource})`);
       } catch (e) {
-        console.error('❌ FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON:', e);
+        console.error('❌ Service-account JSON is not valid JSON:', e);
       }
     } else {
-      console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT_JSON not set — privileged Admin operations (Storage writes, etc.) will fail');
+      console.warn('⚠️ No service-account credentials found (env or settings) — privileged Admin operations (Storage writes, etc.) will fail');
     }
 
     console.log('🔥 Initializing Admin with config:', {
@@ -99,6 +115,19 @@ async function initializeFirebaseAdmin(): Promise<App> {
     return adminApp;
   } finally {
     isInitializing = false;
+  }
+}
+
+// Reset the cached Admin app so the next getter call re-initializes from
+// the latest settings/env. Call this after the service-account credential
+// changes (e.g. uploaded or removed via the admin UI).
+export async function resetFirebaseAdmin(): Promise<void> {
+  try {
+    if (adminApp) {
+      await adminApp.delete().catch(() => {});
+    }
+  } finally {
+    adminApp = null;
   }
 }
 

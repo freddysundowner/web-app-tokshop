@@ -194,12 +194,12 @@ export function ImageUploader({
               <Button
                 type="button"
                 variant="outline"
-                disabled={disabled || uploading || !isFirebaseReady}
+                disabled={disabled || uploading}
                 onClick={() => fileInputRef.current?.click()}
                 data-testid="button-select-images"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                {!isFirebaseReady ? 'Loading...' : uploading ? 'Uploading...' : 'Select Images'}
+                {uploading ? 'Uploading...' : 'Select Images'}
               </Button>
               <Input
                 ref={fileInputRef}
