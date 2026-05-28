@@ -38,7 +38,7 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -61,8 +61,9 @@ export function SearchableSelect({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 w-[--radix-popover-trigger-width] max-w-[95vw]"
+        className="p-0 w-[--radix-popover-trigger-width] max-w-[95vw] z-[100]"
         align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <Command>
           <CommandInput placeholder={searchPlaceholder} className="h-11" />
