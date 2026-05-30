@@ -204,16 +204,16 @@ export function AddAddressDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="p-0 gap-0 flex flex-col w-screen h-[100dvh] max-w-none max-h-none rounded-none border-0 translate-x-0 translate-y-0 left-0 top-0 shadow-none max-sm:!duration-150 max-sm:[--tw-enter-translate-x:0px] max-sm:[--tw-enter-translate-y:0px] max-sm:[--tw-enter-scale:1] max-sm:[--tw-exit-translate-x:0px] max-sm:[--tw-exit-translate-y:0px] max-sm:[--tw-exit-scale:1] sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[90vh] sm:rounded-lg sm:border sm:shadow-lg"
+        className="p-0 gap-0 flex flex-col overflow-hidden w-screen h-[100dvh] max-w-none max-h-none rounded-none border-0 translate-x-0 translate-y-0 left-0 top-0 shadow-none max-sm:!duration-150 max-sm:[--tw-enter-translate-x:0px] max-sm:[--tw-enter-translate-y:0px] max-sm:[--tw-enter-scale:1] max-sm:[--tw-exit-translate-x:0px] max-sm:[--tw-exit-translate-y:0px] max-sm:[--tw-exit-scale:1] sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[90vh] sm:rounded-lg sm:border sm:shadow-lg"
         data-testid="dialog-add-address"
       >
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b sm:border-b-0 sticky top-0 bg-background z-10">
+        <DialogHeader className="shrink-0 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b sm:border-b-0 bg-background z-10">
           <DialogTitle className="text-lg">{isEditing ? "Edit Address" : "Add New Address"}</DialogTitle>
           <DialogDescription>
             {isEditing ? "Update your shipping address." : "Add a new shipping or billing address."}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6">
           {errorDialog.open && (
             <div
               role="alert"
@@ -361,7 +361,7 @@ export function AddAddressDialog({
           </div>
         </div>
         <DialogFooter
-          className="flex-col-reverse sm:flex-row gap-2 px-4 sm:px-6 py-3 border-t bg-background sticky bottom-0"
+          className="shrink-0 flex-col-reverse sm:flex-row gap-2 px-4 sm:px-6 py-3 border-t bg-background"
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
           <Button
