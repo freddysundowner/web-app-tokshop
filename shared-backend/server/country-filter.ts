@@ -40,29 +40,21 @@ export function getUserCountry(req: Request): string | null {
 }
 
 export async function applyCountryFilter(
-  req: Request,
+  _req: Request,
   params: URLSearchParams,
 ): Promise<void> {
-  const country = getUserCountry(req);
-  const enabled = await getCountryFilterEnabled(req);
-  if (!enabled) return;
-  // Hard filter: strip any client-supplied country, then force the
-  // session user's country. If the user has no country on file, drop any
-  // client-supplied value so they cannot bypass via the URL.
+  // Country filtering is disabled: never forward a country to the external API.
+  // Strip any client-supplied country so no endpoint queries by country.
   params.delete("country");
-  if (country) params.set("country", country);
 }
 
 export async function appendCountryFilterToParts(
-  req: Request,
+  _req: Request,
   queryParts: string[],
 ): Promise<void> {
-  const country = getUserCountry(req);
-  const enabled = await getCountryFilterEnabled(req);
-  if (!enabled) return;
-  // Hard filter: strip any client-supplied country part first.
+  // Country filtering is disabled: never forward a country to the external API.
+  // Strip any client-supplied country part so no endpoint queries by country.
   for (let i = queryParts.length - 1; i >= 0; i--) {
     if (queryParts[i].startsWith("country=")) queryParts.splice(i, 1);
   }
-  if (country) queryParts.push(`country=${encodeURIComponent(country)}`);
 }
