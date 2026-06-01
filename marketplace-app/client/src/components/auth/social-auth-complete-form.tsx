@@ -11,6 +11,7 @@ import { User, AtSign, UserCircle, Phone, Globe, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { SocialAuthCompleteData } from "@shared/schema";
 import { socialAuthCompleteSchema } from "@shared/schema";
+import { COUNTRIES } from "@/lib/countries";
 import type { User as FirebaseUser } from "firebase/auth";
 
 interface SocialAuthCompleteFormProps {
@@ -195,64 +196,9 @@ export function SocialAuthCompleteForm({ userEmail, socialAuthData, onComplete, 
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="max-h-60">
-                            <SelectItem value="Afghanistan">Afghanistan</SelectItem>
-                            <SelectItem value="Albania">Albania</SelectItem>
-                            <SelectItem value="Algeria">Algeria</SelectItem>
-                            <SelectItem value="Argentina">Argentina</SelectItem>
-                            <SelectItem value="Australia">Australia</SelectItem>
-                            <SelectItem value="Austria">Austria</SelectItem>
-                            <SelectItem value="Bangladesh">Bangladesh</SelectItem>
-                            <SelectItem value="Belgium">Belgium</SelectItem>
-                            <SelectItem value="Brazil">Brazil</SelectItem>
-                            <SelectItem value="Canada">Canada</SelectItem>
-                            <SelectItem value="Chile">Chile</SelectItem>
-                            <SelectItem value="China">China</SelectItem>
-                            <SelectItem value="Colombia">Colombia</SelectItem>
-                            <SelectItem value="Denmark">Denmark</SelectItem>
-                            <SelectItem value="Egypt">Egypt</SelectItem>
-                            <SelectItem value="Ethiopia">Ethiopia</SelectItem>
-                            <SelectItem value="Finland">Finland</SelectItem>
-                            <SelectItem value="France">France</SelectItem>
-                            <SelectItem value="Germany">Germany</SelectItem>
-                            <SelectItem value="Ghana">Ghana</SelectItem>
-                            <SelectItem value="Greece">Greece</SelectItem>
-                            <SelectItem value="India">India</SelectItem>
-                            <SelectItem value="Indonesia">Indonesia</SelectItem>
-                            <SelectItem value="Iran">Iran</SelectItem>
-                            <SelectItem value="Iraq">Iraq</SelectItem>
-                            <SelectItem value="Ireland">Ireland</SelectItem>
-                            <SelectItem value="Israel">Israel</SelectItem>
-                            <SelectItem value="Italy">Italy</SelectItem>
-                            <SelectItem value="Japan">Japan</SelectItem>
-                            <SelectItem value="Jordan">Jordan</SelectItem>
-                            <SelectItem value="Kenya">Kenya</SelectItem>
-                            <SelectItem value="Malaysia">Malaysia</SelectItem>
-                            <SelectItem value="Mexico">Mexico</SelectItem>
-                            <SelectItem value="Morocco">Morocco</SelectItem>
-                            <SelectItem value="Netherlands">Netherlands</SelectItem>
-                            <SelectItem value="New Zealand">New Zealand</SelectItem>
-                            <SelectItem value="Nigeria">Nigeria</SelectItem>
-                            <SelectItem value="Norway">Norway</SelectItem>
-                            <SelectItem value="Pakistan">Pakistan</SelectItem>
-                            <SelectItem value="Philippines">Philippines</SelectItem>
-                            <SelectItem value="Poland">Poland</SelectItem>
-                            <SelectItem value="Portugal">Portugal</SelectItem>
-                            <SelectItem value="Russia">Russia</SelectItem>
-                            <SelectItem value="Saudi Arabia">Saudi Arabia</SelectItem>
-                            <SelectItem value="Singapore">Singapore</SelectItem>
-                            <SelectItem value="South Africa">South Africa</SelectItem>
-                            <SelectItem value="South Korea">South Korea</SelectItem>
-                            <SelectItem value="Spain">Spain</SelectItem>
-                            <SelectItem value="Sweden">Sweden</SelectItem>
-                            <SelectItem value="Switzerland">Switzerland</SelectItem>
-                            <SelectItem value="Thailand">Thailand</SelectItem>
-                            <SelectItem value="Turkey">Turkey</SelectItem>
-                            <SelectItem value="Ukraine">Ukraine</SelectItem>
-                            <SelectItem value="United Arab Emirates">United Arab Emirates</SelectItem>
-                            <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                            <SelectItem value="United States">United States</SelectItem>
-                            <SelectItem value="Venezuela">Venezuela</SelectItem>
-                            <SelectItem value="Vietnam">Vietnam</SelectItem>
+                            {COUNTRIES.map((country) => (
+                              <SelectItem key={country} value={country}>{country}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

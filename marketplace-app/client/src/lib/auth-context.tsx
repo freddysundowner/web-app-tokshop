@@ -48,6 +48,7 @@ interface AuthContextType {
   refreshUserData: () => Promise<{ address: any; defaultpaymentmethod: any } | null>;
   confirmAge: () => Promise<void>;
   declineAge: () => Promise<void>;
+  updateCountry: (country: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -1020,6 +1021,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await logout();
   };
 
+  // Persist the user's country (used by the mandatory country gate)
+  const updateCountry = async (country: string) => {
+    if (!user) throw new Error('No active session');
+
+    const response = await apiRequest('PATCH', '/api/users/profile', { country });
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || data.message || 'Failed to save country');
+    }
+
+    const updatedUser = { ...user, country };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+
+    // The router gates on the cached /api/profile/:id query (which can still hold
+    // the old empty country and otherwise wins over the auth user). Update that
+    // cache immediately and refetch so the gate dismisses right away.
+    const isProfileQuery = (key: unknown) =>
+      Array.isArray(key) && typeof key[0] === 'string' && (key[0] as string).startsWith('/api/profile/');
+    queryClient.setQueriesData(
+      { predicate: (q) => isProfileQuery(q.queryKey) },
+      (old: any) => (old && typeof old === 'object' ? { ...old, country } : old),
+    );
+    queryClient.invalidateQueries({ predicate: (q) => isProfileQuery(q.queryKey) });
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -1039,6 +1067,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshUserData,
     confirmAge,
     declineAge,
+    updateCountry,
   };
 
   return (

@@ -2,3 +2,4 @@
 - [Firebase Admin credential resolution](firebase-admin-credential.md) — Admin SDK credential must come from a source the server can read on every boot without auth; external settings is auth-gated and unsuitable as the source of truth.
 - [country-state-city subpath imports](country-state-city-subpath.md) — root import pulls a 7.7MB city.json that crashes iOS Safari with "Maximum call stack size exceeded"; import `lib/country` and `lib/state` directly.
 - [Country filter empty for social accounts](country-filter-empty-data.md) — filter forwarding works; "empty country" is a data gap — Apple/social signup never captures country, so user.country is "".
+- [Country-required gate](country-required-gate.md) — gate reads cached /api/profile/:id which wins over auth user; mutating a gated field must sync that query cache or the gate never dismisses.

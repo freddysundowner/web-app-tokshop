@@ -19,6 +19,7 @@ import { preloadAddressData } from "@/components/address-fields";
 const Sidebar = lazy(() => import("@/components/layout/sidebar").then(m => ({ default: m.Sidebar })));
 const AppHeader = lazy(() => import("@/components/layout/app-header").then(m => ({ default: m.AppHeader })));
 const SocialAuthCompleteForm = lazy(() => import("@/components/auth/social-auth-complete-form").then(m => ({ default: m.SocialAuthCompleteForm })));
+const CountryRequiredGate = lazy(() => import("@/components/auth/country-required-gate").then(m => ({ default: m.CountryRequiredGate })));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Orders = lazy(() => import("@/pages/commerce/orders"));
 const Purchases = lazy(() => import("@/pages/commerce/purchases"));
@@ -114,6 +115,18 @@ function Router() {
   // Use fresh user data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
 
+  // Whether the admin has enabled the country filter (every user must have a country)
+  const { data: settingsResp, isLoading: settingsLoading } = useQuery<any>({
+    queryKey: ['/api/settings'],
+    enabled: !!isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+  const countryFilterEnabled = !!settingsResp?.data?.country_filter_enabled;
+  const userHasCountry = !!(currentUser?.country && String(currentUser.country).trim());
+  // Authenticated users missing a country must be resolved before the app renders,
+  // so they cannot slip past the gate while the settings flag is still loading.
+  const mustResolveCountry = isAuthenticated && !userHasCountry;
+
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
@@ -159,6 +172,22 @@ function Router() {
           onComplete={handleSocialAuthComplete}
           isLoading={isLoading}
         />
+      </Suspense>
+    );
+  }
+
+  // When the country filter is enabled, every authenticated user must have a
+  // country. Block the entire app with a non-bypassable gate until they set one.
+  // This covers existing social-signup accounts that never captured a country.
+  // While the settings flag is still loading, hold the app (don't let a
+  // no-country user slip through before we know whether the filter is on).
+  if (mustResolveCountry && settingsLoading) {
+    return <LoadingSpinner />;
+  }
+  if (mustResolveCountry && countryFilterEnabled) {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <CountryRequiredGate />
       </Suspense>
     );
   }

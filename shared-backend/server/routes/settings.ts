@@ -247,6 +247,8 @@ export function registerSettingsRoutes(app: Express) {
         // Referral program
         referral_credit: settings?.referral_credit ?? 0,
         referral_credit_limit: settings?.referral_credit_limit ?? 0,
+        // Country filter toggle - when enabled, every user must have a country set
+        country_filter_enabled: Boolean(settings?.country_filter_enabled),
       };
       
       res.json({
