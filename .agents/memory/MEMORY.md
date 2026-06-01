@@ -1,3 +1,4 @@
 - [Settings proxy secret-strip](settings-proxy-secret-strip.md) — server-only fields stored on the external settings API must be stripped at every proxy egress (GET and POST echo).
 - [Firebase Admin credential resolution](firebase-admin-credential.md) — Admin SDK credential must come from a source the server can read on every boot without auth; external settings is auth-gated and unsuitable as the source of truth.
 - [country-state-city subpath imports](country-state-city-subpath.md) — root import pulls a 7.7MB city.json that crashes iOS Safari with "Maximum call stack size exceeded"; import `lib/country` and `lib/state` directly.
+- [Country filter empty for social accounts](country-filter-empty-data.md) — filter forwarding works; "empty country" is a data gap — Apple/social signup never captures country, so user.country is "".
