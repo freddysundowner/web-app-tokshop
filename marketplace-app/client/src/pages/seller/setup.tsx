@@ -176,6 +176,15 @@ export default function SellerSetup() {
     }
   }, [user]);
 
+  // Default the bank-step phone to the phone entered (or saved) for the address
+  useEffect(() => {
+    if (currentStep !== 'bank' || bankPhoneNumber) return;
+    const addressPhone = phoneNumber || existingAddress?.address?.phone || '';
+    if (addressPhone) {
+      setBankPhoneNumber(addressPhone);
+    }
+  }, [currentStep, phoneNumber, existingAddress, bankPhoneNumber]);
+
   const placeholders = getAddressPlaceholders(country?.isoCode);
   const countryOptions = useCountryOptions();
   const stateOptions = useStateOptions(country?.isoCode);
