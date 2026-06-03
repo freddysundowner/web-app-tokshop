@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import fetch from "node-fetch";
 import { BASE_URL, getAccessToken, unwrapApiResponse } from "./utils";
+import { findAllowedCountry } from "../shared/currency";
 
 let cached: { enabled: boolean; at: number } | null = null;
 const TTL_MS = 60_000;
@@ -41,14 +42,21 @@ export function getUserCountry(req: Request): string | null {
   return typeof c === "string" && c.trim() ? c.trim() : null;
 }
 
-// The value sent in the `country` query param: prefer the user's ISO country
-// code (e.g. "US"), falling back to the full country name when no code is on
-// file (e.g. legacy accounts that only stored the name).
+// The value sent in the `country` query param: always an ISO country code
+// (e.g. "DE"). The external API expects the code, so we normalize whatever the
+// account has on file — a stored countryCode, or the full country name (legacy
+// / social-signup accounts that only stored the name) — to the canonical code.
 export function getUserCountryValue(req: Request): string | null {
   const user = (req.session as any)?.user;
-  const code = user?.countryCode;
-  if (typeof code === "string" && code.trim()) return code.trim();
-  return getUserCountry(req);
+  const code = typeof user?.countryCode === "string" ? user.countryCode.trim() : "";
+  const name = getUserCountry(req);
+  // Resolve to a canonical allowed ISO code (handles "Germany" -> "DE",
+  // "UK" -> "GB", etc.). Try the stored code first, then the country name —
+  // independently, so an invalid/unsupported code (e.g. "FR") still falls back
+  // to a valid name. Only ever emit a supported code; otherwise null so no
+  // unsupported value is forced onto the external API filter.
+  const resolved = findAllowedCountry(code) || findAllowedCountry(name);
+  return resolved ? resolved.isoCode : null;
 }
 
 export async function applyCountryFilter(
