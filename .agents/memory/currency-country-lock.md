@@ -39,6 +39,17 @@ input-prefix spans, `Price ($)` labels, fixed-amount discount toggles (`'%' : '$
 **Out of scope (do NOT touch):** Stripe checkout charge currency, and static payment-processing fee
 copy like "2.9% + $0.30" (the real fee/symbol varies by region; changing only the symbol misleads).
 
+## Rule: the country gate must NOT depend on the admin country_filter_enabled flag
+The post-login `CountryRequiredGate` (App.tsx) must fire for ANY authenticated user whose
+`country` is empty, unconditionally. It was previously gated behind the admin setting
+`country_filter_enabled`, which was off by default — so Gmail/social signups (which skip the
+completion form unless the backend returns `newuser === true`) slipped in with no country.
+**Why:** a no-country user makes `useCurrency()` fall back to USD ($), and the whole feature
+requires every user to be in one of the 4 supported countries. Symptom reported: "registered via
+Gmail, never asked for country" + "$ shows in add-product even when country is different."
+**How to apply:** `mustResolveCountry = isAuthenticated && !userHasCountry` alone should trigger
+the gate. Don't reintroduce a settings/flag dependency in front of it.
+
 ## Verification note
 Marketplace `npx tsc -p marketplace-app/tsconfig.json --noEmit` has a large PRE-EXISTING baseline
 (~103 errors: react-hook-form `Control<>` generic mismatches, product data-shape gaps, standalone

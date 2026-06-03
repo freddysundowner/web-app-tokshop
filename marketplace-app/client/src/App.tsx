@@ -115,16 +115,11 @@ function Router() {
   // Use fresh user data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
 
-  // Whether the admin has enabled the country filter (every user must have a country)
-  const { data: settingsResp, isLoading: settingsLoading } = useQuery<any>({
-    queryKey: ['/api/settings'],
-    enabled: !!isAuthenticated,
-    staleTime: 5 * 60 * 1000,
-  });
-  const countryFilterEnabled = !!settingsResp?.data?.country_filter_enabled;
   const userHasCountry = !!(currentUser?.country && String(currentUser.country).trim());
-  // Authenticated users missing a country must be resolved before the app renders,
-  // so they cannot slip past the gate while the settings flag is still loading.
+  // Every authenticated user must have a country (the platform is locked to a few
+  // supported countries and prices are shown in each user's local currency). Any
+  // signed-in user without one must resolve it before the app renders — this
+  // covers social/Gmail signups that never captured a country.
   const mustResolveCountry = isAuthenticated && !userHasCountry;
 
   const toggleSidebar = () => {
@@ -176,15 +171,10 @@ function Router() {
     );
   }
 
-  // When the country filter is enabled, every authenticated user must have a
-  // country. Block the entire app with a non-bypassable gate until they set one.
-  // This covers existing social-signup accounts that never captured a country.
-  // While the settings flag is still loading, hold the app (don't let a
-  // no-country user slip through before we know whether the filter is on).
-  if (mustResolveCountry && settingsLoading) {
-    return <LoadingSpinner />;
-  }
-  if (mustResolveCountry && countryFilterEnabled) {
+  // Block the entire app with a non-bypassable gate until the user sets a
+  // country. This covers social/Gmail signups and any existing accounts that
+  // never captured one.
+  if (mustResolveCountry) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <CountryRequiredGate />
