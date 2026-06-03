@@ -56,3 +56,18 @@ Marketplace `npx tsc -p marketplace-app/tsconfig.json --noEmit` has a large PRE-
 `Session.user` augmentation). Currency work added zero. Confirm by grepping tsc output for
 `symbol|currency|isAllowedCountry|ALLOWED_COUNTRY` — path matches (e.g. "inventory") are not real
 currency errors.
+
+## Rule: products must be stamped with the seller's ISO code; inventory is exempt from filtering
+The external API filters discovery via `?country=<ISO>` (e.g. `country=DE`), so a product is only
+surfaced when its stored country matches that ISO code — NOT the country name. Therefore product
+save paths (`products.ts`: create `POST /api/products/:userId`, edit `PATCH /api/products/:productId`,
+`POST /api/products/bulkadd/:userId`) stamp both `country` and `countryCode` with the seller's
+canonical ISO code via `getUserAllowedCountry(req)` (in `country-filter.ts`; resolves session
+user's countryCode first, then country name, through `findAllowedCountry`).
+**Why:** social/legacy accounts store only the country NAME (countryCode=""), so the proxy was
+sending `country=Germany`; the filter expects the code. Resolve name→code at every egress.
+**How to apply:** a seller's OWN inventory list (`GET /api/products?type=inventory`) must NOT be
+country-filtered (they see all their products). But that bypass is client-controlled, so gate it:
+only skip the filter when `type=inventory` AND the request's `userId/userid` equals the session
+user's id (`session.user.id || session.user._id`). Buyer-facing browse/featured/rooms/search stay
+filtered. If seller country is unresolved, country fields are omitted (non-breaking, no filter).

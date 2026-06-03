@@ -46,17 +46,20 @@ export function getUserCountry(req: Request): string | null {
 // (e.g. "DE"). The external API expects the code, so we normalize whatever the
 // account has on file — a stored countryCode, or the full country name (legacy
 // / social-signup accounts that only stored the name) — to the canonical code.
-export function getUserCountryValue(req: Request): string | null {
+export function getUserAllowedCountry(req: Request) {
   const user = (req.session as any)?.user;
   const code = typeof user?.countryCode === "string" ? user.countryCode.trim() : "";
   const name = getUserCountry(req);
-  // Resolve to a canonical allowed ISO code (handles "Germany" -> "DE",
-  // "UK" -> "GB", etc.). Try the stored code first, then the country name —
-  // independently, so an invalid/unsupported code (e.g. "FR") still falls back
-  // to a valid name. Only ever emit a supported code; otherwise null so no
-  // unsupported value is forced onto the external API filter.
-  const resolved = findAllowedCountry(code) || findAllowedCountry(name);
-  return resolved ? resolved.isoCode : null;
+  // Resolve to a canonical allowed country (handles "Germany" -> DE, "UK" ->
+  // GB, etc.). Try the stored code first, then the country name — independently,
+  // so an invalid/unsupported code (e.g. "FR") still falls back to a valid name.
+  return findAllowedCountry(code) || findAllowedCountry(name);
+}
+
+export function getUserCountryValue(req: Request): string | null {
+  // The value sent in the `country` query param is always a supported ISO code
+  // (or null so no unsupported value is forced onto the external API filter).
+  return getUserAllowedCountry(req)?.isoCode ?? null;
 }
 
 export async function applyCountryFilter(

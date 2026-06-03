@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 import { BASE_URL, getAccessToken } from "../utils";
 import { z } from "zod";
 import { deleteImagesFromStorage } from "../firebase-admin";
-import { applyCountryFilter, appendCountryFilterToParts } from "../country-filter";
+import { applyCountryFilter, appendCountryFilterToParts, getUserAllowedCountry } from "../country-filter";
 
 // Product creation schema for validation
 const createProductSchema = z.object({
@@ -213,7 +213,26 @@ export function registerProductRoutes(app: Express) {
         queryParts.push(`title=${encodeURIComponent(req.query.title as string)}`);
       }
 
-      await appendCountryFilterToParts(req, queryParts);
+      // A seller's own inventory must always show ALL their products,
+      // regardless of the active country filter — never scope it by country.
+      // The country filter is buyer-facing discovery only.
+      // SECURITY: the bypass must be scoped to the authenticated seller's own
+      // id. `type` and `userId` are client-controlled, so we only skip the
+      // hard filter when the request targets the current session user's own
+      // products — otherwise it could be used to bypass country filtering.
+      const sessionUser = (req.session as any)?.user;
+      const sessionUserId = sessionUser?.id || sessionUser?._id;
+      const requestedUserId = (req.query.userId || req.query.userid) as
+        | string
+        | undefined;
+      const isOwnInventory =
+        (req.query.type as string) === "inventory" &&
+        !!sessionUserId &&
+        !!requestedUserId &&
+        String(requestedUserId) === String(sessionUserId);
+      if (!isOwnInventory) {
+        await appendCountryFilterToParts(req, queryParts);
+      }
 
       const queryString = queryParts.join('&');
       const url = `${BASE_URL}/products/${queryString ? "?" + queryString : ""}`;
@@ -343,6 +362,15 @@ export function registerProductRoutes(app: Express) {
         ...(req.body.flash_sale_duration !== undefined && { flash_sale_duration: req.body.flash_sale_duration }),
         ...(req.body.flash_sale_available_full_price !== undefined && { flash_sale_available_full_price: req.body.flash_sale_available_full_price }),
         ...(req.body.flash_live_reserved !== undefined && { flash_live_reserved: req.body.flash_live_reserved }),
+        // Stamp the product with the seller's country so the buyer-facing
+        // country filter can surface it. Both fields carry the canonical ISO
+        // code (e.g. "DE") to match how the filter queries (?country=DE).
+        ...(() => {
+          const sellerCountry = getUserAllowedCountry(req);
+          return sellerCountry
+            ? { country: sellerCountry.isoCode, countryCode: sellerCountry.isoCode }
+            : {};
+        })(),
       };
 
       // Include authentication token from session
@@ -444,6 +472,13 @@ export function registerProductRoutes(app: Express) {
         });
       }
 
+      // Stamp every bulk-added product with the seller's country (canonical ISO
+      // code) so the buyer-facing country filter can surface them.
+      const sellerCountry = getUserAllowedCountry(req);
+      const countryFields = sellerCountry
+        ? { country: sellerCountry.isoCode, countryCode: sellerCountry.isoCode }
+        : {};
+
       // Prepare products for Tokshop API
       const tokshopProducts = validatedProducts.map((productData) => ({
         name: productData.name,
@@ -456,6 +491,7 @@ export function registerProductRoutes(app: Express) {
         status: productData.status || "active",
         featured: productData.featured || false,
         weight: productData.weight || "",
+        ...countryFields,
       }));
 
       // Include authentication token from session
@@ -607,7 +643,16 @@ export function registerProductRoutes(app: Express) {
         started: (productData.featured && productData.listingType === 'auction') || false,
         ...(req.body.offer !== undefined && { offer: req.body.offer }),
       };
-      
+
+      // Stamp/refresh the product's country from the seller's account so the
+      // buyer-facing country filter can surface it. Both fields carry the
+      // canonical ISO code (e.g. "DE") to match how the filter queries.
+      const sellerCountry = getUserAllowedCountry(req);
+      if (sellerCountry) {
+        tokshopUpdateData.country = sellerCountry.isoCode;
+        tokshopUpdateData.countryCode = sellerCountry.isoCode;
+      }
+
       // Add scheduling fields for featured auctions (already converted to timestamps on frontend)
       if (req.body.startTimeTimestamp) {
         tokshopUpdateData.start_time_date = req.body.startTimeTimestamp;
