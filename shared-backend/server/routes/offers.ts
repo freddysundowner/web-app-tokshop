@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import fetch from "node-fetch";
 import { BASE_URL, getAccessToken } from "../utils";
+import { getUserAllowedCountry } from "../country-filter";
 
 export function registerOfferRoutes(app: Express) {
   // Create offer (POST /api/offers)
@@ -18,10 +19,17 @@ export function registerOfferRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
+      // Stamp the offer with the buyer's country (canonical ISO code) for
+      // consistency with products/shows. Omitted if country is unresolved.
+      const offerCountry = getUserAllowedCountry(req);
+      const offerPayload = offerCountry
+        ? { ...req.body, country: offerCountry.isoCode, countryCode: offerCountry.isoCode }
+        : req.body;
+
       const response = await fetch(`${BASE_URL}/offers`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(offerPayload)
       });
       
       const data = await response.json() as any;
@@ -122,10 +130,17 @@ export function registerOfferRoutes(app: Express) {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
+      // Re-stamp the country (canonical ISO code) on counter (the offer
+      // "update") for consistency. Omitted if country is unresolved.
+      const counterCountry = getUserAllowedCountry(req);
+      const counterPayload = counterCountry
+        ? { ...req.body, country: counterCountry.isoCode, countryCode: counterCountry.isoCode }
+        : req.body;
+
       const response = await fetch(`${BASE_URL}/offers/counter`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(counterPayload)
       });
       
       const data = await response.json() as any;

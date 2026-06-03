@@ -261,10 +261,19 @@ export function registerShowRoutes(app: Express) {
       // Note: External API uses /rooms without /api prefix
       const url = `${BASE_URL}/rooms/${id}`;
       console.log('Calling external API:', url);
+
+      // Re-stamp the host's country (canonical ISO code) on update so edited
+      // shows keep matching the buyer-facing country filter. Omitted if
+      // country is unresolved. Mirrors POST /api/rooms.
+      const hostCountry = getUserAllowedCountry(req);
+      const roomPayload = hostCountry
+        ? { ...req.body, country: hostCountry.isoCode, countryCode: hostCountry.isoCode }
+        : req.body;
+
       const response = await fetch(url, {
         method: 'PUT',
         headers,
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(roomPayload)
       });
       
       if (!response.ok) {
