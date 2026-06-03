@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -14,6 +15,8 @@ import { initializeFirebase } from "@/lib/firebase";
 import { Link, useLocation } from "wouter";
 import type { SignupData } from "@shared/schema";
 import { signupSchema } from "@shared/schema";
+import { findCountryInCatalog } from "@shared/currency";
+import { useSettings } from "@/lib/settings-context";
 import { SearchableSelect, useCountryOptions } from "@/components/address-fields";
 import { fetchWithAuth } from '@/lib/queryClient';
 
@@ -54,6 +57,11 @@ export default function Signup() {
   const appleEnabled = providers?.apple === true;
   const googleEnabled = providers?.google === true;
   const [, setLocation] = useLocation();
+  const { settings, settingsFetched, policyLoaded } = useSettings();
+  // Effective allowed-country restriction from admin settings:
+  //  - null  → no restriction (country optional, all countries shown)
+  //  - array → restrict to these ISO codes (country required)
+  const allowedCodes = settings.allowed_countries ?? null;
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -107,20 +115,24 @@ export default function Signup() {
     fetchFirebaseKeys();
   }, []);
 
-  // Set default country to United States
-  useEffect(() => {
-    if (!selectedCountry) {
-      setSelectedCountry({ id: 233, name: "United States", iso2: "US" });
-    }
-  }, []);
-
-  // Extended schema with password confirmation
-  const extendedSignupSchema = signupSchema.extend({
-    confirmPassword: signupSchema.shape.password,
-  }).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
+  // Extended schema with password confirmation. Country is required only when a
+  // restriction is configured; with no restriction it stays optional so sign-ups
+  // aren't forced to pick a country.
+  const extendedSignupSchema = useMemo(
+    () =>
+      signupSchema
+        .extend({
+          confirmPassword: signupSchema.shape.password,
+          ...(allowedCodes === null
+            ? {}
+            : { country: z.string().min(1, "Country is required") }),
+        })
+        .refine((data) => data.password === data.confirmPassword, {
+          message: "Passwords don't match",
+          path: ["confirmPassword"],
+        }),
+    [allowedCodes],
+  );
 
   type ExtendedSignupData = SignupData & { confirmPassword: string };
 
@@ -132,11 +144,29 @@ export default function Signup() {
       lastName: "",
       userName: "",
       phone: "",
-      country: "United States",
+      country: "",
       password: "",
       confirmPassword: "",
     },
   });
+
+  // Pick a sensible default country once settings load: United States when it's
+  // allowed (or there's no restriction), otherwise the first allowed country.
+  // Keep the form value in sync so validation sees the selection.
+  useEffect(() => {
+    if ((!settingsFetched && !policyLoaded) || selectedCountry) return;
+    let next: { name: string; isoCode: string; iso2: string } | null = null;
+    if (allowedCodes === null || allowedCodes.includes("US")) {
+      next = { name: "United States", isoCode: "US", iso2: "US" };
+    } else if (allowedCodes.length > 0) {
+      const first = findCountryInCatalog(allowedCodes[0]);
+      if (first) next = { name: first.name, isoCode: first.isoCode, iso2: first.isoCode };
+    }
+    if (next) {
+      setSelectedCountry(next);
+      form.setValue("country", next.name);
+    }
+  }, [settingsFetched, policyLoaded, allowedCodes, selectedCountry]);
 
   const handleGoogleSignup = async () => {
     try {

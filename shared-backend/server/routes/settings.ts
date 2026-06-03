@@ -40,6 +40,7 @@ export function registerSettingsRoutes(app: Express) {
             apple_login: true,
             google_login: true,
             stripe_publishable_key: "",
+            allowed_countries: null,
           },
         });
       }
@@ -57,6 +58,15 @@ export function registerSettingsRoutes(app: Express) {
           apple_login: settings?.apple_login !== undefined ? !!settings.apple_login : true,
           google_login: settings?.google_login !== undefined ? !!settings.google_login : true,
           stripe_publishable_key: settings?.stripe_publishable_key || settings?.stripepublickey || "",
+          // Effective allowed-country restriction, served publicly so pre-login
+          // sign-up / social-auth flows can follow the admin-configured list.
+          // Resolved EXACTLY like the authenticated /api/settings path (honors the
+          // master switch) so the two endpoints never diverge.
+          // null = no restriction (show all countries).
+          allowed_countries: computeEffectiveAllowedCodes({
+            filterEnabled: Boolean(settings?.country_filter_enabled),
+            allowedCountries: settings?.allowed_countries,
+          }),
         },
       });
     } catch (error: any) {
@@ -70,6 +80,7 @@ export function registerSettingsRoutes(app: Express) {
           apple_login: true,
           google_login: true,
           stripe_publishable_key: "",
+          allowed_countries: null,
         },
       });
     }

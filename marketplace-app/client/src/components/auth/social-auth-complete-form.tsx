@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,16 +27,29 @@ export function SocialAuthCompleteForm({ userEmail, socialAuthData, onComplete, 
   const [submitError, setSubmitError] = useState<string>("");
   const { toast } = useToast();
   const { settings } = useSettings();
+  const allowedCodes = settings.allowed_countries ?? null;
   // When no restriction is configured this shows the full catalog; otherwise
   // only the admin-selected countries.
-  const countryOptions = getAllowedCountries(settings.allowed_countries ?? null);
+  const countryOptions = getAllowedCountries(allowedCodes);
+
+  // Country is required only when a restriction is active. With no restriction
+  // it stays optional, so social sign-ups aren't forced to pick a country.
+  const completeSchema = useMemo(
+    () =>
+      allowedCodes === null
+        ? socialAuthCompleteSchema
+        : socialAuthCompleteSchema.extend({
+            country: z.string().min(1, "Country is required"),
+          }),
+    [allowedCodes],
+  );
 
   // Extract first name and last name from Firebase display name
   const firstName = socialAuthData.displayName?.split(' ')[0] || '';
   const lastName = socialAuthData.displayName?.split(' ').slice(1).join(' ') || '';
 
   const form = useForm<SocialAuthCompleteData>({
-    resolver: zodResolver(socialAuthCompleteSchema),
+    resolver: zodResolver(completeSchema),
     defaultValues: {
       firstName,
       lastName,

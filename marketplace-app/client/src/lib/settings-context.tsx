@@ -56,6 +56,10 @@ interface SettingsContextType {
   appName: string;
   fetchSettings: () => Promise<void>;
   settingsFetched: boolean;
+  // True once the public country policy (allowed_countries) has loaded from the
+  // unauthenticated /api/settings/keys endpoint. Available before login so the
+  // sign-up / social-auth country pickers can follow the admin-configured list.
+  policyLoaded: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -89,6 +93,7 @@ const SettingsContext = createContext<SettingsContextType>({
   appName: 'TokshopLive',
   fetchSettings: async () => {},
   settingsFetched: false,
+  policyLoaded: false,
 });
 
 // Helper function to convert hex to HSL
@@ -221,6 +226,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [settingsFetched, setSettingsFetched] = useState(false);
+  const [policyLoaded, setPolicyLoaded] = useState(false);
 
   // Lazy fetch settings - only called when needed (e.g., login page)
   const fetchSettingsOnDemand = async () => {
@@ -295,7 +301,35 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  // Fetch theme settings separately
+  // Fetch the public country policy on mount (no auth) so pre-login flows know
+  // the admin-configured allowed countries.
+  useEffect(() => {
+    async function fetchPublicPolicy() {
+      try {
+        const response = await fetchWithAuth('/api/settings/keys');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Merge only the public country policy so the sign-up / social-auth
+            // pickers can follow the admin-configured allowed countries before
+            // the user is authenticated. `allowed_countries` is the effective
+            // restriction (null = no restriction / show all).
+            setSettings((prev) => ({
+              ...prev,
+              allowed_countries: data.data.allowed_countries ?? null,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch public country policy:', error);
+      } finally {
+        setPolicyLoaded(true);
+      }
+    }
+
+    fetchPublicPolicy();
+  }, []);
+
   useEffect(() => {
     async function fetchThemes() {
       try {
@@ -339,7 +373,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     appName,
     fetchSettings: fetchSettingsOnDemand,
     settingsFetched,
-  }), [settings, theme, isLoading, isFirebaseReady, appName, settingsFetched]);
+    policyLoaded,
+  }), [settings, theme, isLoading, isFirebaseReady, appName, settingsFetched, policyLoaded]);
 
   return (
     <SettingsContext.Provider value={value}>

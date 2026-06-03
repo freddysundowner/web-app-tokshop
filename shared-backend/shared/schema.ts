@@ -18,7 +18,10 @@ export const signupSchema = z.object({
     const phoneRegex = /^[\+]?[1-9][\d]{0,15}$|^[\+]?[(]?[0-9]{3}[)]?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4,6}$|^[\+]?[0-9]{8,15}$/;
     return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
   }, "Please enter a valid phone number"),
-  country: z.string().min(1, "Country is required"),
+  // Country is optional at the schema level. When an allowed-countries
+  // restriction is active, the route enforces a valid allowed country; when
+  // there is no restriction, sign-ups aren't forced to provide one.
+  country: z.string().optional(),
   countryCode: z.string().optional(),
 });
 
@@ -53,7 +56,9 @@ export const socialAuthCompleteSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   userName: z.string().min(3, "Username must be at least 3 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  country: z.string().min(1, "Country is required"),
+  // Optional at the schema level; required only when a restriction is active
+  // (enforced in the route and re-added in the client form when restricted).
+  country: z.string().optional(),
   phone: z.string().optional().refine((phone) => {
     if (!phone || phone === '') return true; // Optional field
     // Basic phone validation: at least 10 digits, can contain +, spaces, dashes, parentheses

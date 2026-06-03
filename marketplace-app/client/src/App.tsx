@@ -101,19 +101,19 @@ function Router() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location, setLocation] = useLocation();
   const [justCompletedSocialAuth, setJustCompletedSocialAuth] = useState(false);
-  const { settings, fetchSettings, settingsFetched } = useSettings();
+  const { settings, fetchSettings, settingsFetched, policyLoaded } = useSettings();
 
   // Set default page title from settings
   usePageTitle();
 
   // Make sure app settings (including the allowed-countries restriction) are
-  // loaded once the user is signed in, so the country gate decision below is
-  // accurate rather than relying on a stale/empty default.
+  // loaded on mount — not just when signed in. The sign-up and social-auth
+  // completion flows run unauthenticated and rely on these settings to build
+  // their country dropdowns and decide whether country is required, so the
+  // fetch must happen regardless of auth state.
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchSettings();
-    }
-  }, [isAuthenticated, fetchSettings]);
+    fetchSettings();
+  }, [fetchSettings]);
 
   // Fetch fresh user data for routing checks (same as header)
   const userId = (user as any)?._id || user?.id;
@@ -149,11 +149,15 @@ function Router() {
   // that never captured a country, and accounts whose stored country isn't allowed.
   // When no restriction is set, the gate is skipped entirely.
   //
-  // Gate only once settings have actually loaded (`settingsFetched`). Before the
-  // fetch resolves, `settings.allowed_countries` is undefined → allowedCodes null
-  // → which would look like "no restriction". Waiting avoids both a false skip
-  // and a wrong gate decision based on the default placeholder settings.
-  const mustResolveCountry = isAuthenticated && settingsFetched && !userHasCountry;
+  // Gate only once the country policy has actually loaded. The effective
+  // allowed_countries arrives either from the public policy fetch on mount
+  // (`policyLoaded`, available pre-auth) or the authenticated settings fetch
+  // (`settingsFetched`). Before either resolves, `settings.allowed_countries` is
+  // undefined → allowedCodes null → which would look like "no restriction".
+  // Waiting avoids both a false skip and a wrong gate decision based on the
+  // default placeholder settings.
+  const mustResolveCountry =
+    isAuthenticated && (settingsFetched || policyLoaded) && !userHasCountry;
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);

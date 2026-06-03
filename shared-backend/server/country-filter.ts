@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import fetch from "node-fetch";
-import { BASE_URL, getAccessToken, unwrapApiResponse } from "./utils";
+import { BASE_URL, unwrapApiResponse } from "./utils";
 import {
   computeEffectiveAllowedCodes,
   findAllowedCountry,
@@ -23,31 +23,37 @@ export function invalidateCountryFilterCache() {
 // Fetch the country policy from the external settings endpoint. Returns `null`
 // on any failure so the caller can fall back to last-known-good state instead
 // of silently treating an outage as "no restriction".
-// The country policy (country_filter_enabled + allowed_countries) is PUBLIC
-// configuration — the external /settings endpoint serves it without auth — so we
-// must NOT require a user token here. Gating this on a token would silently skip
-// the restriction for unauthenticated flows (e.g. sign-up), which is exactly
-// where the country allowlist must be enforced. A token is sent if available
-// purely for parity, never as a requirement.
-async function fetchSettings(
-  accessToken?: string | null,
-): Promise<{ enabled: boolean; allowedCodes: AllowedCodes } | null> {
+// The country policy (allowed_countries) is PUBLIC configuration — the external
+// /settings/keys endpoint serves it without auth — so we read it from there and
+// must NOT require a user token. Gating this on a token would silently skip the
+// restriction for unauthenticated flows (e.g. sign-up), which is exactly where
+// the country allowlist must be enforced. The full /settings endpoint is
+// auth-gated and would 401 for anonymous sign-up requests.
+// /settings/keys publishes both `country_filter_enabled` and `allowed_countries`,
+// so we resolve them EXACTLY like the authenticated /api/settings path
+// (computeEffectiveAllowedCodes) to guarantee the two never diverge.
+async function fetchSettings(): Promise<{
+  enabled: boolean;
+  allowedCodes: AllowedCodes;
+} | null> {
   try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-    const res = await fetch(`${BASE_URL}/settings`, { headers });
+    const res = await fetch(`${BASE_URL}/settings/keys`, {
+      headers: { "Content-Type": "application/json" },
+    });
     if (!res.ok) return null;
     const json: any = await res.json();
-    // The external /settings endpoint returns an array ([{...}]) or a wrapped
+    // The external endpoint returns an array ([{...}]) or a wrapped
     // { success, data } object — unwrap to the actual settings record.
     const data = unwrapApiResponse(json);
-    const enabled = Boolean(data?.country_filter_enabled);
+    const allowedCodes = computeEffectiveAllowedCodes({
+      filterEnabled: Boolean(data?.country_filter_enabled),
+      allowedCountries: data?.allowed_countries,
+    });
     return {
-      enabled,
-      allowedCodes: computeEffectiveAllowedCodes({
-        filterEnabled: enabled,
-        allowedCountries: data?.allowed_countries,
-      }),
+      // A restriction is in effect only when an effective list is resolved.
+      // (master switch off, or enabled+empty → null → show all.)
+      enabled: allowedCodes !== null,
+      allowedCodes,
     };
   } catch {
     return null;
@@ -61,7 +67,7 @@ async function getSettings(
   if (cached && now - cached.at < TTL_MS) {
     return { enabled: cached.enabled, allowedCodes: cached.allowedCodes };
   }
-  const fetched = await fetchSettings(getAccessToken(req));
+  const fetched = await fetchSettings();
   if (fetched) {
     cached = { ...fetched, at: now };
     return fetched;
