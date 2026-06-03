@@ -12,3 +12,6 @@ When the filter appears to "send empty country", the usual cause is **data, not 
 **How to apply:** before "fixing" the filter logic, verify whether the test account actually has a country stored. The fix for missing country is on the data side (capture & persist country during social-auth completion / profile edit), not in `country-filter.ts`. Do not blindly fall back to `address.countryCode` — top-level `country` is likely a full name while address uses ISO codes (e.g. "GB"), and the external API match format is unconfirmed; mixing formats would silently mis-filter.
 
 Secondary risk noted: `getCountryFilterEnabled` fails open (returns false) on a `/settings` fetch error, disabling filtering for the 60s TTL window. Make it fail-closed / keep last-known-good if country filtering is ever policy-critical.
+
+## External /settings returns an array
+The external `${BASE_URL}/settings` endpoint returns a JSON **array** (`[{...}]`), not an object — sometimes also a `{success, data}` wrapper. Always normalize with `unwrapApiResponse()` (utils.ts: takes `array[0]`, unwraps `{success,data}`) before reading any settings field such as `country_filter_enabled`. Reading the field directly off the raw response yields `undefined` and silently disables the feature.

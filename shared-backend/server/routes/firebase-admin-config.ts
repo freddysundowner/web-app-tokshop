@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { BASE_URL, getAdminToken } from "../utils";
+import { BASE_URL, getAdminToken, unwrapApiResponse } from "../utils";
 import { resetFirebaseAdmin, SERVICE_ACCOUNT_FILE } from "../firebase-admin";
 
 // Persist the service account locally so it survives server restarts AND is
@@ -96,7 +96,9 @@ export function registerFirebaseAdminConfigRoutes(app: Express) {
       try {
         const accessToken = getAdminToken(req);
         const data = await fetchSettings(accessToken);
-        const settings = data?.data || data;
+        // External /settings returns an array ([{...}]) or a { success, data }
+        // wrapper — normalize before reading fields.
+        const settings = unwrapApiResponse(data);
         raw =
           settings?.firebase_service_account_json ||
           (settings?.firebase_service_account &&

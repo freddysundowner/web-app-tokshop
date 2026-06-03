@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import fetch from "node-fetch";
-import { BASE_URL, getAccessToken } from "./utils";
+import { BASE_URL, getAccessToken, unwrapApiResponse } from "./utils";
 
 let cached: { enabled: boolean; at: number } | null = null;
 const TTL_MS = 60_000;
@@ -16,7 +16,9 @@ async function fetchEnabledFromSettings(accessToken: string): Promise<boolean> {
     });
     if (!res.ok) return false;
     const json: any = await res.json();
-    const data = json?.data || json;
+    // The external /settings endpoint returns an array ([{...}]) or a wrapped
+    // { success, data } object — unwrap to the actual settings record.
+    const data = unwrapApiResponse(json);
     return Boolean(data?.country_filter_enabled);
   } catch {
     return false;
