@@ -19,6 +19,7 @@ export const signupSchema = z.object({
     return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
   }, "Please enter a valid phone number"),
   country: z.string().min(1, "Country is required"),
+  countryCode: z.string().optional(),
 });
 
 export const socialAuthSchema = z.object({

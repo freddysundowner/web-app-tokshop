@@ -214,9 +214,10 @@ export default function Signup() {
     try {
       setIsLoading(true);
       setSignupError("");
-      // Use the country name from the selected country object
+      // Use the country name and ISO code from the selected country object
       const countryName = selectedCountry?.name || data.country || "";
-      await emailSignup(data.email, data.password, data.firstName, data.lastName, data.userName, data.phone || "", countryName);
+      const countryCode = selectedCountry?.isoCode || selectedCountry?.iso2 || "";
+      await emailSignup(data.email, data.password, data.firstName, data.lastName, data.userName, data.phone || "", countryName, countryCode);
       // Redirect to marketplace home after successful signup
       setLocation("/");
     } catch (error) {

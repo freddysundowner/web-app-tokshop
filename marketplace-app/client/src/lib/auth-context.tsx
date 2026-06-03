@@ -39,7 +39,7 @@ interface AuthContextType {
   showAgeVerification: boolean;
   login: (email: string, password: string) => Promise<void>;
   emailLogin: (email: string, password: string) => Promise<void>;
-  emailSignup: (email: string, password: string, firstname: string, lastname: string, username: string, phone: string, country: string) => Promise<void>;
+  emailSignup: (email: string, password: string, firstname: string, lastname: string, username: string, phone: string, country: string, countryCode?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithApple: () => Promise<void>;
   completeSocialAuth: (data: SocialAuthCompleteData) => Promise<void>;
@@ -300,12 +300,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const emailSignup = async (email: string, password: string, firstName: string, lastName: string, userName: string, phone: string, country: string) => {
+  const emailSignup = async (email: string, password: string, firstName: string, lastName: string, userName: string, phone: string, country: string, countryCode?: string) => {
     try {
       setIsLoading(true);
       
       // Validate input using schema
-      const validatedData = signupSchema.parse({ email, password, firstName, lastName, userName, phone, country });
+      const validatedData = signupSchema.parse({ email, password, firstName, lastName, userName, phone, country, countryCode });
       
       const referredBy = localStorage.getItem('referredBy') || undefined;
       const clientIp = referredBy ? await getClientIp() : '';
@@ -324,6 +324,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           profilePhoto: signupResponse.data.profilePhoto || '',
           userName: signupResponse.data.userName,
           country: signupResponse.data.country || country, // Use from signup form
+          countryCode: signupResponse.data.countryCode || countryCode || '',
           phone: signupResponse.data.phone || '',
           date_of_birth: signupResponse.data.date_of_birth || signupResponse.data.dateOfBirth,
           seller: signupResponse.data.seller || false,
