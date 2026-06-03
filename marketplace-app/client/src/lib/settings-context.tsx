@@ -24,6 +24,11 @@ interface AppSettings {
   agerestricted?: boolean;
   privacy_url?: string;
   terms_url?: string;
+  country_filter_enabled?: boolean;
+  // Effective allowed-country restriction:
+  //  - null/undefined → no restriction (show all countries, no country gate)
+  //  - array          → restrict to these ISO codes
+  allowed_countries?: string[] | null;
 }
 
 interface ThemeSettings {

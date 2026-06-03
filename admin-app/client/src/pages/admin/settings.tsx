@@ -15,6 +15,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 import { FirebaseServiceAccountCard } from "@/components/firebase-service-account-card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { COUNTRY_CATALOG, DEFAULT_ALLOWED_COUNTRY_CODES, resolveAllowedCountryCodes } from "@shared/currency";
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -62,6 +65,7 @@ export default function AdminSettings() {
     forceUpdate: false,
     seller_auto_approve: true,
     country_filter_enabled: false,
+    allowed_countries: [] as string[],
     appVersion: '',
     androidVersion: '',
     iosVersion: '',
@@ -122,6 +126,14 @@ export default function AdminSettings() {
       forceUpdate: settings?.forceUpdate || false,
       seller_auto_approve: settings?.seller_auto_approve !== undefined ? settings.seller_auto_approve : true,
       country_filter_enabled: settings?.country_filter_enabled !== undefined ? settings.country_filter_enabled : false,
+      // Normalize the stored value into editable ISO codes:
+      //  - absent  → prefill the default 4 (so saving keeps current behavior)
+      //  - empty   → empty list (means "show all countries")
+      //  - set     → those codes
+      allowed_countries:
+        settings?.allowed_countries === undefined || settings?.allowed_countries === null
+          ? [...DEFAULT_ALLOWED_COUNTRY_CODES]
+          : (resolveAllowedCountryCodes(settings.allowed_countries) ?? []),
       apple_login: settings?.apple_login !== undefined ? settings.apple_login : true,
       google_login: settings?.google_login !== undefined ? settings.google_login : true,
       appVersion: settings?.appVersion || '',
@@ -592,6 +604,68 @@ export default function AdminSettings() {
                       onCheckedChange={(checked) => handleInputChange('country_filter_enabled', checked)}
                       data-testid="switch-country-filter-enabled"
                     />
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-0.5">
+                      <Label>Allowed countries</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Choose which countries users can register from and see prices for. Leave all unchecked to allow every country (sign-up country becomes optional and shoppers see all listings). Used only when the filter above is on.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-muted-foreground" data-testid="text-allowed-countries-count">
+                        {formData.allowed_countries.length === 0
+                          ? 'All countries allowed'
+                          : `${formData.allowed_countries.length} selected`}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-primary hover:underline"
+                        onClick={() => handleInputChange('allowed_countries', [...DEFAULT_ALLOWED_COUNTRY_CODES])}
+                        data-testid="button-allowed-countries-default"
+                      >
+                        Reset to default
+                      </button>
+                      <span className="text-muted-foreground">·</span>
+                      <button
+                        type="button"
+                        className="text-primary hover:underline"
+                        onClick={() => handleInputChange('allowed_countries', [])}
+                        data-testid="button-allowed-countries-clear"
+                      >
+                        Clear (allow all)
+                      </button>
+                    </div>
+
+                    <ScrollArea className="h-56 rounded-md border p-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {COUNTRY_CATALOG.map((country) => {
+                          const checked = formData.allowed_countries.includes(country.isoCode);
+                          return (
+                            <label
+                              key={country.isoCode}
+                              className="flex items-center gap-2 text-sm cursor-pointer"
+                              data-testid={`label-allowed-country-${country.isoCode}`}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(value) => {
+                                  const next = value === true
+                                    ? [...formData.allowed_countries, country.isoCode]
+                                    : formData.allowed_countries.filter((c: string) => c !== country.isoCode);
+                                  handleInputChange('allowed_countries', next);
+                                }}
+                                data-testid={`checkbox-allowed-country-${country.isoCode}`}
+                              />
+                              <span>{country.name}</span>
+                              <span className="text-muted-foreground">({country.currency})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
                   </div>
                 </div>
 

@@ -6,11 +6,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { ALLOWED_COUNTRY_NAMES } from "@shared/currency";
+import { useSettings } from "@/lib/settings-context";
+import { getAllowedCountries } from "@shared/currency";
 
 export function CountryRequiredGate() {
   const { updateCountry, logout } = useAuth();
+  const { settings } = useSettings();
   const { toast } = useToast();
+  // When no restriction is configured this shows the full catalog; otherwise
+  // only the admin-selected countries.
+  const countryOptions = getAllowedCountries(settings.allowed_countries ?? null);
   const [country, setCountry] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
@@ -76,8 +81,8 @@ export function CountryRequiredGate() {
                 </div>
               </SelectTrigger>
               <SelectContent className="max-h-60">
-                {ALLOWED_COUNTRY_NAMES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                {countryOptions.map((c) => (
+                  <SelectItem key={c.isoCode} value={c.name}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -5,7 +5,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
-import { SettingsProvider } from "@/lib/settings-context";
+import { SettingsProvider, useSettings } from "@/lib/settings-context";
 import { SocketProvider } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -101,9 +101,19 @@ function Router() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location, setLocation] = useLocation();
   const [justCompletedSocialAuth, setJustCompletedSocialAuth] = useState(false);
-  
+  const { settings, fetchSettings, settingsFetched } = useSettings();
+
   // Set default page title from settings
   usePageTitle();
+
+  // Make sure app settings (including the allowed-countries restriction) are
+  // loaded once the user is signed in, so the country gate decision below is
+  // accurate rather than relying on a stale/empty default.
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSettings();
+    }
+  }, [isAuthenticated, fetchSettings]);
 
   // Fetch fresh user data for routing checks (same as header)
   const userId = (user as any)?._id || user?.id;
@@ -116,23 +126,34 @@ function Router() {
   // Use fresh user data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
 
+  // The allowed-country restriction comes from admin settings (effective codes):
+  //  - null/undefined → no restriction → never gate, prices fall back to default
+  //  - array          → restrict to those ISO codes
+  const allowedCodes = settings.allowed_countries ?? null;
   // The gate must use the SAME notion of "valid country" as the server-side
-  // country filter: a SUPPORTED country (one of the locked allowlist), not just
-  // any non-empty string. Otherwise an account with an unrecognized/unsupported
-  // country value (e.g. a Google signup carrying a stray value) passes the gate
-  // but the filter can't resolve it, so they silently see ALL countries' content.
-  // Mirror the server filter's resolution exactly: try the code, then the name,
-  // independently (NOT `code || name`, which would wrongly block a user with an
-  // invalid code but a valid country name — the case the server still resolves).
+  // country filter: a country on the active allowed list, not just any non-empty
+  // string. Otherwise an account with an unrecognized/unsupported country value
+  // (e.g. a Google signup carrying a stray value) passes the gate but the filter
+  // can't resolve it, so they silently see ALL countries' content. Mirror the
+  // server filter's resolution exactly: try the code, then the name, independently
+  // (NOT `code || name`, which would wrongly block a user with an invalid code but
+  // a valid country name — the case the server still resolves).
   const userHasCountry =
-    isAllowedCountry(currentUser?.countryCode) ||
-    isAllowedCountry(currentUser?.country);
-  // Every authenticated user must have a SUPPORTED country (the platform is locked
-  // to a few countries and prices are shown in each user's local currency). Any
-  // signed-in user without one must resolve it before the app renders — this
-  // covers social/Gmail signups that never captured a country, and accounts whose
-  // stored country isn't one of the supported ones.
-  const mustResolveCountry = isAuthenticated && !userHasCountry;
+    allowedCodes === null ||
+    isAllowedCountry(currentUser?.countryCode, allowedCodes) ||
+    isAllowedCountry(currentUser?.country, allowedCodes);
+  // When a restriction is configured, every authenticated user must have a
+  // country on the allowed list (prices are shown in each user's local currency
+  // and listings are filtered to their country). Any signed-in user without one
+  // must resolve it before the app renders — this covers social/Gmail signups
+  // that never captured a country, and accounts whose stored country isn't allowed.
+  // When no restriction is set, the gate is skipped entirely.
+  //
+  // Gate only once settings have actually loaded (`settingsFetched`). Before the
+  // fetch resolves, `settings.allowed_countries` is undefined → allowedCodes null
+  // → which would look like "no restriction". Waiting avoids both a false skip
+  // and a wrong gate decision based on the default placeholder settings.
+  const mustResolveCountry = isAuthenticated && settingsFetched && !userHasCountry;
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);

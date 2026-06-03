@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { BASE_URL, getAdminToken, unwrapApiResponse } from "../utils";
 import { invalidateCountryFilterCache } from "../country-filter";
+import { computeEffectiveAllowedCodes } from "../../shared/currency";
 
 // Fields that hold server-only credentials and must NEVER be returned to the browser.
 const SERVER_ONLY_FIELDS = ["firebase_service_account_json", "firebase_service_account"];
@@ -249,6 +250,13 @@ export function registerSettingsRoutes(app: Express) {
         referral_credit_limit: settings?.referral_credit_limit ?? 0,
         // Country filter toggle - when enabled, every user must have a country set
         country_filter_enabled: Boolean(settings?.country_filter_enabled),
+        // Effective allowed-country restriction for the marketplace client:
+        //  - null  → no restriction (show all countries, no country gate)
+        //  - array → restrict to these ISO codes (gate + dropdowns use them)
+        allowed_countries: computeEffectiveAllowedCodes({
+          filterEnabled: Boolean(settings?.country_filter_enabled),
+          allowedCountries: settings?.allowed_countries,
+        }),
       };
       
       res.json({

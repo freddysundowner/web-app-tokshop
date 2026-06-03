@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ALLOWED_COUNTRY_CODES } from '@shared/currency';
+import { useSettings } from '@/lib/settings-context';
 
 export type AddressOption = { value: string; label: string; meta?: any };
 
@@ -142,18 +142,18 @@ export function SearchableSelect({
 }
 
 let countryCache: AddressOption[] | null = null;
-function getCountryOptions(): AddressOption[] {
+function getCountryOptions(allowedCodes?: string[] | null): AddressOption[] {
   if (!countryCache) {
-    // Platform is locked to a fixed set of supported countries.
-    countryCache = Country.getAllCountries()
-      .filter((c) => ALLOWED_COUNTRY_CODES.includes(c.isoCode))
-      .map((c) => ({
-        value: c.isoCode,
-        label: `${c.flag ? c.flag + ' ' : ''}${c.name}`,
-        meta: { name: c.name, isoCode: c.isoCode, iso2: c.isoCode },
-      }));
+    countryCache = Country.getAllCountries().map((c) => ({
+      value: c.isoCode,
+      label: `${c.flag ? c.flag + ' ' : ''}${c.name}`,
+      meta: { name: c.name, isoCode: c.isoCode, iso2: c.isoCode },
+    }));
   }
-  return countryCache;
+  // null/undefined → no restriction (show all countries); otherwise restrict to
+  // the admin-selected allowed codes.
+  if (!allowedCodes) return countryCache;
+  return countryCache.filter((c) => allowedCodes.includes(c.value));
 }
 
 const stateCache = new Map<string, AddressOption[]>();
@@ -172,7 +172,9 @@ function getStateOptions(countryIso: string): AddressOption[] {
 const EMPTY_CITIES: AddressOption[] = [];
 
 export function useCountryOptions(): AddressOption[] {
-  return useMemo(() => getCountryOptions(), []);
+  const { settings } = useSettings();
+  const allowedCodes = settings.allowed_countries ?? null;
+  return useMemo(() => getCountryOptions(allowedCodes), [allowedCodes]);
 }
 
 export function useStateOptions(countryIso: string | undefined | null): AddressOption[] {

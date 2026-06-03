@@ -1,18 +1,26 @@
 ---
-name: Country-required gate (marketplace)
-description: How the mandatory country gate works and the cache pitfall when mutating gated user fields.
+name: Country-required gate + configurable allowed-countries policy
+description: How the country gate/filter works, the configurable allowed list, and why the policy must be fetched token-independently.
 ---
 
-When the external settings flag `country_filter_enabled` is true, every authenticated marketplace user must have a non-empty `country`. The marketplace router (`App.tsx`) renders a non-bypassable `CountryRequiredGate` before any route when `isAuthenticated && countryFilterEnabled && !userHasCountry`. This covers existing social-signup accounts (Apple/Google) that never captured a country, not just new signups.
+The country policy has two parts on the external settings record: `country_filter_enabled` (master switch) and `allowed_countries` (admin-editable list). Effective semantics (see `computeEffectiveAllowedCodes`/`resolveAllowedCountryCodes` in `@shared/currency`):
+- filter disabled → no restriction (show all countries, no gate).
+- enabled + list ABSENT → default to 4 codes (IE, GB, US, DE).
+- enabled + list EMPTY → no restriction (show all countries, no gate, country optional).
+- enabled + list NON-EMPTY → restrict to those ISO codes.
 
-**Why:** Social signup historically never captured a country, leaving `user.country = ""`, which silently broke the country filter forwarding.
+`null` effective codes everywhere means "no restriction". The marketplace client reads the effective list from `/api/settings` as `allowed_countries` (array | null).
 
-**The gate's "has country" test MUST use the SAME supported-country resolver as the server filter, not "any non-empty string".** The gate computes `userHasCountry = isAllowedCountry(countryCode) || isAllowedCountry(country)` (from `@shared/currency`), mirroring the server's `getUserAllowedCountry` = `findAllowedCountry(code) || findAllowedCountry(name)`. Check code and name *independently* — `isAllowedCountry(code || name)` short-circuits and wrongly blocks a user with an invalid code but a valid country name.
+**The gate's "has country" test MUST use the SAME allowlist resolver as the server filter, not "any non-empty string".** Gate computes `userHasCountry = allowedCodes===null || isAllowedCountry(countryCode, allowedCodes) || isAllowedCountry(country, allowedCodes)`, mirroring the server's `findAllowedCountry(code) || findAllowedCountry(name)`. Check code and name *independently* — `isAllowedCountry(code || name)` short-circuits and wrongly blocks a user with an invalid code but a valid country name.
 
-**Why:** An account (e.g. Google signup id 6a1414a7…) can have a non-empty but UNSUPPORTED/unrecognized country value. "Any non-empty" passes the gate, but the server filter can't resolve it → it omits the `country` param → the user silently sees ALL countries' content. Aligning both checks on the allowlist forces such users through the gate; once they pick a supported country, requests carry `country=XX` and filtering works (confirmed in logs).
+**Why:** An account can have a non-empty but UNSUPPORTED country value. "Any non-empty" passes the gate, but the server filter can't resolve it → it omits the `country` param → the user silently sees ALL countries' content.
 
-**How to apply:**
-- The flag reaches the client via `/api/settings` (`country_filter_enabled` boolean). The route is auth-gated (401 without token), so only authenticated requests see it.
-- The router decides gating from `currentUser = freshUserData || user`, where `freshUserData` is the cached `['/api/profile/${userId}']` query. **This cached profile wins over the auth `user` object.** Any mutation that changes a gated field (like country) MUST also update/invalidate that profile query cache, or the gate never dismisses even after a successful save. `auth-context.updateCountry` does `setQueriesData` + `invalidateQueries` on keys starting with `/api/profile/`.
-- Fail-closed on load: while `/api/settings` is still loading for a no-country user, the router holds a loader instead of rendering routes, so the user can't slip past before the flag resolves.
-- Country values are full names (e.g. "United Kingdom"), sourced from `lib/countries.ts` (shared by the gate and the social-auth-complete form).
+**The country policy is PUBLIC config — resolve it token-independently on the server.**
+**Why:** The external `/settings` GET serves the policy without auth. The server-side filter cache (`country-filter.ts`) previously required a user access token to fetch it and returned "no restriction" when absent. Unauthenticated flows (sign-up, social-auth verify/complete) then silently SKIPPED the country allowlist — a broken-access-control bypass. The fetch now never requires a token (sends one only if present) and falls back to last-known-good cache on transient failure rather than failing open.
+**How to apply:** Any code enforcing the allowlist (sign-up validation, listing filter) must go through `getEffectiveAllowedCodes(req)`; never gate the policy fetch on the requester's token.
+
+**How to apply (gate/UX):**
+- Gate decision waits for `settingsFetched` (from settings-context). Before settings load, `settings.allowed_countries` is undefined → looks like "no restriction"; gating on `settingsFetched` avoids a false skip/wrong decision. App.tsx also calls `fetchSettings()` on auth.
+- Router decides gating from `currentUser = freshUserData || user`, where `freshUserData` is the cached `['/api/profile/${userId}']` query. **That cached profile wins over the auth `user` object.** Any mutation of a gated field (country) MUST update/invalidate that profile cache or the gate never dismisses (`auth-context.updateCountry` does `setQueriesData` + `invalidateQueries` on `/api/profile/` keys).
+- Country dropdowns (gate, social-auth-complete form, address-fields) render `getAllowedCountries(allowedCodes)` — the full catalog when unrestricted, else only allowed countries. Stored country value is the full name (e.g. "United Kingdom"); the catalog lives in `@shared/currency` (`COUNTRY_CATALOG`).
+- Admin Settings picker prefills the default 4 when the stored list is absent (avoids accidentally saving `[]` = "all"); "Clear (allow all)" sets `[]` intentionally.

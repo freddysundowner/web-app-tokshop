@@ -11,7 +11,8 @@ import { User, AtSign, UserCircle, Phone, Globe, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { SocialAuthCompleteData } from "@shared/schema";
 import { socialAuthCompleteSchema } from "@shared/schema";
-import { ALLOWED_COUNTRY_NAMES } from "@shared/currency";
+import { getAllowedCountries } from "@shared/currency";
+import { useSettings } from "@/lib/settings-context";
 import type { User as FirebaseUser } from "firebase/auth";
 
 interface SocialAuthCompleteFormProps {
@@ -24,6 +25,10 @@ interface SocialAuthCompleteFormProps {
 export function SocialAuthCompleteForm({ userEmail, socialAuthData, onComplete, isLoading = false }: SocialAuthCompleteFormProps) {
   const [submitError, setSubmitError] = useState<string>("");
   const { toast } = useToast();
+  const { settings } = useSettings();
+  // When no restriction is configured this shows the full catalog; otherwise
+  // only the admin-selected countries.
+  const countryOptions = getAllowedCountries(settings.allowed_countries ?? null);
 
   // Extract first name and last name from Firebase display name
   const firstName = socialAuthData.displayName?.split(' ')[0] || '';
@@ -196,8 +201,8 @@ export function SocialAuthCompleteForm({ userEmail, socialAuthData, onComplete, 
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="max-h-60">
-                            {ALLOWED_COUNTRY_NAMES.map((country) => (
-                              <SelectItem key={country} value={country}>{country}</SelectItem>
+                            {countryOptions.map((c) => (
+                              <SelectItem key={c.isoCode} value={c.name}>{c.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

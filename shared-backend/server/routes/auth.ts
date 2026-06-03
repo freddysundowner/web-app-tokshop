@@ -12,6 +12,7 @@ import {
   TokshopApiErrorResponse,
 } from "../../shared/schema";
 import { isAllowedCountry } from "../../shared/currency";
+import { getEffectiveAllowedCodes } from "../country-filter";
 
 // Resilient fetch helper that handles non-JSON responses gracefully
 async function resilientFetch(url: string, options: any) {
@@ -85,8 +86,14 @@ export function registerAuthRoutes(app: Express) {
 
       const { email, country, countryCode, firstName, lastName, userName, phone, password } = validationResult.data;
 
-      // Platform is locked to a fixed set of supported countries.
-      if (!isAllowedCountry(countryCode) && !isAllowedCountry(country)) {
+      // Allowed countries are configured by the admin. When no restriction is
+      // set (allowedCodes === null), any country is accepted.
+      const allowedCodes = await getEffectiveAllowedCodes(req);
+      if (
+        allowedCodes !== null &&
+        !isAllowedCountry(countryCode, allowedCodes) &&
+        !isAllowedCountry(country, allowedCodes)
+      ) {
         return res.status(400).json({
           success: false,
           error: "Sign-ups are currently only available in supported countries.",
@@ -385,12 +392,18 @@ export function registerAuthRoutes(app: Express) {
         gender: socialAuthData.gender,
       };
 
-      // Defense-in-depth: if a country is supplied, it must be on the allowlist.
-      // (Returning sign-ins may omit country; the backend resolves the existing user.)
-      if (verifiedSocialAuthData.country && !isAllowedCountry(verifiedSocialAuthData.country)) {
+      // Defense-in-depth: if a country is supplied and a restriction is
+      // configured, it must be on the allowlist. (Returning sign-ins may omit
+      // country; the backend resolves the existing user.)
+      const socialAllowedCodes = await getEffectiveAllowedCodes(req);
+      if (
+        socialAllowedCodes !== null &&
+        verifiedSocialAuthData.country &&
+        !isAllowedCountry(verifiedSocialAuthData.country, socialAllowedCodes)
+      ) {
         return res.status(400).json({
           success: false,
-          error: "Signups are currently only available in Ireland, the United Kingdom, the United States, and Germany.",
+          error: "Sign-ups are currently only available in supported countries.",
         });
       }
 
@@ -501,10 +514,14 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      if (!isAllowedCountry(req.body.country)) {
+      const completeAllowedCodes = await getEffectiveAllowedCodes(req);
+      if (
+        completeAllowedCodes !== null &&
+        !isAllowedCountry(req.body.country, completeAllowedCodes)
+      ) {
         return res.status(400).json({
           success: false,
-          error: "Signups are currently only available in Ireland, the United Kingdom, the United States, and Germany.",
+          error: "Sign-ups are currently only available in supported countries.",
         });
       }
 
@@ -599,9 +616,13 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
+      const profileAllowedCodes = await getEffectiveAllowedCodes(req);
       if (
-        (req.body.country !== undefined && !isAllowedCountry(req.body.country)) ||
-        (req.body.countryCode !== undefined && !isAllowedCountry(req.body.countryCode))
+        profileAllowedCodes !== null &&
+        ((req.body.country !== undefined &&
+          !isAllowedCountry(req.body.country, profileAllowedCodes)) ||
+          (req.body.countryCode !== undefined &&
+            !isAllowedCountry(req.body.countryCode, profileAllowedCodes)))
       ) {
         return res.status(400).json({
           success: false,
