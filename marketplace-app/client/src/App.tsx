@@ -10,6 +10,7 @@ import { SocketProvider } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { ReferralBanner } from "@/components/referral-banner";
+import { isAllowedCountry } from "@shared/currency";
 
 // Import age verification (not lazy loaded since it needs to run immediately)
 import { AgeVerificationDialog } from "@/components/age-verification-dialog";
@@ -115,14 +116,22 @@ function Router() {
   // Use fresh user data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
 
-  const userHasCountry = !!(
-    (currentUser?.country && String(currentUser.country).trim()) ||
-    (currentUser?.countryCode && String(currentUser.countryCode).trim())
-  );
-  // Every authenticated user must have a country (the platform is locked to a few
-  // supported countries and prices are shown in each user's local currency). Any
+  // The gate must use the SAME notion of "valid country" as the server-side
+  // country filter: a SUPPORTED country (one of the locked allowlist), not just
+  // any non-empty string. Otherwise an account with an unrecognized/unsupported
+  // country value (e.g. a Google signup carrying a stray value) passes the gate
+  // but the filter can't resolve it, so they silently see ALL countries' content.
+  // Mirror the server filter's resolution exactly: try the code, then the name,
+  // independently (NOT `code || name`, which would wrongly block a user with an
+  // invalid code but a valid country name — the case the server still resolves).
+  const userHasCountry =
+    isAllowedCountry(currentUser?.countryCode) ||
+    isAllowedCountry(currentUser?.country);
+  // Every authenticated user must have a SUPPORTED country (the platform is locked
+  // to a few countries and prices are shown in each user's local currency). Any
   // signed-in user without one must resolve it before the app renders — this
-  // covers social/Gmail signups that never captured a country.
+  // covers social/Gmail signups that never captured a country, and accounts whose
+  // stored country isn't one of the supported ones.
   const mustResolveCountry = isAuthenticated && !userHasCountry;
 
   const toggleSidebar = () => {
