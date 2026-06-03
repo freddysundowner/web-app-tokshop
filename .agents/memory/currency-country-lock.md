@@ -60,7 +60,7 @@ currency errors.
 ## Rule: products must be stamped with the seller's ISO code; inventory is exempt from filtering
 The external API filters discovery via `?country=<ISO>` (e.g. `country=DE`), so a product is only
 surfaced when its stored country matches that ISO code — NOT the country name. Therefore product
-save paths (`products.ts`: create `POST /api/products/:userId`, edit `PATCH /api/products/:productId`,
+save paths (and show/room creation `POST /api/rooms` in `shows.ts`) (`products.ts`: create `POST /api/products/:userId`, edit `PATCH /api/products/:productId`,
 `POST /api/products/bulkadd/:userId`) stamp both `country` and `countryCode` with the seller's
 canonical ISO code via `getUserAllowedCountry(req)` (in `country-filter.ts`; resolves session
 user's countryCode first, then country name, through `findAllowedCountry`).

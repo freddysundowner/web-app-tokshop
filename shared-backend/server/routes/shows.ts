@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { BASE_URL, getAccessToken } from "../utils";
-import { appendCountryFilterToParts } from "../country-filter";
+import { appendCountryFilterToParts, getUserAllowedCountry } from "../country-filter";
 import { deleteImagesFromStorage } from "../firebase-admin";
 
 export function registerShowRoutes(app: Express) {
@@ -388,10 +388,18 @@ export function registerShowRoutes(app: Express) {
       const url = `${BASE_URL}/rooms`;
       console.log('Calling external API:', url);
 
+      // Stamp the show with the host's country (canonical ISO code) so the
+      // buyer-facing country filter on GET /api/rooms can surface it. Mirrors
+      // how products are stamped on save. Omitted if country is unresolved.
+      const hostCountry = getUserAllowedCountry(req);
+      const roomPayload = hostCountry
+        ? { ...req.body, country: hostCountry.isoCode, countryCode: hostCountry.isoCode }
+        : req.body;
+
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(roomPayload)
       });
 
       if (!response.ok) {
