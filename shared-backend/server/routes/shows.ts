@@ -437,7 +437,14 @@ export function registerShowRoutes(app: Express) {
       if (req.query.page !== undefined) params.push(`page=${req.query.page}`);
       if (req.query.limit !== undefined) params.push(`limit=${req.query.limit}`);
       if (req.query.category !== undefined) params.push(`category=${req.query.category}`);
-      if (req.query.userid !== undefined) params.push(`userid=${req.query.userid}`);
+      // Normalize the owner id from either alias (userid / userId) ONCE, so the
+      // value forwarded upstream and the value used in the own-shows authz
+      // decision below are always identical (prevents a filter-bypass via the
+      // non-forwarded alias).
+      const requestedUserId = (req.query.userid ?? req.query.userId) as
+        | string
+        | undefined;
+      if (requestedUserId !== undefined) params.push(`userid=${requestedUserId}`);
       if (req.query.currentUserId !== undefined) params.push(`currentUserId=${req.query.currentUserId}`);
       if (req.query.title !== undefined) params.push(`title=${req.query.title}`);
       if (req.query.status !== undefined) params.push(`status=${req.query.status}`);
@@ -446,7 +453,22 @@ export function registerShowRoutes(app: Express) {
       if (req.query.ownerUsername !== undefined) params.push(`ownerUsername=${req.query.ownerUsername}`);
       if (req.query.sort !== undefined) params.push(`sort=${req.query.sort}`);
 
-      await appendCountryFilterToParts(req, params);
+      // A seller's own shows dashboard must show ALL their shows regardless of
+      // the active country filter. The country filter is buyer-facing discovery
+      // only. SECURITY: `userid` is client-controlled, so we only skip the
+      // filter when the request targets the current session user's own shows
+      // (their dashboard). `requestedUserId` is the SAME value forwarded as the
+      // upstream `userid` scope above, so the bypass can't be used without also
+      // constraining the query to the caller's own shows.
+      const sessionUser = (req.session as any)?.user;
+      const sessionUserId = sessionUser?.id || sessionUser?._id;
+      const isOwnShows =
+        !!sessionUserId &&
+        !!requestedUserId &&
+        String(requestedUserId) === String(sessionUserId);
+      if (!isOwnShows) {
+        await appendCountryFilterToParts(req, params);
+      }
 
       const queryString = params.join('&');
       const url = `${BASE_URL}/rooms?${queryString}`;
