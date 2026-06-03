@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Plus, Minus, Loader2 } from 'lucide-react';
+import { useCurrency } from '@/lib/use-currency';
 
 interface CustomBidDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export function CustomBidDialog({
   isPending = false,
   timeLeft = 0
 }: CustomBidDialogProps) {
+  const { format, symbol } = useCurrency();
   const [bidAmount, setBidAmount] = useState(minimumBid);
   const [inputValue, setInputValue] = useState(String(minimumBid));
   const [isMaxBid, setIsMaxBid] = useState(false);
@@ -81,7 +83,7 @@ export function CustomBidDialog({
         <div className="space-y-6 pt-4">
           {/* Timer and Current Bid */}
           <div className="flex items-center justify-between">
-            <div className="text-2xl font-bold">${currentBid.toFixed(0)}</div>
+            <div className="text-2xl font-bold">{format(currentBid)}</div>
             {timeLeft > 0 && (
               <div className="text-red-500 font-bold text-lg">
                 {formatTime(timeLeft)}
@@ -102,7 +104,7 @@ export function CustomBidDialog({
             </Button>
 
             <div className="flex-1 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">{symbol}</span>
               <Input
                 type="number"
                 value={inputValue}
@@ -141,7 +143,7 @@ export function CustomBidDialog({
           </div>
           
           <p className="text-xs text-muted-foreground text-center">
-            Minimum bid: ${minimumBid.toFixed(0)}
+            Minimum bid: {format(minimumBid)}
           </p>
 
           {/* Max Bid Toggle */}
@@ -181,7 +183,7 @@ export function CustomBidDialog({
               {isPending ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                `Place Bid: $${bidAmount.toFixed(0)}`
+                `Place Bid: ${format(bidAmount)}`
               )}
             </Button>
           </div>

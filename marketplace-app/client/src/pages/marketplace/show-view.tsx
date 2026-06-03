@@ -27,6 +27,7 @@ import {
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { useCurrency } from '@/lib/use-currency';
 import { useSocket } from '@/lib/socket-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest , fetchWithAuth} from '@/lib/queryClient';
@@ -81,6 +82,7 @@ export default function ShowViewNew() {
   usePageTitle('Live Show');
   const { settings, isFirebaseReady, fetchSettings } = useSettings();
   const { user, isAuthenticated, refreshUserData } = useAuth();
+  const { format: formatPrice, symbol } = useCurrency();
   
   // Initialize Firebase for chat messages
   useEffect(() => {
@@ -2840,12 +2842,12 @@ export default function ShowViewNew() {
               <div>
                 <p className="text-sm text-zinc-400 mb-2">Product: {selectedProduct?.name}</p>
                 <p className="text-sm text-zinc-400 mb-4">
-                  Original Price: ${(selectedProduct?.price || selectedProduct?.buy_now_price || 0).toFixed(2)}
+                  Original Price: {formatPrice(selectedProduct?.price || selectedProduct?.buy_now_price || 0)}
                 </p>
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Flash Sale Price ($)</label>
+                <label className="text-sm font-medium text-zinc-300">Flash Sale Price ({symbol})</label>
                 <Input
                   type="number"
                   step="0.01"
@@ -2939,7 +2941,7 @@ export default function ShowViewNew() {
               <div className="space-y-4">
                 <div className="bg-zinc-800 p-3 rounded-lg">
                   <p className="text-xs text-zinc-400 mb-1">Original Offer</p>
-                  <p className="font-semibold text-white">${(counterOfferData.offeredPrice || counterOfferData.offerAmount || 0).toFixed(2)}</p>
+                  <p className="font-semibold text-white">{formatPrice(counterOfferData.offeredPrice || counterOfferData.offerAmount || 0)}</p>
                   <p className="text-xs text-zinc-400 mt-1">
                     from @{counterOfferData.buyer?.userName || counterOfferData.buyer?.firstName || 'User'}
                   </p>
@@ -2947,7 +2949,7 @@ export default function ShowViewNew() {
                 <div className="space-y-2">
                   <label className="text-sm text-zinc-300">Your Counter Amount</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">{symbol}</span>
                     <Input
                       type="number"
                       min="0"
@@ -3002,7 +3004,7 @@ export default function ShowViewNew() {
               </AlertDialogTitle>
               <AlertDialogDescription className="text-zinc-400">
                 {offerConfirmAction?.action === 'accept' 
-                  ? `Accept this offer of $${(offerConfirmAction?.offer?.offeredPrice || offerConfirmAction?.offer?.offerAmount || 0).toFixed(2)}? An order will be created automatically.`
+                  ? `Accept this offer of ${formatPrice(offerConfirmAction?.offer?.offeredPrice || offerConfirmAction?.offer?.offerAmount || 0)}? An order will be created automatically.`
                   : "Are you sure you want to decline this offer?"
                 }
               </AlertDialogDescription>

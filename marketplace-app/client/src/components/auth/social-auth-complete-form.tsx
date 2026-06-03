@@ -11,7 +11,7 @@ import { User, AtSign, UserCircle, Phone, Globe, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { SocialAuthCompleteData } from "@shared/schema";
 import { socialAuthCompleteSchema } from "@shared/schema";
-import { COUNTRIES } from "@/lib/countries";
+import { ALLOWED_COUNTRY_NAMES } from "@shared/currency";
 import type { User as FirebaseUser } from "firebase/auth";
 
 interface SocialAuthCompleteFormProps {
@@ -196,7 +196,7 @@ export function SocialAuthCompleteForm({ userEmail, socialAuthData, onComplete, 
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="max-h-60">
-                            {COUNTRIES.map((country) => (
+                            {ALLOWED_COUNTRY_NAMES.map((country) => (
                               <SelectItem key={country} value={country}>{country}</SelectItem>
                             ))}
                           </SelectContent>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { useCurrency } from "@/lib/use-currency";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +156,7 @@ function ReviewCard({ review }: { review: any }) {
 export default function ProfileView() {
   usePageTitle('Profile');
   const { user: currentUser } = useAuth();
+  const { format } = useCurrency();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, params] = useRoute("/profile/:userId");
@@ -919,7 +921,7 @@ export default function ProfileView() {
                         {product.productName || product.name || 'Untitled Product'}
                       </h3>
                       <p className="text-sm text-muted-foreground" data-testid={`product-price-${product._id}`}>
-                        ${(product.price || 0).toFixed(2)}
+                        {format(product.price || 0)}
                       </p>
                       {product.quantity !== undefined && (
                         <p className="text-xs text-muted-foreground">

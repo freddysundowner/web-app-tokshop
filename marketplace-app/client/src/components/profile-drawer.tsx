@@ -4,6 +4,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth-context';
+import { useCurrency } from '@/lib/use-currency';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Radio,
@@ -52,6 +53,7 @@ interface MenuItem {
 
 export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
   const { user, logout } = useAuth();
+  const { format } = useCurrency();
   const [, setLocation] = useLocation();
   const [shouldShow, setShouldShow] = useState(true);
   const [showWalletView, setShowWalletView] = useState(false);
@@ -244,7 +246,7 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
                 <span className="font-semibold text-base">Wallet Credit</span>
               </div>
               <span className="ml-auto text-sm font-semibold text-primary">
-                ${Number(currentUser?.wallet || 0).toFixed(2)}
+                {format(Number(currentUser?.wallet || 0))}
               </span>
             </div>
 
@@ -276,7 +278,7 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
                         )}
                       </div>
                       <span className="ml-3 text-sm font-semibold text-primary shrink-0">
-                        -${Number(amount).toFixed(2)}
+                        -{format(Number(amount))}
                       </span>
                     </div>
                   );
@@ -329,7 +331,7 @@ export function ProfileDrawer({ open, onOpenChange }: ProfileDrawerProps) {
               <div className="flex items-center gap-2">
                 <Wallet className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-sm text-primary font-medium">
-                  Wallet Credit: ${Number(currentUser.wallet).toFixed(2)}
+                  Wallet Credit: {format(Number(currentUser.wallet))}
                 </span>
               </div>
               <ChevronRight className="h-4 w-4 text-primary" />

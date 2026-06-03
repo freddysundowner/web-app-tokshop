@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Package2 } from "lucide-react";
 import type { TokshopOrder } from "@shared/schema";
+import { useCurrency } from "@/lib/use-currency";
 
 interface SelectiveUnbundleDialogProps {
   open: boolean;
@@ -56,6 +57,7 @@ export function SelectiveUnbundleDialog({
   isPending,
 }: SelectiveUnbundleDialogProps) {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const { format } = useCurrency();
 
   // Flatten all items from all orders into a single array
   const allItems: ItemRow[] = bundleOrders.flatMap((order) => {
@@ -243,8 +245,8 @@ export function SelectiveUnbundleDialog({
                       <td className="py-1 px-1.5 text-muted-foreground truncate max-w-[100px]">{item.description}</td>
                       <td className="py-1 px-1.5 text-center">{item.quantity}</td>
                       <td className="py-1 px-1.5">{item.weight}</td>
-                      <td className="py-1 px-1.5">${item.price.toFixed(2)}</td>
-                      <td className="py-1 px-1.5">${item.shipping.toFixed(2)}</td>
+                      <td className="py-1 px-1.5">{format(item.price)}</td>
+                      <td className="py-1 px-1.5">{format(item.shipping)}</td>
                       <td className="py-1 px-1.5 truncate max-w-[70px]">{item.orderType}</td>
                       <td className="py-1 px-1.5 text-[10px] text-muted-foreground">{item.date}</td>
                       <td className="py-1 px-1.5">

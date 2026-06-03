@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/lib/use-currency";
 import { ShareDialog } from "@/components/share-dialog";
 import {
   Link2,
@@ -19,6 +20,7 @@ export default function ReferralPage() {
   const { user } = useAuth();
   const { theme } = useSettings();
   const { toast } = useToast();
+  const { symbol } = useCurrency();
   const [copied, setCopied] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [referralCredit, setReferralCredit] = useState(0);
@@ -103,7 +105,7 @@ export default function ReferralPage() {
     {
       number: 2,
       title: "When they make a purchase",
-      description: `A $${referralCredit} credit will be automatically applied on their first purchase of $${referralCreditLimit}+`,
+      description: `A ${symbol}${referralCredit} credit will be automatically applied on their first purchase of ${symbol}${referralCreditLimit}+`,
     },
   ];
 
@@ -159,7 +161,7 @@ export default function ReferralPage() {
         open={shareOpen}
         onOpenChange={setShareOpen}
         url={referralLink}
-        title={`Join me on ${appName}! Sign up with my link and get $${referralCredit} off your first purchase.`}
+        title={`Join me on ${appName}! Sign up with my link and get ${symbol}${referralCredit} off your first purchase.`}
         description="Referral Link"
       />
 

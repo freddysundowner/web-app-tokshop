@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { fetchWithAuth } from '@/lib/queryClient';
+import { useCurrency } from "@/lib/use-currency";
 
 interface ShipmentDetailsDrawerProps {
   open: boolean;
@@ -16,6 +17,7 @@ interface ShipmentDetailsDrawerProps {
 }
 
 export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDetailsDrawerProps) {
+  const { format: formatPrice } = useCurrency();
   // Fetch full order details when drawer opens
   const { data: fullOrderData, isLoading: orderLoading } = useQuery({
     queryKey: ['/api/orders', order?._id],
@@ -229,7 +231,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
                     <p className="font-medium truncate">{orderData.giveaway.name}{(orderData as any).order_reference ? ` ${(orderData as any).order_reference}` : ''}</p>
                     <p className="text-muted-foreground">Giveaway · Qty: {orderData.giveaway.quantity || 1}</p>
                   </div>
-                  <p className="font-medium">$0.00</p>
+                  <p className="font-medium">{formatPrice(0)}</p>
                 </div>
               )}
               {orderData?.items && orderData.items.length > 0 && orderData.items.map((item: any, idx) => (
@@ -252,7 +254,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
                     </p>
                     <p className="text-muted-foreground">Qty: {item.quantity || 1}</p>
                   </div>
-                  <p className="font-medium">${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</p>
+                  <p className="font-medium">{formatPrice((item.price || 0) * (item.quantity || 1))}</p>
                 </div>
               ))}
               {!orderData?.giveaway?._id && (!orderData?.items || orderData.items.length === 0) && (
@@ -273,7 +275,7 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
             </div>
             <div className="flex justify-between py-2 border-b">
               <span className="text-muted-foreground">Seller paid shipping</span>
-              <span className="font-medium">${(sellerCost || 0).toFixed(2)}</span>
+              <span className="font-medium">{formatPrice(sellerCost || 0)}</span>
             </div>
             <div className="flex justify-between py-2 border-b">
               <span className="text-muted-foreground">Service level</span>
@@ -293,12 +295,12 @@ export function ShipmentDetailsDrawer({ open, onOpenChange, order }: ShipmentDet
             </div>
             <div className="flex justify-between py-2 border-b">
               <span className="text-muted-foreground">Buyer Paid</span>
-              <span className="font-medium">${shippingCost.toFixed(2)}</span>
+              <span className="font-medium">{formatPrice(shippingCost)}</span>
             </div>
             {(orderData as any)?.wallet_used > 0 && (
               <div className="flex justify-between py-2">
                 <span className="text-muted-foreground">Wallet Credit Used</span>
-                <span className="font-medium" style={{ color: 'hsl(var(--primary))' }}>-${Number((orderData as any).wallet_used).toFixed(2)}</span>
+                <span className="font-medium" style={{ color: 'hsl(var(--primary))' }}>-{formatPrice(Number((orderData as any).wallet_used))}</span>
               </div>
             )}
           </div>

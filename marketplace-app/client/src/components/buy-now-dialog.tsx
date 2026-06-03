@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
+import { useCurrency } from "@/lib/use-currency";
 import { useLocation } from "wouter";
 
 interface BuyNowDialogProps {
@@ -48,6 +49,7 @@ export function BuyNowDialog({
 }: BuyNowDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { format } = useCurrency();
   const [, setLocation] = useLocation();
   const [quantity, setQuantity] = useState(1);
   const [isQuantityExpanded, setIsQuantityExpanded] = useState(false);
@@ -502,8 +504,8 @@ export function BuyNowDialog({
               <h3 className="font-bold text-base leading-tight mb-1">{product?.name}</h3>
               {referralDiscountApplies && (
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-sm text-zinc-400 line-through">${originalPrice.toFixed(2)}</span>
-                  <span className="text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>${(originalPrice - referralDiscount).toFixed(2)}</span>
+                  <span className="text-sm text-zinc-400 line-through">{format(originalPrice)}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>{format(originalPrice - referralDiscount)}</span>
                 </div>
               )}
               {availableStock > 0 && (
@@ -633,13 +635,13 @@ export function BuyNowDialog({
             {offerPrice && (
               <div className="flex items-center gap-2 mb-2">
                 <Badge className="bg-green-600 text-white text-xs">Offer Price</Badge>
-                <span className="text-xs text-zinc-400 line-through">${(product?.price || 0).toFixed(2)}</span>
-                <span className="text-xs text-green-400 font-medium">${offerPrice.toFixed(2)}</span>
+                <span className="text-xs text-zinc-400 line-through">{format(product?.price || 0)}</span>
+                <span className="text-xs text-green-400 font-medium">{format(offerPrice)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">{offerPrice ? 'Your Offer' : 'Subtotal'}</span>
-              <span className="font-medium">${subtotal.toFixed(2)}</span>
+              <span className="font-medium">{format(subtotal)}</span>
             </div>
             {/* Only show shipping if user has a valid address */}
             {hasValidAddress && (
@@ -650,7 +652,7 @@ export function BuyNowDialog({
                 ) : hasShippingError ? (
                   <span className="text-destructive text-xs font-semibold">Error</span>
                 ) : (
-                  <span className="font-medium">${shippingCost.toFixed(2)}</span>
+                  <span className="font-medium">{format(shippingCost)}</span>
                 )}
               </div>
             )}
@@ -661,7 +663,7 @@ export function BuyNowDialog({
                 {isLoadingTax ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <span className="font-medium">${taxAmount.toFixed(2)}</span>
+                  <span className="font-medium">{format(taxAmount)}</span>
                 )}
               </div>
             )}
@@ -670,7 +672,7 @@ export function BuyNowDialog({
                 <span className="text-primary flex items-center gap-1">
                   <Gift className="h-3 w-3" /> Referral Credit
                 </span>
-                <span className="font-medium text-primary">-${referralDiscount.toFixed(2)}</span>
+                <span className="font-medium text-primary">-{format(referralDiscount)}</span>
               </div>
             )}
             {walletCredit > 0 && (
@@ -678,13 +680,13 @@ export function BuyNowDialog({
                 <span className="text-primary flex items-center gap-1">
                   <Wallet className="h-3 w-3" /> Wallet Credit
                 </span>
-                <span className="font-medium text-primary">-${walletCredit.toFixed(2)}</span>
+                <span className="font-medium text-primary">-{format(walletCredit)}</span>
               </div>
             )}
             <Separator className="bg-zinc-700 my-2" />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{format(total)}</span>
             </div>
           </div>
 
@@ -717,9 +719,9 @@ export function BuyNowDialog({
                   Calculating shipping...
                 </>
               ) : offerPrice ? (
-                `Submit Offer - $${total.toFixed(2)}`
+                `Submit Offer - ${format(total)}`
               ) : (
-                `Buy Now - $${total.toFixed(2)}`
+                `Buy Now - ${format(total)}`
               )}
             </Button>
           )}

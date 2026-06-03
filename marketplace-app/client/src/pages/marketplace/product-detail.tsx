@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Star, MessageCircle, Shield, Flag, ChevronLeft, ChevronRight, ShoppingBag, ChevronDown, CreditCard, MapPin, Loader2, Wallet } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
+import { useCurrency } from "@/lib/use-currency";
 import { useToast } from "@/hooks/use-toast";
 import { getOrCreateChat } from "@/lib/firebase-chat";
 
@@ -26,6 +27,7 @@ export default function ProductDetail() {
   const [, setLocation] = useLocation();
   const { user: currentUser, refreshUserData } = useAuth();
   const { settings } = useSettings();
+  const { format } = useCurrency();
   const { toast } = useToast();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [messagingLoading, setMessagingLoading] = useState(false);
@@ -541,10 +543,10 @@ export default function ProductDetail() {
               )}
             </div>
             <p className="text-3xl font-bold" data-testid="text-product-price">
-              US${(product.price || 0).toFixed(2)}
+              {format(product.price || 0)}
               {shippingCost !== null && (
                 <span className="text-sm text-muted-foreground font-normal">
-                  {' '}+ US${(typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost).toFixed(2)} shipping + taxes
+                  {' '}+ {format(typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost)} shipping + taxes
                 </span>
               )}
             </p>
@@ -750,15 +752,15 @@ export default function ProductDetail() {
               {offerPrice !== null ? (
                 <>
                   <span className="text-muted-foreground line-through text-sm">
-                    US${(product.price || 0).toFixed(2)}
+                    {format(product.price || 0)}
                   </span>
                   <span className="font-semibold" style={{ color: 'hsl(var(--primary))' }}>
-                    US${offerPrice.toFixed(2)}
+                    {format(offerPrice)}
                   </span>
                 </>
               ) : (
                 <span className="font-semibold">
-                  US${(product.price || 0).toFixed(2)}
+                  {format(product.price || 0)}
                 </span>
               )}
             </div>
@@ -831,7 +833,7 @@ export default function ProductDetail() {
           <div className="space-y-3 pt-4">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span className="font-medium">US${inlineSubtotal.toFixed(2)}</span>
+              <span className="font-medium">{format(inlineSubtotal)}</span>
             </div>
             {/* Only show shipping if user has a valid address */}
             {hasValidAddress && (
@@ -843,7 +845,7 @@ export default function ProductDetail() {
                   <span className="text-destructive text-xs">{shippingEstimate.message || 'Error'}</span>
                 ) : shippingCost !== null ? (
                   <span className="font-medium">
-                    US${(typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost).toFixed(2)}
+                    {format(typeof shippingCost === 'string' ? parseFloat(shippingCost) : shippingCost)}
                   </span>
                 ) : (
                   <span className="text-zinc-400 text-xs">Unavailable</span>
@@ -853,20 +855,20 @@ export default function ProductDetail() {
             {referralDiscountApplies && (
               <div className="flex justify-between text-sm" style={{ color: 'hsl(var(--primary))' }}>
                 <span>Referral Credit</span>
-                <span className="font-medium">-US${referralDiscount.toFixed(2)}</span>
+                <span className="font-medium">-{format(referralDiscount)}</span>
               </div>
             )}
             {walletCredit > 0 && (
               <div className="flex justify-between text-sm" style={{ color: 'hsl(var(--primary))' }}>
                 <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Wallet Credit</span>
-                <span className="font-medium">-US${walletCredit.toFixed(2)}</span>
+                <span className="font-medium">-{format(walletCredit)}</span>
               </div>
             )}
             <Separator />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
               <span data-testid="text-total-price">
-                US${Math.max(0, preWalletTotal - walletCredit).toFixed(2)}
+                {format(Math.max(0, preWalletTotal - walletCredit))}
               </span>
             </div>
           </div>
@@ -930,7 +932,7 @@ export default function ProductDetail() {
                     {p.name || 'No Title'}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    US${(p.price || 0).toFixed(2)}
+                    {format(p.price || 0)}
                   </p>
                 </div>
               </Link>

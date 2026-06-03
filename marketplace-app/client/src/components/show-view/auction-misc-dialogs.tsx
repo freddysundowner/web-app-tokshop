@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, AlertTriangle, Package } from 'lucide-react';
 import { ShareDialog } from '@/components/share-dialog';
+import { useCurrency } from '@/lib/use-currency';
 
 interface AuctionMiscDialogsProps {
   // Auction Settings Dialog
@@ -47,6 +48,7 @@ interface AuctionMiscDialogsProps {
 }
 
 export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
+  const { format: formatPrice, symbol } = useCurrency();
   const {
     showAuctionSettingsDialog, setShowAuctionSettingsDialog, auctionSettings,
     setAuctionSettings, handleStartAuctionWithSettings, showShareDialog,
@@ -209,7 +211,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label htmlFor="prebid-amount" className="text-sm font-medium text-white">
-                Your Max Bid ($)
+                Your Max Bid ({symbol})
               </label>
               <Input
                 id="prebid-amount"
@@ -227,7 +229,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                 </p>
               ) : prebidAuction?.prebidShippingCost !== null ? (
                 <p className="text-sm text-center text-zinc-300">
-                  + ${prebidAuction.prebidShippingCost.toFixed(2)} Shipping
+                  + {formatPrice(prebidAuction.prebidShippingCost)} Shipping
                 </p>
               ) : null}
               <p className="text-xs text-zinc-400">
@@ -254,7 +256,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                   if (!amount || amount < baseprice) {
                     toast({
                       title: "Invalid Amount",
-                      description: `Bid must be at least $${baseprice.toFixed(2)}`,
+                      description: `Bid must be at least ${formatPrice(baseprice)}`,
                       variant: "destructive"
                     });
                     return;
@@ -271,7 +273,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                   if (existingPrebidAmount > 0 && amount < existingPrebidAmount) {
                     toast({
                       title: "Invalid Amount",
-                      description: `You cannot lower your prebid. Your current prebid is $${existingPrebidAmount.toFixed(2)}`,
+                      description: `You cannot lower your prebid. Your current prebid is ${formatPrice(existingPrebidAmount)}`,
                       variant: "destructive"
                     });
                     return;
@@ -437,7 +439,7 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                                     </div>
                                   </td>
                                   <td className="py-3 px-3 text-center text-sm text-white">{itemQty}</td>
-                                  <td className="py-3 px-3 text-right text-sm text-white">${itemPrice.toFixed(2)}</td>
+                                  <td className="py-3 px-3 text-right text-sm text-white">{formatPrice(itemPrice)}</td>
                                 </tr>
                               );
                             })
@@ -504,18 +506,18 @@ export function AuctionMiscDialogs(props: AuctionMiscDialogsProps) {
                           {shippingFee > 0 && (
                             <div className="flex justify-between">
                               <span className="text-zinc-400">Shipping</span>
-                              <span className="text-white">${shippingFee.toFixed(2)}</span>
+                              <span className="text-white">{formatPrice(shippingFee)}</span>
                             </div>
                           )}
                           {tax > 0 && (
                             <div className="flex justify-between">
                               <span className="text-zinc-400">Tax</span>
-                              <span className="text-white">${tax.toFixed(2)}</span>
+                              <span className="text-white">{formatPrice(tax)}</span>
                             </div>
                           )}
                           <div className="flex justify-between font-bold text-base">
                             <span className="text-white">Total</span>
-                            <span className="text-white">${total.toFixed(2)}</span>
+                            <span className="text-white">{formatPrice(total)}</span>
                           </div>
                         </div>
                       </div>

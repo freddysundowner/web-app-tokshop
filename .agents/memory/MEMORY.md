@@ -3,3 +3,4 @@
 - [country-state-city subpath imports](country-state-city-subpath.md) — root import pulls a 7.7MB city.json that crashes iOS Safari with "Maximum call stack size exceeded"; import `lib/country` and `lib/state` directly.
 - [Country filter empty for social accounts](country-filter-empty-data.md) — filter forwarding works; "empty country" is a data gap — Apple/social signup never captures country, so user.country is "".
 - [Country-required gate](country-required-gate.md) — gate reads cached /api/profile/:id which wins over auth user; mutating a gated field must sync that query cache or the gate never dismisses.
+- [Currency + country-lock](currency-country-lock.md) — allowlist must be enforced at ALL country-set paths (3 client dropdowns + 4 auth.ts routes incl. countryCode); prices shown in viewer currency via useCurrency() (alias `format` to avoid date-fns clash).

@@ -41,6 +41,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Search, Tag, Check, X, ArrowUpDown, Clock, ChevronDown, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { useCurrency } from "@/lib/use-currency";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -70,6 +71,7 @@ export default function Offers() {
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { format: formatPrice, symbol } = useCurrency();
 
   const userId = (user as any)?._id || user?.id;
 
@@ -336,7 +338,7 @@ export default function Offers() {
                               {product.name || 'Unknown Product'}
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                              List Price: ${product.price?.toFixed(2) || '0.00'}
+                              List Price: {formatPrice(product.price || 0)}
                             </p>
                             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
                               {product.createdAt && (
@@ -407,7 +409,7 @@ export default function Offers() {
                                         </p>
                                         <div className="flex items-baseline gap-2 mt-1">
                                           <span className="text-lg font-bold text-foreground" data-testid="text-offer-amount">
-                                            ${offerPrice.toFixed(2)}
+                                            {formatPrice(offerPrice)}
                                           </span>
                                           {discount > 0 && (
                                             <span className="text-sm text-muted-foreground">
@@ -417,7 +419,7 @@ export default function Offers() {
                                         </div>
                                         {offer.counterPrice && (
                                           <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                                            Your counter: ${offer.counterPrice.toFixed(2)}
+                                            Your counter: {formatPrice(offer.counterPrice)}
                                           </p>
                                         )}
                                         <p className="text-xs text-muted-foreground mt-2">
@@ -528,7 +530,7 @@ export default function Offers() {
           <DialogHeader>
             <DialogTitle>Make Counter Offer</DialogTitle>
             <DialogDescription>
-              Enter a new price to counter the buyer's offer of ${(selectedOffer?.offeredPrice || selectedOffer?.offerAmount || 0).toFixed(2)}
+              Enter a new price to counter the buyer's offer of {formatPrice(selectedOffer?.offeredPrice || selectedOffer?.offerAmount || 0)}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -543,13 +545,13 @@ export default function Offers() {
                   <div>
                     <p className="font-medium">{selectedOffer.product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      List Price: ${selectedOffer.product.price?.toFixed(2)}
+                      List Price: {formatPrice(selectedOffer.product.price || 0)}
                     </p>
                   </div>
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="counter-amount">Your Counter Price ($)</Label>
+                <Label htmlFor="counter-amount">Your Counter Price ({symbol})</Label>
                 <Input
                   id="counter-amount"
                   type="number"
@@ -586,7 +588,7 @@ export default function Offers() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.action === 'accept' 
-                ? `Accept this offer of $${(confirmAction?.offer.offeredPrice || confirmAction?.offer.offerAmount || 0).toFixed(2)}? An order will be created automatically.`
+                ? `Accept this offer of ${formatPrice(confirmAction?.offer.offeredPrice || confirmAction?.offer.offerAmount || 0)}? An order will be created automatically.`
                 : "Are you sure you want to decline this offer?"
               }
             </AlertDialogDescription>

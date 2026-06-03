@@ -15,14 +15,8 @@ import { ShowCard } from '@/components/show-card';
 import { BadgeDescription } from '@/components/badge-description';
 import { cn } from '@/lib/utils';
 import { getImageUrl, useApiConfig } from '@/lib/use-api-config';
+import { useCurrency } from '@/lib/use-currency';
 import { fetchWithAuth } from '@/lib/queryClient';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-};
 
 interface Product {
   _id: string;
@@ -117,6 +111,7 @@ type SortType = 'relevant' | 'recent' | 'price_low' | 'price_high';
 // Product Card Component
 function ProductCard({ product }: { product: Product }) {
   const { externalApiUrl } = useApiConfig();
+  const { format } = useCurrency();
   const productImage = product.images?.[0] ? getImageUrl(product.images[0], externalApiUrl) : '';
   const sellerName = product.ownerId?.userName || product.ownerId?.firstName || 'Seller';
   const sellerAvatar = product.ownerId?.profilePhoto ? getImageUrl(product.ownerId.profilePhoto, externalApiUrl) : '';
@@ -150,7 +145,7 @@ function ProductCard({ product }: { product: Product }) {
           </h3>
           <div className="flex items-center justify-between">
             <p className="font-bold text-foreground" data-testid={`text-price-${product._id}`}>
-              {formatCurrency(product.price)}
+              {format(product.price)}
             </p>
             {product.quantity && (
               <p className="text-xs text-muted-foreground">

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DollarSign, ShoppingCart, Users, Video } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TokshopDashboardResponse } from "@shared/schema";
+import { useCurrency } from "@/lib/use-currency";
 
 interface Metric {
   title: string;
@@ -12,6 +13,7 @@ interface Metric {
 }
 
 export function MetricsGrid() {
+  const { format } = useCurrency();
   const { data: metrics, isLoading } = useQuery<TokshopDashboardResponse>({
     queryKey: ["/api/dashboard/metrics"],
   });
@@ -33,7 +35,7 @@ export function MetricsGrid() {
   const metricCards: Metric[] = [
     {
       title: "Total Sales",
-      value: `$${metrics?.totalAmount || "0"}`,
+      value: format(Number(metrics?.totalAmount || 0)),
       change: "+12.3% from last month",
       icon: DollarSign,
       color: "text-chart-1",

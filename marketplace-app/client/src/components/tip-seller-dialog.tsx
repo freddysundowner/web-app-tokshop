@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
+import { useCurrency } from "@/lib/use-currency";
 
 interface TipSellerDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function TipSellerDialog({
 }: TipSellerDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { format, symbol } = useCurrency();
   const [selectedTip, setSelectedTip] = useState<number>(10);
   const [customTip, setCustomTip] = useState<string>("");
   const [isCustom, setIsCustom] = useState(false);
@@ -75,7 +77,7 @@ export function TipSellerDialog({
     onSuccess: (response: any) => {
       toast({
         title: "Tip Sent!",
-        description: `Successfully sent $${tipAmount.toFixed(2)} to ${seller.userName || seller.username || 'seller'}`,
+        description: `Successfully sent ${format(tipAmount)} to ${seller.userName || seller.username || 'seller'}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/users/tip'] });
       onOpenChange(false);
@@ -174,7 +176,7 @@ export function TipSellerDialog({
                   }}
                   data-testid={`button-tip-${amount}`}
                 >
-                  ${amount}
+                  {format(amount)}
                 </Button>
               ))}
             </div>
@@ -195,7 +197,7 @@ export function TipSellerDialog({
               </Button>
               {isCustom && (
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">{symbol}</span>
                   <Input
                     type="text"
                     placeholder="0.00"
@@ -244,7 +246,7 @@ export function TipSellerDialog({
           <div className="space-y-2 bg-zinc-800/30 p-4 rounded-lg">
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Tip Amount</span>
-              <span className="font-medium">${tipAmount.toFixed(2)}</span>
+              <span className="font-medium">{format(tipAmount)}</span>
             </div>
             
             {/* Processing Fee Info */}
@@ -253,7 +255,7 @@ export function TipSellerDialog({
                 <span className="text-zinc-400">Payment Processing Fee</span>
                 <Info className="h-3 w-3 text-zinc-500" />
               </div>
-              <span className="font-medium">${PROCESSING_FEE.toFixed(2)}</span>
+              <span className="font-medium">{format(PROCESSING_FEE)}</span>
             </div>
             <p className="text-xs text-zinc-500 mt-1">
               A small fee to cover payment processing costs
@@ -262,7 +264,7 @@ export function TipSellerDialog({
             <Separator className="bg-zinc-700 my-2" />
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{format(total)}</span>
             </div>
           </div>
 
@@ -289,7 +291,7 @@ export function TipSellerDialog({
                   Sending...
                 </>
               ) : (
-                `Send Tip - $${total.toFixed(2)}`
+                `Send Tip - ${format(total)}`
               )}
             </Button>
           </div>

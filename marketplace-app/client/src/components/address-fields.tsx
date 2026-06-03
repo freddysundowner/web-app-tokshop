@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input';
 import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ALLOWED_COUNTRY_CODES } from '@shared/currency';
 
 export type AddressOption = { value: string; label: string; meta?: any };
 
@@ -143,11 +144,14 @@ export function SearchableSelect({
 let countryCache: AddressOption[] | null = null;
 function getCountryOptions(): AddressOption[] {
   if (!countryCache) {
-    countryCache = Country.getAllCountries().map((c) => ({
-      value: c.isoCode,
-      label: `${c.flag ? c.flag + ' ' : ''}${c.name}`,
-      meta: { name: c.name, isoCode: c.isoCode, iso2: c.isoCode },
-    }));
+    // Platform is locked to a fixed set of supported countries.
+    countryCache = Country.getAllCountries()
+      .filter((c) => ALLOWED_COUNTRY_CODES.includes(c.isoCode))
+      .map((c) => ({
+        value: c.isoCode,
+        label: `${c.flag ? c.flag + ' ' : ''}${c.name}`,
+        meta: { name: c.name, isoCode: c.isoCode, iso2: c.isoCode },
+      }));
   }
   return countryCache;
 }

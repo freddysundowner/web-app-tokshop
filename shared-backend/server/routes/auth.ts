@@ -11,6 +11,7 @@ import {
   TokshopAuthResponse,
   TokshopApiErrorResponse,
 } from "../../shared/schema";
+import { isAllowedCountry } from "../../shared/currency";
 
 // Resilient fetch helper that handles non-JSON responses gracefully
 async function resilientFetch(url: string, options: any) {
@@ -83,6 +84,14 @@ export function registerAuthRoutes(app: Express) {
       }
 
       const { email, country, countryCode, firstName, lastName, userName, phone, password } = validationResult.data;
+
+      // Platform is locked to a fixed set of supported countries.
+      if (!isAllowedCountry(countryCode) && !isAllowedCountry(country)) {
+        return res.status(400).json({
+          success: false,
+          error: "Sign-ups are currently only available in supported countries.",
+        });
+      }
 
       const referredBy = req.body.referredBy || undefined;
       const clientIp = req.body.clientIp || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket.remoteAddress || '';
@@ -376,6 +385,15 @@ export function registerAuthRoutes(app: Express) {
         gender: socialAuthData.gender,
       };
 
+      // Defense-in-depth: if a country is supplied, it must be on the allowlist.
+      // (Returning sign-ins may omit country; the backend resolves the existing user.)
+      if (verifiedSocialAuthData.country && !isAllowedCountry(verifiedSocialAuthData.country)) {
+        return res.status(400).json({
+          success: false,
+          error: "Signups are currently only available in Ireland, the United Kingdom, the United States, and Germany.",
+        });
+      }
+
       const referredBy = req.body.referredBy || undefined;
       const clientIp = req.body.clientIp || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket.remoteAddress || '';
 
@@ -483,6 +501,13 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
+      if (!isAllowedCountry(req.body.country)) {
+        return res.status(400).json({
+          success: false,
+          error: "Signups are currently only available in Ireland, the United Kingdom, the United States, and Germany.",
+        });
+      }
+
       const socialAuthData = {
         ...validationResult.data,
         email: req.body.email,
@@ -571,6 +596,16 @@ export function registerAuthRoutes(app: Express) {
         return res.status(401).json({
           success: false,
           error: "No active session found",
+        });
+      }
+
+      if (
+        (req.body.country !== undefined && !isAllowedCountry(req.body.country)) ||
+        (req.body.countryCode !== undefined && !isAllowedCountry(req.body.countryCode))
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "This country is not supported yet.",
         });
       }
 

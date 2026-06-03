@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { fetchWithAuth } from '@/lib/queryClient';
+import { useCurrency } from "@/lib/use-currency";
 
 export function ProductsSidebar(props: any) {
+  const { format } = useCurrency();
   const [expandedOfferProducts, setExpandedOfferProducts] = useState<Set<string>>(new Set());
   const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
   const {
@@ -140,7 +142,7 @@ export function ProductsSidebar(props: any) {
                         <div className="flex items-center gap-2 text-xs text-zinc-400">
                           <span>{pinnedProduct.auction?.bids?.length || 0} bids</span>
                           <span>•</span>
-                          <span className="text-white font-medium">${(pinnedProduct.auction?.baseprice || pinnedProduct.baseprice || pinnedProduct.price || 0).toFixed(2)}</span>
+                          <span className="text-white font-medium">{format(pinnedProduct.auction?.baseprice || pinnedProduct.baseprice || pinnedProduct.price || 0)}</span>
                           <span>•</span>
                           <span>{pinnedProduct.quantity || 1} left</span>
                         </div>
@@ -257,16 +259,16 @@ export function ProductsSidebar(props: any) {
                             <span>{product.started ? (product.auction?.bids?.length || 0) : (product.prebids?.length || 0)} bids</span>
                             <span>•</span>
                             <span className="text-white font-medium">
-                              ${highestPrebid !== null 
-                                ? highestPrebid.toFixed(2) 
-                                : (product.auction?.baseprice || product.baseprice || product.price || 0).toFixed(2)}
+                              {format(highestPrebid !== null 
+                                ? highestPrebid 
+                                : (product.auction?.baseprice || product.baseprice || product.price || 0))}
                             </span>
                             <span>•</span>
                             <span>{product.quantity || 1} left</span>
                           </div>
                           {!isShowOwner && userHasPrebid && !isActiveAuction && (
                             <p className="text-xs text-primary font-semibold" data-testid={`text-my-bid-${product._id || index}`}>
-                              Your Prebid: ${userPrebidAmount?.toFixed(2) || '0.00'}
+                              Your Prebid: {format(userPrebidAmount || 0)}
                             </p>
                           )}
                           {isShowOwner && (
@@ -387,11 +389,11 @@ export function ProductsSidebar(props: any) {
                         <p className="text-sm text-zinc-400 mb-1">{pinnedProduct.quantity || 0} Available</p>
                         {pinnedProduct.flash_sale && pinnedProduct.flash_sale_discount_value ? (
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm text-zinc-500 line-through">${(pinnedProduct.price || 0).toFixed(2)}</span>
-                            <span className="text-base font-semibold text-orange-500">${calculateFlashSalePrice(pinnedProduct).toFixed(2)}</span>
+                            <span className="text-sm text-zinc-500 line-through">{format(pinnedProduct.price || 0)}</span>
+                            <span className="text-base font-semibold text-orange-500">{format(calculateFlashSalePrice(pinnedProduct))}</span>
                           </div>
                         ) : (
-                          <p className="text-sm text-zinc-400 mb-2">Price: ${(pinnedProduct.price || 0).toFixed(2)}</p>
+                          <p className="text-sm text-zinc-400 mb-2">Price: {format(pinnedProduct.price || 0)}</p>
                         )}
                         {!isShowOwner && !shippingEstimate?.error && (
                           <div className="flex gap-2 mt-2">
@@ -454,11 +456,11 @@ export function ProductsSidebar(props: any) {
                         <p className="text-sm text-zinc-400 mb-1">{product.quantity || 1} Available</p>
                         {product.flash_sale && product.flash_sale_discount_value ? (
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm text-zinc-500 line-through">${(product.price || 0).toFixed(2)}</span>
-                            <span className="text-base font-semibold text-orange-500">${calculateFlashSalePrice(product).toFixed(2)}</span>
+                            <span className="text-sm text-zinc-500 line-through">{format(product.price || 0)}</span>
+                            <span className="text-base font-semibold text-orange-500">{format(calculateFlashSalePrice(product))}</span>
                           </div>
                         ) : (
-                          <p className="text-base font-semibold text-white mb-2">Price: ${(product.price || 0).toFixed(2)}</p>
+                          <p className="text-base font-semibold text-white mb-2">Price: {format(product.price || 0)}</p>
                         )}
                         {!isShowOwner && !shippingEstimate?.error && (
                           <div className="flex gap-2 mt-2">
@@ -654,7 +656,7 @@ export function ProductsSidebar(props: any) {
                                 Giveaway
                               </Badge>
                             ) : (
-                              <p className="text-sm font-bold text-white">${(orderPrice || 0).toFixed(2)}</p>
+                              <p className="text-sm font-bold text-white">{format(orderPrice || 0)}</p>
                             )}
                             <span className="text-xs text-zinc-500">•</span>
                             <p className="text-xs text-zinc-400">Qty: {quantity}</p>
@@ -748,7 +750,7 @@ export function ProductsSidebar(props: any) {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h3 className="text-sm font-semibold text-white truncate">{product.name}</h3>
-                                  <p className="text-xs text-zinc-400">Listed: ${(product.price || 0).toFixed(2)}</p>
+                                  <p className="text-xs text-zinc-400">Listed: {format(product.price || 0)}</p>
                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     {pendingOffers.length > 0 && (
                                       <Badge className="bg-primary/20 text-primary text-[10px]">
@@ -762,7 +764,7 @@ export function ProductsSidebar(props: any) {
                                     )}
                                     {highestOffer && (
                                       <span className="text-xs text-success">
-                                        Highest: ${(highestOffer.offeredPrice || highestOffer.offerAmount || 0).toFixed(2)}
+                                        Highest: {format(highestOffer.offeredPrice || highestOffer.offerAmount || 0)}
                                       </span>
                                     )}
                                   </div>
@@ -797,7 +799,7 @@ export function ProductsSidebar(props: any) {
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2">
                                             <span className="text-sm font-medium text-white">
-                                              ${(offer.offeredPrice || offer.offerAmount || 0).toFixed(2)}
+                                              {format(offer.offeredPrice || offer.offerAmount || 0)}
                                             </span>
                                             {product.price > 0 && (
                                               <span className="text-xs text-zinc-500">
@@ -822,7 +824,7 @@ export function ProductsSidebar(props: any) {
                                               </Badge>
                                               {offer.status === 'countered' && offer.counterPrice && (
                                                 <span className="text-xs text-secondary">
-                                                  Your counter offer: ${offer.counterPrice.toFixed(2)}
+                                                  Your counter offer: {format(offer.counterPrice)}
                                                 </span>
                                               )}
                                             </div>

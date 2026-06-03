@@ -36,7 +36,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Search, Filter, MoreHorizontal, Package, Printer, Truck, Ship, X } from "lucide-react";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
-import { calculateOrderTotal, formatCurrency, getOrderBreakdown } from "@shared/pricing";
+import { calculateOrderTotal, getOrderBreakdown } from "@shared/pricing";
+import { useCurrency } from "@/lib/use-currency";
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
 
@@ -92,6 +93,7 @@ export default function Purchases() {
   const { user } = useAuth();
   const { settings } = useSettings();
   const { toast } = useToast();
+  const { format: formatPrice } = useCurrency();
 
   const { data: orderResponse, isLoading, error: ordersError, isError, refetch } = useQuery<TokshopOrdersResponse>({
     queryKey: ["external-purchases", user?.id, statusFilter, currentPage, itemsPerPage],
@@ -390,8 +392,8 @@ export default function Purchases() {
                 <tr>
                   <td>${item.productId?.name || "Unknown Product"}${item.order_reference ? ` ${item.order_reference}` : ''}</td>
                   <td>${item.quantity || 0}</td>
-                  <td>$${(item.price || 0).toFixed(2)}</td>
-                  <td>$${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
+                  <td>${formatPrice(item.price || 0)}</td>
+                  <td>${formatPrice((item.quantity || 0) * (item.price || 0))}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -400,35 +402,35 @@ export default function Purchases() {
           <div class="totals">
             <div class="total-line">
               <span>Subtotal:</span>
-              <span>${formatCurrency(orderBreakdown.subtotal)}</span>
+              <span>${formatPrice(orderBreakdown.subtotal)}</span>
             </div>
             ${orderBreakdown.serviceFee > 0 ? `
               <div class="total-line">
                 <span>Service Fee:</span>
-                <span>${formatCurrency(orderBreakdown.serviceFee)}</span>
+                <span>${formatPrice(orderBreakdown.serviceFee)}</span>
               </div>
             ` : ''}
             ${orderBreakdown.tax > 0 ? `
               <div class="total-line">
                 <span>Tax:</span>
-                <span>${formatCurrency(orderBreakdown.tax)}</span>
+                <span>${formatPrice(orderBreakdown.tax)}</span>
               </div>
             ` : ''}
             ${orderBreakdown.shippingFee > 0 ? `
               <div class="total-line">
                 <span>Shipping:</span>
-                <span>${formatCurrency(orderBreakdown.shippingFee)}</span>
+                <span>${formatPrice(orderBreakdown.shippingFee)}</span>
               </div>
             ` : ''}
             ${orderBreakdown.discount > 0 ? `
               <div class="total-line" style="color: hsl(var(--primary))">
                 <span>Discount:</span>
-                <span>-${formatCurrency(orderBreakdown.discount)}</span>
+                <span>-${formatPrice(orderBreakdown.discount)}</span>
               </div>
             ` : ''}
             <div class="total-line final-total">
               <span>Total:</span>
-              <span>${formatCurrency(orderBreakdown.total)}</span>
+              <span>${formatPrice(orderBreakdown.total)}</span>
             </div>
           </div>
 
@@ -670,7 +672,7 @@ export default function Purchases() {
 
                       {/* Price column */}
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                        US${calculateOrderTotal(order).toFixed(2)}
+                        {formatPrice(calculateOrderTotal(order))}
                       </td>
 
                       {/* Status column */}
@@ -841,9 +843,9 @@ export default function Purchases() {
                             </div>
                           </td>
                           <td className="p-3 text-center">{item.quantity || 0}</td>
-                          <td className="p-3 text-right">{formatCurrency(item.price || 0)}</td>
+                          <td className="p-3 text-right">{formatPrice(item.price || 0)}</td>
                           <td className="p-3 text-right font-medium">
-                            {formatCurrency((item.quantity || 0) * (item.price || 0))}
+                            {formatPrice((item.quantity || 0) * (item.price || 0))}
                           </td>
                           <td className="p-3 text-right">
                             {(selectedOrder.status === 'processing' || selectedOrder.status === 'unfulfilled') && 
@@ -888,41 +890,41 @@ export default function Purchases() {
                     <div className="space-y-2 max-w-sm ml-auto">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>{formatCurrency(breakdown.subtotal)}</span>
+                        <span>{formatPrice(breakdown.subtotal)}</span>
                       </div>
                       {breakdown.serviceFee > 0 && (
                         <div className="flex justify-between">
                           <span>Service Fee:</span>
-                          <span>{formatCurrency(breakdown.serviceFee)}</span>
+                          <span>{formatPrice(breakdown.serviceFee)}</span>
                         </div>
                       )}
                       {breakdown.tax > 0 && (
                         <div className="flex justify-between">
                           <span>Tax:</span>
-                          <span>{formatCurrency(breakdown.tax)}</span>
+                          <span>{formatPrice(breakdown.tax)}</span>
                         </div>
                       )}
                       {breakdown.shippingFee > 0 && (
                         <div className="flex justify-between">
                           <span>Shipping:</span>
-                          <span>{formatCurrency(breakdown.shippingFee)}</span>
+                          <span>{formatPrice(breakdown.shippingFee)}</span>
                         </div>
                       )}
                       {breakdown.discount > 0 && (
                         <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
                           <span>Discount:</span>
-                          <span>-{formatCurrency(breakdown.discount)}</span>
+                          <span>-{formatPrice(breakdown.discount)}</span>
                         </div>
                       )}
                       {(selectedOrder as any).wallet_used > 0 && (
                         <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
                           <span>Wallet Credit:</span>
-                          <span>-{formatCurrency(Number((selectedOrder as any).wallet_used))}</span>
+                          <span>-{formatPrice(Number((selectedOrder as any).wallet_used))}</span>
                         </div>
                       )}
                       <div className="border-t pt-2 flex justify-between font-semibold text-lg">
                         <span>Total:</span>
-                        <span>{formatCurrency(breakdown.total)}</span>
+                        <span>{formatPrice(breakdown.total)}</span>
                       </div>
                     </div>
                   );

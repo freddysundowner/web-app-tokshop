@@ -7,16 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Search, Send, Volume2, Volume1, VolumeX, Share2, Menu, X, Clock, Users, DollarSign, Gift, Truck, AlertTriangle, ShoppingBag, MessageCircle, Star, Wallet, MoreVertical, Edit, Trash, Play, Plus, Loader2, Bookmark, Link as LinkIcon, MoreHorizontal, Radio, User, Mail, AtSign, Ban, Flag, ChevronRight, Video, VideoOff, Mic, MicOff, FileText, Sparkles, Skull, Package, Zap, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sendRoomMessage } from '@/lib/firebase-chat';
-import { format, isToday, isTomorrow } from 'date-fns';
+import { format as formatDate, isToday, isTomorrow } from 'date-fns';
 import { CustomBidDialog } from '@/components/custom-bid-dialog';
 import { RaidShowDialog } from '@/components/raid-show-dialog';
 import { UserBadge } from '@/components/user-badge';
 import { CameraSettingsModal, CameraSettings } from '@/components/camera-settings-modal';
 import { fetchWithAuth } from '@/lib/queryClient';
+import { useCurrency } from '@/lib/use-currency';
 
 const LiveKitVideoPlayer = lazy(() => import('@/components/livekit-video-player'));
 
 export function VideoCenter(props: any) {
+  const { format, symbol } = useCurrency();
   // Local UI state for dialogs and sheets
   const [showMoreOptionsSheet, setShowMoreOptionsSheet] = useState(false);
   const [showWinnerDialog, setShowWinnerDialog] = useState(false);
@@ -314,11 +316,11 @@ export function VideoCenter(props: any) {
     }
     
     if (isToday(date)) {
-      return `Today ${format(date, 'HH:mm')}`;
+      return `Today ${formatDate(date, 'HH:mm')}`;
     } else if (isTomorrow(date)) {
-      return `Tomorrow ${format(date, 'HH:mm')}`;
+      return `Tomorrow ${formatDate(date, 'HH:mm')}`;
     } else {
-      return format(date, 'MMM d, HH:mm');
+      return formatDate(date, 'MMM d, HH:mm');
     }
   };
   const scheduledTimeText = scheduledAt ? formatScheduledTime(scheduledAt) : null;
@@ -792,7 +794,7 @@ export function VideoCenter(props: any) {
                         : show?.shipping_settings?.shippingCostMode === 'seller_pays_all'
                         ? '📦 Free shipping on all orders!'
                         : show?.shipping_settings?.shippingCostMode === 'buyer_pays_up_to'
-                        ? `📦 Pay max $${show?.shipping_settings?.reducedShippingCapAmount?.toFixed(2) || '0.00'} in shipping costs, regardless of how much you order!`
+                        ? `📦 Pay max ${format(show?.shipping_settings?.reducedShippingCapAmount || 0)} in shipping costs, regardless of how much you order!`
                         : '📦 Shipping discount available!'}
                     </span>
                   </div>
@@ -920,7 +922,7 @@ export function VideoCenter(props: any) {
                       <div className="flex items-center gap-1.5 text-white/90">
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                           <circle cx="12" cy="12" r="10" opacity="0.3"/>
-                          <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">$</text>
+                          <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">{symbol}</text>
                         </svg>
                         <span className="text-sm font-medium drop-shadow-lg">
                           Bids: {activeAuction.bids?.length || 0}
@@ -931,7 +933,7 @@ export function VideoCenter(props: any) {
                         <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
                           {shippingEstimate.error 
                             ? 'Unshippable' 
-                            : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                            : `Shipping is ${format(parseFloat(shippingEstimate.amount || 0))} + Taxes`
                           }
                         </p>
                       )}
@@ -1001,7 +1003,7 @@ export function VideoCenter(props: any) {
                               {placeBidMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                               ) : (
-                                `Bid: $${nextBid.toFixed(0)}`
+                                `Bid: ${format(nextBid)}`
                               )}
                             </button>
                           </div>
@@ -1023,7 +1025,7 @@ export function VideoCenter(props: any) {
                       <div className="flex items-center gap-1.5 text-white/90">
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                           <circle cx="12" cy="12" r="10" opacity="0.3"/>
-                          <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">$</text>
+                          <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">{symbol}</text>
                         </svg>
                         <span className="text-sm font-medium drop-shadow-lg">
                           Available: {pinnedProduct.quantity || 0}
@@ -1039,7 +1041,7 @@ export function VideoCenter(props: any) {
                               <span className="text-white font-semibold text-sm">
                                 Flash Sale - {pinnedProduct.flash_sale_discount_type === 'percentage' 
                                   ? `${pinnedProduct.flash_sale_discount_value || 0}% Off`
-                                  : `$${pinnedProduct.flash_sale_discount_value || 0} Off`
+                                  : `${format(pinnedProduct.flash_sale_discount_value || 0)} Off`
                                 }
                               </span>
                             </div>
@@ -1063,8 +1065,8 @@ export function VideoCenter(props: any) {
                       {/* Referral Credit Info - show when user has referral credit from this seller */}
                       {!pinnedProduct.flash_sale && referralInfo && (
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-white/50 line-through text-sm">${(pinnedProduct.price || 0).toFixed(2)}</span>
-                          <span className="text-primary font-bold text-sm">${((pinnedProduct.price || 0) - referralInfo.credit).toFixed(2)}</span>
+                          <span className="text-white/50 line-through text-sm">{format(pinnedProduct.price || 0)}</span>
+                          <span className="text-primary font-bold text-sm">{format((pinnedProduct.price || 0) - referralInfo.credit)}</span>
                         </div>
                       )}
 
@@ -1072,7 +1074,7 @@ export function VideoCenter(props: any) {
                         <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
                           {shippingEstimate.error 
                             ? 'Unshippable' 
-                            : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                            : `Shipping is ${format(parseFloat(shippingEstimate.amount || 0))} + Taxes`
                           }
                         </p>
                       )}
@@ -1281,7 +1283,7 @@ export function VideoCenter(props: any) {
                         <div className="flex items-center gap-1.5 text-white/90">
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                             <circle cx="12" cy="12" r="10" opacity="0.3"/>
-                            <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">$</text>
+                            <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">{symbol}</text>
                           </svg>
                           <span className="text-sm font-medium drop-shadow-lg">
                             Bids: {activeAuction.bids?.length || 0}
@@ -1293,7 +1295,7 @@ export function VideoCenter(props: any) {
                           <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
                             {shippingEstimate.error 
                               ? shippingEstimate.message 
-                              : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                              : `Shipping is ${format(parseFloat(shippingEstimate.amount || 0))} + Taxes`
                             }
                           </p>
                         )}
@@ -1338,7 +1340,7 @@ export function VideoCenter(props: any) {
                         <div className="flex items-center gap-1.5 text-white/90">
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                             <circle cx="12" cy="12" r="10" opacity="0.3"/>
-                            <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">$</text>
+                            <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fill="white">{symbol}</text>
                           </svg>
                           <span className="text-sm font-medium drop-shadow-lg">
                             Available: {pinnedProduct.quantity || 0}
@@ -1354,7 +1356,7 @@ export function VideoCenter(props: any) {
                                 <span className="text-white font-semibold text-[10px]">
                                   Flash Sale - {pinnedProduct.flash_sale_discount_type === 'percentage' 
                                     ? `${pinnedProduct.flash_sale_discount_value || 0}% Off`
-                                    : `$${pinnedProduct.flash_sale_discount_value || 0} Off`
+                                    : `${format(pinnedProduct.flash_sale_discount_value || 0)} Off`
                                   }
                                 </span>
                               </div>
@@ -1380,7 +1382,7 @@ export function VideoCenter(props: any) {
                           <p className={`text-sm drop-shadow-lg ${shippingEstimate.error ? 'text-destructive font-semibold' : 'text-white/90 underline'}`}>
                             {shippingEstimate.error 
                               ? shippingEstimate.message 
-                              : `Shipping is US$${parseFloat(shippingEstimate.amount || 0).toFixed(2)} + Taxes`
+                              : `Shipping is ${format(parseFloat(shippingEstimate.amount || 0))} + Taxes`
                             }
                           </p>
                         )}
@@ -1446,7 +1448,7 @@ export function VideoCenter(props: any) {
                           {placeBidMutation.isPending ? (
                             <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                           ) : (
-                            `Bid: $${nextBid.toFixed(0)}`
+                            `Bid: ${format(nextBid)}`
                           )}
                         </button>
                       </div>
@@ -1718,13 +1720,13 @@ export function VideoCenter(props: any) {
                     {/* Flash sale price display - show strikethrough when flash_sale is true (active or waiting) */}
                     {!activeAuction && pinnedProduct?.flash_sale && (
                       <span className="text-sm text-white/50 line-through">
-                        ${(pinnedProduct.price || 0).toFixed(2)}
+                        {format(pinnedProduct.price || 0)}
                       </span>
                     )}
                     {/* Referral credit strikethrough - show when no flash sale but referral applies */}
                     {!activeAuction && pinnedProduct && !pinnedProduct.flash_sale && referralInfo && (
                       <span className="text-sm text-white/50 line-through">
-                        ${(pinnedProduct.price || 0).toFixed(2)}
+                        {format(pinnedProduct.price || 0)}
                       </span>
                     )}
                     <div className="flex items-center gap-1">
@@ -1734,20 +1736,20 @@ export function VideoCenter(props: any) {
                         </span>
                       )}
                       <span className="text-xl font-bold">
-                        ${activeAuction 
-                          ? currentBid.toFixed(0) 
+                        {activeAuction 
+                          ? format(currentBid) 
                           : pinnedProduct 
                             ? pinnedProduct.flash_sale
                               ? isActiveFlashSale
-                                ? (pinnedProduct.flash_sale_discount_type === 'percentage'
+                                ? format(pinnedProduct.flash_sale_discount_type === 'percentage'
                                     ? (pinnedProduct.price || 0) * (1 - (pinnedProduct.flash_sale_discount_value || 0) / 100)
                                     : (pinnedProduct.price || 0) - (pinnedProduct.flash_sale_discount_value || 0)
-                                  ).toFixed(2)
+                                  )
                                 : '****'
                               : referralInfo
-                                ? ((pinnedProduct.price || 0) - referralInfo.credit).toFixed(2)
-                                : (pinnedProduct.price || 0).toFixed(0)
-                            : '0'
+                                ? format((pinnedProduct.price || 0) - referralInfo.credit)
+                                : format(pinnedProduct.price || 0)
+                            : format(0)
                         }
                       </span>
                     </div>

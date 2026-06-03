@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSocket } from "@/lib/socket-context";
+import { useCurrency } from "@/lib/use-currency";
 import { cn } from "@/lib/utils";
 import { CustomBidDialog } from "@/components/custom-bid-dialog";
 
@@ -25,6 +26,7 @@ export default function AuctionDetail() {
   const { user: currentUser, refreshUserData } = useAuth();
   const { settings } = useSettings();
   const { toast } = useToast();
+  const { format } = useCurrency();
   const { socket, isConnected, connect, disconnect } = useSocket();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -696,10 +698,10 @@ export default function AuctionDetail() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">{bids.length > 0 ? 'Current Bid' : 'Starting Price'}</p>
                   <p className="text-3xl font-bold text-primary" data-testid="current-bid">
-                    ${currentBid.toFixed(2)}
+                    {format(currentBid)}
                     {!isLoadingShipping && shippingEstimate?.amount && (
                       <span className="text-sm text-muted-foreground font-normal">
-                        {' '}+ ${(typeof shippingEstimate.amount === 'string' ? parseFloat(shippingEstimate.amount) : shippingEstimate.amount).toFixed(2)} shipping + taxes
+                        {' '}+ {format(typeof shippingEstimate.amount === 'string' ? parseFloat(shippingEstimate.amount) : shippingEstimate.amount)} shipping + taxes
                       </span>
                     )}
                   </p>
@@ -749,7 +751,7 @@ export default function AuctionDetail() {
                           ) : (
                             <>
                               <Hammer className="h-5 w-5 mr-2" />
-                              Place Bid - ${(auctionInfo?.newbaseprice || mergedData?.default_startprice || 0).toFixed(2)}
+                              Place Bid - {format(auctionInfo?.newbaseprice || mergedData?.default_startprice || 0)}
                             </>
                           )}
                         </Button>
@@ -766,7 +768,7 @@ export default function AuctionDetail() {
 
                       {userBidAmount !== null && (
                         <p className="text-xs text-muted-foreground text-center" data-testid="text-user-bid">
-                          Your bid: ${userBidAmount.toFixed(2)}
+                          Your bid: {format(userBidAmount)}
                         </p>
                       )}
                     </div>
@@ -776,7 +778,7 @@ export default function AuctionDetail() {
                     <p className="font-semibold mb-2">Auction Ended</p>
                     {bids.length > 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        Winning bid: ${currentBid.toFixed(2)}
+                        Winning bid: {format(currentBid)}
                       </p>
                     ) : (
                       <p className="text-sm text-muted-foreground">No bids placed</p>

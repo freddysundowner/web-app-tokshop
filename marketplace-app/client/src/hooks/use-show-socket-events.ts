@@ -2,6 +2,8 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient , fetchWithAuth} from '@/lib/queryClient';
 import { timeSync } from '@/lib/time-sync';
+import { getCurrencyForCountry } from '@shared/currency';
+import { formatCurrency } from '@shared/pricing';
 
 interface UseShowSocketEventsProps {
   socket: any;
@@ -529,7 +531,7 @@ export function useShowSocketEvents({
         });
         toast({
           title: "You've been outbid!",
-          description: `Someone bid $${currentHighestBid}. Your max was $${userMaxBid}.`,
+          description: `Someone bid ${formatCurrency(Number(currentHighestBid) || 0, getCurrencyForCountry(user?.countryCode || user?.country))}. Your max was ${formatCurrency(Number(userMaxBid) || 0, getCurrencyForCountry(user?.countryCode || user?.country))}.`,
           variant: "destructive",
           duration: 5000,
         });

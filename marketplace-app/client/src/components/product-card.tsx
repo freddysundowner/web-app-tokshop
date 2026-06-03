@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { ShoppingBag, Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useCurrency } from '@/lib/use-currency';
 
 interface ProductCardProps {
   product: any;
@@ -11,6 +12,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const [, setLocation] = useLocation();
+  const { format } = useCurrency();
   const [imageError, setImageError] = useState(false);
   const productId = product._id || product.id;
   const images = product.images || product.productImages || [];
@@ -57,7 +59,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             <h3 className="text-sm font-semibold line-clamp-2 flex-1">{name}</h3>
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-lg font-bold text-primary">${price.toFixed(0)}</p>
+            <p className="text-lg font-bold text-primary">{format(price)}</p>
           </div>
           {quantity > 0 && (
             <p className="text-xs text-muted-foreground mt-1">

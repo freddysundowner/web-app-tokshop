@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserBadge } from '@/components/user-badge';
+import { useCurrency } from '@/lib/use-currency';
 
 interface ChatSidebarProps {
   showMobileChat: boolean;
@@ -66,6 +67,8 @@ export function ChatSidebar(props: ChatSidebarProps) {
     giveawayTimeLeft
   } = props;
 
+  const { format } = useCurrency();
+
   return (
     <div className={`
       ${showMobileChat ? 'fixed inset-0 z-50 bg-black' : 'hidden'}
@@ -94,7 +97,7 @@ export function ChatSidebar(props: ChatSidebarProps) {
                   <span className="text-xs font-medium text-zinc-400">Gross Sales</span>
                 </div>
                 <p className="text-2xl font-bold text-emerald-400">
-                  ${(show?.salesTotal || 0).toFixed(2)}
+                  {format(show?.salesTotal || 0)}
                 </p>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DollarSign } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
+import { useCurrency } from "@/lib/use-currency";
 
 interface MakeOfferDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function MakeOfferDialog({
   onContinueWithOffer
 }: MakeOfferDialogProps) {
   const { theme } = useSettings();
+  const { format } = useCurrency();
   const [selectedOption, setSelectedOption] = useState<OfferOption>("-10%");
   const [customPrice, setCustomPrice] = useState<string>("");
   
@@ -148,10 +150,10 @@ export function MakeOfferDialog({
             <span className="text-muted-foreground">You Pay:</span>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground line-through">
-                US${productPrice.toFixed(2)}
+                {format(productPrice)}
               </span>
               <span className="text-green-600 font-bold text-lg">
-                US${offerAmount.toFixed(2)}
+                {format(offerAmount)}
               </span>
               <span className="text-muted-foreground text-sm">
                 + shipping & taxes

@@ -32,6 +32,7 @@ import {
 import type { TokshopOrder, ShippingEstimateRequest, ShippingEstimateResponse, ShippingLabelPurchaseRequest, ShippingLabelPurchaseResponse, ShipmentBundle } from "@shared/schema";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/lib/use-currency";
 import { apiRequest, fetchWithAuth } from '@/lib/queryClient';
 import { BulkLabelDialog } from "./bulk-label-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -199,6 +200,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { format: formatPrice } = useCurrency();
   const queryClient = useQueryClient();
 
   // Detect local pickup orders — no label needed, just mark as shipped
@@ -431,7 +433,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
 
         toast({
           title: "Shipping label purchased successfully!",
-          description: `${response.data.carrier} ${response.data.service} - $${response.data.cost}\nTracking: ${response.data.tracking_number}`,
+          description: `${response.data.carrier} ${response.data.service} - ${formatPrice(Number(response.data.cost))}\nTracking: ${response.data.tracking_number}`,
         });
 
         console.log('Label purchase successful:', response.data);
@@ -627,11 +629,11 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                   <Separator className="my-2" />
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Bundle Subtotal:</span>
-                    <span className="font-medium">${calculateBundleTotals().subtotal.toFixed(2)}</span>
+                    <span className="font-medium">{formatPrice(calculateBundleTotals().subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Bundle Tax:</span>
-                    <span>{calculateBundleTotals().tax > 0 ? `$${calculateBundleTotals().tax.toFixed(2)}` : '—'}</span>
+                    <span>{calculateBundleTotals().tax > 0 ? formatPrice(calculateBundleTotals().tax) : '—'}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Bundle Shipping:</span>
@@ -640,13 +642,13 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                         const bundleShipping = Number(calculateBundleTotals().shipping);
                         const estimatedShipping = Number(selectedEstimate?.price ?? estimates[0]?.price ?? 0);
                         const shippingCost = bundleShipping > 0 ? bundleShipping : estimatedShipping;
-                        return shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : '—';
+                        return shippingCost > 0 ? formatPrice(shippingCost) : '—';
                       })()}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm font-semibold border-t pt-2">
                     <span className="text-muted-foreground">Bundle Total:</span>
-                    <span>${calculateBundleTotals().total.toFixed(2)}</span>
+                    <span>{formatPrice(calculateBundleTotals().total)}</span>
                   </div>
                     </CardContent>
                   </CollapsibleContent>
@@ -683,23 +685,23 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                 {calculateSubtotal() > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium">${calculateSubtotal().toFixed(2)}</span>
+                    <span className="font-medium">{formatPrice(calculateSubtotal())}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax:</span>
-                  <span>{(displayOrder.tax ?? 0) > 0 ? `$${(displayOrder.tax ?? 0).toFixed(2)}` : '—'}</span>
+                  <span>{(displayOrder.tax ?? 0) > 0 ? formatPrice(displayOrder.tax ?? 0) : '—'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Buyer Paid Shipping:</span>
                   <span>
-                    {(displayOrder.shipping_fee ?? 0) > 0 ? `$${(displayOrder.shipping_fee ?? 0).toFixed(2)}` : '—'}
+                    {(displayOrder.shipping_fee ?? 0) > 0 ? formatPrice(displayOrder.shipping_fee ?? 0) : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Your Shipping Cost:</span>
                   <span className="text-red-600">
-                    {(displayOrder.seller_shipping_fee_pay ?? 0) > 0 ? `-$${Number(displayOrder.seller_shipping_fee_pay).toFixed(2)}` : '—'}
+                    {(displayOrder.seller_shipping_fee_pay ?? 0) > 0 ? `-${formatPrice(Number(displayOrder.seller_shipping_fee_pay))}` : '—'}
                   </span>
                 </div>
                 {(() => {
@@ -711,7 +713,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                   return total > 0 ? (
                     <div className="flex justify-between text-sm font-semibold border-t pt-2">
                       <span className="text-muted-foreground">Net Total:</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span>{formatPrice(total)}</span>
                     </div>
                   ) : null;
                 })()}
@@ -869,7 +871,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                     ⚠️ Shipping Cost Increased
                   </p>
                   <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
-                    The shipping cost has increased by <span className="font-semibold">${priceIncreaseWarning.amount.toFixed(2)}</span> ({priceIncreaseWarning.percentage.toFixed(1)}%). 
+                    The shipping cost has increased by <span className="font-semibold">{formatPrice(priceIncreaseWarning.amount)}</span> ({priceIncreaseWarning.percentage.toFixed(1)}%). 
                     You will be charged the current price when purchasing the label.
                   </p>
                 </div>
@@ -906,7 +908,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                     
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="font-bold text-lg">${Number(orderShippingCost).toFixed(2)}</p>
+                        <p className="font-bold text-lg">{formatPrice(Number(orderShippingCost))}</p>
                       </div>
                       <Button
                         onClick={() => handlePrintLabel({
@@ -949,7 +951,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                     
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="font-bold text-lg">${estimate.price}</p>
+                        <p className="font-bold text-lg">{formatPrice(Number(estimate.price))}</p>
                       </div>
                       <Button
                         onClick={() => handlePrintLabel(estimate)}
@@ -988,7 +990,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                           </p>
                           {((order.seller_shipping_fee_pay ?? order.shipping_fee ?? 0) > 0) && (
                             <p className="text-xs text-muted-foreground">
-                              Shipping Cost: ${(order.seller_shipping_fee_pay ?? order.shipping_fee ?? 0).toFixed(2)}
+                              Shipping Cost: {formatPrice(order.seller_shipping_fee_pay ?? order.shipping_fee ?? 0)}
                             </p>
                           )}
                         </div>
@@ -1002,7 +1004,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
                       <p className="font-medium">Tracking Number: {displayOrder.tracking_number}</p>
                       {((displayOrder.seller_shipping_fee_pay ?? displayOrder.shipping_fee ?? 0) > 0) && (
                         <p className="text-sm text-muted-foreground">
-                          Shipping Cost: ${(displayOrder.seller_shipping_fee_pay ?? displayOrder.shipping_fee ?? 0).toFixed(2)}
+                          Shipping Cost: {formatPrice(displayOrder.seller_shipping_fee_pay ?? displayOrder.shipping_fee ?? 0)}
                         </p>
                       )}
                     </div>

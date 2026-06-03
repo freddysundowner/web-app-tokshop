@@ -36,7 +36,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Search, Filter, MoreHorizontal, Package, Printer, Truck, Ship, X, MessageSquare, Info } from "lucide-react";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
-import { calculateOrderTotal, formatCurrency, calculateOrderSubtotal } from "@shared/pricing";
+import { calculateOrderTotal, calculateOrderSubtotal } from "@shared/pricing";
+import { useCurrency } from "@/lib/use-currency";
 import { useSettings } from "@/lib/settings-context";
 import { format } from "date-fns";
 import { CompletePagination } from "@/components/ui/pagination";
@@ -78,6 +79,7 @@ export default function Orders() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { settings } = useSettings();
+  const { format: formatPrice } = useCurrency();
   const [, setLocation] = useLocation();
   const [messagingOrderId, setMessagingOrderId] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -652,9 +654,9 @@ export default function Orders() {
                           {isFromShow ? 'Show' : 'Marketplace'}
                         </td>
 
-                        {/* Price column - US$ format */}
+                        {/* Price column */}
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-foreground">
-                          US${price.toFixed(2)}
+                          {formatPrice(price)}
                         </td>
 
                         {/* Order Status column */}
@@ -671,7 +673,7 @@ export default function Orders() {
                         {user?.seller !== false && (
                           <td className="px-4 py-4">
                             <div className="text-sm font-medium text-foreground">
-                              ${earnings.toFixed(2)}
+                              {formatPrice(earnings)}
                             </div>
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <span>{formatStatus(orderStatus)}</span>

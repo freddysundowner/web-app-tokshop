@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useApiConfig, getImageUrl } from "@/lib/use-api-config";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/lib/use-currency";
 import { formatDistanceToNow } from "date-fns";
 import {
   Tag,
@@ -113,6 +114,7 @@ const ITEMS_PER_PAGE = 10;
 export default function BuyerOffers() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { format } = useCurrency();
   const [, setLocation] = useLocation();
   const [actionOffer, setActionOffer] = useState<{ offer: Offer; action: 'accept' | 'reject' | 'cancel' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -336,15 +338,15 @@ export default function BuyerOffers() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      ${offer.product.price.toFixed(2)}
+                      {format(offer.product.price)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      ${offer.offeredPrice.toFixed(2)}
+                      {format(offer.offeredPrice)}
                     </TableCell>
                     <TableCell className="text-right">
                       {offer.counterPrice ? (
                         <span className="font-medium text-blue-600 dark:text-blue-400">
-                          ${offer.counterPrice.toFixed(2)}
+                          {format(offer.counterPrice)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
@@ -450,7 +452,7 @@ export default function BuyerOffers() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {actionOffer?.action === 'accept' 
-                ? `Accept the seller's counter of $${actionOffer?.offer.counterPrice?.toFixed(2)}?`
+                ? `Accept the seller's counter of ${format(actionOffer?.offer.counterPrice)}?`
                 : actionOffer?.action === 'cancel'
                 ? "This will withdraw your offer. You can make a new offer later if you change your mind."
                 : "This will withdraw your offer."

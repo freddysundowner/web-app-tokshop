@@ -7,7 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MessageSquare, HelpCircle, Package, X, Truck, Info } from "lucide-react";
 import type { TokshopOrder } from "@shared/schema";
-import { formatCurrency, calculateOrderSubtotal } from "@shared/pricing";
+import { calculateOrderSubtotal } from "@shared/pricing";
+import { useCurrency } from "@/lib/use-currency";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,7 @@ export function OrderDetailsDrawer({
   const { toast } = useToast();
   const { settings } = useSettings();
   const { externalApiUrl } = useApiConfig();
+  const { format: formatPrice } = useCurrency();
   const [messagingLoading, setMessagingLoading] = useState(false);
 
   if (!order) return null;
@@ -109,8 +111,8 @@ export function OrderDetailsDrawer({
                 <tr>
                   <td>${item.productId?.name || "Unknown Product"}${item.order_reference ? ` ${item.order_reference}` : ''}</td>
                   <td>${item.quantity || 0}</td>
-                  <td>${formatCurrency(item.price || 0)}</td>
-                  <td>${formatCurrency((item.quantity || 0) * (item.price || 0))}</td>
+                  <td>${formatPrice(item.price || 0)}</td>
+                  <td>${formatPrice((item.quantity || 0) * (item.price || 0))}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -119,23 +121,23 @@ export function OrderDetailsDrawer({
           <div class="totals">
             <div class="total-line">
               <span>Subtotal:</span>
-              <span>${formatCurrency(price)}</span>
+              <span>${formatPrice(price)}</span>
             </div>
             ${tax > 0 ? `
               <div class="total-line">
                 <span>Tax:</span>
-                <span>${formatCurrency(tax)}</span>
+                <span>${formatPrice(tax)}</span>
               </div>
             ` : ''}
             ${shippingFee > 0 ? `
               <div class="total-line">
                 <span>Shipping:</span>
-                <span>${formatCurrency(shippingFee)}</span>
+                <span>${formatPrice(shippingFee)}</span>
               </div>
             ` : ''}
             <div class="total-line final-total">
               <span>Total:</span>
-              <span>${formatCurrency(orderTotal)}</span>
+              <span>${formatPrice(orderTotal)}</span>
             </div>
           </div>
 
@@ -330,10 +332,10 @@ export function OrderDetailsDrawer({
                             {item.quantity || 1}
                           </td>
                           <td className="py-3 px-3 text-right text-sm text-foreground" data-testid={`text-price-${idx}`}>
-                            {formatCurrency(item.price || 0)}
+                            {formatPrice(item.price || 0)}
                           </td>
                           <td className="py-3 px-3 text-right text-sm font-medium text-foreground" data-testid={`text-total-${idx}`}>
-                            {formatCurrency(itemTotal)}
+                            {formatPrice(itemTotal)}
                           </td>
                         </tr>
                       );
@@ -366,7 +368,7 @@ export function OrderDetailsDrawer({
                         Giveaway
                       </td>
                       <td className="py-3 px-3 text-right text-sm text-muted-foreground">
-                        {formatCurrency(0)}
+                        {formatPrice(0)}
                       </td>
                     </tr>
                   ) : null}
@@ -504,20 +506,20 @@ export function OrderDetailsDrawer({
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Price</span>
-                <span className="text-foreground" data-testid="text-price">{formatCurrency(price)}</span>
+                <span className="text-foreground" data-testid="text-price">{formatPrice(price)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Taxes paid by buyer</span>
-                <span className="text-foreground" data-testid="text-tax">{formatCurrency(tax)}</span>
+                <span className="text-foreground" data-testid="text-tax">{formatPrice(tax)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Shipping paid by buyer</span>
-                <span className="text-foreground" data-testid="text-shipping-fee">{formatCurrency(shippingFee)}</span>
+                <span className="text-foreground" data-testid="text-shipping-fee">{formatPrice(shippingFee)}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Order total</span>
-                <span data-testid="text-order-total">{formatCurrency(orderTotal)}</span>
+                <span data-testid="text-order-total">{formatPrice(orderTotal)}</span>
               </div>
             </div>
           </div>
@@ -534,11 +536,11 @@ export function OrderDetailsDrawer({
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Price</span>
-                  <span className="text-foreground">{formatCurrency(price)}</span>
+                  <span className="text-foreground">{formatPrice(price)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Commission</span>
-                  <span className="text-foreground">-{formatCurrency(serviceFee)}</span>
+                  <span className="text-foreground">-{formatPrice(serviceFee)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <div className="flex items-center gap-1">
@@ -554,16 +556,16 @@ export function OrderDetailsDrawer({
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <span className="text-foreground">-{formatCurrency(processingFee)}</span>
+                  <span className="text-foreground">-{formatPrice(processingFee)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Seller Shipping Paid</span>
-                  <span className="text-foreground">-{formatCurrency(sellerShippingPaid)}</span>
+                  <span className="text-foreground">-{formatPrice(sellerShippingPaid)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Net earnings</span>
-                  <span data-testid="text-net-earnings">{formatCurrency(netEarnings)}</span>
+                  <span data-testid="text-net-earnings">{formatPrice(netEarnings)}</span>
                 </div>
               </div>
             </div>

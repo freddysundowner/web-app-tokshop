@@ -46,6 +46,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
+import { useCurrency } from "@/lib/use-currency";
 
 // Fields that should NOT appear in CSV upload interface
 const DISALLOWED_COLUMNS = new Set([
@@ -128,6 +129,7 @@ export function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { format } = useCurrency();
 
   const handleReset = () => {
     setCurrentStep('upload');
@@ -715,7 +717,7 @@ export function CSVUploadModal({ isOpen, onClose, onSuccess }: CSVUploadModalPro
                         )}
                       </TableCell>
                       <TableCell>{product.name || 'N/A'}</TableCell>
-                      <TableCell>{product.price > 0 ? `$${product.price}` : 'N/A'}</TableCell>
+                      <TableCell>{product.price > 0 ? format(product.price) : 'N/A'}</TableCell>
                       <TableCell>{product.quantity > 0 ? product.quantity : 'N/A'}</TableCell>
                       <TableCell>
                         {product.errors.length > 0 && (

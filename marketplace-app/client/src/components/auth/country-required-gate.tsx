@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { COUNTRIES } from "@/lib/countries";
+import { ALLOWED_COUNTRY_NAMES } from "@shared/currency";
 
 export function CountryRequiredGate() {
   const { updateCountry, logout } = useAuth();
@@ -76,7 +76,7 @@ export function CountryRequiredGate() {
                 </div>
               </SelectTrigger>
               <SelectContent className="max-h-60">
-                {COUNTRIES.map((c) => (
+                {ALLOWED_COUNTRY_NAMES.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/lib/use-currency";
 import { 
   Card, 
   CardContent, 
@@ -89,6 +90,7 @@ export function InventoryProductForm({
 }: InventoryProductFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { format, symbol } = useCurrency();
   const [showDialogOpen, setShowDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -454,7 +456,7 @@ export function InventoryProductForm({
                       name="price"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Price ($) *</FormLabel>
+                          <FormLabel>Price ({symbol}) *</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -478,7 +480,7 @@ export function InventoryProductForm({
                       name="startingPrice"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Starting Price ($) *</FormLabel>
+                          <FormLabel>Starting Price ({symbol}) *</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -640,7 +642,7 @@ export function InventoryProductForm({
                                     data-testid="input-flash-sale-discount"
                                   />
                                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                                    {flashSaleDiscountType === 'percentage' ? '%' : '$'}
+                                    {flashSaleDiscountType === 'percentage' ? '%' : symbol}
                                   </span>
                                 </div>
                               </FormControl>
@@ -660,8 +662,8 @@ export function InventoryProductForm({
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-yellow-600">Flash Sale Price:</span>
                               <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-400 line-through">${Number(productPrice).toFixed(2)}</span>
-                                <span className="text-lg font-bold text-yellow-600">${flashSalePrice.toFixed(2)}</span>
+                                <span className="text-sm text-gray-400 line-through">{format(Number(productPrice))}</span>
+                                <span className="text-lg font-bold text-yellow-600">{format(flashSalePrice)}</span>
                               </div>
                             </div>
                           </div>

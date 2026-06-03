@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
 import { useApiConfig } from "@/lib/use-api-config";
+import { useCurrency } from "@/lib/use-currency";
 import {
   Card,
   CardContent,
@@ -124,6 +125,7 @@ export default function Inventory() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { format: formatCurrency, symbol } = useCurrency();
 
   const {
     data: productResponse,
@@ -657,13 +659,6 @@ export default function Inventory() {
             return 0;
         }
       }) || [];
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
 
   const getStatusBadge = (status: string) => {
     const color =
@@ -1374,7 +1369,7 @@ export default function Inventory() {
                   }}
                   data-testid="button-price-increase-amount"
                 >
-                  Increase by $
+                  Increase by {symbol}
                 </Button>
                 <Button
                   variant="outline"
@@ -1387,7 +1382,7 @@ export default function Inventory() {
                   }}
                   data-testid="button-price-decrease-amount"
                 >
-                  Decrease by $
+                  Decrease by {symbol}
                 </Button>
               </div>
             </div>

@@ -7,10 +7,12 @@ import { CheckCircle2, Package, ArrowRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { TokshopOrder } from "@shared/schema";
 import { fetchWithAuth } from '@/lib/queryClient';
+import { useCurrency } from "@/lib/use-currency";
 
 export default function ThankYou() {
   const [, params] = useRoute("/thank-you/:orderId");
   const [, setLocation] = useLocation();
+  const { format } = useCurrency();
   const orderId = params?.orderId;
 
   // Fetch order details
@@ -74,7 +76,7 @@ export default function ThankYou() {
                 <div className="flex justify-between items-center gap-3">
                   <span className="text-sm text-muted-foreground">Total Amount</span>
                   <span className="font-semibold text-base sm:text-lg" data-testid="text-order-total">
-                    US${(() => {
+                    {format((() => {
                       // Calculate total from items since order.total doesn't exist in API response
                       const itemsTotal = order.items?.reduce((sum: number, item: any) => {
                         return sum + ((item.price || 0) * (item.quantity || 1));
@@ -82,8 +84,8 @@ export default function ThankYou() {
                       const shipping = order.shipping_fee || 0;
                       const tax = order.tax || 0;
                       const discount = order.discount || 0;
-                      return (itemsTotal + shipping + tax - discount).toFixed(2);
-                    })()}
+                      return itemsTotal + shipping + tax - discount;
+                    })())}
                   </span>
                 </div>
                 {(order as any).wallet_used > 0 && (
@@ -92,7 +94,7 @@ export default function ThankYou() {
                     <div className="flex justify-between items-center gap-3">
                       <span className="text-sm text-muted-foreground">Wallet Credit Used</span>
                       <span className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }} data-testid="text-wallet-used">
-                        -US${Number((order as any).wallet_used).toFixed(2)}
+                        -{format(Number((order as any).wallet_used))}
                       </span>
                     </div>
                   </>

@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Package } from "lucide-react";
 import type { TokshopOrder } from "@shared/schema";
+import { useCurrency } from "@/lib/use-currency";
 
 interface UnbundleItemsDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function UnbundleItemsDialog({
   isPending,
 }: UnbundleItemsDialogProps) {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const { format } = useCurrency();
 
   // Reset selections when dialog opens or order changes
   useEffect(() => {
@@ -137,7 +139,7 @@ export function UnbundleItemsDialog({
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
                             <span>Quantity: {item.quantity || 1}</span>
-                            <span>Price: ${(item.price || 0).toFixed(2)} each</span>
+                            <span>Price: {format(item.price || 0)} each</span>
                             {item.weight && (
                               <span>Weight: {item.weight}{item.scale || "oz"}</span>
                             )}
@@ -145,7 +147,7 @@ export function UnbundleItemsDialog({
                         </div>
                         <div className="text-right flex-shrink-0">
                           <div className="font-semibold text-sm">
-                            ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                            {format((item.price || 0) * (item.quantity || 1))}
                           </div>
                         </div>
                       </div>

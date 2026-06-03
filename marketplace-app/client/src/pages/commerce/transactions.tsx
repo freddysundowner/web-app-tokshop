@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CreditCard, Search, X, Printer, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useCurrency } from "@/lib/use-currency";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Transactions() {
   const { user } = useAuth();
+  const { format } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -242,12 +244,12 @@ export default function Transactions() {
 
                               if (isPurchase && isBuyer && parseFloat(transaction.total) > 0) {
                                 const orderTotal = (parseFloat(transaction.total) || 0) + (parseFloat(transaction.shippingFee) || 0) - (parseFloat(transaction.discount) || 0);
-                                return <span>${orderTotal.toFixed(2)}</span>;
+                                return <span>{format(orderTotal)}</span>;
                               }
 
                               return (
                                 <div>
-                                  <span>${(parseFloat(transaction.amount) || 0).toFixed(2)}</span>
+                                  <span>{format(parseFloat(transaction.amount) || 0)}</span>
                                   {transaction.type === 'payout' && transaction.bank_name && (
                                     <div className="text-xs text-muted-foreground">
                                       {transaction.bank_name}
@@ -356,7 +358,7 @@ export default function Transactions() {
                       <>
                         <div className="flex justify-between items-center text-lg font-bold">
                           <span>Amount:</span>
-                          <span className={isPayout ? 'text-red-500' : ''}>{isPayout ? '-' : ''}${(parseFloat(selectedTransaction.amount) || 0).toFixed(2)}</span>
+                          <span className={isPayout ? 'text-red-500' : ''}>{isPayout ? '-' : ''}{format(parseFloat(selectedTransaction.amount) || 0)}</span>
                         </div>
                         {isPayout && selectedTransaction.bank_name && (
                           <div className="flex justify-between">
@@ -367,7 +369,7 @@ export default function Transactions() {
                         {isPayout && selectedTransaction.balance_after_payout !== undefined && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Balance After Payout:</span>
-                            <span className="text-teal-600">${parseFloat(String(selectedTransaction.balance_after_payout || 0)).toFixed(2)}</span>
+                            <span className="text-teal-600">{format(parseFloat(String(selectedTransaction.balance_after_payout || 0)))}</span>
                           </div>
                         )}
                       </>
@@ -392,23 +394,23 @@ export default function Transactions() {
                       <>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Subtotal:</span>
-                          <span>${total.toFixed(2)}</span>
+                          <span>{format(total)}</span>
                         </div>
                         {shippingFee > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Shipping:</span>
-                            <span>${shippingFee.toFixed(2)}</span>
+                            <span>{format(shippingFee)}</span>
                           </div>
                         )}
                         {discount > 0 && (
                           <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
                             <span>Discount:</span>
-                            <span>-${discount.toFixed(2)}</span>
+                            <span>-{format(discount)}</span>
                           </div>
                         )}
                         <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
                           <span>Total Paid:</span>
-                          <span>${(totalPaid - discount).toFixed(2)}</span>
+                          <span>{format(totalPaid - discount)}</span>
                         </div>
                       </>
                     );
@@ -418,41 +420,41 @@ export default function Transactions() {
                     <>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Subtotal:</span>
-                        <span>${total.toFixed(2)}</span>
+                        <span>{format(total)}</span>
                       </div>
                       {shippingFee > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Shipping Fee:</span>
-                          <span>${shippingFee.toFixed(2)}</span>
+                          <span>{format(shippingFee)}</span>
                         </div>
                       )}
                       {stripeFee > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Transaction Fee:</span>
-                          <span className="text-destructive">-${stripeFee.toFixed(2)}</span>
+                          <span className="text-destructive">-{format(stripeFee)}</span>
                         </div>
                       )}
                       {serviceFee > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Service Fee:</span>
-                          <span className="text-destructive">-${serviceFee.toFixed(2)}</span>
+                          <span className="text-destructive">-{format(serviceFee)}</span>
                         </div>
                       )}
                       {extraCharges > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Extra Charges:</span>
-                          <span className="text-destructive">-${extraCharges.toFixed(2)}</span>
+                          <span className="text-destructive">-{format(extraCharges)}</span>
                         </div>
                       )}
                       {discount > 0 && (
                         <div className="flex justify-between" style={{ color: 'hsl(var(--primary))' }}>
                           <span>Discount:</span>
-                          <span>-${discount.toFixed(2)}</span>
+                          <span>-{format(discount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center text-lg font-bold pt-2 border-t">
                         <span>Earnings:</span>
-                        <span>${amount.toFixed(2)}</span>
+                        <span>{format(amount)}</span>
                       </div>
                       {(selectedTransaction.available_on || selectedTransaction.availableOn) && Number(selectedTransaction.available_on || selectedTransaction.availableOn) > 0 && (
                         <div className="flex justify-between">

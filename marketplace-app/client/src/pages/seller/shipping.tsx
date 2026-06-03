@@ -103,6 +103,7 @@ import {
 } from "@/components/ui/dialog";
 import { CompletePagination } from "@/components/ui/pagination";
 import { fetchWithAuth } from '@/lib/queryClient';
+import { useCurrency } from "@/lib/use-currency";
 
 const statusColors = {
   unfulfilled:
@@ -190,6 +191,7 @@ export default function Shipping() {
   const [videoReceiptUrl, setVideoReceiptUrl] = useState<string | null>(null);
   const [videoReceiptDialogOpen, setVideoReceiptDialogOpen] = useState(false);
   const { user } = useAuth();
+  const { format: formatPrice } = useCurrency();
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1426,7 +1428,7 @@ export default function Shipping() {
                     className="text-lg font-bold text-foreground"
                     data-testid="metric-total-sold"
                   >
-                    ${metrics?.totalSold || "0"}
+                    {formatPrice(Number(metrics?.totalSold || 0))}
                   </div>
                   <div className="text-xs text-muted-foreground">Total Sold</div>
                 </CardContent>
@@ -1438,7 +1440,7 @@ export default function Shipping() {
                     className="text-lg font-bold text-foreground"
                     data-testid="metric-total-earned"
                   >
-                    ${metrics?.totalEarned || "0"}
+                    {formatPrice(Number(metrics?.totalEarned || 0))}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Total Earned (Paid Out)
@@ -1452,7 +1454,7 @@ export default function Shipping() {
                     className="text-lg font-bold text-foreground"
                     data-testid="metric-shipping-spend"
                   >
-                    ${metrics?.totalShippingSpend || "0"}
+                    {formatPrice(Number(metrics?.totalShippingSpend || 0))}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Total Shipping Spend
@@ -2138,7 +2140,6 @@ export default function Shipping() {
                           <td className="px-3 py-3">
                             <div className="text-center">
                               <div className="text-sm text-muted-foreground">
-                                $
                                 {(() => {
                                   let subtotal = 0;
                                   // Add items total if present
@@ -2150,7 +2151,7 @@ export default function Shipping() {
                                     }, 0);
                                   }
                                   // Giveaways are $0, so no need to add anything for them
-                                  return (subtotal + (order.tax || 0) + (order.shipping_fee || 0)).toFixed(2);
+                                  return formatPrice(subtotal + (order.tax || 0) + (order.shipping_fee || 0));
                                 })()}
                               </div>
                             </div>
@@ -2452,11 +2453,11 @@ export default function Shipping() {
                                           </td>
                                           <td className="py-2 px-2">{order.giveaway.quantity || 1}</td>
                                           <td className="py-2 px-2">{order.giveaway.shipping_profile?.weight ? `${order.giveaway.shipping_profile.weight} ${order.giveaway.shipping_profile.scale || ''}` : '-'}</td>
-                                          <td className="py-2 px-2">$0.00</td>
-                                          <td className="py-2 px-2">${(order.shipping_fee || 0).toFixed(2)}</td>
+                                          <td className="py-2 px-2">{formatPrice(0)}</td>
+                                          <td className="py-2 px-2">{formatPrice(order.shipping_fee || 0)}</td>
                                           <td className="py-2 px-2 text-center">
                                             {order.seller_shipping_fee_pay && order.seller_shipping_fee_pay > 0 
-                                              ? `$${order.seller_shipping_fee_pay.toFixed(2)}`
+                                              ? formatPrice(order.seller_shipping_fee_pay)
                                               : '-'}
                                           </td>
                                           <td className="py-2 px-2">Giveaway</td>
@@ -2537,11 +2538,11 @@ export default function Shipping() {
                                             </td>
                                             <td className="py-2 px-2">{item.quantity || 1}</td>
                                             <td className="py-2 px-2">{item.weight ? `${item.weight} ${item.scale || ''}` : '-'}</td>
-                                            <td className="py-2 px-2">${(item.price || 0).toFixed(2)}</td>
-                                            <td className="py-2 px-2">${(item.shipping_fee || 0).toFixed(2)}</td>
+                                            <td className="py-2 px-2">{formatPrice(item.price || 0)}</td>
+                                            <td className="py-2 px-2">{formatPrice(item.shipping_fee || 0)}</td>
                                             <td className="py-2 px-2 text-center">
                                               {(item as any).seller_shipping_fee_pay && (item as any).seller_shipping_fee_pay > 0 
-                                                ? `$${(item as any).seller_shipping_fee_pay.toFixed(2)}`
+                                                ? formatPrice((item as any).seller_shipping_fee_pay)
                                                 : '-'}
                                             </td>
                                             <td className="py-2 px-2">{(item as any).orderType || (order.tokshow ? 'Show' : 'Marketplace')}</td>

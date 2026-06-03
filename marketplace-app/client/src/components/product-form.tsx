@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, fetchWithAuth, queryClient } from '@/lib/queryClient';
 import { useAuth } from "@/lib/auth-context";
+import { useCurrency } from "@/lib/use-currency";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,7 @@ export function ProductForm({
   showCancelButton = false,
 }: ProductFormProps) {
   const { user } = useAuth();
+  const { symbol: currencySymbol, currency: currencyCode, format } = useCurrency();
   const { toast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -836,21 +838,24 @@ export function ProductForm({
               name="startingPrice"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white font-medium">Starting Price</FormLabel>
+                  <FormLabel className="text-white font-medium">Starting Price ({currencyCode})</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      min="1"
-                      placeholder="1.00" 
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value === '' ? '' : parseFloat(value));
-                      }}
-                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
-                      data-testid="input-product-starting-price"
-                    />
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" data-testid="text-currency-symbol-starting-price">{currencySymbol}</span>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        min="1"
+                        placeholder="1.00" 
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value === '' ? '' : parseFloat(value));
+                        }}
+                        className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 pl-7"
+                        data-testid="input-product-starting-price"
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -888,21 +893,24 @@ export function ProductForm({
               name="price"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white font-medium">Price</FormLabel>
+                  <FormLabel className="text-white font-medium">Price ({currencyCode})</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      min="0"
-                      placeholder="Price" 
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value === '' ? '' : parseFloat(value));
-                      }}
-                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400"
-                      data-testid="input-product-price"
-                    />
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" data-testid="text-currency-symbol-price">{currencySymbol}</span>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        placeholder="Price" 
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value === '' ? '' : parseFloat(value));
+                        }}
+                        className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-400 pl-7"
+                        data-testid="input-product-price"
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -1211,7 +1219,7 @@ export function ProductForm({
                             data-testid="input-flash-sale-discount"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">
-                            {flashSaleDiscountType === 'percentage' ? '%' : '$'}
+                            {flashSaleDiscountType === 'percentage' ? '%' : currencySymbol}
                           </span>
                         </div>
                       </FormControl>
@@ -1231,8 +1239,8 @@ export function ProductForm({
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-yellow-400">Flash Sale Price:</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-zinc-400 line-through">${Number(productPrice).toFixed(2)}</span>
-                        <span className="text-lg font-bold text-yellow-400">${flashSalePrice.toFixed(2)}</span>
+                        <span className="text-sm text-zinc-400 line-through">{format(Number(productPrice))}</span>
+                        <span className="text-lg font-bold text-yellow-400">{format(flashSalePrice)}</span>
                       </div>
                     </div>
                   </div>

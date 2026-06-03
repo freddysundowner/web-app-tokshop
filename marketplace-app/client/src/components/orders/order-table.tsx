@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
-import { calculateOrderTotal, formatCurrency } from "@shared/pricing";
+import { calculateOrderTotal } from "@shared/pricing";
+import { useCurrency } from "@/lib/use-currency";
 import { format } from "date-fns";
 
 const statusColors = {
@@ -40,6 +41,7 @@ export function OrderTable({ statusFilter, dateFilter }: OrderTableProps) {
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [relistOption, setRelistOption] = useState<boolean>(false);
   const { toast } = useToast();
+  const { format: formatPrice } = useCurrency();
   const queryClient = useQueryClient();
 
   const { data: orderResponse, isLoading } = useQuery<TokshopOrdersResponse>({
@@ -187,7 +189,7 @@ export function OrderTable({ statusFilter, dateFilter }: OrderTableProps) {
                   {order.giveaway?.name || 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                  {formatCurrency(calculateTotal(order))}
+                  {formatPrice(calculateTotal(order))}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   {order.date ? format(new Date(order.date), "MMM d, yyyy") : format(new Date(order.createdAt || Date.now()), "MMM d, yyyy")}

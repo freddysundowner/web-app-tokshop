@@ -12,12 +12,14 @@ import { useAuth } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useCurrency } from "@/lib/use-currency";
 import { fetchWithAuth } from '@/lib/queryClient';
 
 export default function Payouts() {
   const { user } = useAuth();
   const { appName } = useSettings();
   const { toast } = useToast();
+  const { format: formatPrice, symbol } = useCurrency();
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [payoutAmount, setPayoutAmount] = useState("");
@@ -134,7 +136,7 @@ export default function Payouts() {
 
       toast({
         title: "Payout initiated",
-        description: `$${amount.toFixed(2)} is being sent to your bank account`,
+        description: `${formatPrice(amount)} is being sent to your bank account`,
       });
 
       setPayoutAmount("");
@@ -158,15 +160,15 @@ export default function Payouts() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Account Balance</CardTitle>
-              <div className="text-3xl font-bold">${walletBalance.toFixed(2)}</div>
+              <div className="text-3xl font-bold">{formatPrice(walletBalance)}</div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="border rounded-lg p-3">
-                <div className="font-medium">${walletBalance.toFixed(2)} available for payout</div>
+                <div className="font-medium">{formatPrice(walletBalance)} available for payout</div>
                 <div className="text-sm text-muted-foreground">These funds are available to initiate payout to your bank account.</div>
               </div>
               <div className="text-sm text-muted-foreground">
-                ${walletPending.toFixed(2)} processing
+                {formatPrice(walletPending)} processing
               </div>
             </CardContent>
           </Card>
@@ -205,7 +207,7 @@ export default function Payouts() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Amount</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{symbol}</span>
                   <Input
                     type="number"
                     placeholder="0.00"
@@ -284,7 +286,7 @@ export default function Payouts() {
                       
                       return (
                         <TableRow key={payoutId}>
-                          <TableCell className="font-medium">${amount.toFixed(2)}</TableCell>
+                          <TableCell className="font-medium">{formatPrice(amount)}</TableCell>
                           <TableCell>{destination}</TableCell>
                           <TableCell>{formatDateTime(payout.created || payout.createdAt)}</TableCell>
                           <TableCell>{formatDateTime(payout.arrival_date || payout.arrivalDate || payout.completedAt)}</TableCell>

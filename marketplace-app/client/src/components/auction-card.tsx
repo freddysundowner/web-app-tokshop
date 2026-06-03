@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/lib/auth-context';
+import { useCurrency } from '@/lib/use-currency';
 
 interface AuctionCardProps {
   auction: any;
@@ -19,6 +20,7 @@ export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
   const [imageError, setImageError] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { format } = useCurrency();
   
   // Get auction details from nested auction object if it exists
   const auctionData = auction.auction || auction;
@@ -265,15 +267,15 @@ export function AuctionCard({ auction, layout = 'grid' }: AuctionCardProps) {
           <div className="flex flex-col text-sm">
             {hasBids ? (
               <>
-                <span className="font-bold text-primary">${currentBid.toFixed(0)} <span className="font-normal text-muted-foreground text-xs">({bidsCount} bids)</span></span>
+                <span className="font-bold text-primary">{format(currentBid)} <span className="font-normal text-muted-foreground text-xs">({bidsCount} bids)</span></span>
                 {startingPrice > 0 && (
-                  <span className="text-xs text-muted-foreground">Starting: ${startingPrice.toFixed(0)}</span>
+                  <span className="text-xs text-muted-foreground">Starting: {format(startingPrice)}</span>
                 )}
               </>
             ) : (
               <>
                 <span className="text-xs text-muted-foreground">Starting Price</span>
-                <span className="font-bold text-primary">${startingPrice.toFixed(0)}</span>
+                <span className="font-bold text-primary">{format(startingPrice)}</span>
               </>
             )}
           </div>
