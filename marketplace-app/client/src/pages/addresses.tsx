@@ -9,6 +9,7 @@ import {
   useCityOptions,
   findCountry,
   findState,
+  getAddressPlaceholders,
 } from "@/components/address-fields";
 import {
   Card,
@@ -89,6 +90,7 @@ export default function Addresses() {
   const [stateData, setStateData] = useState<any>(null);
   const [cityData, setCityData] = useState<any>(null);
 
+  const placeholders = getAddressPlaceholders(countryData?.isoCode);
   const countryOptions = useCountryOptions();
   const stateOptions = useStateOptions(countryData?.isoCode);
   const cityOptions = useCityOptions(countryData?.isoCode, stateData?.isoCode);
@@ -545,7 +547,7 @@ export default function Addresses() {
                 onChange={(e) =>
                   setFormData({ ...formData, addrress1: e.target.value })
                 }
-                placeholder="123 Main Street"
+                placeholder={placeholders.street}
                 required
                 data-testid="input-address-street1"
               />
@@ -559,7 +561,7 @@ export default function Addresses() {
                 onChange={(e) =>
                   setFormData({ ...formData, addrress2: e.target.value })
                 }
-                placeholder="Apt, Suite, Unit, etc."
+                placeholder={placeholders.street2}
                 data-testid="input-address-street2"
               />
             </div>
@@ -631,7 +633,7 @@ export default function Addresses() {
                 onChange={(e) =>
                   setFormData({ ...formData, zipcode: e.target.value })
                 }
-                placeholder="12345"
+                placeholder={placeholders.zip}
                 required
                 data-testid="input-address-zipcode"
               />
@@ -646,7 +648,7 @@ export default function Addresses() {
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                placeholder="+1 (555) 123-4567"
+                placeholder={placeholders.phone}
                 data-testid="input-address-phone"
               />
             </div>

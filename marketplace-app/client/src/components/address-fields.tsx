@@ -193,11 +193,15 @@ export function useCityOptions(
   return EMPTY_CITIES;
 }
 
-export function findCountry(codeOrName: string | undefined) {
+export function findCountry(codeOrName: string | undefined | null) {
   if (!codeOrName) return null;
-  const byCode = Country.getCountryByCode(codeOrName);
+  const raw = String(codeOrName).trim();
+  if (!raw) return null;
+  // "UK" is a common alias but not a valid ISO code; the dataset uses "GB".
+  const code = raw.toUpperCase() === "UK" ? "GB" : raw.toUpperCase();
+  const byCode = Country.getCountryByCode(code);
   if (byCode) return byCode;
-  return Country.getAllCountries().find((c) => c.name === codeOrName) || null;
+  return Country.getAllCountries().find((c) => c.name === raw) || null;
 }
 
 export function findState(countryIso: string, codeOrName: string | undefined) {
@@ -205,6 +209,29 @@ export function findState(countryIso: string, codeOrName: string | undefined) {
   const byCode = State.getStateByCodeAndCountry(codeOrName, countryIso);
   if (byCode) return byCode;
   return State.getStatesOfCountry(countryIso).find((s) => s.name === codeOrName) || null;
+}
+
+export interface AddressPlaceholders {
+  street: string;
+  street2: string;
+  zip: string;
+  phone: string;
+}
+
+const ADDRESS_PLACEHOLDERS: Record<string, AddressPlaceholders> = {
+  DE: { street: "Musterstraße 12", street2: "Wohnung, Etage, usw.", zip: "10115", phone: "+49 30 12345678" },
+  IE: { street: "12 O'Connell Street", street2: "Apartment, floor, etc.", zip: "D02 AF30", phone: "+353 1 234 5678" },
+  GB: { street: "10 Downing Street", street2: "Flat, floor, etc.", zip: "SW1A 2AA", phone: "+44 20 7946 0958" },
+  US: { street: "123 Main Street", street2: "Apt, Suite, Unit, etc.", zip: "10001", phone: "+1 (555) 123-4567" },
+};
+
+const DEFAULT_ADDRESS_PLACEHOLDERS: AddressPlaceholders = ADDRESS_PLACEHOLDERS.US;
+
+export function getAddressPlaceholders(isoCode: string | undefined | null): AddressPlaceholders {
+  if (!isoCode) return DEFAULT_ADDRESS_PLACEHOLDERS;
+  const cc = isoCode.toUpperCase();
+  if (cc === "UK") return ADDRESS_PLACEHOLDERS.GB;
+  return ADDRESS_PLACEHOLDERS[cc] || DEFAULT_ADDRESS_PLACEHOLDERS;
 }
 
 export function preloadAddressData() {

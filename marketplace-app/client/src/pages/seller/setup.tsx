@@ -26,6 +26,7 @@ import {
   useStateOptions,
   useCityOptions,
   findCountry,
+  getAddressPlaceholders,
 } from "@/components/address-fields";
 
 interface Step {
@@ -175,6 +176,7 @@ export default function SellerSetup() {
     }
   }, [user]);
 
+  const placeholders = getAddressPlaceholders(country?.isoCode);
   const countryOptions = useCountryOptions();
   const stateOptions = useStateOptions(country?.isoCode);
   const cityOptions = useCityOptions(country?.isoCode, state?.isoCode);
@@ -581,7 +583,7 @@ export default function SellerSetup() {
                   <Label htmlFor="street-address">Street Address *</Label>
                   <Input
                     id="street-address"
-                    placeholder="123 Main Street"
+                    placeholder={placeholders.street}
                     value={streetAddress}
                     onChange={(e) => setStreetAddress(e.target.value)}
                     required
@@ -593,7 +595,7 @@ export default function SellerSetup() {
                   <Label htmlFor="street-address-2">Street Address 2 (Optional)</Label>
                   <Input
                     id="street-address-2"
-                    placeholder="Apt, Suite, Unit, etc."
+                    placeholder={placeholders.street2}
                     value={streetAddress2}
                     onChange={(e) => setStreetAddress2(e.target.value)}
                     data-testid="input-street-address-2"
@@ -668,7 +670,7 @@ export default function SellerSetup() {
                   <Label htmlFor="zip">ZIP/Postal Code *</Label>
                   <Input
                     id="zip"
-                    placeholder="10001"
+                    placeholder={placeholders.zip}
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
                     required
@@ -680,7 +682,7 @@ export default function SellerSetup() {
                   <Label htmlFor="phone">Phone Number *</Label>
                   <Input
                     id="phone"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={placeholders.phone}
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     required

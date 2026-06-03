@@ -115,7 +115,10 @@ function Router() {
   // Use fresh user data if available, otherwise fall back to cached user
   const currentUser = freshUserData || user;
 
-  const userHasCountry = !!(currentUser?.country && String(currentUser.country).trim());
+  const userHasCountry = !!(
+    (currentUser?.country && String(currentUser.country).trim()) ||
+    (currentUser?.countryCode && String(currentUser.countryCode).trim())
+  );
   // Every authenticated user must have a country (the platform is locked to a few
   // supported countries and prices are shown in each user's local currency). Any
   // signed-in user without one must resolve it before the app renders — this

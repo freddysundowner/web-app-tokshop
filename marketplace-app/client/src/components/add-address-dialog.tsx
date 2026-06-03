@@ -20,6 +20,7 @@ import {
   useCityOptions,
   findCountry,
   findState,
+  getAddressPlaceholders,
 } from '@/components/address-fields';
 
 interface AddAddressDialogProps {
@@ -49,6 +50,7 @@ export function AddAddressDialog({
   const [cityData, setCityData] = useState<any>(null);
   const [cityFreeText, setCityFreeText] = useState("");
 
+  const placeholders = getAddressPlaceholders(countryData?.isoCode);
   const countryOptions = useCountryOptions();
   const stateOptions = useStateOptions(countryData?.isoCode);
   const cityOptions = useCityOptions(countryData?.isoCode, stateData?.isoCode);
@@ -244,7 +246,7 @@ export function AddAddressDialog({
               <Label htmlFor="street-address" className="text-sm font-medium">Street Address</Label>
               <Input
                 id="street-address"
-                placeholder="123 Main Street"
+                placeholder={placeholders.street}
                 value={streetAddress}
                 onChange={(e) => setStreetAddress(e.target.value)}
                 data-testid="input-street-address"
@@ -256,7 +258,7 @@ export function AddAddressDialog({
               <Label htmlFor="street-address-2" className="text-sm font-medium">Street Address 2 (Optional)</Label>
               <Input
                 id="street-address-2"
-                placeholder="Apt, Suite, Unit, etc."
+                placeholder={placeholders.street2}
                 value={streetAddress2}
                 onChange={(e) => setStreetAddress2(e.target.value)}
                 data-testid="input-street-address-2"
@@ -336,7 +338,7 @@ export function AddAddressDialog({
                 <Label htmlFor="zip" className="text-sm font-medium">ZIP/Postal Code</Label>
                 <Input
                   id="zip"
-                  placeholder="10001"
+                  placeholder={placeholders.zip}
                   value={zipCode}
                   onChange={(e) => setZipCode(e.target.value)}
                   data-testid="input-zip"
@@ -350,7 +352,7 @@ export function AddAddressDialog({
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+1 (555) 123-4567"
+                  placeholder={placeholders.phone}
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   data-testid="input-phone"
