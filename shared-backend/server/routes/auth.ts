@@ -82,7 +82,7 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      const { email, country, firstName, lastName, userName, phone, password } = validationResult.data;
+      const { email, country, countryCode, firstName, lastName, userName, phone, password } = validationResult.data;
 
       const referredBy = req.body.referredBy || undefined;
       const clientIp = req.body.clientIp || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket.remoteAddress || '';
@@ -97,6 +97,7 @@ export function registerAuthRoutes(app: Express) {
           body: JSON.stringify({
             email,
             country,
+            ...(countryCode ? { countryCode } : {}),
             firstName,
             lastName,
             userName,

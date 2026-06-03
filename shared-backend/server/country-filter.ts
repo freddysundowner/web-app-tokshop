@@ -41,11 +41,21 @@ export function getUserCountry(req: Request): string | null {
   return typeof c === "string" && c.trim() ? c.trim() : null;
 }
 
+// The value sent in the `country` query param: prefer the user's ISO country
+// code (e.g. "US"), falling back to the full country name when no code is on
+// file (e.g. legacy accounts that only stored the name).
+export function getUserCountryValue(req: Request): string | null {
+  const user = (req.session as any)?.user;
+  const code = user?.countryCode;
+  if (typeof code === "string" && code.trim()) return code.trim();
+  return getUserCountry(req);
+}
+
 export async function applyCountryFilter(
   req: Request,
   params: URLSearchParams,
 ): Promise<void> {
-  const country = getUserCountry(req);
+  const country = getUserCountryValue(req);
   const enabled = await getCountryFilterEnabled(req);
   if (!enabled) return;
   // Hard filter: strip any client-supplied country, then force the
@@ -59,7 +69,7 @@ export async function appendCountryFilterToParts(
   req: Request,
   queryParts: string[],
 ): Promise<void> {
-  const country = getUserCountry(req);
+  const country = getUserCountryValue(req);
   const enabled = await getCountryFilterEnabled(req);
   if (!enabled) return;
   // Hard filter: strip any client-supplied country part first.

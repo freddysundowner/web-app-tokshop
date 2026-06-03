@@ -14,6 +14,7 @@ interface User {
   coverPhoto?: string;
   userName?: string;
   country?: string;
+  countryCode?: string;
   phone?: string;
   date_of_birth?: string; // YYYY-MM-DD format
   seller?: boolean;
@@ -194,6 +195,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           profilePhoto: tokshopResponse.data.profilePhoto || firebaseUser.photoURL || '',
           userName: tokshopResponse.data.userName,
           country: tokshopResponse.data.country || '',
+          countryCode: tokshopResponse.data.countryCode || '',
           phone: tokshopResponse.data.phone || '',
           date_of_birth: tokshopResponse.data.date_of_birth || tokshopResponse.data.dateOfBirth,
           seller: tokshopResponse.data.seller || false,
@@ -263,6 +265,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           profilePhoto: loginResponse.data.profilePhoto || '',
           userName: loginResponse.data.userName,
           country: loginResponse.data.country || '',
+          countryCode: loginResponse.data.countryCode || '',
           phone: loginResponse.data.phone || '',
           date_of_birth: loginResponse.data.date_of_birth || loginResponse.data.dateOfBirth,
           seller: loginResponse.data.seller || false,
@@ -450,6 +453,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         type: authType,
         profilePhoto: pendingSocialAuthData.photoURL || '',
         country: validatedData.country || '',
+        countryCode: (validatedData as any).countryCode || '',
         phone: validatedData.phone || '',
         gender: validatedData.gender || '',
         providerToken: storedProviderToken,
@@ -469,6 +473,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           profilePhoto: completeResponse.data.profilePhoto || pendingSocialAuthData.photoURL || '',
           userName: completeResponse.data.userName,
           country: completeResponse.data.country || '',
+          countryCode: completeResponse.data.countryCode || '',
           phone: completeResponse.data.phone || '',
           date_of_birth: completeResponse.data.date_of_birth || completeResponse.data.dateOfBirth,
           seller: completeResponse.data.seller || false,
@@ -596,6 +601,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               coverPhoto: userData.coverPhoto || '',
               userName: userData.userName || '',
               country: userData.country || '',
+              countryCode: userData.countryCode || '',
               phone: userData.phonenumber || userData.phone || '',
               date_of_birth: userData.date_of_birth || '',
               seller: userData.seller || false,
