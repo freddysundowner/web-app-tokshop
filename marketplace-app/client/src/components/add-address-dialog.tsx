@@ -92,14 +92,16 @@ export function AddAddressDialog({
       setName("");
       setStreetAddress("");
       setStreetAddress2("");
-      setCountryData(null);
+      // Default the country to the user's account country for new addresses
+      const userCountry = findCountry(user?.countryCode || user?.country);
+      setCountryData(userCountry ? { name: userCountry.name, isoCode: userCountry.isoCode } : null);
       setStateData(null);
       setCityData(null);
       setCityFreeText("");
       setZipCode("");
       setPhoneNumber("");
     }
-  }, [address, open]);
+  }, [address, open, user]);
 
   const handleAddAddress = async () => {
     const resolvedCity = cityData?.name || cityFreeText.trim();

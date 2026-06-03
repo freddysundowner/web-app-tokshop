@@ -243,6 +243,8 @@ export default function Addresses() {
   });
 
   const resetForm = () => {
+    // Default the country to the user's account country for new addresses
+    const userCountry = findCountry(user?.countryCode || user?.country);
     setFormData({
       name: "",
       addrress1: "",
@@ -250,13 +252,13 @@ export default function Addresses() {
       city: "",
       state: "",
       zipcode: "",
-      countryCode: "US",
-      country: "United States",
+      countryCode: userCountry?.isoCode || "US",
+      country: userCountry?.name || "United States",
       phone: "",
       email: "",
       userId: "",
     });
-    setCountryData(null);
+    setCountryData(userCountry ? { name: userCountry.name, isoCode: userCountry.isoCode } : null);
     setStateData(null);
     setCityData(null);
   };
