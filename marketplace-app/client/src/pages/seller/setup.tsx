@@ -25,6 +25,7 @@ import {
   useCountryOptions,
   useStateOptions,
   useCityOptions,
+  findCountry,
 } from "@/components/address-fields";
 
 interface Step {
@@ -162,12 +163,17 @@ export default function SellerSetup() {
     enabled: !!userId,
   });
 
-  // Set US as default on mount
+  // Default the country to the user's account country on mount
   useEffect(() => {
     if (!country) {
-      setCountry({ name: "United States", isoCode: "US", iso2: "US" });
+      const userCountry = findCountry((user as any)?.countryCode || (user as any)?.country);
+      if (userCountry) {
+        setCountry({ name: userCountry.name, isoCode: userCountry.isoCode, iso2: userCountry.isoCode });
+      } else {
+        setCountry({ name: "United States", isoCode: "US", iso2: "US" });
+      }
     }
-  }, []);
+  }, [user]);
 
   const countryOptions = useCountryOptions();
   const stateOptions = useStateOptions(country?.isoCode);
