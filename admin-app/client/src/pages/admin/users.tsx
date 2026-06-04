@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Users, Search, Eye, ChevronLeft, ChevronRight, Wallet, ShieldBan, CheckCircle, Ban, MoreVertical, Clock, CalendarIcon, Loader2, Filter, Trash2, LogIn, Truck, PencilLine } from "lucide-react";
@@ -38,6 +39,7 @@ export default function AdminUsers() {
   const [selectedUserForWallet, setSelectedUserForWallet] = useState<any>(null);
   const [walletAmount, setWalletAmount] = useState<string>("");
   const [walletNarration, setWalletNarration] = useState<string>("");
+  const [walletDeduct, setWalletDeduct] = useState<boolean>(false);
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -208,8 +210,8 @@ export default function AdminUsers() {
 
   // Update wallet mutation
   const walletMutation = useMutation({
-    mutationFn: async ({ userId, wallet, narration }: { userId: string; wallet: number; narration: string }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}`, { wallet, narration });
+    mutationFn: async ({ userId, wallet, narration, deduct }: { userId: string; wallet: number; narration: string; deduct: boolean }) => {
+      return apiRequest("PATCH", `/api/admin/users/${userId}/wallet`, { wallet, narration, deduct });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -217,6 +219,7 @@ export default function AdminUsers() {
       setSelectedUserForWallet(null);
       setWalletAmount("");
       setWalletNarration("");
+      setWalletDeduct(false);
       toast({ title: "Success", description: "Wallet balance updated successfully" });
     },
     onError: (error: any) => {
@@ -228,6 +231,7 @@ export default function AdminUsers() {
     setSelectedUserForWallet(userToEdit);
     setWalletAmount(String(userToEdit.wallet || 0));
     setWalletNarration("");
+    setWalletDeduct(false);
     setWalletDialogOpen(true);
   };
 
@@ -238,7 +242,7 @@ export default function AdminUsers() {
       toast({ title: "Invalid amount", description: "Please enter a valid positive number", variant: "destructive" });
       return;
     }
-    walletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, wallet: amount, narration: walletNarration });
+    walletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, wallet: amount, narration: walletNarration, deduct: walletDeduct });
   };
 
   // Reset to page 1 when search query changes
@@ -655,13 +659,29 @@ export default function AdminUsers() {
           <DialogHeader>
             <DialogTitle>Update Wallet Balance</DialogTitle>
             <DialogDescription>
-              Set a new wallet balance for {selectedUserForWallet?.firstName} {selectedUserForWallet?.lastName}.
+              {walletDeduct ? "Deduct an amount from" : "Set a new wallet balance for"} {selectedUserForWallet?.firstName} {selectedUserForWallet?.lastName}.
               Current balance: ${(selectedUserForWallet?.wallet || 0).toFixed(2)}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="wallet-deduct">Deduct from balance</Label>
+                <p className="text-xs text-muted-foreground">
+                  {walletDeduct
+                    ? "The amount below will be subtracted from the current balance."
+                    : "Off: the amount below sets the new wallet balance."}
+                </p>
+              </div>
+              <Switch
+                id="wallet-deduct"
+                checked={walletDeduct}
+                onCheckedChange={setWalletDeduct}
+                data-testid="switch-wallet-deduct"
+              />
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="wallet-amount">New Balance ($)</Label>
+              <Label htmlFor="wallet-amount">{walletDeduct ? "Amount to deduct ($)" : "New Balance ($)"}</Label>
               <Input
                 id="wallet-amount"
                 type="number"
