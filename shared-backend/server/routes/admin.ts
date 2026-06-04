@@ -3981,9 +3981,9 @@ If you have any questions, feel free to reach out to our support team.
     try {
       const accessToken = getAdminToken(req);
       const { userId } = req.params;
-      const { wallet, narration, deduct } = req.body;
+      const { wallet, narration, deduct, stripe } = req.body;
 
-      console.log(`[Wallet Update] Request to update wallet for user: ${userId}, amount: ${wallet}, deduct: ${deduct}`);
+      console.log(`[Wallet Update] Request to update wallet for user: ${userId}, amount: ${wallet}, deduct: ${deduct}, stripe: ${stripe}`);
 
       if (!accessToken) {
         return res.status(401).json({ success: false, error: "No access token found" });
@@ -3994,7 +3994,10 @@ If you have any questions, feel free to reach out to our support team.
       }
 
       const url = `${BASE_URL}/users/update/wallet/${userId}`;
-      const payload = { wallet, narration, deduct: Boolean(deduct) };
+      const payload: Record<string, any> = { wallet, narration, deduct: Boolean(deduct) };
+      if (stripe !== undefined) {
+        payload.stripe = Boolean(stripe);
+      }
       console.log(`[Wallet Update] Calling ICONA API: ${url}`);
       console.log(`[Wallet Update] Payload:`, payload);
 

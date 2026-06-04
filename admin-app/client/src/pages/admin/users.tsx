@@ -40,6 +40,7 @@ export default function AdminUsers() {
   const [walletAmount, setWalletAmount] = useState<string>("");
   const [walletNarration, setWalletNarration] = useState<string>("");
   const [walletDeduct, setWalletDeduct] = useState<boolean>(false);
+  const [walletStripe, setWalletStripe] = useState<boolean>(true);
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -210,8 +211,8 @@ export default function AdminUsers() {
 
   // Update wallet mutation
   const walletMutation = useMutation({
-    mutationFn: async ({ userId, wallet, narration, deduct }: { userId: string; wallet: number; narration: string; deduct: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/wallet`, { wallet, narration, deduct });
+    mutationFn: async ({ userId, wallet, narration, deduct, stripe }: { userId: string; wallet: number; narration: string; deduct: boolean; stripe?: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/wallet`, { wallet, narration, deduct, stripe });
       return res.json();
     },
     onSuccess: (data: any) => {
@@ -221,6 +222,7 @@ export default function AdminUsers() {
       setWalletAmount("");
       setWalletNarration("");
       setWalletDeduct(false);
+      setWalletStripe(true);
       toast({ title: "Success", description: data?.message || data?.data?.message || "Wallet balance updated" });
     },
     onError: (error: any) => {
@@ -233,6 +235,7 @@ export default function AdminUsers() {
     setWalletAmount(String(userToEdit.wallet || 0));
     setWalletNarration("");
     setWalletDeduct(false);
+    setWalletStripe(true);
     setWalletDialogOpen(true);
   };
 
@@ -243,7 +246,8 @@ export default function AdminUsers() {
       toast({ title: "Invalid amount", description: "Please enter a valid positive number", variant: "destructive" });
       return;
     }
-    walletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, wallet: amount, narration: walletNarration, deduct: walletDeduct });
+    const isSeller = !!selectedUserForWallet.seller;
+    walletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, wallet: amount, narration: walletNarration, deduct: walletDeduct, stripe: isSeller ? walletStripe : undefined });
   };
 
   // Reset to page 1 when search query changes
@@ -684,6 +688,24 @@ export default function AdminUsers() {
                 data-testid="switch-wallet-deduct"
               />
             </div>
+            {selectedUserForWallet?.seller && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="wallet-stripe">Apply to Stripe</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {walletStripe
+                      ? "This change will also be reflected on the seller's Stripe balance."
+                      : "Off: this is a virtual balance change only (not applied to Stripe)."}
+                  </p>
+                </div>
+                <Switch
+                  id="wallet-stripe"
+                  checked={walletStripe}
+                  onCheckedChange={setWalletStripe}
+                  data-testid="switch-wallet-stripe"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="wallet-amount">{walletDeduct ? "Amount to deduct ($)" : "New Balance ($)"}</Label>
               <Input
