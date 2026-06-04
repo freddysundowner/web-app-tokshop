@@ -232,7 +232,7 @@ export default function AdminUsers() {
 
   const handleOpenWalletDialog = (userToEdit: any) => {
     setSelectedUserForWallet(userToEdit);
-    setWalletAmount(String(userToEdit.wallet || 0));
+    setWalletAmount("");
     setWalletNarration("");
     setWalletDeduct(false);
     setWalletStripe(true);
@@ -664,29 +664,33 @@ export default function AdminUsers() {
           <DialogHeader>
             <DialogTitle>Update Wallet Balance</DialogTitle>
             <DialogDescription>
-              {walletDeduct ? "Deduct an amount from" : "Set a new wallet balance for"} {selectedUserForWallet?.firstName} {selectedUserForWallet?.lastName}.
+              {walletDeduct ? "Debit (subtract from)" : "Credit (add to)"} the balance of {selectedUserForWallet?.firstName} {selectedUserForWallet?.lastName}.
               Current balance: ${(selectedUserForWallet?.wallet || 0).toFixed(2)}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="flex items-center justify-between rounded-md border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="wallet-deduct">Deduct from balance</Label>
-                <p className="text-xs text-muted-foreground">
-                  {walletDeduct
-                    ? "The amount below will be subtracted from the current balance."
-                    : "Off: the amount below sets the new wallet balance."}
-                </p>
-              </div>
-              <Switch
-                id="wallet-deduct"
-                checked={walletDeduct}
-                onCheckedChange={(checked) => {
-                  setWalletDeduct(checked);
-                  setWalletAmount(checked ? "" : String(selectedUserForWallet?.wallet || 0));
+            <div className="space-y-2">
+              <Label htmlFor="wallet-type">Transaction type</Label>
+              <Select
+                value={walletDeduct ? "debit" : "credit"}
+                onValueChange={(v) => {
+                  setWalletDeduct(v === "debit");
+                  setWalletAmount("");
                 }}
-                data-testid="switch-wallet-deduct"
-              />
+              >
+                <SelectTrigger id="wallet-type" data-testid="select-wallet-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="credit" data-testid="option-wallet-credit">Credit (add to balance)</SelectItem>
+                  <SelectItem value="debit" data-testid="option-wallet-debit">Debit (subtract from balance)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {walletDeduct
+                  ? "The amount below will be subtracted from the current balance."
+                  : "The amount below will be added to the current balance."}
+              </p>
             </div>
             {selectedUserForWallet?.seller && (
               <div className="flex items-center justify-between rounded-md border p-3">
@@ -707,7 +711,7 @@ export default function AdminUsers() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="wallet-amount">{walletDeduct ? "Amount to deduct ($)" : "New Balance ($)"}</Label>
+              <Label htmlFor="wallet-amount">{walletDeduct ? "Amount to debit ($)" : "Amount to credit ($)"}</Label>
               <Input
                 id="wallet-amount"
                 type="number"
