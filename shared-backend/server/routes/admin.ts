@@ -4014,14 +4014,14 @@ If you have any questions, feel free to reach out to our support team.
         console.error(`[Wallet Update] API error:`, errorData);
         return res.status(response.status).json({
           success: false,
-          error: errorData.message || "Failed to update wallet",
+          error: errorData.message || errorData.error || "Failed to update wallet",
         });
       }
 
       const data = await response.json();
       console.log('[Wallet Update] Success:', data);
 
-      res.json({ success: true, data });
+      res.json({ success: true, message: data?.message, data });
     } catch (error: any) {
       console.error(`Error updating wallet:`, error);
       res.status(500).json({ success: false, error: "Failed to update wallet", details: error.message });

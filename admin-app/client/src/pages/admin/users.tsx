@@ -211,16 +211,17 @@ export default function AdminUsers() {
   // Update wallet mutation
   const walletMutation = useMutation({
     mutationFn: async ({ userId, wallet, narration, deduct }: { userId: string; wallet: number; narration: string; deduct: boolean }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/wallet`, { wallet, narration, deduct });
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/wallet`, { wallet, narration, deduct });
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       setWalletDialogOpen(false);
       setSelectedUserForWallet(null);
       setWalletAmount("");
       setWalletNarration("");
       setWalletDeduct(false);
-      toast({ title: "Success", description: "Wallet balance updated successfully" });
+      toast({ title: "Success", description: data?.message || data?.data?.message || "Wallet balance updated" });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to update wallet", variant: "destructive" });
