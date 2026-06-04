@@ -676,7 +676,10 @@ export default function AdminUsers() {
               <Switch
                 id="wallet-deduct"
                 checked={walletDeduct}
-                onCheckedChange={setWalletDeduct}
+                onCheckedChange={(checked) => {
+                  setWalletDeduct(checked);
+                  setWalletAmount(checked ? "" : String(selectedUserForWallet?.wallet || 0));
+                }}
                 data-testid="switch-wallet-deduct"
               />
             </div>
