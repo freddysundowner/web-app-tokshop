@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import multer from "multer";
 import crypto from "crypto";
-import { getAdminStorage } from "../firebase-admin";
 import { getAccessToken } from "../utils";
 
 const upload = multer({
@@ -28,29 +27,10 @@ export function registerUploadRoutes(app: Express) {
           return res.status(400).json({ success: false, message: "File must be an image" });
         }
 
-        const storage = await getAdminStorage();
-        const bucket = storage.bucket();
-
-        const ext = (req.file.originalname.split(".").pop() || "jpg").toLowerCase();
-        const filePath = `product-images/${crypto.randomUUID()}.${ext}`;
-        const file = bucket.file(filePath);
-
-        const downloadToken = crypto.randomUUID();
-
-        await file.save(req.file.buffer, {
-          contentType: req.file.mimetype,
-          metadata: {
-            metadata: {
-              firebaseStorageDownloadTokens: downloadToken,
-            },
-          },
-          resumable: false,
+        return res.status(503).json({
+          success: false,
+          message: "Direct image upload is not available in this environment. Please use the external API for image uploads.",
         });
-
-        const encodedPath = encodeURIComponent(filePath);
-        const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
-
-        res.json({ success: true, data: { url, path: filePath } });
       } catch (error: any) {
         console.error("Product image upload failed:", error);
         res.status(500).json({
