@@ -644,7 +644,7 @@ export function registerShippingRoutes(app: Express) {
         })
       }];
 
-      const charge_seller = (req.body as any).charge_seller ?? true;
+      const charge_seller = (req.body as any).charge_seller ?? false;
       const regenerate = (req.body as any).regenerate ?? true;
 
       console.log('Calling external shipping API:', `${BASE_URL}/shipping/profiles/buy/label`);
