@@ -429,27 +429,27 @@ export default function AdminUserDetail() {
         {/* Tabs for different data sections */}
         <Tabs defaultValue="addresses" className="w-full" onValueChange={(v) => { setActiveTab(v); setOrdersPage(1); setTransactionsPage(1); }}>
           <div className="w-full overflow-x-auto pb-2">
-            <TabsList className="flex w-full min-w-max gap-1 sm:min-w-0">
-              <TabsTrigger value="addresses" data-testid="tab-addresses" className="flex-shrink-0 sm:flex-1">
+            <TabsList className="flex w-full min-w-max gap-2 sm:min-w-0">
+              <TabsTrigger value="addresses" data-testid="tab-addresses" className="flex-1">
                 <MapPin className="h-4 w-4 mr-2 hidden sm:inline" />
                 Addresses ({addresses.length})
               </TabsTrigger>
               {userInfo?.seller && (
-                <TabsTrigger value="shipping" data-testid="tab-shipping" className="flex-shrink-0 sm:flex-1">
+                <TabsTrigger value="shipping" data-testid="tab-shipping" className="flex-1">
                   <Truck className="h-4 w-4 mr-2 hidden sm:inline" />
                   Shipping Profiles ({shippingProfiles.length})
                 </TabsTrigger>
               )}
-              <TabsTrigger value="payment-methods" data-testid="tab-payment-methods" className="flex-shrink-0 sm:flex-1">
+              <TabsTrigger value="payment-methods" data-testid="tab-payment-methods" className="flex-1">
                 <CreditCard className="h-4 w-4 mr-2 hidden sm:inline" />
                 Payment Methods
               </TabsTrigger>
-              <TabsTrigger value="transactions" data-testid="tab-transactions" className="flex-shrink-0 sm:flex-1">
+              <TabsTrigger value="transactions" data-testid="tab-transactions" className="flex-1">
                 <DollarSign className="h-4 w-4 mr-2 hidden sm:inline" />
                 Transactions
               </TabsTrigger>
               {userInfo?.seller && (
-                <TabsTrigger value="shows-shipments" data-testid="tab-shows-shipments" className="flex-shrink-0 sm:flex-1">
+                <TabsTrigger value="shows-shipments" data-testid="tab-shows-shipments" className="flex-1">
                   <Video className="h-4 w-4 mr-2 hidden sm:inline" />
                   Shows & Shipments
                 </TabsTrigger>
