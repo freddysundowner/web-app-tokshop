@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, MapPin, Truck, CreditCard, ExternalLink, MoreHorizontal, Video, DollarSign, Package, ShoppingBag, CheckCircle2, Clock, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin, Truck, CreditCard, ExternalLink, MoreHorizontal, Video, DollarSign, Package, ShoppingBag, CheckCircle2, Clock, Search, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,6 +41,10 @@ export default function AdminUserDetail() {
 
   // Transactions tab state
   const [transactionsPage, setTransactionsPage] = useState<number>(1);
+  const [transactionSearch, setTransactionSearch] = useState<string>("");
+  const [appliedTransactionSearch, setAppliedTransactionSearch] = useState<string>("");
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState<string>("all");
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -233,12 +237,15 @@ export default function AdminUserDetail() {
 
   // Fetch user transactions - only when Transactions tab is active
   const { data: transactionsData, isLoading: loadingTransactions } = useQuery<any>({
-    queryKey: [`/api/admin/transactions`, userId, transactionsPage],
+    queryKey: [`/api/admin/transactions`, userId, transactionsPage, appliedTransactionSearch, transactionTypeFilter, transactionStatusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('userId', String(userId));
       params.set('page', String(transactionsPage));
       params.set('limit', '20');
+      if (appliedTransactionSearch.trim()) params.set('username', appliedTransactionSearch.trim());
+      if (transactionTypeFilter !== 'all') params.set('type', transactionTypeFilter);
+      if (transactionStatusFilter !== 'all') params.set('status', transactionStatusFilter);
       const response = await apiRequest('GET', `/api/admin/transactions?${params.toString()}`);
       const result = await response.json();
       return result.success ? result.data : result;
@@ -261,6 +268,20 @@ export default function AdminUserDetail() {
   const transactionsTotalDocuments = transactionsData?.totalDocuments ?? transactions.length;
   const transactionsTotalPages = transactionsData?.totalPages || 1;
   const transactionsCurrentPage = transactionsData?.currentPage || transactionsPage;
+  const hasTransactionFilters = !!appliedTransactionSearch || transactionTypeFilter !== 'all' || transactionStatusFilter !== 'all';
+
+  const handleTransactionSearch = () => {
+    setAppliedTransactionSearch(transactionSearch.trim());
+    setTransactionsPage(1);
+  };
+
+  const clearTransactionFilters = () => {
+    setTransactionSearch("");
+    setAppliedTransactionSearch("");
+    setTransactionTypeFilter("all");
+    setTransactionStatusFilter("all");
+    setTransactionsPage(1);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -732,13 +753,72 @@ export default function AdminUserDetail() {
           <TabsContent value="transactions">
             <Card>
               <CardHeader>
-                <div className="flex items-center space-x-3">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  <div>
-                    <CardTitle>Transactions</CardTitle>
-                    <CardDescription>
-                      {transactionsTotalDocuments} transaction{transactionsTotalDocuments === 1 ? '' : 's'} for this user
-                    </CardDescription>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center space-x-3">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    <div>
+                      <CardTitle>Transactions</CardTitle>
+                      <CardDescription>
+                        {transactionsTotalDocuments} transaction{transactionsTotalDocuments === 1 ? '' : 's'} for this user
+                        {hasTransactionFilters && ' (filtered)'}
+                      </CardDescription>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 items-center flex-wrap">
+                    <div className="relative flex-1 min-w-[180px] max-w-md">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by username..."
+                        value={transactionSearch}
+                        onChange={(e) => setTransactionSearch(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleTransactionSearch(); }}
+                        className="pl-9"
+                        data-testid="input-search-transactions"
+                      />
+                    </div>
+                    <Select
+                      value={transactionTypeFilter}
+                      onValueChange={(value) => { setTransactionTypeFilter(value); setTransactionsPage(1); }}
+                    >
+                      <SelectTrigger className="w-[170px]" data-testid="select-transaction-type">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="payout">Payout</SelectItem>
+                        <SelectItem value="shipping_deduction">Shipping Deduction</SelectItem>
+                        <SelectItem value="service_fee">Service Fee</SelectItem>
+                        <SelectItem value="initiate">Initiate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={transactionStatusFilter}
+                      onValueChange={(value) => { setTransactionStatusFilter(value); setTransactionsPage(1); }}
+                    >
+                      <SelectTrigger className="w-[150px]" data-testid="select-transaction-status">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Refunded">Refunded</SelectItem>
+                        <SelectItem value="Failed">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handleTransactionSearch} data-testid="button-search-transactions">
+                      <Search className="h-4 w-4 mr-2" />
+                      Search
+                    </Button>
+                    {hasTransactionFilters && (
+                      <Button variant="ghost" size="sm" onClick={clearTransactionFilters} data-testid="button-clear-transaction-filters">
+                        <X className="h-4 w-4 mr-2" />
+                        Clear
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -751,7 +831,14 @@ export default function AdminUserDetail() {
                 ) : transactions.length === 0 ? (
                   <div className="text-center py-12">
                     <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No transactions found for this user</p>
+                    <p className="text-muted-foreground">
+                      {hasTransactionFilters ? 'No transactions match your filters' : 'No transactions found for this user'}
+                    </p>
+                    {hasTransactionFilters && (
+                      <Button variant="outline" onClick={clearTransactionFilters} className="mt-4" data-testid="button-clear-transaction-filters-empty">
+                        Clear Filters
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>
