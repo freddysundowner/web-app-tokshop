@@ -39,6 +39,9 @@ export default function AdminUserDetail() {
   const [ordersPage, setOrdersPage] = useState<number>(1);
   const [orderSearch, setOrderSearch] = useState<string>("");
 
+  // Transactions tab state
+  const [transactionsPage, setTransactionsPage] = useState<number>(1);
+
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
     if (!user?.admin) {
@@ -228,6 +231,21 @@ export default function AdminUserDetail() {
     enabled: !!userId && activeTab === 'shows-shipments',
   });
 
+  // Fetch user transactions - only when Transactions tab is active
+  const { data: transactionsData, isLoading: loadingTransactions } = useQuery<any>({
+    queryKey: [`/api/admin/transactions`, userId, transactionsPage],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set('userId', String(userId));
+      params.set('page', String(transactionsPage));
+      params.set('limit', '20');
+      const response = await apiRequest('GET', `/api/admin/transactions?${params.toString()}`);
+      const result = await response.json();
+      return result.success ? result.data : result;
+    },
+    enabled: !!userId && activeTab === 'transactions',
+  });
+
   const userInfo = userData?.data;
   const addresses = addressesData?.data || addressesData || [];
   const shippingProfiles = shippingData?.data || shippingData || [];
@@ -237,6 +255,12 @@ export default function AdminUserDetail() {
   const sellerOrders = sellerOrdersData?.orders || sellerOrdersData?.data?.orders || sellerOrdersData?.data || [];
   const sellerOrdersTotal = sellerOrdersData?.total || sellerOrdersData?.totalDoc || 0;
   const sellerOrdersTotalPages = sellerOrdersData?.totalPages || Math.ceil(sellerOrdersTotal / 20) || 1;
+
+  const transactionsRaw = transactionsData?.transactions || transactionsData?.data || [];
+  const transactions = Array.isArray(transactionsRaw) ? transactionsRaw : [];
+  const transactionsTotalDocuments = transactionsData?.totalDocuments ?? transactions.length;
+  const transactionsTotalPages = transactionsData?.totalPages || 1;
+  const transactionsCurrentPage = transactionsData?.currentPage || transactionsPage;
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -403,9 +427,9 @@ export default function AdminUserDetail() {
         </Card>
 
         {/* Tabs for different data sections */}
-        <Tabs defaultValue="addresses" className="w-full" onValueChange={(v) => { setActiveTab(v); setOrdersPage(1); }}>
+        <Tabs defaultValue="addresses" className="w-full" onValueChange={(v) => { setActiveTab(v); setOrdersPage(1); setTransactionsPage(1); }}>
           <div className="w-full overflow-x-auto pb-2">
-            <TabsList className={`inline-flex w-full min-w-max sm:w-full sm:min-w-0 sm:grid ${userInfo?.seller ? 'sm:grid-cols-4' : 'sm:grid-cols-2'}`}>
+            <TabsList className={`inline-flex w-full min-w-max sm:w-full sm:min-w-0 sm:grid ${userInfo?.seller ? 'sm:grid-cols-5' : 'sm:grid-cols-3'}`}>
               <TabsTrigger value="addresses" data-testid="tab-addresses" className="flex-shrink-0 sm:flex-shrink">
                 <MapPin className="h-4 w-4 mr-2 hidden sm:inline" />
                 Addresses ({addresses.length})
@@ -419,6 +443,10 @@ export default function AdminUserDetail() {
               <TabsTrigger value="payment-methods" data-testid="tab-payment-methods" className="flex-shrink-0 sm:flex-shrink">
                 <CreditCard className="h-4 w-4 mr-2 hidden sm:inline" />
                 Payment Methods
+              </TabsTrigger>
+              <TabsTrigger value="transactions" data-testid="tab-transactions" className="flex-shrink-0 sm:flex-shrink">
+                <DollarSign className="h-4 w-4 mr-2 hidden sm:inline" />
+                Transactions
               </TabsTrigger>
               {userInfo?.seller && (
                 <TabsTrigger value="shows-shipments" data-testid="tab-shows-shipments" className="flex-shrink-0 sm:flex-shrink">
@@ -695,6 +723,143 @@ export default function AdminUserDetail() {
                       </TableBody>
                     </Table>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle>Transactions</CardTitle>
+                    <CardDescription>
+                      {transactionsTotalDocuments} transaction{transactionsTotalDocuments === 1 ? '' : 's'} for this user
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingTransactions ? (
+                  <div className="text-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading transactions...</p>
+                  </div>
+                ) : transactions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No transactions found for this user</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Transaction ID</TableHead>
+                            <TableHead>Info</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {transactions.map((transaction: any) => {
+                            const transactionId = transaction._id || transaction.id;
+                            const fromUser = typeof transaction.from === 'object' && transaction.from
+                              ? transaction.from.userName || ''
+                              : '';
+                            const toUser = typeof transaction.to === 'object' && transaction.to
+                              ? transaction.to.userName || ''
+                              : '';
+                            const status = transaction.status || 'pending';
+                            const formattedAmount = parseFloat(String(transaction.amount || 0)).toFixed(2);
+                            return (
+                              <TableRow key={transactionId} data-testid={`row-transaction-${transactionId}`}>
+                                <TableCell className="font-mono text-xs" data-testid={`text-transaction-id-${transactionId}`}>
+                                  {String(transactionId).slice(-8)}
+                                </TableCell>
+                                <TableCell data-testid={`text-transaction-info-${transactionId}`}>
+                                  <div className="space-y-1">
+                                    {fromUser && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-xs text-muted-foreground shrink-0">From:</span>
+                                        <span className="text-sm">{fromUser}</span>
+                                      </div>
+                                    )}
+                                    {toUser && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-xs text-muted-foreground shrink-0">To:</span>
+                                        <span className="text-sm">{toUser}</span>
+                                      </div>
+                                    )}
+                                    {transaction.type && (
+                                      <div className="text-xs text-muted-foreground">{String(transaction.type).replace(/_/g, ' ')}</div>
+                                    )}
+                                    {transaction.reason && (
+                                      <div className="text-xs text-muted-foreground">{transaction.reason}</div>
+                                    )}
+                                    {!fromUser && !toUser && !transaction.type && !transaction.reason && (
+                                      <span className="text-sm text-muted-foreground">-</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell data-testid={`text-transaction-amount-${transactionId}`}>
+                                  <span className={transaction.deducting ? "text-red-600" : ""}>
+                                    {transaction.deducting ? `-$${formattedAmount}` : `$${formattedAmount}`}
+                                  </span>
+                                  {transaction.type === 'payout' && transaction.bank_name && (
+                                    <div className="text-xs text-muted-foreground">{transaction.bank_name}</div>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm" data-testid={`text-transaction-date-${transactionId}`}>
+                                  {transaction.createdAt || transaction.date
+                                    ? new Date(transaction.createdAt || transaction.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                    : 'N/A'}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary" data-testid={`badge-transaction-status-${transactionId}`}>
+                                    {String(status).replace(/_/g, ' ')}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {transactionsTotalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Page {transactionsCurrentPage} of {transactionsTotalPages} ({transactionsTotalDocuments} total)
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTransactionsPage(Math.max(1, transactionsCurrentPage - 1))}
+                            disabled={transactionsCurrentPage <= 1}
+                            data-testid="button-transactions-prev"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTransactionsPage(Math.min(transactionsTotalPages, transactionsCurrentPage + 1))}
+                            disabled={transactionsCurrentPage >= transactionsTotalPages}
+                            data-testid="button-transactions-next"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
