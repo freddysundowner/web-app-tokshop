@@ -762,6 +762,7 @@ export default function AdminUserDetail() {
                             <TableHead>Transaction ID</TableHead>
                             <TableHead>Info</TableHead>
                             <TableHead>Amount</TableHead>
+                            <TableHead>Balance After</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                           </TableRow>
@@ -814,6 +815,11 @@ export default function AdminUserDetail() {
                                   {transaction.type === 'payout' && transaction.bank_name && (
                                     <div className="text-xs text-muted-foreground">{transaction.bank_name}</div>
                                   )}
+                                </TableCell>
+                                <TableCell className="text-sm" data-testid={`text-transaction-balance-${transactionId}`}>
+                                  {transaction.balance_after_payout !== undefined && transaction.balance_after_payout !== null
+                                    ? <span className="text-teal-600">${parseFloat(String(transaction.balance_after_payout || 0)).toFixed(2)}</span>
+                                    : <span className="text-muted-foreground">-</span>}
                                 </TableCell>
                                 <TableCell className="text-sm" data-testid={`text-transaction-date-${transactionId}`}>
                                   {transaction.createdAt || transaction.date
