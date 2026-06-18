@@ -21,6 +21,7 @@ import { registerOfferRoutes } from "./routes/offers";
 import { registerContactRoutes } from "./routes/contact";
 import { registerUploadRoutes } from "./routes/uploads";
 import { registerFirebaseAdminConfigRoutes } from "./routes/firebase-admin-config";
+import { registerAnalyticsRoutes } from "./routes/analytics";
 import auctionRoutes from "./routes/auctions";
 import { BASE_URL } from "./utils";
 
@@ -57,6 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerContactRoutes(app);
   registerUploadRoutes(app);
   registerFirebaseAdminConfigRoutes(app);
+  registerAnalyticsRoutes(app);
   app.use('/api/auction', auctionRoutes);
 
   const httpServer = createServer(app);

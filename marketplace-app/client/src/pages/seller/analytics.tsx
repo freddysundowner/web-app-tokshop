@@ -42,8 +42,6 @@ import {
   Calendar,
   Info,
 } from "lucide-react";
-import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
-import { calculateOrderTotal } from "@shared/pricing";
 import { useCurrency } from "@/lib/use-currency";
 
 /* ----------------------------- metric model ----------------------------- */
@@ -59,6 +57,47 @@ interface MetricDef {
   timeseries: boolean; // has a per-day breakdown
   available: boolean;
   note?: string;
+}
+
+/* ----------------- consolidated analytics response shape ---------------- */
+
+type Split = { all: number; show: number; marketplace: number };
+
+interface DailyPoint {
+  date: string; // YYYY-MM-DD
+  showSales: number;
+  mpSales: number;
+  showEarnings: number;
+  mpEarnings: number;
+  showOrders: number;
+  mpOrders: number;
+  showBuyers: number;
+  mpBuyers: number;
+  lives: number;
+}
+
+interface SellerAnalytics {
+  range: { startDate: string; endDate: string };
+  totals: {
+    sales: Split;
+    earnings: Split;
+    aov: Split;
+    orders: Split;
+    buyers: Split;
+    follows: number;
+    referrals: number;
+    shares: number;
+    lives: number;
+    maxConcurrentViewers: number;
+    streamedSeconds: number;
+  };
+  daily: DailyPoint[];
+  availability: {
+    shares: boolean;
+    maxConcurrentViewers: boolean;
+    streamedTime: boolean;
+  };
+  source?: "upstream" | "composed";
 }
 
 const METRIC_GROUPS: Record<
@@ -104,36 +143,6 @@ function dayKey(d: Date): string {
   ).padStart(2, "0")}`;
 }
 
-function getOrderDate(order: TokshopOrder): Date | null {
-  if (order.createdAt) {
-    const d = new Date(order.createdAt);
-    if (!isNaN(d.getTime())) return d;
-  }
-  if (typeof order.date === "number") {
-    const d = new Date(order.date);
-    if (!isNaN(d.getTime())) return d;
-  }
-  return null;
-}
-
-function getOrderSales(order: TokshopOrder): number {
-  const total = Number(order.total);
-  if (total > 0) return total;
-  return calculateOrderTotal(order);
-}
-
-function getOrderEarnings(order: TokshopOrder): number {
-  const sales = getOrderSales(order);
-  const serviceFee = Number(order.service_fee) || Number(order.servicefee) || 0;
-  const stripeFees = Number(order.stripe_fees) || 0;
-  const earnings = sales - serviceFee - stripeFees;
-  return earnings > 0 ? earnings : 0;
-}
-
-function isShowOrder(order: TokshopOrder): boolean {
-  return !!order.tokshow?._id;
-}
-
 function toInputDate(d: Date): string {
   return dayKey(d);
 }
@@ -167,7 +176,7 @@ export default function Analytics() {
 
   const windowDays = useMemo(() => {
     const ms = rangeEnd.getTime() - rangeStart.getTime();
-    return Math.max(1, Math.round(ms / 86_400_000) + 1);
+    return Math.max(1, Math.floor(ms / 86_400_000) + 1);
   }, [rangeStart, rangeEnd]);
 
   const shiftRange = (direction: -1 | 1) => {
@@ -186,89 +195,23 @@ export default function Analytics() {
 
   /* ------------------------------ data ----------------------------------- */
 
-  const { data: ordersData, isLoading: ordersLoading } = useQuery<TokshopOrdersResponse>({
-    queryKey: ["/api/orders", "analytics", user?.id, rangeStart.toISOString(), rangeEnd.toISOString()],
+  const { data: analytics, isLoading } = useQuery<SellerAnalytics>({
+    queryKey: [
+      "/api/seller/analytics",
+      user?.id,
+      rangeStart.toISOString(),
+      rangeEnd.toISOString(),
+    ],
     enabled: !!user?.id,
     staleTime: 0,
     refetchOnMount: "always",
     queryFn: async () => {
-      const limit = 200;
-      const maxPages = 25;
-      const fetchPage = async (page: number): Promise<TokshopOrdersResponse> => {
-        const params = new URLSearchParams();
-        if (user?.id) params.set("userId", user.id);
-        params.set("startDate", rangeStart.toISOString());
-        params.set("endDate", rangeEnd.toISOString());
-        params.set("page", String(page));
-        params.set("limit", String(limit));
-        const response = await fetchWithAuth(`/api/orders?${params.toString()}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return response.json();
-      };
-      const first = await fetchPage(1);
-      const all: TokshopOrder[] = Array.isArray(first.orders) ? [...first.orders] : [];
-      const totalPages = Math.min(Number(first.pages) || 1, maxPages);
-      if (totalPages > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, i) => fetchPage(i + 2)),
-        );
-        rest.forEach((r) => {
-          if (Array.isArray(r?.orders)) all.push(...r.orders);
-        });
-      }
-      return { ...first, orders: all };
-    },
-  });
-
-  const { data: roomsData, isLoading: roomsLoading } = useQuery<any[]>({
-    queryKey: ["/api/rooms", "analytics", user?.id],
-    enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnMount: "always",
-    queryFn: async () => {
-      const limit = 200;
-      const maxPages = 25;
-      const extractRooms = (payload: any): any[] =>
-        Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.data)
-            ? payload.data
-            : Array.isArray(payload?.rooms)
-              ? payload.rooms
-              : [];
-      const fetchPage = async (page: number): Promise<any[]> => {
-        const params = new URLSearchParams();
-        if (user?.id) params.set("userid", user.id);
-        params.set("page", String(page));
-        params.set("limit", String(limit));
-        const response = await fetchWithAuth(`/api/rooms?${params.toString()}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        return extractRooms(await response.json());
-      };
-      const all: any[] = [];
-      for (let page = 1; page <= maxPages; page++) {
-        const batch = await fetchPage(page);
-        all.push(...batch);
-        if (batch.length < limit) break;
-      }
-      return all;
-    },
-  });
-
-  const { data: followersData, isLoading: followersLoading } = useQuery<any>({
-    queryKey: ["/api/users/followers", user?.id],
-    enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnMount: "always",
-    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("userId", user!.id);
+      params.set("startDate", rangeStart.toISOString());
+      params.set("endDate", rangeEnd.toISOString());
       const response = await fetchWithAuth(
-        `/api/users/followers/${user!.id}?page=1&limit=1`,
+        `/api/seller/analytics?${params.toString()}`,
         { method: "GET", headers: { "Content-Type": "application/json" } },
       );
       if (!response.ok) throw new Error(`API error: ${response.status}`);
@@ -276,190 +219,70 @@ export default function Analytics() {
     },
   });
 
-  const { data: referralData, isLoading: referralLoading } = useQuery<any>({
-    queryKey: ["/api/referral/stats", user?.id],
-    enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnMount: "always",
-    queryFn: async () => {
-      const response = await fetchWithAuth(`/api/referral/stats/${user!.id}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
-      return response.json();
-    },
-  });
-
   /* --------------------------- aggregation ------------------------------- */
 
-  const orders = useMemo<TokshopOrder[]>(() => {
-    const raw = Array.isArray(ordersData?.orders) ? ordersData!.orders : [];
-    return raw.filter((o) => {
-      const d = getOrderDate(o);
-      if (!d) return false;
-      return d >= rangeStart && d <= rangeEnd;
-    });
-  }, [ordersData, rangeStart, rangeEnd]);
+  const t = analytics?.totals;
+  const availability = analytics?.availability ?? {
+    shares: false,
+    maxConcurrentViewers: false,
+    streamedTime: false,
+  };
 
-  const rooms = useMemo<any[]>(() => {
-    const raw = Array.isArray(roomsData) ? roomsData : [];
-    return raw.filter((r: any) => {
-      const ds = r?.createdAt || r?.date;
-      if (!ds) return false;
-      const d = new Date(ds);
-      if (isNaN(d.getTime())) return false;
-      return d >= rangeStart && d <= rangeEnd;
-    });
-  }, [roomsData, rangeStart, rangeEnd]);
+  const followsCount = t?.follows ?? 0;
+  const referralsCount = t?.referrals ?? 0;
 
-  const followsCount = useMemo(() => {
-    return (
-      Number(followersData?.totalDoc) ||
-      Number(followersData?.total) ||
-      (Array.isArray(followersData?.data) ? followersData.data.length : 0) ||
-      0
-    );
-  }, [followersData]);
-
-  const referralsCount = useMemo(() => {
-    const d = referralData?.data ?? referralData ?? {};
-    return (
-      Number(d?.totalReferrals) ||
-      Number(d?.total) ||
-      Number(d?.count) ||
-      Number(d?.referrals) ||
-      (Array.isArray(d?.referredUsers) ? d.referredUsers.length : 0) ||
-      0
-    );
-  }, [referralData]);
-
-  // Per-day buckets across the selected window for every chartable metric.
+  // Per-day buckets across the selected window for the chart.
   const dailyBuckets = useMemo(() => {
-    const buckets = new Map<
-      string,
-      {
-        label: string;
-        showSales: number;
-        mpSales: number;
-        showEarnings: number;
-        mpEarnings: number;
-        showOrders: number;
-        mpOrders: number;
-        showBuyers: Set<string>;
-        mpBuyers: Set<string>;
-        lives: number;
-      }
-    >();
-    const order: string[] = [];
-    for (let i = 0; i < windowDays; i++) {
-      const d = new Date(rangeStart.getTime() + i * 86_400_000);
-      const key = dayKey(d);
-      order.push(key);
-      buckets.set(key, {
-        label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        showSales: 0,
-        mpSales: 0,
-        showEarnings: 0,
-        mpEarnings: 0,
-        showOrders: 0,
-        mpOrders: 0,
-        showBuyers: new Set(),
-        mpBuyers: new Set(),
-        lives: 0,
-      });
-    }
-
-    orders.forEach((o) => {
-      const d = getOrderDate(o);
-      if (!d) return;
-      const b = buckets.get(dayKey(d));
-      if (!b) return;
-      const isShow = isShowOrder(o);
-      const sales = getOrderSales(o);
-      const earnings = getOrderEarnings(o);
-      const buyerId = o.customer?._id;
-      if (isShow) {
-        b.showSales += sales;
-        b.showEarnings += earnings;
-        b.showOrders += 1;
-        if (buyerId) b.showBuyers.add(buyerId);
-      } else {
-        b.mpSales += sales;
-        b.mpEarnings += earnings;
-        b.mpOrders += 1;
-        if (buyerId) b.mpBuyers.add(buyerId);
-      }
-    });
-
-    rooms.forEach((r: any) => {
-      const ds = r?.createdAt || r?.date;
-      const d = new Date(ds);
-      const b = buckets.get(dayKey(d));
-      if (b) b.lives += 1;
-    });
-
-    return order.map((key) => {
-      const b = buckets.get(key)!;
+    const daily = analytics?.daily ?? [];
+    return daily.map((b) => {
+      const d = new Date(`${b.date}T00:00:00`);
+      const label = isNaN(d.getTime())
+        ? b.date
+        : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const totalSales = b.showSales + b.mpSales;
+      const totalOrders = b.showOrders + b.mpOrders;
       return {
-        label: b.label,
+        label,
         showSales: b.showSales,
         mpSales: b.mpSales,
         showEarnings: b.showEarnings,
         mpEarnings: b.mpEarnings,
         showOrders: b.showOrders,
         mpOrders: b.mpOrders,
-        showBuyers: b.showBuyers.size,
-        mpBuyers: b.mpBuyers.size,
+        showBuyers: b.showBuyers,
+        mpBuyers: b.mpBuyers,
         showAov: b.showOrders ? b.showSales / b.showOrders : 0,
         mpAov: b.mpOrders ? b.mpSales / b.mpOrders : 0,
-        aov:
-          b.showOrders + b.mpOrders > 0
-            ? (b.showSales + b.mpSales) / (b.showOrders + b.mpOrders)
-            : 0,
+        aov: totalOrders ? totalSales / totalOrders : 0,
         lives: b.lives,
       };
     });
-  }, [orders, rooms, rangeStart, windowDays]);
+  }, [analytics]);
 
   // Aggregate totals for the selected window.
   const totals = useMemo(() => {
-    const showSales = orders.filter(isShowOrder).reduce((s, o) => s + getOrderSales(o), 0);
-    const mpSales = orders.filter((o) => !isShowOrder(o)).reduce((s, o) => s + getOrderSales(o), 0);
-    const sales = showSales + mpSales;
-    const showEarnings = orders.filter(isShowOrder).reduce((s, o) => s + getOrderEarnings(o), 0);
-    const mpEarnings = orders.filter((o) => !isShowOrder(o)).reduce((s, o) => s + getOrderEarnings(o), 0);
-    const earnings = showEarnings + mpEarnings;
-    const orderCount = orders.length;
-    const showOrders = orders.filter(isShowOrder).length;
-    const mpOrders = orderCount - showOrders;
-    const buyers = new Set<string>();
-    const showBuyers = new Set<string>();
-    const mpBuyers = new Set<string>();
-    orders.forEach((o) => {
-      const id = o.customer?._id;
-      if (!id) return;
-      buyers.add(id);
-      if (isShowOrder(o)) showBuyers.add(id);
-      else mpBuyers.add(id);
-    });
     return {
-      sales,
-      showSales,
-      mpSales,
-      earnings,
-      showEarnings,
-      mpEarnings,
-      aov: orderCount ? sales / orderCount : 0,
-      orders: orderCount,
-      showOrders,
-      mpOrders,
-      buyers: buyers.size,
-      showBuyers: showBuyers.size,
-      mpBuyers: mpBuyers.size,
-      lives: rooms.length,
+      sales: t?.sales.all ?? 0,
+      showSales: t?.sales.show ?? 0,
+      mpSales: t?.sales.marketplace ?? 0,
+      earnings: t?.earnings.all ?? 0,
+      showEarnings: t?.earnings.show ?? 0,
+      mpEarnings: t?.earnings.marketplace ?? 0,
+      aov: t?.aov.all ?? 0,
+      showAov: t?.aov.show ?? 0,
+      mpAov: t?.aov.marketplace ?? 0,
+      orders: t?.orders.all ?? 0,
+      showOrders: t?.orders.show ?? 0,
+      mpOrders: t?.orders.marketplace ?? 0,
+      buyers: t?.buyers.all ?? 0,
+      showBuyers: t?.buyers.show ?? 0,
+      mpBuyers: t?.buyers.marketplace ?? 0,
+      lives: t?.lives ?? 0,
+      shares: t?.shares ?? 0,
+      maxConcurrentViewers: t?.maxConcurrentViewers ?? 0,
+      streamedSeconds: t?.streamedSeconds ?? 0,
     };
-  }, [orders, rooms]);
+  }, [t]);
 
   /* --------------------------- metric values ----------------------------- */
 
@@ -479,6 +302,12 @@ export default function Analytics() {
         return followsCount;
       case "referrals":
         return referralsCount;
+      case "shares":
+        return availability.shares ? totals.shares : null;
+      case "viewers":
+        return availability.maxConcurrentViewers ? totals.maxConcurrentViewers : null;
+      case "streamedTime":
+        return availability.streamedTime ? totals.streamedSeconds : null;
       case "lives":
         return totals.lives;
       default:
@@ -486,31 +315,29 @@ export default function Analytics() {
     }
   };
 
-  const isMetricLoading = (key: string): boolean => {
-    switch (key) {
-      case "sales":
-      case "earnings":
-      case "aov":
-      case "orders":
-      case "buyers":
-        return ordersLoading;
-      case "follows":
-        return followersLoading;
-      case "referrals":
-        return referralLoading;
-      case "lives":
-        return roomsLoading;
+  // Some stream/user metrics only exist once the data source records them.
+  const metricAvailable = (def: MetricDef): boolean => {
+    switch (def.key) {
+      case "shares":
+        return availability.shares;
+      case "viewers":
+        return availability.maxConcurrentViewers;
+      case "streamedTime":
+        return availability.streamedTime;
       default:
-        return false;
+        return def.available;
     }
   };
+
+  const isMetricLoading = (_key: string): boolean => isLoading;
 
   const formatValue = (def: MetricDef, value: number | null): string => {
     if (value === null) return "N/A";
     if (def.type === "currency") return format(value);
     if (def.type === "duration") {
-      const h = Math.floor(value / 60);
-      const m = Math.round(value % 60);
+      // value is in seconds
+      const h = Math.floor(value / 3600);
+      const m = Math.floor((value % 3600) / 60);
       return `${h}h ${m}m`;
     }
     return value.toLocaleString();
@@ -684,7 +511,7 @@ export default function Analytics() {
                               data-testid={`metric-option-${m.key}`}
                             >
                               <span className="flex-1">{m.label}</span>
-                              {!m.available && (
+                              {!metricAvailable(m) && (
                                 <span className="ml-2 text-xs text-muted-foreground">N/A</span>
                               )}
                             </DropdownMenuItem>
@@ -739,7 +566,7 @@ export default function Analytics() {
 
                 {isMetricLoading(activeMetricKey) ? (
                   <div className="h-72 animate-pulse rounded bg-muted" />
-                ) : !activeMetricDef.available ? (
+                ) : !metricAvailable(activeMetricDef) ? (
                   <ChartEmpty
                     icon={<Info className="mb-3 h-10 w-10 text-muted-foreground/50" />}
                     message={activeMetricDef.note || "This metric isn't available yet."}
@@ -790,7 +617,7 @@ export default function Analytics() {
                 )}
 
                 {/* Legend */}
-                {activeMetricDef.available && activeMetricDef.timeseries && activeMetricDef.split && (
+                {metricAvailable(activeMetricDef) && activeMetricDef.timeseries && activeMetricDef.split && (
                   <div className="mt-4 flex items-center gap-5 text-sm">
                     {showSeries && (
                       <span className="flex items-center gap-2 text-muted-foreground">

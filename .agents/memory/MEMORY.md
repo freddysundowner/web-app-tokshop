@@ -8,3 +8,4 @@
 - [Currency + country-lock](currency-country-lock.md) — allowlist must be enforced at ALL country-set paths (3 client dropdowns + 4 auth.ts routes incl. countryCode); prices shown in viewer currency via useCurrency() (alias `format` to avoid date-fns clash).
 - [Dev server no watch](dev-server-no-watch.md) — tsx runs without watch; server/route changes need a workflow restart (client HMRs but server stays stale).
 - [Seller analytics data sources](seller-analytics-data-sources.md) — dashboard chart widgets are hardcoded & /api/dashboard/metrics is global/unauthed; compute per-seller stats from /api/orders?userId.
+- [Seller analytics consolidated endpoint](seller-analytics-consolidated-endpoint.md) — /analytics must use ONE call to /api/seller/analytics (proxy tries dedicated upstream, else composes); keep email metric semantics + floor day-span.
