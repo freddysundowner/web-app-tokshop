@@ -40,7 +40,6 @@ import {
   ChevronRight,
   ChevronDown,
   Calendar,
-  BarChart3,
   Info,
 } from "lucide-react";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
@@ -144,8 +143,6 @@ function toInputDate(d: Date): string {
 export default function Analytics() {
   const { user } = useAuth();
   const { format } = useCurrency();
-
-  const [activeTab, setActiveTab] = useState<"overview" | "premier">("overview");
 
   // Default date window: last 14 days (inclusive)
   const [rangeStart, setRangeStart] = useState<Date>(() => {
@@ -564,51 +561,12 @@ export default function Analytics() {
   return (
     <div className="py-6">
       <div className="px-4 sm:px-6 md:px-8">
-        {/* Title + tabs */}
+        {/* Title */}
         <h1 className="text-2xl font-bold text-foreground" data-testid="text-analytics-title">
           Analytics
         </h1>
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={() => setActiveTab("overview")}
-            data-testid="tab-overview"
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === "overview"
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("premier")}
-            data-testid="tab-premier"
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === "premier"
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Premier Shop
-          </button>
-        </div>
 
-        {activeTab === "premier" ? (
-          <div className="mt-8">
-            <Card className="border border-border">
-              <CardContent className="flex h-64 flex-col items-center justify-center text-center">
-                <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground/50" />
-                <p className="font-medium text-foreground">Premier Shop analytics</p>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Premier Shop is a dedicated storefront program. These metrics will
-                  appear here once your shop is enrolled.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <>
-            {/* Date range */}
+        {/* Date range */}
             <div className="mt-6 flex flex-col gap-2">
               <p className="text-sm font-medium text-muted-foreground">Seller Analytics</p>
               <div className="flex flex-wrap items-center gap-3">
@@ -850,8 +808,6 @@ export default function Analytics() {
                 </p>
               </CardContent>
             </Card>
-          </>
-        )}
       </div>
     </div>
   );
