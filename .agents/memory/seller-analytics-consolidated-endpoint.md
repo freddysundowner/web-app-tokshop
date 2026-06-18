@@ -13,8 +13,8 @@ split `{ all, show, marketplace }`.
 not a fan-out of separate calls. Do not reintroduce per-metric client queries.
 
 **How to apply:**
-- The proxy first tries a dedicated upstream route `BASE_URL/sellers/:userId/analytics`
-  (one Mongo aggregation). If that 404s / isn't deployed, it falls back to composing
+- The proxy first tries the dedicated upstream route `BASE_URL/analytics?userId&startDate&endDate`
+  (one Mongo aggregation — NOT `/sellers/:userId/analytics`; that path 404s). If it 404s / isn't deployed, it falls back to composing
   the same shape by fanning out to existing upstream endpoints server-side. So the
   page keeps working before the dedicated upstream route ships; once it ships the proxy
   uses it automatically (trusts it only if the body has a `totals` field).

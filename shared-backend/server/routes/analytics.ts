@@ -204,17 +204,12 @@ async function composeAnalytics(
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
 
-  console.log(`[analytics] composing for user ${userId} via BASE_URL=${BASE_URL}`);
   const [ordersRaw, roomsRaw, followsData, referralData] = await Promise.all([
-    ordersP.catch((e) => { console.log(`[analytics] orders fetch failed: ${e?.message}`); return [] as any[]; }),
-    roomsP.catch((e) => { console.log(`[analytics] rooms fetch failed: ${e?.message}`); return [] as any[]; }),
+    ordersP.catch(() => [] as any[]),
+    roomsP.catch(() => [] as any[]),
     followsP,
     referralP,
   ]);
-  console.log(
-    `[analytics] fan-out results: orders=${ordersRaw.length} rooms=${roomsRaw.length} ` +
-      `follows=${followsData ? "ok" : "null"} referrals=${referralData ? "ok" : "null"}`,
-  );
 
   // ---- date-window filter ------------------------------------------------
   const orders = ordersRaw.filter((o) => {
@@ -421,23 +416,20 @@ export function registerAnalyticsRoutes(app: Express) {
       // 1) Try a dedicated upstream route (one efficient aggregation).
       try {
         const p = new URLSearchParams();
+        p.set("userId", userId);
         p.set("startDate", start.toISOString());
         p.set("endDate", end.toISOString());
-        const upstreamUrl = `${BASE_URL}/sellers/${userId}/analytics?${p.toString()}`;
-        console.log(`[analytics] trying dedicated upstream: ${upstreamUrl}`);
+        const upstreamUrl = `${BASE_URL}/analytics?${p.toString()}`;
         const upstream = await fetch(upstreamUrl, { method: "GET", headers: authHeaders(req) });
-        console.log(`[analytics] dedicated upstream status: ${upstream.status}`);
         if (upstream.ok) {
           const data = await upstream.json();
           // Only trust it if it looks like our shape.
           if (data && typeof data === "object" && (data as any).totals) {
-            console.log("[analytics] using dedicated upstream response");
             return res.json({ ...(data as any), source: "upstream" });
           }
-          console.log("[analytics] dedicated upstream ok but missing totals — composing");
         }
-      } catch (e) {
-        console.log(`[analytics] dedicated upstream threw: ${(e as Error).message} — composing`);
+      } catch {
+        // ignore — fall through to composed
       }
 
       // 2) Compose from existing upstream endpoints.
