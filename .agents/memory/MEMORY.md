@@ -9,3 +9,4 @@
 - [Dev server no watch](dev-server-no-watch.md) — tsx runs without watch; server/route changes need a workflow restart (client HMRs but server stays stale).
 - [Seller analytics data sources](seller-analytics-data-sources.md) — dashboard chart widgets are hardcoded & /api/dashboard/metrics is global/unauthed; compute per-seller stats from /api/orders?userId.
 - [Seller analytics consolidated endpoint](seller-analytics-consolidated-endpoint.md) — /analytics must use ONE call to /api/seller/analytics (proxy tries dedicated upstream, else composes); keep email metric semantics + floor day-span.
+- [Order subtotal unreliable](order-subtotal-bundling.md) — external backend leaves order.subtotal stuck on one item after bundling; accurate seller sales = Σ items[].price, not order.subtotal.
