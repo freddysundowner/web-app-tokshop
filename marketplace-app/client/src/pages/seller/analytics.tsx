@@ -2,7 +2,21 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -11,59 +25,85 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import {
-  DollarSign,
-  ShoppingCart,
-  Users,
-  Receipt,
-  TrendingUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Calendar,
   BarChart3,
+  Info,
 } from "lucide-react";
 import type { TokshopOrder, TokshopOrdersResponse } from "@shared/schema";
 import { calculateOrderTotal } from "@shared/pricing";
 import { useCurrency } from "@/lib/use-currency";
 
-const RANGE_OPTIONS = [
-  { value: "7", label: "Last 7 days" },
-  { value: "30", label: "Last 30 days" },
-  { value: "90", label: "Last 90 days" },
-] as const;
+/* ----------------------------- metric model ----------------------------- */
 
-const CHART_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-];
+type MetricType = "currency" | "number" | "duration";
+type GroupKey = "sales" | "user" | "stream";
 
-const STATUS_LABELS: Record<string, string> = {
-  processing: "Processing",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  ended: "Completed",
-  cancelled: "Cancelled",
+interface MetricDef {
+  key: string;
+  label: string;
+  type: MetricType;
+  split: boolean; // can be broken down into Show vs Marketplace
+  timeseries: boolean; // has a per-day breakdown
+  available: boolean;
+  note?: string;
+}
+
+const METRIC_GROUPS: Record<
+  GroupKey,
+  { label: string; metrics: MetricDef[] }
+> = {
+  sales: {
+    label: "Estimated Sales Metrics",
+    metrics: [
+      { key: "sales", label: "Est. Sales", type: "currency", split: true, timeseries: true, available: true },
+      { key: "earnings", label: "Est. Earnings", type: "currency", split: true, timeseries: true, available: true },
+      { key: "aov", label: "Est. Avg Order Value", type: "currency", split: false, timeseries: true, available: true },
+      { key: "orders", label: "Est. Order Count", type: "number", split: true, timeseries: true, available: true },
+    ],
+  },
+  user: {
+    label: "User Metrics",
+    metrics: [
+      { key: "buyers", label: "Buyer Count", type: "number", split: true, timeseries: true, available: true },
+      { key: "follows", label: "Follows", type: "number", split: false, timeseries: false, available: true, note: "Total current followers. A day-by-day breakdown isn't provided by the data source." },
+      { key: "shares", label: "Buyer Shares", type: "number", split: false, timeseries: false, available: false, note: "Share tracking isn't available from the data source yet." },
+      { key: "referrals", label: "Buyer Referrals", type: "number", split: false, timeseries: false, available: true, note: "Total referrals. A day-by-day breakdown isn't provided by the data source." },
+    ],
+  },
+  stream: {
+    label: "Stream Metrics",
+    metrics: [
+      { key: "viewers", label: "Max Concurrent Viewers", type: "number", split: false, timeseries: false, available: false, note: "Historical peak viewership isn't recorded by the data source yet." },
+      { key: "lives", label: "Number of Lives", type: "number", split: false, timeseries: true, available: true },
+      { key: "streamedTime", label: "Streamed Time", type: "duration", split: false, timeseries: false, available: false, note: "Stream duration isn't recorded by the data source yet." },
+    ],
+  },
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  processing: "hsl(var(--chart-2))",
-  shipped: "hsl(var(--chart-1))",
-  delivered: "hsl(var(--chart-4))",
-  ended: "hsl(var(--chart-4))",
-  cancelled: "hsl(var(--chart-3))",
-};
+const SHOW_COLOR = "hsl(var(--chart-1))";
+const MARKETPLACE_COLOR = "hsl(var(--chart-5))";
+
+/* ------------------------------- helpers -------------------------------- */
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
 
 function getOrderDate(order: TokshopOrder): Date | null {
   if (order.createdAt) {
@@ -77,472 +117,751 @@ function getOrderDate(order: TokshopOrder): Date | null {
   return null;
 }
 
-function getOrderAmount(order: TokshopOrder): number {
+function getOrderSales(order: TokshopOrder): number {
   const total = Number(order.total);
   if (total > 0) return total;
-  // Fall back to deriving from items + fees when the API omits `total`.
   return calculateOrderTotal(order);
 }
+
+function getOrderEarnings(order: TokshopOrder): number {
+  const sales = getOrderSales(order);
+  const serviceFee = Number(order.service_fee) || Number(order.servicefee) || 0;
+  const stripeFees = Number(order.stripe_fees) || 0;
+  const earnings = sales - serviceFee - stripeFees;
+  return earnings > 0 ? earnings : 0;
+}
+
+function isShowOrder(order: TokshopOrder): boolean {
+  return !!order.tokshow?._id;
+}
+
+function toInputDate(d: Date): string {
+  return dayKey(d);
+}
+
+/* ------------------------------ component -------------------------------- */
 
 export default function Analytics() {
   const { user } = useAuth();
   const { format } = useCurrency();
-  const [rangeDays, setRangeDays] = useState<string>("30");
 
-  const { startDate, endDate } = useMemo(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - (parseInt(rangeDays, 10) - 1));
-    start.setHours(0, 0, 0, 0);
-    return { startDate: start, endDate: end };
-  }, [rangeDays]);
+  const [activeTab, setActiveTab] = useState<"overview" | "premier">("overview");
 
-  const { data, isLoading } = useQuery<TokshopOrdersResponse>({
-    queryKey: ["/api/orders", "analytics", user?.id, rangeDays],
+  // Default date window: last 14 days (inclusive)
+  const [rangeStart, setRangeStart] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - 13);
+    return d;
+  });
+  const [rangeEnd, setRangeEnd] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(23, 59, 59, 999);
+    return d;
+  });
+
+  const [selected, setSelected] = useState<Record<GroupKey, string>>({
+    sales: "sales",
+    user: "buyers",
+    stream: "lives",
+  });
+  const [activeGroup, setActiveGroup] = useState<GroupKey>("sales");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "show" | "marketplace">("all");
+
+  const windowDays = useMemo(() => {
+    const ms = rangeEnd.getTime() - rangeStart.getTime();
+    return Math.max(1, Math.round(ms / 86_400_000) + 1);
+  }, [rangeStart, rangeEnd]);
+
+  const shiftRange = (direction: -1 | 1) => {
+    const deltaMs = windowDays * 86_400_000;
+    setRangeStart((prev) => {
+      const d = new Date(prev.getTime() + direction * deltaMs);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    });
+    setRangeEnd((prev) => {
+      const d = new Date(prev.getTime() + direction * deltaMs);
+      d.setHours(23, 59, 59, 999);
+      return d;
+    });
+  };
+
+  /* ------------------------------ data ----------------------------------- */
+
+  const { data: ordersData, isLoading: ordersLoading } = useQuery<TokshopOrdersResponse>({
+    queryKey: ["/api/orders", "analytics", user?.id, rangeStart.toISOString(), rangeEnd.toISOString()],
     enabled: !!user?.id,
+    staleTime: 60_000,
     queryFn: async () => {
       const limit = 200;
-      const maxPages = 25; // safety cap (~5000 orders) to bound the request count
+      const maxPages = 25;
       const fetchPage = async (page: number): Promise<TokshopOrdersResponse> => {
         const params = new URLSearchParams();
         if (user?.id) params.set("userId", user.id);
-        params.set("startDate", startDate.toISOString());
-        params.set("endDate", endDate.toISOString());
+        params.set("startDate", rangeStart.toISOString());
+        params.set("endDate", rangeEnd.toISOString());
         params.set("page", String(page));
         params.set("limit", String(limit));
         const response = await fetchWithAuth(`/api/orders?${params.toString()}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
         return response.json();
       };
-
       const first = await fetchPage(1);
-      const allOrders: TokshopOrder[] = Array.isArray(first.orders)
-        ? [...first.orders]
-        : [];
+      const all: TokshopOrder[] = Array.isArray(first.orders) ? [...first.orders] : [];
       const totalPages = Math.min(Number(first.pages) || 1, maxPages);
       if (totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: totalPages - 1 }, (_, i) => fetchPage(i + 2)),
         );
         rest.forEach((r) => {
-          if (Array.isArray(r?.orders)) allOrders.push(...r.orders);
+          if (Array.isArray(r?.orders)) all.push(...r.orders);
         });
       }
-      return { ...first, orders: allOrders };
+      return { ...first, orders: all };
     },
-    staleTime: 60_000,
   });
 
+  const { data: roomsData, isLoading: roomsLoading } = useQuery<any[]>({
+    queryKey: ["/api/rooms", "analytics", user?.id],
+    enabled: !!user?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const limit = 200;
+      const maxPages = 25;
+      const extractRooms = (payload: any): any[] =>
+        Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.rooms)
+              ? payload.rooms
+              : [];
+      const fetchPage = async (page: number): Promise<any[]> => {
+        const params = new URLSearchParams();
+        if (user?.id) params.set("userid", user.id);
+        params.set("page", String(page));
+        params.set("limit", String(limit));
+        const response = await fetchWithAuth(`/api/rooms?${params.toString()}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        return extractRooms(await response.json());
+      };
+      const all: any[] = [];
+      for (let page = 1; page <= maxPages; page++) {
+        const batch = await fetchPage(page);
+        all.push(...batch);
+        if (batch.length < limit) break;
+      }
+      return all;
+    },
+  });
+
+  const { data: followersData, isLoading: followersLoading } = useQuery<any>({
+    queryKey: ["/api/users/followers", user?.id],
+    enabled: !!user?.id,
+    staleTime: 300_000,
+    queryFn: async () => {
+      const response = await fetchWithAuth(
+        `/api/users/followers/${user!.id}?page=1&limit=1`,
+        { method: "GET", headers: { "Content-Type": "application/json" } },
+      );
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      return response.json();
+    },
+  });
+
+  const { data: referralData, isLoading: referralLoading } = useQuery<any>({
+    queryKey: ["/api/referral/stats", user?.id],
+    enabled: !!user?.id,
+    staleTime: 300_000,
+    queryFn: async () => {
+      const response = await fetchWithAuth(`/api/referral/stats/${user!.id}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      return response.json();
+    },
+  });
+
+  /* --------------------------- aggregation ------------------------------- */
+
   const orders = useMemo<TokshopOrder[]>(() => {
-    const raw = Array.isArray(data?.orders) ? data!.orders : [];
-    // Defensive client-side range filter in case the API ignores date params.
+    const raw = Array.isArray(ordersData?.orders) ? ordersData!.orders : [];
     return raw.filter((o) => {
       const d = getOrderDate(o);
-      // Exclude undated/unparseable orders from time-window analytics.
       if (!d) return false;
-      return d >= startDate && d <= endDate;
+      return d >= rangeStart && d <= rangeEnd;
     });
-  }, [data, startDate, endDate]);
+  }, [ordersData, rangeStart, rangeEnd]);
 
-  const stats = useMemo(() => {
-    const totalSales = orders.reduce((sum, o) => sum + getOrderAmount(o), 0);
-    const totalOrders = orders.length;
-    const buyers = new Set<string>();
-    orders.forEach((o) => {
-      const id = o.customer?._id;
-      if (id) buyers.add(id);
+  const rooms = useMemo<any[]>(() => {
+    const raw = Array.isArray(roomsData) ? roomsData : [];
+    return raw.filter((r: any) => {
+      const ds = r?.createdAt || r?.date;
+      if (!ds) return false;
+      const d = new Date(ds);
+      if (isNaN(d.getTime())) return false;
+      return d >= rangeStart && d <= rangeEnd;
     });
-    const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-    return {
-      totalSales,
-      totalOrders,
-      uniqueBuyers: buyers.size,
-      avgOrderValue,
-    };
-  }, [orders]);
+  }, [roomsData, rangeStart, rangeEnd]);
 
-  const salesTrend = useMemo(() => {
-    const days = parseInt(rangeDays, 10);
-    const buckets: { key: string; label: string; sales: number; orders: number }[] = [];
-    const indexByKey = new Map<string, number>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      const key = d.toISOString().slice(0, 10);
-      const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-      indexByKey.set(key, buckets.length);
-      buckets.push({ key, label, sales: 0, orders: 0 });
+  const followsCount = useMemo(() => {
+    return (
+      Number(followersData?.totalDoc) ||
+      Number(followersData?.total) ||
+      (Array.isArray(followersData?.data) ? followersData.data.length : 0) ||
+      0
+    );
+  }, [followersData]);
+
+  const referralsCount = useMemo(() => {
+    const d = referralData?.data ?? referralData ?? {};
+    return (
+      Number(d?.totalReferrals) ||
+      Number(d?.total) ||
+      Number(d?.count) ||
+      Number(d?.referrals) ||
+      (Array.isArray(d?.referredUsers) ? d.referredUsers.length : 0) ||
+      0
+    );
+  }, [referralData]);
+
+  // Per-day buckets across the selected window for every chartable metric.
+  const dailyBuckets = useMemo(() => {
+    const buckets = new Map<
+      string,
+      {
+        label: string;
+        showSales: number;
+        mpSales: number;
+        showEarnings: number;
+        mpEarnings: number;
+        showOrders: number;
+        mpOrders: number;
+        showBuyers: Set<string>;
+        mpBuyers: Set<string>;
+        lives: number;
+      }
+    >();
+    const order: string[] = [];
+    for (let i = 0; i < windowDays; i++) {
+      const d = new Date(rangeStart.getTime() + i * 86_400_000);
+      const key = dayKey(d);
+      order.push(key);
+      buckets.set(key, {
+        label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        showSales: 0,
+        mpSales: 0,
+        showEarnings: 0,
+        mpEarnings: 0,
+        showOrders: 0,
+        mpOrders: 0,
+        showBuyers: new Set(),
+        mpBuyers: new Set(),
+        lives: 0,
+      });
     }
+
     orders.forEach((o) => {
       const d = getOrderDate(o);
       if (!d) return;
-      const key = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-        .toISOString()
-        .slice(0, 10);
-      const idx = indexByKey.get(key);
-      if (idx === undefined) return;
-      buckets[idx].sales += getOrderAmount(o);
-      buckets[idx].orders += 1;
-    });
-    return buckets;
-  }, [orders, rangeDays]);
-
-  const categoryBreakdown = useMemo(() => {
-    const totals = new Map<string, number>();
-    orders.forEach((o) => {
-      const items = Array.isArray(o.items) ? o.items : [];
-      if (items.length === 0) {
-        const fallback = "Uncategorized";
-        totals.set(fallback, (totals.get(fallback) || 0) + getOrderAmount(o));
-        return;
+      const b = buckets.get(dayKey(d));
+      if (!b) return;
+      const isShow = isShowOrder(o);
+      const sales = getOrderSales(o);
+      const earnings = getOrderEarnings(o);
+      const buyerId = o.customer?._id;
+      if (isShow) {
+        b.showSales += sales;
+        b.showEarnings += earnings;
+        b.showOrders += 1;
+        if (buyerId) b.showBuyers.add(buyerId);
+      } else {
+        b.mpSales += sales;
+        b.mpEarnings += earnings;
+        b.mpOrders += 1;
+        if (buyerId) b.mpBuyers.add(buyerId);
       }
-      items.forEach((item) => {
-        const name = item.productId?.category?.name || "Uncategorized";
-        const amount = (Number(item.price) || 0) * (Number(item.quantity) || 0);
-        totals.set(name, (totals.get(name) || 0) + amount);
-      });
     });
-    return Array.from(totals.entries())
-      .map(([name, value]) => ({ name, value }))
-      .filter((c) => c.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-  }, [orders]);
 
-  const statusBreakdown = useMemo(() => {
-    const counts = new Map<string, number>();
+    rooms.forEach((r: any) => {
+      const ds = r?.createdAt || r?.date;
+      const d = new Date(ds);
+      const b = buckets.get(dayKey(d));
+      if (b) b.lives += 1;
+    });
+
+    return order.map((key) => {
+      const b = buckets.get(key)!;
+      return {
+        label: b.label,
+        showSales: b.showSales,
+        mpSales: b.mpSales,
+        showEarnings: b.showEarnings,
+        mpEarnings: b.mpEarnings,
+        showOrders: b.showOrders,
+        mpOrders: b.mpOrders,
+        showBuyers: b.showBuyers.size,
+        mpBuyers: b.mpBuyers.size,
+        showAov: b.showOrders ? b.showSales / b.showOrders : 0,
+        mpAov: b.mpOrders ? b.mpSales / b.mpOrders : 0,
+        aov:
+          b.showOrders + b.mpOrders > 0
+            ? (b.showSales + b.mpSales) / (b.showOrders + b.mpOrders)
+            : 0,
+        lives: b.lives,
+      };
+    });
+  }, [orders, rooms, rangeStart, windowDays]);
+
+  // Aggregate totals for the selected window.
+  const totals = useMemo(() => {
+    const showSales = orders.filter(isShowOrder).reduce((s, o) => s + getOrderSales(o), 0);
+    const mpSales = orders.filter((o) => !isShowOrder(o)).reduce((s, o) => s + getOrderSales(o), 0);
+    const sales = showSales + mpSales;
+    const showEarnings = orders.filter(isShowOrder).reduce((s, o) => s + getOrderEarnings(o), 0);
+    const mpEarnings = orders.filter((o) => !isShowOrder(o)).reduce((s, o) => s + getOrderEarnings(o), 0);
+    const earnings = showEarnings + mpEarnings;
+    const orderCount = orders.length;
+    const showOrders = orders.filter(isShowOrder).length;
+    const mpOrders = orderCount - showOrders;
+    const buyers = new Set<string>();
+    const showBuyers = new Set<string>();
+    const mpBuyers = new Set<string>();
     orders.forEach((o) => {
-      const status = (o.status || "processing").toLowerCase();
-      counts.set(status, (counts.get(status) || 0) + 1);
+      const id = o.customer?._id;
+      if (!id) return;
+      buyers.add(id);
+      if (isShowOrder(o)) showBuyers.add(id);
+      else mpBuyers.add(id);
     });
-    return Array.from(counts.entries())
-      .map(([status, count]) => ({
-        status,
-        label: STATUS_LABELS[status] || status,
-        count,
-        color: STATUS_COLORS[status] || "hsl(var(--chart-5))",
-      }))
-      .sort((a, b) => b.count - a.count);
-  }, [orders]);
+    return {
+      sales,
+      showSales,
+      mpSales,
+      earnings,
+      showEarnings,
+      mpEarnings,
+      aov: orderCount ? sales / orderCount : 0,
+      orders: orderCount,
+      showOrders,
+      mpOrders,
+      buyers: buyers.size,
+      showBuyers: showBuyers.size,
+      mpBuyers: mpBuyers.size,
+      lives: rooms.length,
+    };
+  }, [orders, rooms]);
 
-  const topProducts = useMemo(() => {
-    const map = new Map<string, { name: string; revenue: number; units: number }>();
-    orders.forEach((o) => {
-      const items = Array.isArray(o.items) ? o.items : [];
-      items.forEach((item) => {
-        const name = item.productId?.name || "Unknown product";
-        const qty = Number(item.quantity) || 0;
-        const revenue = (Number(item.price) || 0) * qty;
-        const units = qty;
-        const existing = map.get(name) || { name, revenue: 0, units: 0 };
-        existing.revenue += revenue;
-        existing.units += units;
-        map.set(name, existing);
-      });
+  /* --------------------------- metric values ----------------------------- */
+
+  const metricValue = (key: string): number | null => {
+    switch (key) {
+      case "sales":
+        return sourceFilter === "show" ? totals.showSales : sourceFilter === "marketplace" ? totals.mpSales : totals.sales;
+      case "earnings":
+        return sourceFilter === "show" ? totals.showEarnings : sourceFilter === "marketplace" ? totals.mpEarnings : totals.earnings;
+      case "aov":
+        return totals.aov;
+      case "orders":
+        return sourceFilter === "show" ? totals.showOrders : sourceFilter === "marketplace" ? totals.mpOrders : totals.orders;
+      case "buyers":
+        return sourceFilter === "show" ? totals.showBuyers : sourceFilter === "marketplace" ? totals.mpBuyers : totals.buyers;
+      case "follows":
+        return followsCount;
+      case "referrals":
+        return referralsCount;
+      case "lives":
+        return totals.lives;
+      default:
+        return null; // unavailable metrics
+    }
+  };
+
+  const isMetricLoading = (key: string): boolean => {
+    switch (key) {
+      case "sales":
+      case "earnings":
+      case "aov":
+      case "orders":
+      case "buyers":
+        return ordersLoading;
+      case "follows":
+        return followersLoading;
+      case "referrals":
+        return referralLoading;
+      case "lives":
+        return roomsLoading;
+      default:
+        return false;
+    }
+  };
+
+  const formatValue = (def: MetricDef, value: number | null): string => {
+    if (value === null) return "N/A";
+    if (def.type === "currency") return format(value);
+    if (def.type === "duration") {
+      const h = Math.floor(value / 60);
+      const m = Math.round(value % 60);
+      return `${h}h ${m}m`;
+    }
+    return value.toLocaleString();
+  };
+
+  /* ------------------------------ chart ---------------------------------- */
+
+  const activeMetricKey = selected[activeGroup];
+  const activeMetricDef = METRIC_GROUPS[activeGroup].metrics.find(
+    (m) => m.key === activeMetricKey,
+  )!;
+
+  const chartData = useMemo(() => {
+    return dailyBuckets.map((b) => {
+      switch (activeMetricKey) {
+        case "sales":
+          return { label: b.label, show: b.showSales, marketplace: b.mpSales };
+        case "earnings":
+          return { label: b.label, show: b.showEarnings, marketplace: b.mpEarnings };
+        case "orders":
+          return { label: b.label, show: b.showOrders, marketplace: b.mpOrders };
+        case "buyers":
+          return { label: b.label, show: b.showBuyers, marketplace: b.mpBuyers };
+        case "aov":
+          return { label: b.label, value: b.aov };
+        case "lives":
+          return { label: b.label, value: b.lives };
+        default:
+          return { label: b.label, value: 0 };
+      }
     });
-    return Array.from(map.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-  }, [orders]);
+  }, [dailyBuckets, activeMetricKey]);
 
-  const kpis = [
-    {
-      title: "Total Sales",
-      value: format(stats.totalSales),
-      icon: DollarSign,
-      testId: "metric-total-sales",
-    },
-    {
-      title: "Orders",
-      value: stats.totalOrders.toLocaleString(),
-      icon: ShoppingCart,
-      testId: "metric-orders",
-    },
-    {
-      title: "Avg Order Value",
-      value: format(stats.avgOrderValue),
-      icon: Receipt,
-      testId: "metric-avg-order-value",
-    },
-    {
-      title: "Unique Buyers",
-      value: stats.uniqueBuyers.toLocaleString(),
-      icon: Users,
-      testId: "metric-unique-buyers",
-    },
-  ];
+  const showSeries = sourceFilter !== "marketplace";
+  const mpSeries = sourceFilter !== "show";
 
-  const hasData = orders.length > 0;
+  const tooltipFormatter = (val: number) =>
+    activeMetricDef.type === "currency" ? format(val) : val.toLocaleString();
+
+  /* ------------------------------ render --------------------------------- */
+
+  const rangeLabel = `${rangeStart.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })} - ${rangeEnd.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
 
   return (
     <div className="py-6">
       <div className="px-4 sm:px-6 md:px-8">
-        {/* Page Header */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1
-              className="text-2xl font-bold text-foreground"
-              data-testid="text-analytics-title"
-            >
-              Analytics
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Track your sales performance, top products, and buyer activity.
-            </p>
-          </div>
-          <Select value={rangeDays} onValueChange={setRangeDays}>
-            <SelectTrigger className="w-[180px]" data-testid="select-time-range">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {RANGE_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Title + tabs */}
+        <h1 className="text-2xl font-bold text-foreground" data-testid="text-analytics-title">
+          Analytics
+        </h1>
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={() => setActiveTab("overview")}
+            data-testid="tab-overview"
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "overview"
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("premier")}
+            data-testid="tab-premier"
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "premier"
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Premier Shop
+          </button>
         </div>
 
-        {/* KPI cards */}
-        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {kpis.map((kpi) => (
-            <Card key={kpi.title} className="shadow border border-border">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {kpi.title}
-                  </span>
-                  <kpi.icon className="h-5 w-5 text-primary" />
-                </div>
-                {isLoading ? (
-                  <div className="mt-3 h-8 w-24 animate-pulse rounded bg-muted" />
-                ) : (
-                  <div
-                    className="mt-2 text-2xl font-bold text-foreground"
-                    data-testid={kpi.testId}
-                  >
-                    {kpi.value}
-                  </div>
-                )}
+        {activeTab === "premier" ? (
+          <div className="mt-8">
+            <Card className="border border-border">
+              <CardContent className="flex h-64 flex-col items-center justify-center text-center">
+                <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground/50" />
+                <p className="font-medium text-foreground">Premier Shop analytics</p>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                  Premier Shop is a dedicated storefront program. These metrics will
+                  appear here once your shop is enrolled.
+                </p>
               </CardContent>
             </Card>
-          ))}
-        </div>
-
-        {/* Sales trend */}
-        <Card className="mb-8 shadow border border-border">
-          <CardHeader className="px-6 py-4 border-b border-border">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Sales Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {isLoading ? (
-              <div className="h-72 animate-pulse rounded bg-muted" />
-            ) : !hasData ? (
-              <EmptyState message="No sales in this period yet." />
-            ) : (
-              <div className="h-72" data-testid="chart-sales-trend">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={salesTrend}>
-                    <defs>
-                      <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="label"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                      interval="preserveStartEnd"
-                      minTickGap={24}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                      width={48}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "hsl(var(--popover))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                        color: "hsl(var(--popover-foreground))",
-                      }}
-                      formatter={(value: number) => [format(value), "Sales"]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="sales"
-                      stroke="hsl(var(--chart-1))"
-                      strokeWidth={2}
-                      fill="url(#salesGradient)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Category + Status */}
-        <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <Card className="shadow border border-border">
-            <CardHeader className="px-6 py-4 border-b border-border">
-              <CardTitle className="text-lg font-medium">Revenue by Category</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              {isLoading ? (
-                <div className="h-64 animate-pulse rounded bg-muted" />
-              ) : categoryBreakdown.length === 0 ? (
-                <EmptyState message="No category data yet." />
-              ) : (
-                <div className="h-64" data-testid="chart-category-breakdown">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={categoryBreakdown}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={95}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {categoryBreakdown.map((entry, index) => (
-                          <Cell
-                            key={entry.name}
-                            fill={CHART_COLORS[index % CHART_COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          background: "hsl(var(--popover))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: 8,
-                          color: "hsl(var(--popover-foreground))",
+          </div>
+        ) : (
+          <>
+            {/* Date range */}
+            <div className="mt-6 flex flex-col gap-2">
+              <p className="text-sm font-medium text-muted-foreground">Seller Analytics</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => shiftRange(-1)}
+                  data-testid="button-range-prev"
+                  aria-label="Previous period"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <span className="text-xl font-semibold text-foreground" data-testid="text-date-range">
+                  {rangeLabel}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => shiftRange(1)}
+                  data-testid="button-range-next"
+                  aria-label="Next period"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" data-testid="button-edit-dates">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Edit Dates
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 space-y-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="start-date">Start date</Label>
+                      <Input
+                        id="start-date"
+                        type="date"
+                        value={toInputDate(rangeStart)}
+                        max={toInputDate(rangeEnd)}
+                        onChange={(e) => {
+                          const d = new Date(e.target.value);
+                          if (!isNaN(d.getTime())) {
+                            d.setHours(0, 0, 0, 0);
+                            setRangeStart(d);
+                          }
                         }}
-                        formatter={(value: number) => format(value)}
+                        data-testid="input-start-date"
                       />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        formatter={(value) => (
-                          <span className="text-sm text-muted-foreground">{value}</span>
-                        )}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow border border-border">
-            <CardHeader className="px-6 py-4 border-b border-border">
-              <CardTitle className="text-lg font-medium">Order Status</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              {isLoading ? (
-                <div className="h-64 animate-pulse rounded bg-muted" />
-              ) : statusBreakdown.length === 0 ? (
-                <EmptyState message="No orders in this period yet." />
-              ) : (
-                <div className="space-y-4" data-testid="list-status-breakdown">
-                  {statusBreakdown.map((s) => {
-                    const pct =
-                      stats.totalOrders > 0
-                        ? Math.round((s.count / stats.totalOrders) * 100)
-                        : 0;
-                    return (
-                      <div key={s.status} data-testid={`status-row-${s.status}`}>
-                        <div className="mb-1 flex items-center justify-between text-sm">
-                          <span className="font-medium text-foreground">{s.label}</span>
-                          <span className="text-muted-foreground">
-                            {s.count} ({pct}%)
-                          </span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${pct}%`, backgroundColor: s.color }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Top products */}
-        <Card className="shadow border border-border">
-          <CardHeader className="px-6 py-4 border-b border-border">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Top Products
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {isLoading ? (
-              <div className="h-40 animate-pulse rounded bg-muted" />
-            ) : topProducts.length === 0 ? (
-              <EmptyState message="No product sales in this period yet." />
-            ) : (
-              <div className="space-y-3" data-testid="list-top-products">
-                {topProducts.map((p, index) => (
-                  <div
-                    key={p.name}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border p-3"
-                    data-testid={`product-row-${index}`}
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-foreground" data-testid={`product-name-${index}`}>
-                          {p.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {p.units} unit{p.units === 1 ? "" : "s"} sold
-                        </p>
-                      </div>
                     </div>
-                    <span className="flex-shrink-0 font-semibold text-foreground" data-testid={`product-revenue-${index}`}>
-                      {format(p.revenue)}
-                    </span>
-                  </div>
-                ))}
+                    <div className="space-y-1">
+                      <Label htmlFor="end-date">End date</Label>
+                      <Input
+                        id="end-date"
+                        type="date"
+                        value={toInputDate(rangeEnd)}
+                        min={toInputDate(rangeStart)}
+                        max={toInputDate(new Date())}
+                        onChange={(e) => {
+                          const d = new Date(e.target.value);
+                          if (!isNaN(d.getTime())) {
+                            d.setHours(23, 59, 59, 999);
+                            setRangeEnd(d);
+                          }
+                        }}
+                        data-testid="input-end-date"
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+
+            {/* Metric group cards */}
+            <div className="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-3">
+              {(Object.keys(METRIC_GROUPS) as GroupKey[]).map((groupKey) => {
+                const group = METRIC_GROUPS[groupKey];
+                const def = group.metrics.find((m) => m.key === selected[groupKey])!;
+                const isActive = activeGroup === groupKey;
+                const value = metricValue(def.key);
+                return (
+                  <button
+                    key={groupKey}
+                    onClick={() => setActiveGroup(groupKey)}
+                    data-testid={`metric-group-${groupKey}`}
+                    className={`relative bg-card p-5 text-left transition-colors hover:bg-accent/40 ${
+                      isActive ? "" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {group.label}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <span
+                            className="flex cursor-pointer items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                            data-testid={`dropdown-${groupKey}`}
+                          >
+                            More <ChevronDown className="h-3 w-3" />
+                          </span>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {group.metrics.map((m) => (
+                            <DropdownMenuItem
+                              key={m.key}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelected((prev) => ({ ...prev, [groupKey]: m.key }));
+                                setActiveGroup(groupKey);
+                              }}
+                              data-testid={`metric-option-${m.key}`}
+                            >
+                              <span className="flex-1">{m.label}</span>
+                              {!m.available && (
+                                <span className="ml-2 text-xs text-muted-foreground">N/A</span>
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="mt-3">
+                      {isMetricLoading(def.key) ? (
+                        <div className="h-8 w-28 animate-pulse rounded bg-muted" />
+                      ) : (
+                        <div
+                          className="text-2xl font-bold text-foreground"
+                          data-testid={`metric-value-${def.key}`}
+                        >
+                          {formatValue(def, value)}
+                        </div>
+                      )}
+                      <div className="mt-1 text-sm text-muted-foreground">{def.label}</div>
+                    </div>
+                    <div
+                      className={`absolute bottom-0 left-0 h-0.5 w-full transition-colors ${
+                        isActive ? "bg-primary" : "bg-transparent"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Chart */}
+            <Card className="mt-6 border border-border">
+              <CardContent className="p-6">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-medium text-foreground">{activeMetricDef.label}</h3>
+                  {activeMetricDef.split && (
+                    <Select
+                      value={sourceFilter}
+                      onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}
+                    >
+                      <SelectTrigger className="w-[150px]" data-testid="select-source-filter">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="show">Show</SelectItem>
+                        <SelectItem value="marketplace">Marketplace</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {isMetricLoading(activeMetricKey) ? (
+                  <div className="h-72 animate-pulse rounded bg-muted" />
+                ) : !activeMetricDef.available ? (
+                  <ChartEmpty
+                    icon={<Info className="mb-3 h-10 w-10 text-muted-foreground/50" />}
+                    message={activeMetricDef.note || "This metric isn't available yet."}
+                  />
+                ) : !activeMetricDef.timeseries ? (
+                  <div className="flex h-72 flex-col items-center justify-center text-center">
+                    <div className="text-4xl font-bold text-foreground" data-testid="aggregate-value">
+                      {formatValue(activeMetricDef, metricValue(activeMetricKey))}
+                    </div>
+                    <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                      {activeMetricDef.note}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="h-72" data-testid="chart-main">
+                    <ResponsiveContainer width="100%" height="100%">
+                      {activeMetricDef.split ? (
+                        <BarChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={20} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} width={56} tickFormatter={(v) => (activeMetricDef.type === "currency" ? format(v).replace(/\.00$/, "") : v)} />
+                          <Tooltip
+                            contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }}
+                            formatter={(val: number, name: string) => [tooltipFormatter(val), name === "show" ? "Show" : "Marketplace"]}
+                          />
+                          {showSeries && <Bar dataKey="show" stackId="a" fill={SHOW_COLOR} radius={mpSeries ? [0, 0, 0, 0] : [4, 4, 0, 0]} name="show" />}
+                          {mpSeries && <Bar dataKey="marketplace" stackId="a" fill={MARKETPLACE_COLOR} radius={[4, 4, 0, 0]} name="marketplace" />}
+                        </BarChart>
+                      ) : activeMetricKey === "lives" ? (
+                        <BarChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={20} />
+                          <YAxis axisLine={false} tickLine={false} allowDecimals={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} width={40} />
+                          <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} formatter={(val: number) => [val.toLocaleString(), "Lives"]} />
+                          <Bar dataKey="value" fill={SHOW_COLOR} radius={[4, 4, 0, 0]} name="Lives" />
+                        </BarChart>
+                      ) : (
+                        <LineChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} interval="preserveStartEnd" minTickGap={20} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} width={56} tickFormatter={(v) => (activeMetricDef.type === "currency" ? format(v).replace(/\.00$/, "") : v)} />
+                          <Tooltip contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} formatter={(val: number) => [tooltipFormatter(val), activeMetricDef.label]} />
+                          <Line type="monotone" dataKey="value" stroke={SHOW_COLOR} strokeWidth={2} dot={{ r: 3, fill: SHOW_COLOR }} name={activeMetricDef.label} />
+                        </LineChart>
+                      )}
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Legend */}
+                {activeMetricDef.available && activeMetricDef.timeseries && activeMetricDef.split && (
+                  <div className="mt-4 flex items-center gap-5 text-sm">
+                    {showSeries && (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: SHOW_COLOR }} />
+                        Show
+                      </span>
+                    )}
+                    {mpSeries && (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: MARKETPLACE_COLOR }} />
+                        Marketplace
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <p className="mt-4 text-right text-xs text-muted-foreground">
+                  Times shown in your local time zone. Data may take up to a day to update.
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function EmptyState({ message }: { message: string }) {
+function ChartEmpty({ icon, message }: { icon: React.ReactNode; message: string }) {
   return (
-    <div className="flex h-40 flex-col items-center justify-center text-center">
-      <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground/50" />
-      <p className="text-sm text-muted-foreground">{message}</p>
+    <div className="flex h-72 flex-col items-center justify-center text-center">
+      {icon}
+      <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
