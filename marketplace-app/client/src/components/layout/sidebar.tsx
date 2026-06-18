@@ -19,6 +19,7 @@ import {
   Video,
   BookOpen,
   Tag,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -74,6 +75,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileC
   ];
 
   const sellingItems = [
+    { name: "Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Shows", href: "/live-shows", icon: Video },
     { name: "Orders", href: "/orders", icon: Package },
     { name: "Offers", href: "/offers", icon: Tag },
