@@ -189,7 +189,8 @@ export default function Analytics() {
   const { data: ordersData, isLoading: ordersLoading } = useQuery<TokshopOrdersResponse>({
     queryKey: ["/api/orders", "analytics", user?.id, rangeStart.toISOString(), rangeEnd.toISOString()],
     enabled: !!user?.id,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const limit = 200;
       const maxPages = 25;
@@ -225,7 +226,8 @@ export default function Analytics() {
   const { data: roomsData, isLoading: roomsLoading } = useQuery<any[]>({
     queryKey: ["/api/rooms", "analytics", user?.id],
     enabled: !!user?.id,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const limit = 200;
       const maxPages = 25;
@@ -262,7 +264,8 @@ export default function Analytics() {
   const { data: followersData, isLoading: followersLoading } = useQuery<any>({
     queryKey: ["/api/users/followers", user?.id],
     enabled: !!user?.id,
-    staleTime: 300_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const response = await fetchWithAuth(
         `/api/users/followers/${user!.id}?page=1&limit=1`,
@@ -276,7 +279,8 @@ export default function Analytics() {
   const { data: referralData, isLoading: referralLoading } = useQuery<any>({
     queryKey: ["/api/referral/stats", user?.id],
     enabled: !!user?.id,
-    staleTime: 300_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const response = await fetchWithAuth(`/api/referral/stats/${user!.id}`, {
         method: "GET",
