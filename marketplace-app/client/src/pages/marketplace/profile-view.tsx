@@ -170,10 +170,12 @@ export default function ProfileView() {
   const [showFollowersDialog, setShowFollowersDialog] = useState(false);
   const [followersDialogType, setFollowersDialogType] = useState<'followers' | 'following'>('followers');
   
-  // Handle both /profile/:userId and /user?id=userId routes
+  // Handle both /profile/:userId and /user?id=userId routes.
+  // wouter's location is pathname-only (no query string), so read the
+  // ?id= param from window.location.search instead.
   let userId = params?.userId;
-  if (!userId && location.startsWith('/user')) {
-    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  if (!userId) {
+    const urlParams = new URLSearchParams(window.location.search);
     userId = urlParams.get('id') || undefined;
   }
   
