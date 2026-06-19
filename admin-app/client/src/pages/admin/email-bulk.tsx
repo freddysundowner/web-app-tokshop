@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -480,23 +480,70 @@ export default function AdminEmailBulk() {
 
   const autoPopulatedPlaceholders = ['app_name', 'support_email', 'primary_color', 'secondary_color', 'firstname', 'lastname', 'username', 'email', 'name', 'recipient_name', 'version', 'android_version', 'ios_version', 'android_link', 'ios_link'];
 
-  const quillModules = useMemo(() => ({
-    toolbar: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      [{ 'font': [] }],
-      [{ 'size': ['small', false, 'large', 'huge'] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'script': 'sub' }, { 'script': 'super' }],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      [{ 'indent': '-1' }, { 'indent': '+1' }],
-      [{ 'direction': 'rtl' }],
-      [{ 'align': [] }],
-      ['blockquote', 'code-block'],
-      ['link', 'image', 'video'],
-      ['clean'],
-    ],
-  }), []);
+  const customQuillRef = useRef<ReactQuill>(null);
+  const whatsNewQuillRef = useRef<ReactQuill>(null);
+
+  // Upload the picked image to the server (which hosts it and returns an
+  // absolute https URL) and embed that URL — instead of Quill's default
+  // base64 inline image, which email clients like Gmail/Outlook block.
+  const makeImageHandler = useCallback((ref: React.RefObject<ReactQuill>) => () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetchWithAuth('/api/admin/email/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.url) {
+          throw new Error(data?.error || 'Upload failed');
+        }
+        const editor = ref.current?.getEditor();
+        if (!editor) return;
+        const range = editor.getSelection(true);
+        const index = range ? range.index : editor.getLength();
+        editor.insertEmbed(index, 'image', data.url);
+        editor.setSelection(index + 1, 0);
+      } catch (e: any) {
+        toast({
+          title: 'Image upload failed',
+          description: e?.message || 'Could not upload image',
+          variant: 'destructive',
+        });
+      }
+    };
+  }, [toast]);
+
+  const buildQuillModules = useCallback((ref: React.RefObject<ReactQuill>) => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+        [{ 'font': [] }],
+        [{ 'size': ['small', false, 'large', 'huge'] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'script': 'sub' }, { 'script': 'super' }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        [{ 'indent': '-1' }, { 'indent': '+1' }],
+        [{ 'direction': 'rtl' }],
+        [{ 'align': [] }],
+        ['blockquote', 'code-block'],
+        ['link', 'image', 'video'],
+        ['clean'],
+      ],
+      handlers: { image: makeImageHandler(ref) },
+    },
+  }), [makeImageHandler]);
+
+  const quillModules = useMemo(() => buildQuillModules(customQuillRef), [buildQuillModules]);
+  const whatsNewQuillModules = useMemo(() => buildQuillModules(whatsNewQuillRef), [buildQuillModules]);
 
   const quillFormats = [
     'header', 'font', 'size',
@@ -1063,7 +1110,7 @@ export default function AdminEmailBulk() {
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">What's New — replaces {"{{whats_new}}"}</Label>
                     <div className="border rounded-lg overflow-hidden bg-white">
-                      <ReactQuill theme="snow" value={whatsNew} onChange={setWhatsNew} modules={quillModules} formats={quillFormats} placeholder="Release notes..." style={{ minHeight: '120px' }} />
+                      <ReactQuill ref={whatsNewQuillRef} theme="snow" value={whatsNew} onChange={setWhatsNew} modules={whatsNewQuillModules} formats={quillFormats} placeholder="Release notes..." style={{ minHeight: '120px' }} />
                     </div>
                   </div>
                 )}
@@ -1077,7 +1124,7 @@ export default function AdminEmailBulk() {
                   data-testid="input-custom-subject"
                 />
                 <div className="border rounded-lg overflow-hidden bg-white">
-                  <ReactQuill theme="snow" value={customHtml} onChange={setCustomHtml} modules={quillModules} formats={quillFormats} placeholder="Compose your email..." style={{ minHeight: '260px' }} />
+                  <ReactQuill ref={customQuillRef} theme="snow" value={customHtml} onChange={setCustomHtml} modules={quillModules} formats={quillFormats} placeholder="Compose your email..." style={{ minHeight: '260px' }} />
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">Use: {"{{username}}"} {"{{firstname}}"} {"{{lastname}}"} {"{{email}}"}</p>

@@ -8,6 +8,19 @@ import { sendEmail, sendBulkWithBrevo, wrapEmailContent } from "../utils/email";
 // Multer configuration for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Dedicated uploader for email composer images: cap size and accept images only.
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
 // Admin authorization middleware
 function requireAdmin(req: any, res: any, next: any) {
   // Try to restore session from headers if session is empty
@@ -6096,6 +6109,64 @@ Thank you for using ${appName}!
     }
   });
 
+  // Upload an image for the email composer and return an ABSOLUTE hosted URL.
+  // Inline base64 images get blocked by email clients (Gmail/Outlook), and
+  // relative /uploads paths can't resolve in an inbox, so we host the image
+  // and return a full https URL the editor can embed.
+  app.post("/api/admin/email/upload-image", requireAdmin, checkDemoMode, (req, res, next) => {
+    imageUpload.single('file')(req, res, (err: any) => {
+      if (err) {
+        return res.status(400).json({ success: false, error: err.message || "Image upload rejected" });
+      }
+      next();
+    });
+  }, async (req, res) => {
+    try {
+      const accessToken = getAdminToken(req);
+
+      if (!accessToken) {
+        return res.status(401).json({ success: false, error: "No access token found" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No file uploaded" });
+      }
+
+      const formData = new FormData();
+      formData.append('key', `email_image_${Date.now()}`);
+      formData.append('resource', req.file.buffer, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
+
+      const url = `${BASE_URL}/themes/upload-resource`;
+      const response = await axios.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      });
+
+      const rawUrl: string = response.data.url || response.data.key || '';
+      const absoluteUrl = rawUrl && !rawUrl.startsWith('http') ? `${BASE_URL}${rawUrl}` : rawUrl;
+
+      if (!absoluteUrl) {
+        return res.status(502).json({ success: false, error: "Upload succeeded but no URL returned" });
+      }
+
+      res.json({ success: true, url: absoluteUrl });
+    } catch (error: any) {
+      console.error("Error uploading email image:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to upload image",
+        details: error.response?.data || error.message,
+      });
+    }
+  });
+
   // Send bulk emails directly from server
   app.post("/api/admin/email/send-bulk", requireAdmin, async (req, res) => {
     try {
@@ -6282,13 +6353,20 @@ Thank you for using ${appName}!
       const logoPath = themes.landing_page_logo || themes.app_logo || settings.logo_url || '';
       const logoUrl = logoPath && !logoPath.startsWith('http') ? `${BASE_URL}${logoPath}` : logoPath;
       
-      const finalHtml = useWrapper ? wrapEmailContent(html, {
+      let finalHtml = useWrapper ? wrapEmailContent(html, {
         app_name: themes.app_name || settings.app_name,
         primary_color: themes.primary_color || settings.primary_color,
         secondary_color: themes.secondary_color || settings.secondary_color,
         support_email: settings.support_email,
         logo_url: logoUrl,
       }) : html;
+
+      // Safety net: email clients can't load relative image paths (e.g. /uploads/...),
+      // so rewrite any relative <img src> in the body to absolute BASE_URL URLs.
+      finalHtml = finalHtml.replace(
+        /(<img\b[^>]*?\bsrc\s*=\s*)(["'])(\/[^"']*)\2/gi,
+        (_m: string, prefix: string, quote: string, srcPath: string) => `${prefix}${quote}${BASE_URL}${srcPath}${quote}`
+      );
 
       // For Brevo, use bulk send (batches of 50) - more efficient
       if (provider === 'brevo') {
