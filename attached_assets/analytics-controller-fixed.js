@@ -82,10 +82,31 @@ exports.getSellerAnalytics = async (req, res) => {
             .select("price earnings tokshow customer orderId createdAt")
             .lean();
 
-        // ----- rooms (lives, streamed time, peak viewers, shares) -----
+        // ----- rooms = live shows (lives, streamed time) -----
+        // A room document is created for EVERY scheduled show, and `createShow`
+        // even pre-creates a batch of future rooms for repeating shows. Most of
+        // those never actually broadcast. The app's own definition of a "live"
+        // (see roomStats: countDocuments({ started: true })) is `started: true`,
+        // so we only count rooms that actually went live. Counting every room
+        // inflated the live count (e.g. one repeating show => dozens of fake
+        // lives) which both skewed the graph and made streamed time wrong
+        // (never-started rooms carry a default/auto-end timestamp that produced
+        // bogus durations).
+        // Range by GO-LIVE time, not creation time: repeating shows are
+        // pre-created in advance (createShow inserts future rooms immediately),
+        // so a real live that broadcast inside the window can have a createdAt
+        // before it. Match on startedTime within the window, and fall back to
+        // createdAt only for rooms whose startedTime is missing/zero (legacy).
         const rooms = await roomModel
-            .find({ owner: sellerId, createdAt: { $gte: start, $lte: end } })
-            .select("createdAt startedTime endedTime peakViewers shareCount")
+            .find({
+                owner: sellerId,
+                started: true,
+                $or: [
+                    { startedTime: { $gte: startMs, $lte: endMs } },
+                    { startedTime: { $in: [null, 0] }, createdAt: { $gte: start, $lte: end } },
+                ],
+            })
+            .select("createdAt startedTime endedTime started ended peakViewers shareCount")
             .lean();
 
         // ----- followers + referrals -----
@@ -149,12 +170,24 @@ exports.getSellerAnalytics = async (req, res) => {
         let hasShares = false, hasPeak = false, hasStreamed = false;
         for (const r of rooms) {
             lives++;
-            const b = buckets.get(dayKey(new Date(r.createdAt).getTime()));
+            // Bucket each live on the day it actually went live (startedTime).
+            // Fall back to createdAt when startedTime is missing or lands outside
+            // the requested window.
+            const startMsR = Number(r.startedTime) || 0;
+            const bucketMs =
+                startMsR >= startMs && startMsR <= endMs ? startMsR : new Date(r.createdAt).getTime();
+            const b = buckets.get(dayKey(bucketMs));
             if (b) b.lives++;
             if (r.shareCount != null) { hasShares = true; shares += Number(r.shareCount) || 0; }
             if (r.peakViewers != null) { hasPeak = true; maxConcurrentViewers = Math.max(maxConcurrentViewers, Number(r.peakViewers) || 0); }
-            const s = Number(r.startedTime) || 0, e = Number(r.endedTime) || 0;
-            if (s > 0 && e > s) { hasStreamed = true; streamedSeconds += Math.round((e - s) / 1000); }
+            // Streamed time = endedTime - startedTime, only for lives that have
+            // actually ended with a sane end-after-start timestamp. A still-live
+            // room has no endedTime and is skipped (it still counts as a live).
+            // Cap at 24h: the platform force-ends rooms after ~24h, so a larger
+            // span means a corrupted/default startedTime and is excluded.
+            const e = Number(r.endedTime) || 0;
+            const durSec = startMsR > 0 && e > startMsR ? Math.round((e - startMsR) / 1000) : 0;
+            if (durSec > 0 && durSec <= 86_400) { hasStreamed = true; streamedSeconds += durSec; }
         }
 
         const daily = orderKeys.map((k) => {
