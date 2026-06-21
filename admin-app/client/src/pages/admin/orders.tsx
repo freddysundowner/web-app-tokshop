@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
@@ -33,7 +33,9 @@ export default function AdminOrders() {
   const [searchBy, setSearchBy] = useState("customer");
   const [appliedSearchBy, setAppliedSearchBy] = useState("customer");
   const [statusFilter, setStatusFilter] = useState("all");
-  
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+
   const [shippingDrawerOpen, setShippingDrawerOpen] = useState(false);
   const [shippingDrawerOrder, setShippingDrawerOrder] = useState<any>(null);
   const [scanFormDialogOpen, setScanFormDialogOpen] = useState(false);
@@ -43,10 +45,12 @@ export default function AdminOrders() {
 
   // Fetch regular orders
   const { data: ordersData, isLoading: isLoadingOrders } = useQuery<any>({
-    queryKey: ['admin-orders', activeTab === "orders" ? statusFilter : null, activeTab === "orders" ? appliedSearch : null, activeTab === "orders" ? appliedSearchBy : null],
+    queryKey: ['admin-orders', activeTab === "orders" ? statusFilter : null, activeTab === "orders" ? appliedSearch : null, activeTab === "orders" ? appliedSearchBy : null, activeTab === "orders" ? page : 1],
     queryFn: async () => {
       console.log('Fetching regular orders...');
       const params = new URLSearchParams();
+      params.set("page", String(activeTab === "orders" ? page : 1));
+      params.set("limit", String(PAGE_SIZE));
       if (activeTab === "orders" && statusFilter && statusFilter !== "all") {
         params.set("status", statusFilter);
       }
@@ -68,11 +72,13 @@ export default function AdminOrders() {
 
   // Fetch giveaway orders (platform_order: true)
   const { data: giveawayOrdersData, isLoading: isLoadingGiveaways } = useQuery<any>({
-    queryKey: ['admin-giveaway-orders', activeTab === "giveaways" ? statusFilter : null, activeTab === "giveaways" ? appliedSearch : null, activeTab === "giveaways" ? appliedSearchBy : null],
+    queryKey: ['admin-giveaway-orders', activeTab === "giveaways" ? statusFilter : null, activeTab === "giveaways" ? appliedSearch : null, activeTab === "giveaways" ? appliedSearchBy : null, activeTab === "giveaways" ? page : 1],
     queryFn: async () => {
       console.log('Fetching giveaway orders with platform_order=true...');
       const params = new URLSearchParams();
       params.set("platform_order", "true");
+      params.set("page", String(activeTab === "giveaways" ? page : 1));
+      params.set("limit", String(PAGE_SIZE));
       if (activeTab === "giveaways" && statusFilter && statusFilter !== "all") {
         params.set("status", statusFilter);
       }
@@ -216,10 +222,11 @@ export default function AdminOrders() {
   // Get base orders based on active tab
   const baseOrders = activeTab === "giveaways" ? giveawayOrders : regularOrders;
 
-  // Filter orders (status is filtered server-side, only apply search filter here)
+  // Filter orders (status & search are filtered server-side; mirror the SUBMITTED
+  // search here so the visible rows stay consistent with the paginated totals)
   const filteredOrders = baseOrders.filter((order: any) => {
     // Search filter
-    if (searchTerm) {
+    if (appliedSearch) {
       const invoice = String(order.invoice || order._id || '').toLowerCase();
       const customerName = typeof order.customer === 'object'
         ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.email || ''
@@ -227,7 +234,7 @@ export default function AdminOrders() {
       const customerUsername = typeof order.customer === 'object'
         ? order.customer.userName || ''
         : '';
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = appliedSearch.toLowerCase();
       
       if (!invoice.includes(searchLower) && 
           !customerName.toLowerCase().includes(searchLower) &&
@@ -267,11 +274,13 @@ export default function AdminOrders() {
   };
 
   const handleSearch = () => {
+    setPage(1);
     setAppliedSearch(searchTerm);
     setAppliedSearchBy(searchBy);
   };
 
   const clearFilters = () => {
+    setPage(1);
     setSearchTerm("");
     setAppliedSearch("");
     setSearchBy("customer");
@@ -280,6 +289,20 @@ export default function AdminOrders() {
   };
 
   const hasActiveFilters = appliedSearch || statusFilter !== "all";
+
+  // Pagination derived from the active tab's response
+  const activeData = activeTab === "giveaways" ? giveawayOrdersData : ordersData;
+  const totalCount = activeData?.total ?? baseOrders.length;
+  const totalPages = Math.max(1, activeData?.pages ?? 1);
+  const regularTotal = ordersData?.total ?? regularOrders.length;
+  const giveawayTotal = giveawayOrdersData?.total ?? giveawayOrders.length;
+
+  // Clamp the current page if the dataset shrank (e.g. after a refund/filter change)
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   if (isLoading) {
     return (
@@ -310,15 +333,15 @@ export default function AdminOrders() {
           <p className="text-muted-foreground">Track and manage all platform orders</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => { setPage(1); setActiveTab(v); }} className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
-              Orders ({regularOrders.length})
+              Orders ({regularTotal})
             </TabsTrigger>
             <TabsTrigger value="giveaways" className="flex items-center gap-2">
               <Gift className="h-4 w-4" />
-              Giveaways ({giveawayOrders.length})
+              Giveaways ({giveawayTotal})
             </TabsTrigger>
           </TabsList>
 
@@ -334,7 +357,8 @@ export default function AdminOrders() {
                   <div>
                     <CardTitle>{activeTab === "giveaways" ? "Giveaway Orders" : "All Orders"}</CardTitle>
                     <CardDescription>
-                      {filteredOrders.length} of {baseOrders.length} {activeTab === "giveaways" ? "giveaway orders" : "orders"}
+                      {totalCount} {activeTab === "giveaways" ? "giveaway orders" : "orders"} total
+                      {totalPages > 1 ? ` — page ${page} of ${totalPages}` : ""}
                     </CardDescription>
                   </div>
                 </div>
@@ -369,7 +393,7 @@ export default function AdminOrders() {
                   </Button>
                   
                   {/* Status Filter */}
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <Select value={statusFilter} onValueChange={(v) => { setPage(1); setStatusFilter(v); }}>
                     <SelectTrigger data-testid="select-status-filter" className="w-40">
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
@@ -560,6 +584,34 @@ export default function AdminOrders() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between gap-4 pt-4">
+                <p className="text-sm text-muted-foreground" data-testid="text-page-info">
+                  Page {page} of {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1 || isLoading}
+                    data-testid="button-prev-page"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages || isLoading}
+                    data-testid="button-next-page"
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
