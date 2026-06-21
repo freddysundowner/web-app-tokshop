@@ -147,6 +147,17 @@ function toInputDate(d: Date): string {
   return dayKey(d);
 }
 
+// Parse a yyyy-mm-dd value from a <input type="date"> as a LOCAL date.
+// `new Date("2026-06-01")` is parsed as UTC midnight, which renders as the
+// previous day in any timezone behind UTC (the off-by-one "jumps to the 31st"
+// bug). Building the date from local components avoids that.
+function parseInputDate(value: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
 /* ------------------------------ component -------------------------------- */
 
 export default function Analytics() {
@@ -438,8 +449,8 @@ export default function Analytics() {
                         value={toInputDate(rangeStart)}
                         max={toInputDate(rangeEnd)}
                         onChange={(e) => {
-                          const d = new Date(e.target.value);
-                          if (!isNaN(d.getTime())) {
+                          const d = parseInputDate(e.target.value);
+                          if (d) {
                             d.setHours(0, 0, 0, 0);
                             setRangeStart(d);
                           }
@@ -456,8 +467,8 @@ export default function Analytics() {
                         min={toInputDate(rangeStart)}
                         max={toInputDate(new Date())}
                         onChange={(e) => {
-                          const d = new Date(e.target.value);
-                          if (!isNaN(d.getTime())) {
+                          const d = parseInputDate(e.target.value);
+                          if (d) {
                             d.setHours(23, 59, 59, 999);
                             setRangeEnd(d);
                           }
