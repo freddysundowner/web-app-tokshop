@@ -7,6 +7,7 @@
 - [Product country stamping + inventory exemption](currency-country-lock.md) — products+shows store seller ISO code (filter matches code not name); seller-owned discovery lists (products type=inventory; shows GET /api/rooms with userid==session id) skip the filter — gate MUST use the same normalized userid that is forwarded upstream or it is a bypass.
 - [Currency + country-lock](currency-country-lock.md) — allowlist must be enforced at ALL country-set paths (3 client dropdowns + 4 auth.ts routes incl. countryCode); prices shown in viewer currency via useCurrency() (alias `format` to avoid date-fns clash).
 - [Dev server no watch](dev-server-no-watch.md) — tsx runs without watch; server/route changes need a workflow restart (client HMRs but server stays stale).
+- [Date input timezone round-trip](datetime-local-roundtrip.md) — fill date/datetime-local inputs from LOCAL getters not toISOString; date-only `new Date("yyyy-mm-dd")` parses as UTC (off-by-one).
 - [Seller analytics lives & streamed time](seller-analytics-lives-streamtime.md) — count lives as started:true rooms (not all docs; repeat shows pre-create many), range/bucket by startedTime, duration end-start capped 24h.
 - [Email image rendering](email-image-rendering.md) — email body images must be absolute https URLs; base64 data-URIs and relative /uploads paths are stripped/unresolvable by inboxes.
 - [Seller analytics data sources](seller-analytics-data-sources.md) — dashboard chart widgets are hardcoded & /api/dashboard/metrics is global/unauthed; compute per-seller stats from /api/orders?userId.

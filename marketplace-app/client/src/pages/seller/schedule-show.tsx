@@ -162,9 +162,17 @@ export default function ScheduleShow() {
       console.log('📦 Categories loaded:', categoriesData?.categories?.length);
       console.log('📦 Shipping profiles loaded:', shippingProfilesResponse?.length);
       
-      // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
+      // Format date for datetime-local input (YYYY-MM-DDTHH:mm) using LOCAL
+      // components. toISOString() returns UTC, which would shift the displayed
+      // time by the seller's timezone offset (e.g. ~4h for US Eastern) and then
+      // get re-saved incorrectly on submit.
       const scheduledDate = new Date(showData.date);
-      const formattedDate = scheduledDate.toISOString().slice(0, 16);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const formattedDate = `${scheduledDate.getFullYear()}-${pad(
+        scheduledDate.getMonth() + 1,
+      )}-${pad(scheduledDate.getDate())}T${pad(scheduledDate.getHours())}:${pad(
+        scheduledDate.getMinutes(),
+      )}`;
       
       // Get shipping settings with fallbacks
       const shippingSettings = showData.shipping_settings || {};
