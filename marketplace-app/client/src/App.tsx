@@ -9,6 +9,7 @@ import { SettingsProvider, useSettings } from "@/lib/settings-context";
 import { SocketProvider } from "@/lib/socket-context";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useFavicon } from "@/hooks/use-favicon";
 import { ReferralBanner } from "@/components/referral-banner";
 import { isAllowedCountry } from "@shared/currency";
 
@@ -105,6 +106,9 @@ function Router() {
 
   // Set default page title from settings
   usePageTitle();
+
+  // Set the browser favicon from the app logo configured in settings
+  useFavicon();
 
   // Make sure app settings (including the allowed-countries restriction) are
   // loaded on mount — not just when signed in. The sign-up and social-auth

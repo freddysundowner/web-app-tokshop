@@ -50,6 +50,7 @@ import AdminTermsPage from "@/pages/admin/pages/terms";
 import AdminContactPage from "@/pages/admin/pages/contact";
 import NotFound from "@/pages/not-found";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useFavicon } from "@/hooks/use-favicon";
 
 
 function InitialSetupCheck({ children }: { children: React.ReactNode }) {
@@ -124,6 +125,9 @@ function Router() {
   
   // Set default page title from settings
   usePageTitle();
+
+  // Set the browser favicon from the app logo configured in settings
+  useFavicon();
 
   // Handle social auth completion
   const handleSocialAuthComplete = async (data: any) => {

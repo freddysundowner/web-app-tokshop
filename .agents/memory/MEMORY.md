@@ -13,3 +13,4 @@
 - [Seller analytics data sources](seller-analytics-data-sources.md) — dashboard chart widgets are hardcoded & /api/dashboard/metrics is global/unauthed; compute per-seller stats from /api/orders?userId.
 - [Seller analytics consolidated endpoint](seller-analytics-consolidated-endpoint.md) — /analytics must use ONE call to /api/seller/analytics (proxy tries dedicated upstream, else composes); keep email metric semantics + floor day-span.
 - [Order subtotal unreliable](order-subtotal-bundling.md) — external backend leaves order.subtotal stuck on one item after bundling; accurate seller sales = Σ items[].price, not order.subtotal.
+- [Favicon from settings](favicon-from-settings.md) — favicon is settings-driven, not a static file alone; both apps set <link rel=icon> at runtime from theme app_logo.

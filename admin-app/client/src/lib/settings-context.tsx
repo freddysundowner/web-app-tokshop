@@ -12,6 +12,7 @@ interface FirebaseConfig {
 interface AppSettings {
   app_name: string;
   seo_title?: string;
+  app_logo?: string;
   support_email: string;
   primary_color: string;
   secondary_color: string;
@@ -131,6 +132,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             setSettings(prev => ({
               ...prev,
               app_name: themes.app_name || prev.app_name,
+              app_logo: themes.app_logo || prev.app_logo,
               demoMode: themes.demoMode !== undefined ? themes.demoMode : prev.demoMode,
             }));
           }
