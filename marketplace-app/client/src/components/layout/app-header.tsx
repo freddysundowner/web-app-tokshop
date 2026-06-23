@@ -198,7 +198,7 @@ export function AppHeader({ onMobileMenuToggle, mobileMenuOpen = false, onMobile
                     <img 
                       src={getImageUrl(theme.landing_page_logo || theme.app_logo, externalApiUrl)}
                       alt={appName || 'Logo'}
-                      className="h-16 sm:h-20 lg:h-24 w-auto object-contain"
+                      className="h-8 sm:h-10 w-auto object-contain"
                     />
                   ) : (
                     <>

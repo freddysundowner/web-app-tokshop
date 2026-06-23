@@ -183,7 +183,7 @@ export default function LandingPage8() {
           <Link href="/">
             <div className="flex items-center cursor-pointer" data-testid="link-logo">
               {headerLogo ? (
-                <img src={headerLogo} alt={appName} className="h-20 sm:h-24 object-contain" />
+                <img src={headerLogo} alt={appName} className="h-10 sm:h-12 w-auto object-contain" />
               ) : (
                 <div 
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center"
