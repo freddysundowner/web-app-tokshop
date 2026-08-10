@@ -2009,11 +2009,11 @@ export default function ShowViewNew() {
     }
     
     if (isToday(date)) {
-      return `Today ${format(date, 'HH:mm')}`;
+      return `Today ${format(date, 'h:mm a')}`;
     } else if (isTomorrow(date)) {
-      return `Tomorrow ${format(date, 'HH:mm')}`;
+      return `Tomorrow ${format(date, 'h:mm a')}`;
     } else {
-      return format(date, 'MMM d, HH:mm');
+      return format(date, 'MMM d, h:mm a');
     }
   };
   const scheduledTimeText = scheduledAt ? formatScheduledTime(scheduledAt) : null;
