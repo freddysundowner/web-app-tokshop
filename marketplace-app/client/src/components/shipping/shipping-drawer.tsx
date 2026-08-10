@@ -448,9 +448,14 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     },
     onError: (error: Error) => {
       console.error('Label purchase error:', error);
+      let message = error.message || "An unexpected error occurred";
+      try {
+        const parsed = JSON.parse(message);
+        message = parsed.error || parsed.message || parsed.detail || message;
+      } catch { /* not JSON, use as-is */ }
       toast({
         title: "Failed to purchase shipping label",
-        description: error.message || "An unexpected error occurred",
+        description: message,
         variant: "destructive",
       });
     },

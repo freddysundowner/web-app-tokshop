@@ -233,9 +233,14 @@ export function AdminShippingDrawer({ order, open, onOpenChange, regenerate: reg
       }
     },
     onError: (error: Error) => {
+      let message = error.message || "An unexpected error occurred";
+      try {
+        const parsed = JSON.parse(message);
+        message = parsed.error || parsed.message || parsed.detail || message;
+      } catch { /* not JSON, use as-is */ }
       toast({
         title: "Failed to purchase shipping label",
-        description: error.message || "An unexpected error occurred",
+        description: message,
         variant: "destructive",
       });
     },
