@@ -24,6 +24,7 @@ interface Dispute {
       _id: string;
       price: number;
       quantity?: number;
+      shipping_fee?: number;
       productId: {
         _id: string;
         name: string;
@@ -56,7 +57,7 @@ export default function AdminDisputeDetail() {
   const [showResolveDialog, setShowResolveDialog] = useState(false);
   const [selectedDecision, setSelectedDecision] = useState<"buyer" | "seller" | "no_favor" | null>(null);
   const [showRefundDialog, setShowRefundDialog] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<{ _id: string; name: string; price: number } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{ _id: string; name: string; price: number; shipping: number } | null>(null);
   const [refundingItemId, setRefundingItemId] = useState<string | null>(null);
 
   // Fetch dispute details
@@ -165,11 +166,12 @@ export default function AdminDisputeDetail() {
     }
   };
 
-  const handleRefundItem = (item: { _id: string; productId?: { name?: string }; price: number }) => {
+  const handleRefundItem = (item: { _id: string; productId?: { name?: string }; price: number; shipping_fee?: number }) => {
     setSelectedItem({
       _id: item._id,
       name: item.productId?.name || 'Unknown Product',
       price: item.price,
+      shipping: item.shipping_fee ?? 0,
     });
     setShowRefundDialog(true);
   };
@@ -179,7 +181,7 @@ export default function AdminDisputeDetail() {
       refundMutation.mutate({
         itemId: selectedItem._id,
         orderId: dispute.orderId._id,
-        amount: selectedItem.price,
+        amount: selectedItem.price + selectedItem.shipping,
       });
     }
   };
@@ -575,9 +577,25 @@ export default function AdminDisputeDetail() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Refund</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to refund "{selectedItem?.name}" for ${selectedItem?.price?.toFixed(2)}?
-                This action cannot be undone.
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>Are you sure you want to refund <strong className="text-foreground">"{selectedItem?.name}"</strong>?</p>
+                  <div className="rounded-md border border-border bg-muted/50 p-3 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Item price</span>
+                      <span>${selectedItem?.price?.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Shipping</span>
+                      <span>${selectedItem?.shipping?.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-foreground border-t border-border pt-1 mt-1">
+                      <span>Total refund</span>
+                      <span>${((selectedItem?.price ?? 0) + (selectedItem?.shipping ?? 0)).toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <p>This action cannot be undone.</p>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
