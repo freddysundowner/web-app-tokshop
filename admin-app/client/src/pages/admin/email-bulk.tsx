@@ -452,7 +452,6 @@ export default function AdminEmailBulk() {
 
   const [customSubject, setCustomSubject] = useState("");
   const [customHtml, setCustomHtml] = useState("");
-  const [fromEmail, setFromEmail] = useState("");
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateSlug, setTemplateSlug] = useState("");
@@ -845,7 +844,7 @@ export default function AdminEmailBulk() {
       const payload: any = {
         subject: emailContent.subject,
         html: emailContent.html,
-        fromEmail: fromEmail || undefined,
+
         useWrapper: emailMode === "custom",
       };
 
@@ -1061,14 +1060,6 @@ export default function AdminEmailBulk() {
                   <TabsTrigger value="template" data-testid="tab-template">Template</TabsTrigger>
                   <TabsTrigger value="custom" data-testid="tab-custom">Custom</TabsTrigger>
                 </TabsList>
-                <Input
-                  type="email"
-                  placeholder="From email (optional)"
-                  value={fromEmail}
-                  onChange={(e) => setFromEmail(e.target.value)}
-                  className="max-w-[240px] h-8 text-sm"
-                  data-testid="input-from-email"
-                />
               </div>
 
               <TabsContent value="template" className="space-y-3 mt-0">
