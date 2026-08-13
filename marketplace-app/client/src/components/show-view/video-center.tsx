@@ -316,11 +316,11 @@ export function VideoCenter(props: any) {
     }
     
     if (isToday(date)) {
-      return `Today ${formatDate(date, 'HH:mm')}`;
+      return `Today ${formatDate(date, 'h:mm a')}`;
     } else if (isTomorrow(date)) {
-      return `Tomorrow ${formatDate(date, 'HH:mm')}`;
+      return `Tomorrow ${formatDate(date, 'h:mm a')}`;
     } else {
-      return formatDate(date, 'MMM d, HH:mm');
+      return formatDate(date, 'MMM d, h:mm a');
     }
   };
   const scheduledTimeText = scheduledAt ? formatScheduledTime(scheduledAt) : null;

@@ -228,7 +228,7 @@ export function ChatSidebar(props: ChatSidebarProps) {
         <div className="px-4 py-6 border-b border-zinc-800 flex flex-col items-center text-center" data-testid="show-not-started-prompt">
           <p className="text-zinc-400 text-sm mb-1">Show starts</p>
           <p className="text-white text-3xl font-bold mb-4">
-            {new Date(show.date).toLocaleDateString('en-US', { weekday: 'short' })} {new Date(show.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            {new Date(show.date).toLocaleDateString('en-US', { weekday: 'short' })} {new Date(show.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
           </p>
           <button 
             className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base transition-colors flex items-center justify-center gap-2"

@@ -272,6 +272,11 @@ export default function Analytics() {
 
   // Aggregate totals for the selected window.
   const totals = useMemo(() => {
+    const daily = analytics?.daily ?? [];
+    // Sum lives from the daily breakdown so the metric card always matches
+    // the chart bars. The upstream totals.lives can count outside the date
+    // range; the daily array is already filtered to the requested window.
+    const livesFromDaily = daily.reduce((sum, d) => sum + (d.lives ?? 0), 0);
     return {
       sales: t?.sales.all ?? 0,
       showSales: t?.sales.show ?? 0,
@@ -288,12 +293,12 @@ export default function Analytics() {
       buyers: t?.buyers.all ?? 0,
       showBuyers: t?.buyers.show ?? 0,
       mpBuyers: t?.buyers.marketplace ?? 0,
-      lives: t?.lives ?? 0,
+      lives: livesFromDaily,
       shares: t?.shares ?? 0,
       maxConcurrentViewers: t?.maxConcurrentViewers ?? 0,
       streamedSeconds: t?.streamedSeconds ?? 0,
     };
-  }, [t]);
+  }, [t, analytics?.daily]);
 
   /* --------------------------- metric values ----------------------------- */
 

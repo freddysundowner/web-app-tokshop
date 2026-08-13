@@ -1254,7 +1254,9 @@ export default function Shipping() {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Failed to purchase labels" }));
-        throw new Error(errorData.message || "Failed to purchase labels");
+        let errMsg = errorData.error || errorData.message || "Failed to purchase labels";
+        try { const p = JSON.parse(errMsg); errMsg = p.error || p.message || p.detail || errMsg; } catch { /* not JSON */ }
+        throw new Error(errMsg);
       }
       
       return response.json();
