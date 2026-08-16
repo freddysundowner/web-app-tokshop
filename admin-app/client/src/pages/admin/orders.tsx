@@ -55,8 +55,12 @@ export default function AdminOrders() {
         params.set("status", statusFilter);
       }
       if (activeTab === "orders" && appliedSearch.trim()) {
-        params.set("search", appliedSearch.trim());
-        params.set("searchBy", appliedSearchBy);
+        if (appliedSearchBy === "order") {
+          params.set("invoice", appliedSearch.trim().replace(/\D/g, ""));
+        } else {
+          params.set("search", appliedSearch.trim());
+          params.set("searchBy", appliedSearchBy);
+        }
       }
       const queryString = params.toString();
       const url = queryString ? `/api/orders?${queryString}` : `/api/orders`;
@@ -83,8 +87,12 @@ export default function AdminOrders() {
         params.set("status", statusFilter);
       }
       if (activeTab === "giveaways" && appliedSearch.trim()) {
-        params.set("search", appliedSearch.trim());
-        params.set("searchBy", appliedSearchBy);
+        if (appliedSearchBy === "order") {
+          params.set("invoice", appliedSearch.trim().replace(/\D/g, ""));
+        } else {
+          params.set("search", appliedSearch.trim());
+          params.set("searchBy", appliedSearchBy);
+        }
       }
       const response = await fetchWithAuth(`/api/orders?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) {
@@ -228,6 +236,10 @@ export default function AdminOrders() {
     // Search filter
     if (appliedSearch) {
       const invoice = String(order.invoice || order._id || '').toLowerCase();
+      if (appliedSearchBy === "order") {
+        // Server filters by exact invoice; mirror using digits only
+        return invoice.includes(appliedSearch.replace(/\D/g, ""));
+      }
       const customerName = typeof order.customer === 'object'
         ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.email || ''
         : '';
@@ -372,6 +384,7 @@ export default function AdminOrders() {
                     <SelectContent>
                       <SelectItem value="customer">Customer</SelectItem>
                       <SelectItem value="seller">Seller</SelectItem>
+                      <SelectItem value="order">Order #</SelectItem>
                     </SelectContent>
                   </Select>
                   
