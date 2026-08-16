@@ -4044,6 +4044,62 @@ If you have any questions, feel free to reach out to our support team.
     }
   });
 
+  // Update a user's pending wallet balance (walletPending) via the generic user edit endpoint
+  app.patch("/api/admin/users/:userId/wallet-pending", requireAdmin, checkDemoMode, async (req, res) => {
+    try {
+      const accessToken = getAdminToken(req);
+      const { userId } = req.params;
+      const { amount, deduct } = req.body;
+
+      if (!accessToken) {
+        return res.status(401).json({ success: false, error: "No access token found" });
+      }
+
+      if (amount === undefined || typeof amount !== 'number' || amount <= 0) {
+        return res.status(400).json({ success: false, error: "Amount is required and must be a positive number" });
+      }
+
+      // Fetch current user to compute the new pending balance
+      const userResponse = await fetch(`${BASE_URL}/users/${userId}`, {
+        headers: { "Authorization": `Bearer ${accessToken}` },
+      });
+      if (!userResponse.ok) {
+        return res.status(userResponse.status).json({ success: false, error: "Failed to fetch user" });
+      }
+      const userData = await userResponse.json();
+      const currentPending = Number(userData?.user?.walletPending ?? userData?.walletPending ?? 0) || 0;
+
+      const newPending = deduct ? currentPending - amount : currentPending + amount;
+      if (newPending < 0) {
+        return res.status(400).json({ success: false, error: `Insufficient pending balance ($${currentPending.toFixed(2)})` });
+      }
+
+      console.log(`[Pending Wallet Update] User ${userId}: ${currentPending} -> ${newPending}`);
+      const response = await fetch(`${BASE_URL}/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ walletPending: newPending }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({
+          success: false,
+          error: errorData.message || errorData.error || "Failed to update pending wallet",
+        });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, message: "Pending wallet updated successfully", newPending, data: data?.user ? { walletPending: data.user.walletPending } : undefined });
+    } catch (error: any) {
+      console.error(`Error updating pending wallet:`, error);
+      res.status(500).json({ success: false, error: "Failed to update pending wallet", details: error.message });
+    }
+  });
+
   app.patch("/api/admin/users/:userId/suspend", requireAdmin, checkDemoMode, async (req, res) => {
     try {
       const accessToken = getAdminToken(req);

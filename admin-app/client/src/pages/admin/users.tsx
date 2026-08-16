@@ -41,6 +41,7 @@ export default function AdminUsers() {
   const [walletNarration, setWalletNarration] = useState<string>("");
   const [walletDeduct, setWalletDeduct] = useState<boolean>(false);
   const [walletStripe, setWalletStripe] = useState<boolean>(true);
+  const [walletTarget, setWalletTarget] = useState<"available" | "pending">("available");
 
   // Redirect if not admin (in useEffect to avoid render-phase side effects)
   useEffect(() => {
@@ -230,20 +231,47 @@ export default function AdminUsers() {
     },
   });
 
+  // Update pending wallet mutation
+  const pendingWalletMutation = useMutation({
+    mutationFn: async ({ userId, amount, deduct }: { userId: string; amount: number; deduct: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/wallet-pending`, { amount, deduct });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setWalletDialogOpen(false);
+      setSelectedUserForWallet(null);
+      setWalletAmount("");
+      setWalletNarration("");
+      setWalletDeduct(false);
+      setWalletStripe(true);
+      setWalletTarget("available");
+      toast({ title: "Success", description: data?.message || "Pending wallet balance updated" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update pending wallet", variant: "destructive" });
+    },
+  });
+
   const handleOpenWalletDialog = (userToEdit: any) => {
     setSelectedUserForWallet(userToEdit);
     setWalletAmount("");
     setWalletNarration("");
     setWalletDeduct(false);
     setWalletStripe(true);
+    setWalletTarget("available");
     setWalletDialogOpen(true);
   };
 
   const handleUpdateWallet = () => {
     if (!selectedUserForWallet) return;
     const amount = parseFloat(walletAmount);
-    if (isNaN(amount) || amount < 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       toast({ title: "Invalid amount", description: "Please enter a valid positive number", variant: "destructive" });
+      return;
+    }
+    if (walletTarget === "pending") {
+      pendingWalletMutation.mutate({ userId: selectedUserForWallet._id || selectedUserForWallet.id, amount, deduct: walletDeduct });
       return;
     }
     const isSeller = !!selectedUserForWallet.seller;
@@ -664,11 +692,31 @@ export default function AdminUsers() {
           <DialogHeader>
             <DialogTitle>Update Wallet Balance</DialogTitle>
             <DialogDescription>
-              {walletDeduct ? "Debit (subtract from)" : "Credit (add to)"} the balance of {selectedUserForWallet?.firstName} {selectedUserForWallet?.lastName}.
-              Current balance: ${(selectedUserForWallet?.wallet || 0).toFixed(2)}
+              {walletDeduct ? "Debit (subtract from)" : "Credit (add to)"} the {walletTarget === "pending" ? "pending" : "available"} balance of {selectedUserForWallet?.firstName} {selectedUserForWallet?.lastName}.
+              {walletTarget === "pending"
+                ? ` Current pending balance: $${(selectedUserForWallet?.walletPending || 0).toFixed(2)}`
+                : ` Current balance: $${(selectedUserForWallet?.wallet || 0).toFixed(2)}`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="wallet-target">Balance</Label>
+              <Select
+                value={walletTarget}
+                onValueChange={(v) => {
+                  setWalletTarget(v as "available" | "pending");
+                  setWalletAmount("");
+                }}
+              >
+                <SelectTrigger id="wallet-target" data-testid="select-wallet-target">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available" data-testid="option-wallet-available">Available balance</SelectItem>
+                  <SelectItem value="pending" data-testid="option-wallet-pending">Pending balance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="wallet-type">Transaction type</Label>
               <Select
@@ -692,7 +740,7 @@ export default function AdminUsers() {
                   : "The amount below will be added to the current balance."}
               </p>
             </div>
-            {selectedUserForWallet?.seller && (
+            {walletTarget === "available" && selectedUserForWallet?.seller && (
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div className="space-y-0.5">
                   <Label htmlFor="wallet-stripe">Apply to Stripe</Label>
@@ -723,6 +771,7 @@ export default function AdminUsers() {
                 data-testid="input-wallet-amount"
               />
             </div>
+            {walletTarget === "available" && (
             <div className="space-y-2">
               <Label htmlFor="wallet-narration">Narration</Label>
               <textarea
@@ -734,6 +783,7 @@ export default function AdminUsers() {
                 data-testid="input-wallet-narration"
               />
             </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWalletDialogOpen(false)}>
@@ -741,10 +791,10 @@ export default function AdminUsers() {
             </Button>
             <Button
               onClick={handleUpdateWallet}
-              disabled={walletMutation.isPending}
+              disabled={walletMutation.isPending || pendingWalletMutation.isPending}
               data-testid="button-confirm-wallet-update"
             >
-              {walletMutation.isPending ? (
+              {(walletMutation.isPending || pendingWalletMutation.isPending) ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Updating...

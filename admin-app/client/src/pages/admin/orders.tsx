@@ -56,7 +56,8 @@ export default function AdminOrders() {
       }
       if (activeTab === "orders" && appliedSearch.trim()) {
         if (appliedSearchBy === "order") {
-          params.set("invoice", appliedSearch.trim().replace(/\D/g, ""));
+          // Send digits; a non-numeric term is sent as-is so the API matches nothing (instead of everything)
+          params.set("invoice", appliedSearch.trim().replace(/\D/g, "") || appliedSearch.trim());
         } else {
           params.set("search", appliedSearch.trim());
           params.set("searchBy", appliedSearchBy);
@@ -88,7 +89,7 @@ export default function AdminOrders() {
       }
       if (activeTab === "giveaways" && appliedSearch.trim()) {
         if (appliedSearchBy === "order") {
-          params.set("invoice", appliedSearch.trim().replace(/\D/g, ""));
+          params.set("invoice", appliedSearch.trim().replace(/\D/g, "") || appliedSearch.trim());
         } else {
           params.set("search", appliedSearch.trim());
           params.set("searchBy", appliedSearchBy);
@@ -237,8 +238,9 @@ export default function AdminOrders() {
     if (appliedSearch) {
       const invoice = String(order.invoice || order._id || '').toLowerCase();
       if (appliedSearchBy === "order") {
-        // Server filters by exact invoice; mirror using digits only
-        return invoice.includes(appliedSearch.replace(/\D/g, ""));
+        // Server filters by exact invoice; mirror with exact match on digits
+        const digits = appliedSearch.replace(/\D/g, "");
+        return digits !== "" && invoice === digits;
       }
       const customerName = typeof order.customer === 'object'
         ? `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || order.customer.email || ''
