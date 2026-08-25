@@ -1508,6 +1508,8 @@ If you have any questions, feel free to reach out to our support team.
       if (req.query.username) queryParams.append("username", req.query.username as string);
       if (req.query.type) queryParams.append("type", req.query.type as string);
       if (req.query.usertype) queryParams.append("usertype", req.query.usertype as string);
+      if (req.query.startDate) queryParams.append("startDate", req.query.startDate as string);
+      if (req.query.endDate) queryParams.append("endDate", req.query.endDate as string);
 
       const url = `${BASE_URL}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log(`Fetching transactions from: ${url}`);
