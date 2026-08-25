@@ -26,6 +26,8 @@ export default function AdminTransactions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [transactionsPage, setTransactionsPage] = useState(1);
@@ -60,7 +62,7 @@ export default function AdminTransactions() {
   };
 
   const { data: transactionsData, isLoading } = useQuery<any>({
-    queryKey: ['admin-transactions', transactionsPage, appliedSearch, typeFilter],
+    queryKey: ['admin-transactions', transactionsPage, appliedSearch, typeFilter, dateFrom, dateTo],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('limit', '10');
@@ -71,6 +73,14 @@ export default function AdminTransactions() {
       }
       if (typeFilter !== 'all') {
         params.append('type', typeFilter);
+      }
+      if (dateFrom) {
+        const [year, month, day] = dateFrom.split("-").map(Number);
+        params.append('startDate', new Date(year, month - 1, day, 0, 0, 0, 0).toISOString());
+      }
+      if (dateTo) {
+        const [year, month, day] = dateTo.split("-").map(Number);
+        params.append('endDate', new Date(year, month - 1, day, 23, 59, 59, 999).toISOString());
       }
       const response = await fetch(`/api/admin/transactions?${params.toString()}`, {
         credentials: 'include',
@@ -200,10 +210,12 @@ export default function AdminTransactions() {
     setSearchTerm("");
     setAppliedSearch("");
     setTypeFilter("all");
+    setDateFrom("");
+    setDateTo("");
     setTransactionsPage(1);
   };
 
-  const hasActiveFilters = appliedSearch || typeFilter !== "all";
+  const hasActiveFilters = appliedSearch || typeFilter !== "all" || dateFrom || dateTo;
 
   if (isLoading) {
     return (
@@ -295,6 +307,40 @@ export default function AdminTransactions() {
                     <SelectItem value="service_fee" data-testid="select-type-service-fee">Service Fee</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="space-y-1">
+                  <label htmlFor="transactions-date-from" className="text-xs font-medium text-muted-foreground">
+                    From date
+                  </label>
+                  <Input
+                    id="transactions-date-from"
+                    type="date"
+                    value={dateFrom}
+                    max={dateTo || undefined}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      setTransactionsPage(1);
+                    }}
+                    className="w-[155px]"
+                    data-testid="input-transactions-date-from"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="transactions-date-to" className="text-xs font-medium text-muted-foreground">
+                    To date
+                  </label>
+                  <Input
+                    id="transactions-date-to"
+                    type="date"
+                    value={dateTo}
+                    min={dateFrom || undefined}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      setTransactionsPage(1);
+                    }}
+                    className="w-[155px]"
+                    data-testid="input-transactions-date-to"
+                  />
+                </div>
                 <Button
                   onClick={handleSearch}
                   data-testid="button-search-transactions"

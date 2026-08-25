@@ -314,8 +314,16 @@ export function registerAdminRoutes(app: Express) {
 
       // Build query parameters
       const queryParams = new URLSearchParams();
-      if (req.query.page) queryParams.append("page", req.query.page as string);
-      if (req.query.limit) queryParams.append("limit", req.query.limit as string);
+      const filterByDate = Boolean(req.query.startDate || req.query.endDate);
+      const requestedPage = Number(req.query.page) || 1;
+      const requestedLimit = Number(req.query.limit) || 10;
+      if (filterByDate) {
+        queryParams.append("page", "1");
+        queryParams.append("limit", "10000");
+      } else {
+        if (req.query.page) queryParams.append("page", req.query.page as string);
+        if (req.query.limit) queryParams.append("limit", req.query.limit as string);
+      }
       if (req.query.title) queryParams.append("title", req.query.title as string);
       if (req.query.status) queryParams.append("status", req.query.status as string);
       if (req.query.search) queryParams.append("search", req.query.search as string);
@@ -347,7 +355,7 @@ export function registerAdminRoutes(app: Express) {
         });
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       console.log(`Users API data structure:`, Object.keys(data));
       console.log(`Pagination values - totalDoc: ${data.totalDoc}, limits: ${data.limits}, pages (current): ${data.pages}, users count: ${data.users?.length}`);
 
@@ -366,6 +374,34 @@ export function registerAdminRoutes(app: Express) {
 
       // API returns: { users: [...], totalDoc: number, limits: number, pages: currentPage }
       // Transform to include totalPages
+      if (filterByDate) {
+        const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+        const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+        const transactions = Array.isArray(data.data) ? data.data : [];
+        const filtered = transactions.filter((transaction: any) => {
+          const rawDate = transaction.date || transaction.createdAt;
+          if (!rawDate) return false;
+          const transactionDate = new Date(rawDate);
+          if (Number.isNaN(transactionDate.getTime())) return false;
+          if (startDate && transactionDate < startDate) return false;
+          if (endDate && transactionDate > endDate) return false;
+          return true;
+        });
+        const start = (requestedPage - 1) * requestedLimit;
+        const totalDocuments = filtered.length;
+
+        return res.json({
+          success: true,
+          data: {
+            ...data,
+            data: filtered.slice(start, start + requestedLimit),
+            totalDocuments,
+            totalPages: Math.max(1, Math.ceil(totalDocuments / requestedLimit)),
+            currentPage: requestedPage,
+          },
+        });
+      }
+
       res.json({
         success: true,
         data: {
