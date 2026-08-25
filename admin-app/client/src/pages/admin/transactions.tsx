@@ -63,6 +63,9 @@ export default function AdminTransactions() {
 
   const { data: transactionsData, isLoading } = useQuery<any>({
     queryKey: ['admin-transactions', transactionsPage, appliedSearch, typeFilter, dateFrom, dateTo],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('limit', '10');
@@ -84,6 +87,7 @@ export default function AdminTransactions() {
       }
       const response = await fetch(`/api/admin/transactions?${params.toString()}`, {
         credentials: 'include',
+        cache: 'no-store',
         headers: getAuthHeaders(),
       });
       if (!response.ok) {
@@ -102,9 +106,13 @@ export default function AdminTransactions() {
 
   const { data: refundsData, isLoading: refundsLoading } = useQuery<any>({
     queryKey: ['admin-refunds', refundsPage],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const response = await fetch(`/api/admin/transactions?limit=10&page=${refundsPage}&status=Refunded&usertype=admin`, {
         credentials: 'include',
+        cache: 'no-store',
         headers: getAuthHeaders(),
       });
       if (!response.ok) {
@@ -117,9 +125,13 @@ export default function AdminTransactions() {
 
   const { data: initiateData, isLoading: initiateLoading } = useQuery<any>({
     queryKey: ['admin-initiate-transactions', initiatePage],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const response = await fetch(`/api/admin/transactions?limit=10&page=${initiatePage}&type=initiate&usertype=admin`, {
         credentials: 'include',
+        cache: 'no-store',
         headers: getAuthHeaders(),
       });
       if (!response.ok) {

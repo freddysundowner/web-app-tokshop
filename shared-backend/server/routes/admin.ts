@@ -1491,6 +1491,10 @@ If you have any questions, feel free to reach out to our support team.
   // Get all transactions
   app.get("/api/admin/transactions", requireAdmin, async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+
       const accessToken = getAdminToken(req);
       
       if (!accessToken) {
@@ -1516,6 +1520,7 @@ If you have any questions, feel free to reach out to our support team.
       
       const response = await fetch(url, {
         method: "GET",
+        cache: "no-store",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
