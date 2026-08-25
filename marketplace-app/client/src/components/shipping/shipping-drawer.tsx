@@ -367,6 +367,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
     mutationFn: async (estimate: ShippingEstimate & { labelFileType?: string; priceDifference?: string }) => {
       const requestData: ShippingLabelPurchaseRequest & { 
         label_file_type?: string;
+        charge_seller?: boolean;
         estimate_data?: {
           price: string;
           carrier: string;
@@ -388,6 +389,7 @@ export function ShippingDrawer({ order, bundle, children, currentTab, open: exte
         carrier: estimate.carrier,
         deliveryTime: estimate.deliveryTime,
         label_file_type: estimate.labelFileType, // Add label file type
+        charge_seller: true,
         // Include weight and dimensions
         weight: parseFloat(weight),
         weight_unit: getWeightUnit(),
