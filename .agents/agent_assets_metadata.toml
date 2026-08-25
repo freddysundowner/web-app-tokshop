@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "q_chWVKyr7BI3Jbe5Ld5S"
+uri = "file://attached_assets/src-with-transaction-date-filter.zip"
+type = "unspecified"
+title = "External Node.js backend with transaction date filtering"
+description = "Updated backend source. The transactions endpoint now accepts startDate and endDate, filters MongoDB by the transaction date before pagination, validates invalid dates, and returns filtered totals."
