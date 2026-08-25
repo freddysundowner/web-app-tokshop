@@ -452,7 +452,6 @@ export function registerAuthRoutes(app: Express) {
       const data = parseResult.data;
       console.log("Social auth successful");
       console.log("Social auth response data keys:", Object.keys(data));
-      console.log("Social auth response:", JSON.stringify(responseData, null, 2));
 
       // Store session data and return access token for header-based persistence
       // API can return either accessToken or authtoken

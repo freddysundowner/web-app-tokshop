@@ -14,4 +14,5 @@ The country allowlist policy is served on the PUBLIC `/settings/keys` endpoint (
 - Effective semantics: switch off OR enabled+empty → null (no restriction, show all); enabled+non-empty → resolved list; enabled+absent → default 4 (IE,GB,US,DE).
 - A restriction is active iff the resolved list is non-null (`enabled: allowedCodes !== null`).
 - Client `settings-context` fetches `/api/settings/keys` on mount and sets a `policyLoaded` flag; pre-login pickers/gates key off `settingsFetched || policyLoaded`.
+- A 401/404 from optional `/api/settings` must never clear user auth or redirect to login. Some environments reject regular user tokens there even immediately after successful authentication; keep current/public settings instead.
 - Accepted tradeoff: if `/settings/keys` is unreachable on cold start with an empty cache, no restriction is applied (fail-open). Self-corrects via last-known-good cache + the post-login gate; the same endpoint powers Firebase config so an outage breaks sign-up anyway.

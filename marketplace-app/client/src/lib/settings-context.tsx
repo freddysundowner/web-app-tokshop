@@ -242,16 +242,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         } : {}
       });
       if (response.status === 401 || response.status === 404) {
-        if (token) {
-          console.log('[Settings] Token expired or user not found, logging out');
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
-          localStorage.removeItem('userId');
-          if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth')) {
-            window.location.href = '/login';
-          }
-          return;
-        }
+        // Settings are optional and some API environments do not authorize this
+        // endpoint with a regular user token. A settings failure must not invalidate
+        // an otherwise successful user login.
+        console.log(`[Settings] Settings unavailable (${response.status}); keeping current settings`);
+        setSettingsFetched(true);
+        return;
       }
       if (response.ok) {
         const data = await response.json();
