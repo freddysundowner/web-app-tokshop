@@ -1514,6 +1514,7 @@ If you have any questions, feel free to reach out to our support team.
       if (req.query.usertype) queryParams.append("usertype", req.query.usertype as string);
       if (req.query.startDate) queryParams.append("startDate", req.query.startDate as string);
       if (req.query.endDate) queryParams.append("endDate", req.query.endDate as string);
+      queryParams.set("_cacheBust", Date.now().toString());
 
       const url = `${BASE_URL}/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log(`Fetching transactions from: ${url}`);
@@ -1524,6 +1525,8 @@ If you have any questions, feel free to reach out to our support team.
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, max-age=0",
+          "Pragma": "no-cache",
         },
       });
 
