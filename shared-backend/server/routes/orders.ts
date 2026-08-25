@@ -147,6 +147,9 @@ export function registerOrderRoutes(app: Express) {
       
       // Build query parameters for Tokshop API
       const queryParams = new URLSearchParams();
+      const filterByLabelDate = req.query.dateField === 'shipment_date';
+      const requestedPage = Number(req.query.page) || 1;
+      const requestedLimit = Number(req.query.limit) || 20;
       
       // Add userId parameter (this is the key parameter for filtering user's orders)
       if (req.query.userId) {
@@ -156,10 +159,12 @@ export function registerOrderRoutes(app: Express) {
       if (req.query.status && req.query.status !== 'all') {
         queryParams.set('status', req.query.status as string);
       }
-      if (req.query.page) {
+      if (filterByLabelDate) {
+        queryParams.set('page', '1');
+        queryParams.set('limit', '10000');
+      } else if (req.query.page) {
         queryParams.set('page', req.query.page as string);
-      }
-      if (req.query.limit) {
+      } else if (req.query.limit) {
         queryParams.set('limit', req.query.limit as string);
       }
       if (req.query.invoice) {
@@ -181,10 +186,10 @@ export function registerOrderRoutes(app: Express) {
         queryParams.set('marketplace', req.query.marketplace as string);
       }
       // Add date filter parameters
-      if (req.query.startDate) {
+      if (req.query.startDate && !filterByLabelDate) {
         queryParams.set('startDate', req.query.startDate as string);
       }
-      if (req.query.endDate) {
+      if (req.query.endDate && !filterByLabelDate) {
         queryParams.set('endDate', req.query.endDate as string);
       }
       // Add platform_order filter for giveaway orders
@@ -234,6 +239,31 @@ export function registerOrderRoutes(app: Express) {
       }
       
       const data = await response.json() as any;
+
+      if (filterByLabelDate) {
+        const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+        const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+        const allOrders = Array.isArray(data.orders) ? data.orders : [];
+        const filteredOrders = allOrders.filter((order: any) => {
+          if (!order.shipment_date || !order.label) return false;
+          const generatedAt = new Date(order.shipment_date);
+          if (Number.isNaN(generatedAt.getTime())) return false;
+          if (startDate && generatedAt < startDate) return false;
+          if (endDate && generatedAt > endDate) return false;
+          return true;
+        });
+        const start = (requestedPage - 1) * requestedLimit;
+        const total = filteredOrders.length;
+
+        return res.json({
+          ...data,
+          orders: filteredOrders.slice(start, start + requestedLimit),
+          total,
+          limits: requestedLimit,
+          pages: Math.max(1, Math.ceil(total / requestedLimit)),
+          currentPage: requestedPage,
+        });
+      }
       
       // API returns: { orders: [...], total: number, limits: number, pages: currentPage }
       const total = data.total || 0;

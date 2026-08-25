@@ -90,6 +90,7 @@ export default function AdminShipments() {
   const [detailsDrawerOrder, setDetailsDrawerOrder] = useState<any>(null);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [dateFilterType, setDateFilterType] = useState<"order" | "label">("order");
   const { user } = useAuth();
 
   const { toast } = useToast();
@@ -138,12 +139,13 @@ export default function AdminShipments() {
     setSearchBy("customer");
     setDateFrom(undefined);
     setDateTo(undefined);
+    setDateFilterType("order");
     resetPaginationOnFilterChange();
   };
 
   const { data: orderResponse, isLoading: ordersLoading, error: ordersError, isError: ordersIsError, refetch: refetchOrders } =
     useQuery<any>({
-      queryKey: ["admin-shipments", statusFilter, debouncedSearchQuery, searchBy, currentPage, itemsPerPage, dateFrom?.toISOString(), dateTo?.toISOString()],
+      queryKey: ["admin-shipments", statusFilter, debouncedSearchQuery, searchBy, currentPage, itemsPerPage, dateFilterType, dateFrom?.toISOString(), dateTo?.toISOString()],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (statusFilter && statusFilter !== "all") {
@@ -154,10 +156,17 @@ export default function AdminShipments() {
           params.set("searchBy", searchBy);
         }
         if (dateFrom) {
-          params.set("startDate", format(dateFrom, "yyyy-MM-dd"));
+          params.set("startDate", dateFilterType === "label"
+            ? new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate(), 0, 0, 0, 0).toISOString()
+            : format(dateFrom, "yyyy-MM-dd"));
         }
         if (dateTo) {
-          params.set("endDate", format(dateTo, "yyyy-MM-dd"));
+          params.set("endDate", dateFilterType === "label"
+            ? new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString()
+            : format(dateTo, "yyyy-MM-dd"));
+        }
+        if (dateFilterType === "label") {
+          params.set("dateField", "shipment_date");
         }
         params.set("page", currentPage.toString());
         params.set("limit", itemsPerPage.toString());
@@ -400,6 +409,24 @@ export default function AdminShipments() {
                 </Select>
               </div>
 
+              <div className="w-full sm:w-52">
+                <Select
+                  value={dateFilterType}
+                  onValueChange={(value: "order" | "label") => {
+                    setDateFilterType(value);
+                    resetPaginationOnFilterChange();
+                  }}
+                >
+                  <SelectTrigger data-testid="select-date-filter-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="order">Order date</SelectItem>
+                    <SelectItem value="label">Label generated date</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Date From Filter */}
               <div className="w-full sm:w-auto">
                 <Popover>
@@ -410,7 +437,7 @@ export default function AdminShipments() {
                       data-testid="button-date-from"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateFrom ? format(dateFrom, "MMM d, yyyy") : "From date"}
+                      {dateFrom ? format(dateFrom, "MMM d, yyyy") : `From ${dateFilterType === "label" ? "label" : "order"} date`}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -434,7 +461,7 @@ export default function AdminShipments() {
                       data-testid="button-date-to"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateTo ? format(dateTo, "MMM d, yyyy") : "To date"}
+                      {dateTo ? format(dateTo, "MMM d, yyyy") : `To ${dateFilterType === "label" ? "label" : "order"} date`}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -521,6 +548,9 @@ export default function AdminShipments() {
                             )}
                           </div>
                         </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase whitespace-nowrap">
+                          Label Generated
+                        </th>
                         <th 
                           className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase whitespace-nowrap cursor-pointer select-none hover:bg-muted/80"
                           onClick={() => handleSort('items')}
@@ -571,7 +601,7 @@ export default function AdminShipments() {
                     <tbody className="bg-card divide-y divide-border">
                       {ordersLoading ? (
                         <tr>
-                          <td colSpan={8} className="px-4 py-12 text-center">
+                          <td colSpan={9} className="px-4 py-12 text-center">
                             <div className="flex flex-col items-center justify-center">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
                               <p className="text-muted-foreground">Loading shipments...</p>
@@ -580,7 +610,7 @@ export default function AdminShipments() {
                         </tr>
                       ) : displayItems.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-4 py-12 text-center">
+                          <td colSpan={9} className="px-4 py-12 text-center">
                             <Package2 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold text-foreground mb-2">No shipments found</h3>
                             <p className="text-muted-foreground">
@@ -666,6 +696,13 @@ export default function AdminShipments() {
                                         new Date(order.date || 0),
                                         "MMM dd, yyyy",
                                       )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3">
+                                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                                  {order.shipment_date
+                                    ? format(new Date(order.shipment_date), "MMM dd, yyyy")
+                                    : "—"}
                                 </div>
                               </td>
                               <td className="px-3 py-3">
