@@ -644,7 +644,9 @@ export function registerShippingRoutes(app: Express) {
         })
       }];
 
-      const charge_seller = (req.body as any).charge_seller ?? false;
+      // Seller label purchases are chargeable by default. Admin regeneration
+      // flows can still explicitly send false when the platform should pay.
+      const charge_seller = (req.body as any).charge_seller ?? true;
       const regenerate = (req.body as any).regenerate ?? false;
 
       console.log('Calling external shipping API:', `${BASE_URL}/shipping/profiles/buy/label`);
