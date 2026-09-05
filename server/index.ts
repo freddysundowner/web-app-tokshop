@@ -6,6 +6,7 @@
  * To run both apps, use: ./run-both.sh
  */
 
+import "../shared-backend/server/silence-console";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";

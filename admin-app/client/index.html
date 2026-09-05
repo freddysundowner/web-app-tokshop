@@ -6,6 +6,14 @@
     <title>Loading...</title>
     <meta name="description" content="Live streaming marketplace platform for sellers and buyers" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <script>
+      (() => {
+        const methods = ["log", "error", "warn", "info", "debug", "trace", "dir", "dirxml", "table", "group", "groupCollapsed", "groupEnd", "time", "timeLog", "timeEnd", "count", "countReset", "assert", "clear", "profile", "profileEnd", "timeStamp"];
+        methods.forEach((method) => {
+          console[method] = () => {};
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
